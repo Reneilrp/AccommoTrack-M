@@ -1,0 +1,100 @@
+/* Soon to Integrate */
+/* Database Schema for Payments Table */
+/*
+    CREATE TABLE payments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    booking_id BIGINT UNSIGNED NOT NULL,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    landlord_id BIGINT UNSIGNED NOT NULL,
+    payment_reference VARCHAR(100) UNIQUE NOT NULL,
+    payment_type ENUM('deposit', 'rent', 'refund', 'other') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    payment_method ENUM('cash', 'bank_transfer', 'card', 'online', 'other'),
+    payment_date DATE NOT NULL,
+    status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
+    transaction_id VARCHAR(255),
+    notes TEXT,
+    receipt_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE RESTRICT,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (landlord_id) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_booking (booking_id),
+    INDEX idx_tenant (tenant_id),
+    INDEX idx_landlord (landlord_id),
+    INDEX idx_status (status)
+);
+    */
+
+/* Soon to Integrate */
+/* Database Schema for Messages Table */
+/*
+    CREATE TABLE messages (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sender_id BIGINT UNSIGNED NOT NULL,
+    receiver_id BIGINT UNSIGNED NOT NULL,
+    property_id BIGINT UNSIGNED,
+    booking_id BIGINT UNSIGNED,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE SET NULL,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_conversation (sender_id, receiver_id),
+    INDEX idx_read (is_read)
+);
+    */
+
+
+/* Soon to Integrate */
+/* Database Schema for Notifications Table */
+/*      
+    CREATE TABLE notifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    related_id BIGINT UNSIGNED,
+    related_type VARCHAR(50),
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user (user_id),
+    INDEX idx_read (is_read),
+    INDEX idx_type (type)
+);
+    */
+
+
+/* Soon to Integrate */
+/* do we really need this document? but kuya vince dont have document*/
+/* Database Schema for Documents Table */
+    /* 
+    CREATE TABLE documents (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    booking_id BIGINT UNSIGNED,
+    document_type ENUM('id_card', 'contract', 'receipt', 'other') NOT NULL,
+    document_name VARCHAR(255) NOT NULL,
+    document_url VARCHAR(255) NOT NULL,
+    file_size INT,
+    mime_type VARCHAR(100),
+    uploaded_by BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_user (user_id),
+    INDEX idx_booking (booking_id),
+    INDEX idx_type (document_type)
+);
+    */
