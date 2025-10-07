@@ -75,3 +75,135 @@ CREATE TABLE properties (
     INDEX idx_published (is_published),
     INDEX idx_available (is_available)
 );
+
+-- Property Amenities
+CREATE TABLE amenities (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category ENUM('basic', 'comfort', 'safety', 'other') DEFAULT 'other',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_name (name)
+);
+
+-- Property Amenities Junction Table
+CREATE TABLE property_amenities (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    amenity_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    FOREIGN KEY (amenity_id) REFERENCES amenities(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_property_amenity (property_id, amenity_id)
+);
+
+-- Property Images
+CREATE TABLE property_images (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    image_url VARCHAR(255) NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,
+    display_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    INDEX idx_property (property_id)
+);
+
+-- Bookings/Reservations
+CREATE TABLE bookings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    landlord_id BIGINT UNSIGNED NOT NULL,
+    booking_reference VARCHAR(50) UNIQUE NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_months INT NOT NULL,
+    monthly_rent DECIMAL(10, 2) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    status ENUM('pending', 'confirmed', 'cancelled', 'completed', 'rejected') DEFAULT 'pending',
+    payment_status ENUM('unpaid', 'partial', 'paid', 'refunded') DEFAULT 'unpaid',
+    notes TEXT,
+    cancelled_at TIMESTAMP NULL,
+    cancellation_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE RESTRICT,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (landlord_id) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_tenant (tenant_id),
+    INDEX idx_landlord (landlord_id),
+    INDEX idx_status (status),
+    INDEX idx_dates (start_date, end_date)
+);
+
+-- Reviews and Ratings
+CREATE TABLE reviews (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    booking_id BIGINT UNSIGNED NOT NULL,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    cleanliness_rating INT CHECK (cleanliness_rating >= 1 AND cleanliness_rating <= 5),
+    location_rating INT CHECK (location_rating >= 1 AND location_rating <= 5),
+    value_rating INT CHECK (value_rating >= 1 AND value_rating <= 5),
+    communication_rating INT CHECK (communication_rating >= 1 AND communication_rating <= 5),
+    comment TEXT,
+    is_published BOOLEAN DEFAULT TRUE,
+    landlord_response TEXT,
+    landlord_response_date TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_booking_review (booking_id),
+    INDEX idx_property (property_id),
+    INDEX idx_rating (rating)
+);
+
+-- Favorites/Wishlist
+CREATE TABLE favorites (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    property_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_favorite (tenant_id, property_id),
+    INDEX idx_tenant (tenant_id)
+);
+
+-- Property Rules
+CREATE TABLE property_rules (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    rule_type ENUM('allowed', 'not_allowed', 'policy') NOT NULL,
+    rule_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    INDEX idx_property (property_id)
+);
+
+-- Maintenance Requests (Optional but useful)
+CREATE TABLE maintenance_requests (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    booking_id BIGINT UNSIGNED NOT NULL,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    landlord_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
+    status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
+    images TEXT,
+    resolved_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (landlord_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_property (property_id),
+    INDEX idx_status (status),
+    INDEX idx_landlord (landlord_id)
+);
