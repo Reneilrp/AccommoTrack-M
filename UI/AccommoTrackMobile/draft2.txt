@@ -1,0 +1,212 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import LandingPages from './src/core/LandingPages/LandingPages.jsx';
+import AuthScreens from './src/core/AuthScreen/Mobile-Auth.jsx';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import TenantHomePage from './src/mobile-student/src/TenantHomePage/HomePage.jsx';
+import { Ionicons } from '@expo/vector-icons';
+
+const Stack = createNativeStackNavigator();
+
+// Landlord Placeholder Component with Logout
+function LandlordPlaceholder() {
+  const navigation = useNavigation();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('user');
+              navigation.replace('Auth');
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  return (
+    <View style={styles.placeholderContainer}>
+      <Ionicons name="construct" size={80} color="#7C3AED" style={{ marginBottom: 20 }} />
+      <Text style={styles.placeholderTitle}>Landlord Dashboard</Text>
+      <Text style={styles.placeholderText}>Coming Soon</Text>
+      <Text style={styles.placeholderSubtext}>
+        The landlord dashboard is under construction.{'\n'}
+        Check back soon!
+      </Text>
+      
+      <TouchableOpacity 
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
+        <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [showLanding, setShowLanding] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    checkAppState();
+  }, []);
+
+  const checkAppState = async () => {
+    try {
+      // Check if first launch
+      const hasLaunched = await AsyncStorage.getItem('hasLaunched');
+      
+      // Check if user is logged in
+      const token = await AsyncStorage.getItem('token');
+      const userString = await AsyncStorage.getItem('user');
+
+      if (hasLaunched === null) {
+        // First time launching - show landing pages
+        setShowLanding(true);
+        setIsAuthenticated(false);
+      } else if (token && userString) {
+        // User is logged in - check their role
+        const user = JSON.parse(userString);
+        setIsAuthenticated(true);
+        setUserRole(user.role);
+        setShowLanding(false);
+      } else {
+        // Not first launch, not logged in - show auth
+        setShowLanding(false);
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('Error checking app state:', error);
+      setShowLanding(false);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFinishLanding = async () => {
+    try {
+      await AsyncStorage.setItem('hasLaunched', 'true');
+    } catch (error) {
+      console.error('Error saving launch status:', error);
+    }
+    setShowLanding(false);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
+
+  // Show landing pages on first launch
+  if (showLanding) {
+    return <LandingPages onFinish={handleFinishLanding} />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!isAuthenticated ? (
+            // Not logged in - show auth screen
+            <Stack.Screen name="Auth" component={AuthScreens} />
+          ) : (
+            // Logged in - show appropriate home based on role
+            <>
+              {userRole === 'tenant' && (
+                <Stack.Screen name="TenantHome" component={TenantHomePage} />
+              )}
+              {userRole === 'landlord' && (
+                // Add your landlord home component here when ready
+                <Stack.Screen 
+                  name="LandlordHome" 
+                  component={LandlordPlaceholder}
+                />
+              )}
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 24,
+  },
+  placeholderTitle: {
+    fontSize: 28,
+    color: '#111827',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  placeholderText: {
+    fontSize: 18,
+    color: '#7C3AED',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  placeholderSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 32,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
