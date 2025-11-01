@@ -7,6 +7,16 @@ import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
 import TenantHomePage from '../mobile-student/src/TenantHomePage/HomePage.jsx';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/AppNavigator.js';
+import MessagesPage from '../mobile-student/src/Messages/MessagesPage.jsx';
+import AccommodationDetails from '../mobile-student/src/components/AccommodationDetails.jsx';
+import ProfilePage from '../mobile-student/src/Profile/ProfilePage.jsx';
+
+// Temporary pages
+import MyBookings from '../mobile-student/src/Menu/MyBookings.jsx';
+import Favorites from '../mobile-student/src/Menu/Favorites.jsx';
+import Payments from '../mobile-student/src/Menu/Payments.jsx';
+import Settings from '../mobile-student/src/Menu/Settings.jsx';
+import HelpSupport from '../mobile-student/src/Menu/HelpSupport.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -47,8 +57,8 @@ function LandlordPlaceholder({ navigation }) {
         The landlord dashboard is under construction.{'\n'}
         Check back soon!
       </Text>
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         style={styles.logoutButton}
         onPress={handleLogout}
       >
@@ -70,18 +80,13 @@ export default function AppNavigator() {
 
   const checkAppState = async () => {
     try {
-      // Check if first launch
       const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-      
-      // Check if user is logged in
       const token = await AsyncStorage.getItem('token');
       const userString = await AsyncStorage.getItem('user');
 
       if (hasLaunched === null) {
-        // First time launching - show landing pages
         setInitialRoute('Landing');
       } else if (token && userString) {
-        // User is logged in - check their role
         const user = JSON.parse(userString);
         if (user.role === 'tenant') {
           setInitialRoute('TenantHome');
@@ -91,7 +96,6 @@ export default function AppNavigator() {
           setInitialRoute('Auth');
         }
       } else {
-        // Not first launch, not logged in - show auth
         setInitialRoute('Auth');
       }
     } catch (error) {
@@ -111,13 +115,20 @@ export default function AppNavigator() {
   }
 
   return (
-    <Stack.Navigator 
+    <Stack.Navigator
       initialRouteName={initialRoute}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        animation: 'none',
+        animationTypeForReplace: 'pop',
+      }}
     >
-      <Stack.Screen name="Landing">
+      <Stack.Screen
+        name="Landing"
+        options={{ animation: 'none' }}
+      >
         {(props) => (
-          <LandingPages 
+          <LandingPages
             {...props}
             onFinish={async () => {
               await AsyncStorage.setItem('hasLaunched', 'true');
@@ -126,10 +137,73 @@ export default function AppNavigator() {
           />
         )}
       </Stack.Screen>
-      <Stack.Screen name="Auth" component={AuthScreens} />
-      <Stack.Screen name="TenantHome" component={TenantHomePage} />
-      <Stack.Screen name="LandlordHome" component={LandlordPlaceholder} />
+
+      <Stack.Screen
+        name="Auth"
+        component={AuthScreens}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="TenantHome"
+        component={TenantHomePage}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="Profile"
+        component={ProfilePage}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="AccommodationDetails"
+        component={AccommodationDetails}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="Messages"
+        component={MessagesPage}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="LandlordHome"
+        component={LandlordPlaceholder}
+        options={{ animation: 'none' }}
+      />
+
+      {/* Temporary Pages */}
+      <Stack.Screen
+        name="MyBookings"
+        component={MyBookings}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="Favorites"
+        component={Favorites}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="Payments"
+        component={Payments}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="Settings"
+        component={Settings}
+        options={{ animation: 'none' }}
+      />
+
+      <Stack.Screen
+        name="HelpSupport"
+        component={HelpSupport}
+        options={{ animation: 'none' }}
+      />
     </Stack.Navigator>
   );
 }
-

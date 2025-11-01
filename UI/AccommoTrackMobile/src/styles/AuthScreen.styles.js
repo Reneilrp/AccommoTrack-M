@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: 'white',
   },
   scrollContent: {
     flexGrow: 1,
@@ -20,6 +20,48 @@ export const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 50,
+
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 90,
+    height: 90,
+  },
+  logoTextContainer: {
+    marginLeft: -20,
+  },
+  logoTextGreen: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#00A651',
+    letterSpacing: -0.5,
+  },
+  logoTextGray: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#757575',
+    letterSpacing: -0.5,
+    marginTop: -5,
+    marginLeft: -10,
+  },
+
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  backButtonText: {
+    color: '#00A651',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
   header: {
     alignItems: 'center',
     marginBottom: 24,
@@ -27,22 +69,14 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
+    color: '#07770B',
+    marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
   },
-  roleContainer: {
-    marginBottom: 20,
-  },
-  roleLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 12,
-  },
+
   roleButtons: {
     flexDirection: 'row',
     gap: 12,
@@ -57,7 +91,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   roleButtonActive: {
-    borderColor: '#8B5CF6',
+    borderColor: '#07770B',
     backgroundColor: '#F3F4F6',
   },
   roleButtonText: {
@@ -66,7 +100,7 @@ export const styles = StyleSheet.create({
     color: '#374151',
   },
   roleButtonTextActive: {
-    color: '#8B5CF6',
+    color: '#07770B',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -113,11 +147,46 @@ export const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#8B5CF6',
+    color: 'black',
     fontWeight: '500',
+    opacity: 0.5,
   },
+
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    marginRight: 12,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#00A651',
+    borderColor: '#00A651',
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  termsLink: {
+    color: '#00A651',
+    fontWeight: '600',
+  },
+
   submitButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#07770B',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -184,7 +253,7 @@ export const styles = StyleSheet.create({
   },
   toggleLink: {
     fontSize: 14,
-    color: '#8B5CF6',
+    color: '#07770B',
     fontWeight: '600',
   },
 });

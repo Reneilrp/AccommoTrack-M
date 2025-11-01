@@ -1,15 +1,14 @@
 {
   "expo": {
-    "name": "AccommoTrackMobile",
-    "slug": "AccommoTrackMobile",
+    "name": "",
+    "slug": "AccommoTrack",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/AT-Logo.png",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/AT-Logo.png",
+      "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },
     "ios": {
@@ -17,7 +16,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/AT-Logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "splash": {
+        "image": "./assets/AT-Logo.png",
+        "resizeMode": "cover",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

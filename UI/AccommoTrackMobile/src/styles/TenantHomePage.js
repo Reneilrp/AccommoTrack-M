@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
         backgroundColor: '#F9FAFB',
     },
     header: {
-        backgroundColor: '#7C3AED',
+        backgroundColor: '#00A651',
         paddingHorizontal: 24,
         paddingTop: 40,
         paddingBottom: 20,
@@ -39,6 +39,8 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 10,
         elevation: 30,
+        zIndex: 1001,
+
     },
     menuHeader: {
         flexDirection: 'row',
@@ -59,7 +61,7 @@ export const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: '#EDE9FE',
+        backgroundColor: '#D1FAE5', // Changed to green tint
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -90,13 +92,11 @@ export const styles = StyleSheet.create({
         color: '#374151',
         fontWeight: '500',
     },
-
     searchContainer: {
         paddingHorizontal: 20,
         marginTop: 5,
         marginBottom: 24,
     },
-
     searchBar: {
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
@@ -117,7 +117,7 @@ export const styles = StyleSheet.create({
         color: '#111827',
     },
     searchButton: {
-        backgroundColor: '#7C3AED',
+        backgroundColor: '#00A651',
         paddingHorizontal: 20,
         paddingVertical: 8,
         borderRadius: 12,
@@ -142,8 +142,8 @@ export const styles = StyleSheet.create({
         marginRight: 12,
     },
     tabActive: {
-        backgroundColor: '#7C3AED',
-        shadowColor: '#7C3AED',
+        backgroundColor: '#00A651',
+        shadowColor: '#00A651',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -159,6 +159,7 @@ export const styles = StyleSheet.create({
     },
     cardsContainer: {
         paddingHorizontal: 24,
+        paddingBottom: 80,
     },
     card: {
         backgroundColor: '#FFFFFF',
@@ -244,14 +245,14 @@ export const styles = StyleSheet.create({
     amenityBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F3E8FF',
+        backgroundColor: '#D1FAE5',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 8,
     },
     amenityText: {
         fontSize: 12,
-        color: '#7C3AED',
+        color: '#00A651',
         marginLeft: 4,
         fontWeight: '500',
     },
@@ -266,14 +267,14 @@ export const styles = StyleSheet.create({
     price: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#7C3AED',
+        color: '#00A651',
     },
     priceLabel: {
         fontSize: 12,
         color: '#9CA3AF',
     },
     viewButton: {
-        backgroundColor: '#7C3AED',
+        backgroundColor: '#00A651',
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 12,
@@ -287,17 +288,18 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingVertical: 24,
         alignItems: 'center',
+        marginBottom: 80,
     },
     loadMoreButton: {
         backgroundColor: '#FFFFFF',
         borderWidth: 2,
-        borderColor: '#7C3AED',
+        borderColor: '#00A651',
         paddingHorizontal: 32,
         paddingVertical: 12,
         borderRadius: 12,
     },
     loadMoreText: {
-        color: '#7C3AED',
+        color: '#00A651',
         fontWeight: '600',
         fontSize: 16,
     },
@@ -314,7 +316,7 @@ export const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#7C3AED',
+        backgroundColor: '#4CAF50',
     },
     activeFilterContainer: {
         marginTop: 12,
@@ -324,19 +326,23 @@ export const styles = StyleSheet.create({
     activeFilterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#EDE9FE',
+        backgroundColor: '#E8F5E9',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 16,
         gap: 6,
     },
     activeFilterText: {
-        color: '#7C3AED',
+        color: '#4CAF50',
         fontSize: 14,
         fontWeight: '600',
     },
     modalOverlay: {
-        flex: 1,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'flex-end',
     },
@@ -346,6 +352,8 @@ export const styles = StyleSheet.create({
         borderTopRightRadius: 24,
         paddingBottom: 40,
         maxHeight: '70%',
+        zIndex: 1001,
+
     },
     modalHeader: {
         flexDirection: 'row',
@@ -375,8 +383,8 @@ export const styles = StyleSheet.create({
         borderColor: 'transparent',
     },
     filterOptionActive: {
-        backgroundColor: '#EDE9FE',
-        borderColor: '#7C3AED',
+        backgroundColor: '#E8F5E9',
+        borderColor: '#4CAF50',
     },
     filterOptionContent: {
         flexDirection: 'row',
@@ -389,14 +397,14 @@ export const styles = StyleSheet.create({
         fontWeight: '500',
     },
     filterOptionTextActive: {
-        color: '#7C3AED',
+        color: '#4CAF50',
         fontWeight: '600',
     },
     typeBadge: {
         position: 'absolute',
         top: 12,
         left: 12,
-        backgroundColor: 'rgba(124, 58, 237, 0.9)',
+        backgroundColor: 'rgba(0, 166, 81, 0.9)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 8,
@@ -405,6 +413,33 @@ export const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '600',
+    },
+    // BOTTOM NAVIGATION STYLES
+    bottomNav: {
+        flexDirection: 'row',
+        backgroundColor: '#4CAF50',
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
+        paddingVertical: 10,
+        paddingBottom: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        zIndex: 1001,
+
+    },
+    navItem: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+    },
+    activeIndicator: {
+        width: 40,
+        height: 3,
+        backgroundColor: '#FDD835',
+        borderRadius: 2,
+        marginTop: 4,
     },
 });
 
