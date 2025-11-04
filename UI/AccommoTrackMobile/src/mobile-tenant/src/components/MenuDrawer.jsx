@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/TenantHomePage.js';
 
 const menuItems = [
@@ -12,7 +13,32 @@ const menuItems = [
   { id: 7, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
 ];
 
-export default function MenuDrawer({ visible, onClose, onMenuItemPress, userName = "John Doe", userEmail = "john.doe@example.com" }) {
+export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
+  const [userName, setUserName] = useState("John Doe");
+  const [userEmail, setUserEmail] = useState("john.doe@example.com");
+
+  useEffect(() => {
+    if (visible) {
+      loadUserData();
+    }
+  }, [visible]);
+
+  const loadUserData = async () => {
+    try {
+      const userString = await AsyncStorage.getItem('user');
+      if (userString) {
+        const user = JSON.parse(userString);
+        const fullName = user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : 'John Doe';
+        setUserName(fullName);
+        setUserEmail(user.email || 'john.doe@example.com');
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
   return (
     <Modal
       animationType="slide"
