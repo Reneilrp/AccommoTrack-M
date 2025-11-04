@@ -16,10 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 
 const API_URL = 'http://192.168.254.106:8000/api';
 
-export default function AuthScreen() {
+export default function AuthScreen({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [signupStep, setSignupStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -114,12 +115,8 @@ export default function AuthScreen() {
 
   const handleLogin = async () => {
     if (!validateLoginForm()) return;
-
     setLoading(true);
     setError('');
-
-    console.log('🚀 Starting login...');
-    console.log('🔗 API URL:', `${API_URL}/login`);
 
     try {
       const response = await fetch(`${API_URL}/login`, {
@@ -135,34 +132,22 @@ export default function AuthScreen() {
       });
 
       const data = await response.json();
-      console.log('📦 Response data:', data);
 
       if (response.ok) {
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
-
-        console.log('✅ Login successful!');
-        console.log('👤 User role:', data.user.role);
-
-        if (data.user.role === 'tenant') {
-          console.log('🏠 Navigating to Tenant Home...');
-          navigation.replace('TenantHome');
-        } else if (data.user.role === 'landlord') {
-          console.log('🏢 Landlord detected - No page yet');
-          Alert.alert(
-            'Welcome Landlord!',
-            'Landlord dashboard coming soon. For now, only tenant access is available.',
-            [{ text: 'OK' }]
-          );
-        } else {
-          Alert.alert('Error', 'Invalid user role. Please contact support.');
+        
+        console.log('✅ Login successful! Role:', data.user.role);
+        
+        // ✅ Call the callback to trigger navigation
+        if (onLoginSuccess) {
+          onLoginSuccess(data.user.role);
         }
       } else {
-        console.log('❌ Login failed:', data.message);
         setError(data.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      console.error('❌ Network Error:', err.message);
+      console.error('❌ Error:', err);
       setError('Network error. Please check your connection.');
     } finally {
       setLoading(false);
@@ -269,9 +254,6 @@ export default function AuthScreen() {
           </View>
         </View>
         <View style={styles.card}>
-          {/* Logo */}
-
-
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
@@ -483,7 +465,7 @@ export default function AuthScreen() {
                       disabled={loading}
                     >
                       <Ionicons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        name={!showPassword ? 'eye-off-outline' : 'eye-outline'}
                         size={20}
                         color="#9CA3AF"
                       />
@@ -549,7 +531,7 @@ export default function AuthScreen() {
                       <Text style={styles.submitButtonText}>Sign Up</Text>
                     )}
                   </TouchableOpacity>
-                </View>
+                </View> // This correctly closes the <View style={styles.form}> for Step 2
               )}
             </>
           )}
