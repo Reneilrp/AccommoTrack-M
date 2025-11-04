@@ -7,7 +7,7 @@ function Register({ onSwitchToLogin }) {
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'tenant', // default role
+    role: 'tenant',
     phone: '',
   });
   const [error, setError] = useState('');
@@ -120,7 +120,6 @@ function Register({ onSwitchToLogin }) {
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               required
             >
-              <option value="tenant">Tenant</option>
               <option value="landlord">Landlord</option>
             </select>
           </div>

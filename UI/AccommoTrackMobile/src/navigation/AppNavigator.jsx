@@ -109,7 +109,7 @@ export default function AppNavigator() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8B5CF6" />
+        <ActivityIndicator size="large" color="#07770B" />
       </View>
     );
   }
