@@ -82,19 +82,13 @@ DB_USERNAME=root
 DB_PASSWORD=    # (default for XAMPP is empty)
 ```
 
-4. Generate application key (Laravel):
-
-```bash
-php artisan key:generate
-```
-
-5. Run migrations (if applicable):
+4. Run migrations (if applicable):
 
 ```bash
 php artisan migrate
 ```
 
-6. Start the Laravel development server **binding to your machine IP** (so mobile devices can reach it):
+5. Start the Laravel development server **binding to your machine IP** (so mobile devices can reach it):
 
 ```bash
 php artisan serve --host="YOUR_LAPTOP_IP_ADDRESS" --port=8000

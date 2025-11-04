@@ -21,7 +21,7 @@ const API_URL = 'http://192.168.254.106:8000/api';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
-  const [signupStep, setSignupStep] = useState(1); // 1 = first step, 2 = second step
+  const [signupStep, setSignupStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -275,7 +275,7 @@ export default function AuthScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              {isLogin ? 'Log In' : 'Create Account'}
             </Text>
             {!isLogin && (
               <Text style={styles.subtitle}>
@@ -561,7 +561,7 @@ export default function AuthScreen() {
             </Text>
             <TouchableOpacity onPress={toggleScreen}>
               <Text style={styles.toggleLink}>
-                {isLogin ? 'Sign Up' : 'Sign In'}
+                {isLogin ? 'Sign Up' : 'Log In'}
               </Text>
             </TouchableOpacity>
           </View>

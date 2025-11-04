@@ -4,19 +4,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
-import TenantHomePage from '../mobile-student/src/TenantHomePage/HomePage.jsx';
+import TenantHomePage from '../mobile-tenant/src/TenantHomePage/HomePage.jsx';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/AppNavigator.js';
-import MessagesPage from '../mobile-student/src/Messages/MessagesPage.jsx';
-import AccommodationDetails from '../mobile-student/src/components/AccommodationDetails.jsx';
-import ProfilePage from '../mobile-student/src/Profile/ProfilePage.jsx';
+import MessagesPage from '../mobile-tenant/src/Messages/MessagesPage.jsx';
+import AccommodationDetails from '../mobile-tenant/src/components/AccommodationDetails.jsx';
+import ProfilePage from '../mobile-tenant/src/Profile/ProfilePage.jsx';
 
 // Temporary pages
-import MyBookings from '../mobile-student/src/Menu/MyBookings.jsx';
-import Favorites from '../mobile-student/src/Menu/Favorites.jsx';
-import Payments from '../mobile-student/src/Menu/Payments.jsx';
-import Settings from '../mobile-student/src/Menu/Settings.jsx';
-import HelpSupport from '../mobile-student/src/Menu/HelpSupport.jsx';
+import MyBookings from '../mobile-tenant/src/Menu/MyBookings.jsx';
+import Favorites from '../mobile-tenant/src/Menu/Favorites.jsx';
+import Payments from '../mobile-tenant/src/Menu/Payments.jsx';
+import Settings from '../mobile-tenant/src/Menu/Settings.jsx';
+import HelpSupport from '../mobile-tenant/src/Menu/HelpSupport.jsx';
 
 const Stack = createNativeStackNavigator();
 
