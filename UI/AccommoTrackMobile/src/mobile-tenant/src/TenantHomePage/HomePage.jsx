@@ -3,7 +3,7 @@ import { View, ScrollView, StatusBar, TouchableOpacity, Text, Alert } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../styles/TenantHomePage.js';
+import { styles } from '../../../styles/Tenant/TenantHomePage.js';
 
 import Header from '../components/Header.jsx';
 import MenuDrawer from '../components/MenuDrawer.jsx';

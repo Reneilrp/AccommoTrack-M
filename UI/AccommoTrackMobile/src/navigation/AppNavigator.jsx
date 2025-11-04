@@ -2,14 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+{/* Core */}
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
+{/* Tenant UI */}
 import TenantHomePage from '../mobile-tenant/src/TenantHomePage/HomePage.jsx';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/AppNavigator.js';
 import MessagesPage from '../mobile-tenant/src/Messages/MessagesPage.jsx';
 import AccommodationDetails from '../mobile-tenant/src/components/AccommodationDetails.jsx';
 import ProfilePage from '../mobile-tenant/src/Profile/ProfilePage.jsx';
+
+{/*Landlord UI */}
+import LandlordDashboard from '../mobile-landlord/src/Dashboard/DashboardPage.jsx';
 
 // Temporary pages
 import MyBookings from '../mobile-tenant/src/Menu/MyBookings.jsx';
@@ -170,7 +176,7 @@ export default function AppNavigator() {
 
       <Stack.Screen
         name="LandlordHome"
-        component={LandlordPlaceholder}
+        component={LandlordDashboard}
         options={{ animation: 'none' }}
       />
 

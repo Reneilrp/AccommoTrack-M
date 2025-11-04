@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/MessagesPage.js';
+import { styles } from '../../../styles/Tenant/MessagesPage.js';
 import BottomNavigation from '../components/BottomNavigation.jsx';
 import { featuredAccommodation } from '../TenantHomePage/Data/AccommodationData.js';
 

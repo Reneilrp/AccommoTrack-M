@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../styles/AccommodationDetails.js';
+import { styles } from '../../../styles/Tenant/AccommodationDetails.js';
 
 const { width } = Dimensions.get('window');
 

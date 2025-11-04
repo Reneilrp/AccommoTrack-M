@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../styles/ProfilePage.js';
+import { styles } from '../../../styles/Tenant/ProfilePage.js';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
