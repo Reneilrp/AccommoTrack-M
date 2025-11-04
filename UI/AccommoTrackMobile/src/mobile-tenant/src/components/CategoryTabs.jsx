@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text } from 'react-native';
-import { styles } from '../../../styles/TenantHomePage.js';
+import { styles } from '../../../styles/Tenant/TenantHomePage.js';
 
 const tabs = [
   { id: 'featured', label: '⭐ Featured' },

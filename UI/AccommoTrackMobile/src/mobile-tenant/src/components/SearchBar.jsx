@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/TenantHomePage.js';
+import { styles } from '../../../styles/Tenant/TenantHomePage.js';
 
 export default function SearchBar({ 
   searchQuery, 

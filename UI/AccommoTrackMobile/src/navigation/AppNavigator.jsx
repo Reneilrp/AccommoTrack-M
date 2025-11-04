@@ -13,16 +13,13 @@ import { styles } from '../styles/AppNavigator.js';
 import MessagesPage from '../mobile-tenant/src/Messages/MessagesPage.jsx';
 import AccommodationDetails from '../mobile-tenant/src/components/AccommodationDetails.jsx';
 import ProfilePage from '../mobile-tenant/src/Profile/ProfilePage.jsx';
-
-{/*Landlord UI */}
-import LandlordDashboard from '../mobile-landlord/src/Dashboard/DashboardPage.jsx';
-
-// Temporary pages
 import MyBookings from '../mobile-tenant/src/Menu/MyBookings.jsx';
 import Favorites from '../mobile-tenant/src/Menu/Favorites.jsx';
 import Payments from '../mobile-tenant/src/Menu/Payments.jsx';
 import Settings from '../mobile-tenant/src/Menu/Settings.jsx';
 import HelpSupport from '../mobile-tenant/src/Menu/HelpSupport.jsx';
+
+{/*Landlord UI */}
 
 const Stack = createNativeStackNavigator();
 
@@ -174,11 +171,11 @@ export default function AppNavigator() {
         options={{ animation: 'none' }}
       />
 
-      <Stack.Screen
+      {/*<Stack.Screen
         name="LandlordHome"
         component={LandlordDashboard}
         options={{ animation: 'none' }}
-      />
+      />*/}
 
       {/* Temporary Pages */}
       <Stack.Screen
