@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import styles from '../../../styles/Landlord/Settings';
+import { styles } from '../../../styles/Landlord/About';
 
 export default function About({ navigation }) {
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -57,12 +57,16 @@ export default function About({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Developed By</Text>
           <View style={styles.settingsCard}>
-            <View style={styles.settingItem}>
+            <TouchableOpacity 
+              style={styles.settingItem}
+              onPress={() => navigation.navigate('DevTeam')}
+            >
               <View style={styles.settingLeft}>
                 <Ionicons name="person-circle-outline" size={22} color="#4CAF50" />
                 <Text style={styles.settingLabel}>AccommoTrack Dev Team</Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={22} color="#666" />
+            </TouchableOpacity>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <Ionicons name="mail-outline" size={22} color="#4CAF50" />

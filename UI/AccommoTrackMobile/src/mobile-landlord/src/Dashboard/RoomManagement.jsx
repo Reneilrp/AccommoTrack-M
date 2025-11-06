@@ -12,6 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/RoomManagement.js';
+import R101 from '../../../../assets/101.jpeg';
+import R102 from '../../../../assets/102.jpeg';
+import R103 from '../../../../assets/103.jpeg';
+import R201 from '../../../../assets/201.jpeg';
+
+
 
 export default function RoomManagementScreen({ navigation }) {
   const [filterStatus, setFilterStatus] = useState('all');
@@ -28,7 +34,7 @@ export default function RoomManagementScreen({ navigation }) {
       capacity: 1,
       occupied: 1,
       tenant: 'Pheinz Magnun',
-      image: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400',
+      image: R101,
       amenities: ['WiFi', 'AC', 'Study Desk']
     },
     {
@@ -41,7 +47,7 @@ export default function RoomManagementScreen({ navigation }) {
       capacity: 2,
       occupied: 2,
       tenant: 'Ar-rauf Imar, JP Enriquez',
-      image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400',
+      image: R102,
       amenities: ['WiFi', 'AC', 'Study Desk']
     },
     {
@@ -54,7 +60,7 @@ export default function RoomManagementScreen({ navigation }) {
       capacity: 1,
       occupied: 0,
       tenant: 'Jean claro',
-      image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400',
+      image: R103,
       amenities: ['WiFi', 'AC', 'Private Bath']
     },
     {
@@ -67,7 +73,7 @@ export default function RoomManagementScreen({ navigation }) {
       capacity: 4,
       occupied: 0,
       tenant: 'Rhadzmiel Sali',
-      image: 'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400',
+      image: R201,
       amenities: ['WiFi', 'Fan']
     }
   ]);
@@ -184,7 +190,7 @@ export default function RoomManagementScreen({ navigation }) {
             style={styles.roomCard}
             onPress={() => navigation.navigate('RoomDetails', { room })}
           >
-            <Image source={{ uri: room.image }} style={styles.roomImage} />
+            <Image source={room.image} style={styles.roomImage} />
             <View style={[styles.statusBadge, { backgroundColor: getStatusBg(room.status) }]}>
               <Text style={[styles.statusText, { color: getStatusColor(room.status) }]}>
                 {room.status.charAt(0).toUpperCase() + room.status.slice(1)}

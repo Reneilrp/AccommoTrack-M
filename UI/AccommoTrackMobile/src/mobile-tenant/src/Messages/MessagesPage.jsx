@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     ScrollView,
-    Image,
     StatusBar,
     KeyboardAvoidingView,
     Platform
@@ -25,7 +24,6 @@ export default function MessagesPage() {
     const conversations = featuredAccommodation.map((accommodation, index) => ({
         id: accommodation.id,
         landlordName: `${accommodation.name}`,
-        landlordAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(accommodation.name)}&background=4CAF50&color=fff`,
         propertyName: accommodation.name,
         propertyType: accommodation.type,
         lastMessage: index === 0 ? "Yes, you can visit tomorrow at 2 PM" : 
@@ -99,7 +97,9 @@ export default function MessagesPage() {
                             onPress={() => setSelectedChat(chat)}
                         >
                             <View style={styles.avatarContainer}>
-                                <Image source={{ uri: chat.landlordAvatar }} style={styles.avatar} />
+                                <View style={styles.avatarIconWrapper}>
+                                    <Ionicons name="person-circle" size={56} color="#4CAF50" />
+                                </View>
                                 {chat.online && <View style={styles.onlineIndicator} />}
                             </View>
 
@@ -150,7 +150,9 @@ export default function MessagesPage() {
                 </TouchableOpacity>
 
                 <View style={styles.chatHeaderInfo}>
-                    <Image source={{ uri: selectedChat.landlordAvatar }} style={styles.headerAvatar} />
+                    <View style={styles.headerAvatarIconWrapper}>
+                        <Ionicons name="person-circle" size={40} color="#FFFFFF" />
+                    </View>
                     <View>
                         <Text style={styles.chatHeaderName}>{selectedChat.landlordName}</Text>
                         <Text style={styles.chatHeaderProperty}>{selectedChat.propertyName}</Text>

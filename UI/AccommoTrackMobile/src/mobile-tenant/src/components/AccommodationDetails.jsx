@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Tenant/AccommodationDetails.js';
-
+import DetailsLogo from '../../../../assets/ImageDetails.jpeg';
 const { width } = Dimensions.get('window');
 
 export default function AccommodationDetails({ route }) {
@@ -23,8 +23,7 @@ export default function AccommodationDetails({ route }) {
   // Sample images - in real app, accommodation would have multiple images
   const images = [
     accommodation.image,
-    "https://images.unsplash.com/photo-1502672260066-6bc05c107e00?w=400",
-    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400"
+    {DetailsLogo},
   ];
 
   const getAmenityIcon = (amenity) => {
@@ -57,7 +56,7 @@ export default function AccommodationDetails({ route }) {
             {images.map((img, index) => (
               <Image
                 key={index}
-                source={{ uri: img }}
+                source={img}
                 style={styles.image}
               />
             ))}
@@ -190,7 +189,7 @@ export default function AccommodationDetails({ route }) {
               {images.map((img, index) => (
                 <Image
                   key={index}
-                  source={{ uri: img }}
+                  source={img}
                   style={styles.photoThumbnail}
                 />
               ))}

@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/Favorites.js';
+import SunshineDorm from '../../../../assets/SunshineDorm.jpeg';
+import R101 from '../../../../assets/101.jpeg';
 
 export default function Favorites() {
   const navigation = useNavigation();
@@ -14,7 +16,7 @@ export default function Favorites() {
       id: 1,
       name: "Sunshine Dormitory",
       type: "Dormitory",
-      image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400",
+      image: SunshineDorm,
       rating: 4.8,
       reviews: 124,
       price: 5000,
@@ -25,7 +27,7 @@ export default function Favorites() {
       id: 3,
       name: "City Center Apartments",
       type: "Apartment",
-      image: "https://images.unsplash.com/photo-1502672260066-6bc05c107e00?w=400",
+      image: R101,
       rating: 4.7,
       reviews: 156,
       price: 4500,
@@ -57,7 +59,7 @@ export default function Favorites() {
               style={styles.card}
               onPress={() => navigation.navigate('AccommodationDetails', { accommodation: item })}
             >
-              <Image source={{ uri: item.image }} style={styles.cardImage} />
+              <Image source={item.image} style={styles.cardImage} />
               <TouchableOpacity 
                 style={styles.likeButton}
                 onPress={() => handleUnlike(item.id)}

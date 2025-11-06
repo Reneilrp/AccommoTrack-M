@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
-import { CommonActions } from '@react-navigation/native';
 
 const API_URL = 'http://192.168.254.106:8000/api';
 

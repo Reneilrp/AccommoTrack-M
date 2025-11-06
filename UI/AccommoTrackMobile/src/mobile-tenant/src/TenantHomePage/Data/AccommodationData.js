@@ -1,9 +1,16 @@
+import R103 from '../../../../../assets/103.jpeg';
+import AlexA from '../../../../../assets/ImageDetails.jpeg';
+import KV from '../../../../../assets/KV.jpeg';
+import CHD from '../../../../../assets/CHD.jpeg';
+import R101 from '../../../../../assets/101.jpeg';
+import MLS from '../../../../../assets/MLS.jpeg';
+
 export const featuredAccommodation = [
   {
     id: 1,
     name: "Q&M Dormitory",
     type: "Dormitory",
-    image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400",
+    image: R103,
     rating: 4.8,
     reviews: 124,
     price: 5000,
@@ -15,7 +22,7 @@ export const featuredAccommodation = [
     id: 2,
     name: "Alex Apartment",
     type: "Apartment",
-    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
+    image: AlexA,
     rating: 4.9,
     reviews: 98,
     price: 6500,
@@ -27,7 +34,7 @@ export const featuredAccommodation = [
     id: 4,
     name: "Kuya Vince Boarding House",
     type: "Boarding House",
-    image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400",
+    image: KV,
     rating: 5.0,
     reviews: 89,
     price: 7000,
@@ -42,7 +49,7 @@ export const bestRatingAccommodation = [
     id: 4,
     name: "Kuya Vince Boarding House",
     type: "Boarding House",
-    image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400",
+    image: KV,
     rating: 5.0,
     reviews: 89,
     price: 7000,
@@ -54,7 +61,7 @@ export const bestRatingAccommodation = [
     id: 1,
     name: "Q&M Dormitory",
     type: "Dormitory",
-    image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400",
+    image: R103,
     rating: 4.8,
     reviews: 124,
     price: 5000,
@@ -66,7 +73,7 @@ export const bestRatingAccommodation = [
     id: 5,
     name: "Cozy Haven Dorm",
     type: "Dormitory",
-    image: "https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=400",
+    image: CHD,
     rating: 4.9,
     reviews: 145,
     price: 5500,
@@ -81,7 +88,7 @@ export const bestAmenitiesAccommodation = [
     id: 6,
     name: "Luxury Student Suites",
     type: "Apartment",
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400",
+    image: R101,
     rating: 4.8,
     reviews: 76,
     price: 8000,
@@ -93,7 +100,7 @@ export const bestAmenitiesAccommodation = [
     id: 7,
     name: "Modern Living Spaces",
     type: "Boarding House",
-    image: "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=400",
+    image: MLS,
     rating: 4.7,
     reviews: 92,
     price: 6000,

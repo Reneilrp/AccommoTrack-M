@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/MyBookings.js';
+import R101 from '../../../../assets/SunshineDorm.jpeg';
+import OVR from '../../../../assets/ImageDetails.jpeg';
 
 export default function MyBookings() {
   const navigation = useNavigation();
@@ -13,7 +15,7 @@ export default function MyBookings() {
     {
       id: 1,
       name: "Sunshine Dormitory",
-      image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400",
+      image: R101,
       location: "Manila, Philippines",
       checkIn: "Jan 15, 2024",
       checkOut: "May 15, 2024",
@@ -23,7 +25,7 @@ export default function MyBookings() {
     {
       id: 2,
       name: "Ocean View Residence",
-      image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
+      image: OVR,
       location: "Makati, Philippines",
       checkIn: "Feb 1, 2024",
       checkOut: "Jun 1, 2024",
@@ -56,7 +58,7 @@ export default function MyBookings() {
         {bookings.length > 0 ? (
           bookings.map((booking) => (
             <TouchableOpacity key={booking.id} style={styles.bookingCard}>
-              <Image source={{ uri: booking.image }} style={styles.bookingImage} />
+              <Image source={booking.image} style={styles.bookingImage} />
               <View style={styles.bookingInfo}>
                 <View style={styles.bookingHeader}>
                   <Text style={styles.bookingName}>{booking.name}</Text>

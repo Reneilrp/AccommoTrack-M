@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/ProfilePage.js';
+import LeadDev from '../../../mobile-landlord/src/Dashboard/DevTeam/assets/LeadDeveloper.jpeg';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
@@ -30,7 +31,7 @@ export default function ProfilePage() {
       smoking: false,
       cooking: true,
     },
-    profileImage: 'https://ui-avatars.com/api/?name=John+Doe&background=4CAF50&color=fff&size=200',
+    profileImage: LeadDev,
   });
 
   useEffect(() => {
@@ -115,7 +116,7 @@ export default function ProfilePage() {
         {/* Profile Photo Section */}
         <View style={styles.photoSection}>
           <View style={styles.photoContainer}>
-            <Image source={{ uri: profileData.profileImage }} style={styles.profilePhoto} />
+            <Image source={profileData.profileImage} style={styles.profilePhoto} />
             {isEditing && (
               <TouchableOpacity 
                 style={styles.changePhotoButton}

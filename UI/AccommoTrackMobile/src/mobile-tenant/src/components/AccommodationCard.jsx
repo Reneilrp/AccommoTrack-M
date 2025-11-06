@@ -34,7 +34,7 @@ export default function AccommodationCard({ accommodation, onPress, onLikePress 
     >
       {/* Image */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: accommodation.image }} style={styles.image} />
+        <Image source={accommodation.image} style={styles.image} />
         <View style={styles.typeBadge}>
           <Text style={styles.typeBadgeText}>{accommodation.type}</Text>
         </View>
