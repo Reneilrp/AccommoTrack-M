@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/Settings.js';
 
-export default function Settings() {
+export default function Settings({ onLogout }) {
   const navigation = useNavigation();
   
   const [notifications, setNotifications] = useState(true);
@@ -60,18 +60,29 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleLogout = async () => {
     Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
+      'Logout',
+      'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => {
-            console.log('Account deletion requested');
-            Alert.alert('Account Deleted', 'Your account has been scheduled for deletion.');
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (onLogout) {
+                await onLogout();
+              } else {
+                await AsyncStorage.clear();
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Auth' }]
+                });
+              }
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
           }
         }
       ]
@@ -183,13 +194,12 @@ export default function Settings() {
 
         {/* Danger Zone */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Danger Zone</Text>
           <TouchableOpacity 
             style={styles.dangerButton}
-            onPress={handleDeleteAccount}
+            onPress={handleLogout}
           >
             <Ionicons name="trash-outline" size={20} color="#EF4444" />
-            <Text style={styles.dangerButtonText}>Delete Account</Text>
+            <Text style={styles.dangerButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
 
