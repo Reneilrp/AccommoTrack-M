@@ -139,7 +139,7 @@ export default function AuthScreen({ onLoginSuccess }) {
         
         console.log('✅ Login successful! Role:', data.user.role);
         
-        // ✅ Call the callback to trigger navigation
+        // Call the callback to trigger navigation
         if (onLoginSuccess) {
           onLoginSuccess(data.user.role);
         }
@@ -465,7 +465,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                       disabled={loading}
                     >
                       <Ionicons
-                        name={!showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                         size={20}
                         color="#9CA3AF"
                       />

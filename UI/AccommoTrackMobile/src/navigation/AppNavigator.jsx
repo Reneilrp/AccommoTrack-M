@@ -18,10 +18,10 @@ export default function AppNavigator() {
 
   const handleLogout = async () => {
     try {
-      // ✅ Only clear auth-related data, keep hasLaunched
+      // Only clear auth-related data, keep hasLaunched
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      setUserRole('auth'); // ✅ Go to auth screen, not landing
+      setUserRole('auth'); // Go to auth screen, not landing
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -38,7 +38,7 @@ export default function AppNavigator() {
         console.log('👤 User role:', user.role);
         setUserRole(user.role);
       } else {
-        // ✅ If logged out but app has launched before, set to 'auth'
+        // If logged out but app has launched before, set to 'auth'
         // If first launch, set to null to show landing pages
         setUserRole(hasLaunched ? 'auth' : null);
       }
@@ -64,19 +64,19 @@ export default function AppNavigator() {
 
   // If user is logged in as tenant
   if (userRole === 'tenant') {
-    console.log('✅ Rendering TenantNavigator');
+    console.log(' Rendering TenantNavigator');
     return <TenantNavigator onLogout={handleLogout} />;
   }
 
   // If user is logged in as landlord
   if (userRole === 'landlord') {
-    console.log('✅ Rendering LandlordNavigator');
+    console.log(' Rendering LandlordNavigator');
     return <LandlordNavigator onLogout={handleLogout} />;
   }
 
-  // ✅ Returning user (logged out) - go straight to Auth
+  // Returning user (logged out) - go straight to Auth
   if (userRole === 'auth') {
-    console.log('✅ Rendering Auth screen (returning user)');
+    console.log(' Rendering Auth screen (returning user)');
     return (
       <AuthScreens
         onLoginSuccess={(role) => {
@@ -86,8 +86,8 @@ export default function AppNavigator() {
     );
   }
 
-  // ✅ First-launch flow - show landing pages
-  console.log('✅ Rendering Landing Pages (first launch)');
+  // First-launch flow - show landing pages
+  console.log(' Rendering Landing Pages (first launch)');
   return (
     <Stack.Navigator
       screenOptions={{
@@ -102,7 +102,7 @@ export default function AppNavigator() {
             {...props}
             onFinish={async () => {
               await AsyncStorage.setItem('hasLaunched', 'true');
-              setUserRole('auth'); // ✅ Trigger re-render to show auth
+              setUserRole('auth'); // Trigger re-render to show auth
             }}
           />
         )}

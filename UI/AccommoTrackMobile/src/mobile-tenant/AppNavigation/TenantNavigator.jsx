@@ -24,14 +24,15 @@ export default function TenantNavigator({ onLogout }) {
         animationTypeForReplace: 'pop',
       }}
     >
-      <Stack.Screen name="TenantHome" component={TenantHomePage } options={{ animation: 'none' }} />
+      <Stack.Screen name="TenantHome" options={{ animation: 'none' }}>
+      {(props) => <TenantHomePage {...props} onLogout={onLogout} />}
+      </Stack.Screen>
       <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
       <Stack.Screen name="AccommodationDetails" component={AccommodationDetails} options={{ animation: 'none' }} />
       <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
       <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
       <Stack.Screen name="Favorites" component={Favorites} options={{ animation: 'none' }} />
       <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
-      <Stack.Screen name="Settings" component={Settings} options={{ animation: 'none' }} />
       <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}

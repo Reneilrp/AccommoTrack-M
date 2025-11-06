@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 export default function LandlordDashboard({ user, onLogout, children, currentPage, onNavigate }) {
+  
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 

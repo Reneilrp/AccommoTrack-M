@@ -20,7 +20,7 @@ import {
   lowPriceAccommodation
 } from './Data/AccommodationData.js';
 
-export default function TenantHomePage() {
+export default function TenantHomePage({ onLogout }) {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('featured');
@@ -82,7 +82,13 @@ export default function TenantHomePage() {
                 try {
                   await AsyncStorage.removeItem('token');
                   await AsyncStorage.removeItem('user');
-                  navigation.replace('Auth');
+
+                  // This is the line that will now successfully call 
+                  // the function passed from AppNavigator
+                  if (onLogout) {
+                    onLogout();
+                  }
+
                 } catch (error) {
                   console.error('Logout error:', error);
                 }
