@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export default function Bookings() {
   const [filterStatus, setFilterStatus] = useState('all');
-  
+
   const [bookings] = useState([
     {
       id: 1,
@@ -64,12 +64,16 @@ export default function Bookings() {
       phone: '+63 912 345 6789',
       roomType: 'Double Room',
       checkIn: '2025-05-01',
-      checOut: '2025-05-01',
+      checkOut: '2025-05-01',
+      duration: '1 month',
+      amount: 4500,    
+      status: 'pending',  
+      paymentStatus: 'pending'
     }
   ]);
 
-  const filteredBookings = filterStatus === 'all' 
-    ? bookings 
+  const filteredBookings = filterStatus === 'all'
+    ? bookings
     : bookings.filter(booking => booking.status === filterStatus);
 
   const stats = {
@@ -80,7 +84,7 @@ export default function Bookings() {
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
@@ -134,33 +138,29 @@ export default function Bookings() {
           <div className="flex gap-2">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'all' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'all' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               All Bookings
             </button>
             <button
               onClick={() => setFilterStatus('confirmed')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'confirmed' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'confirmed' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Confirmed
             </button>
             <button
               onClick={() => setFilterStatus('pending')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'pending' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'pending' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Pending
             </button>
             <button
               onClick={() => setFilterStatus('completed')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'completed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'completed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Completed
             </button>
