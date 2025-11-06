@@ -23,7 +23,7 @@ export const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginBottom: 50,
-
+    marginTop: 20,
   },
   logoRow: {
     flexDirection: 'row',
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   backButtonText: {
     color: '#00A651',
@@ -64,7 +64,7 @@ export const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 15,
   },
   title: {
     fontSize: 28,

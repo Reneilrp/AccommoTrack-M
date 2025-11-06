@@ -4,6 +4,8 @@ import KV from '../../../../../assets/KV.jpeg';
 import CHD from '../../../../../assets/CHD.jpeg';
 import R101 from '../../../../../assets/101.jpeg';
 import MLS from '../../../../../assets/MLS.jpeg';
+import BFD from '../../../../../assets/BFD.jpeg';
+import ASH from '../../../../../assets/ASH.jpeg';
 
 export const featuredAccommodation = [
   {
@@ -115,7 +117,7 @@ export const lowPriceAccommodation = [
     id: 8,
     name: "Budget Friendly Dorm",
     type: "Bed Spacer",
-    image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=400",
+    image: BFD,
     rating: 4.5,
     reviews: 134,
     price: 3000,
@@ -127,7 +129,7 @@ export const lowPriceAccommodation = [
     id: 9,
     name: "Affordable Student House",
     type: "Bed Spacer",
-    image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400",
+    image: ASH,
     rating: 4.4,
     reviews: 167,
     price: 3500,
