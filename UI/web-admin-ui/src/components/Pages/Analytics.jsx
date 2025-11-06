@@ -25,6 +25,16 @@ export default function Analytics() {
     { type: 'Quad Room', occupied: 3, total: 4, revenue: 21000 }
   ];
 
+  const maxRevenue = Math.max(...revenueData.map(d => d.revenue));
+  const minRevenue = Math.min(...revenueData.map(d => d.revenue));
+
+  // Bar height calculation
+  const calculateBarHeight = (revenue) => {
+    const range = maxRevenue - minRevenue;
+    const normalizedHeight = range === 0 ? 50 : ((revenue - minRevenue) / range) * 80 + 20;
+    return Math.max(normalizedHeight, 25);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
@@ -37,25 +47,22 @@ export default function Analytics() {
             <div className="flex gap-2">
               <button
                 onClick={() => setTimeRange('week')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  timeRange === 'week' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${timeRange === 'week' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Week
               </button>
               <button
                 onClick={() => setTimeRange('month')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  timeRange === 'month' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${timeRange === 'month' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Month
               </button>
               <button
                 onClick={() => setTimeRange('year')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  timeRange === 'year' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${timeRange === 'year' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Year
               </button>
@@ -123,19 +130,30 @@ export default function Analytics() {
         {/* Revenue Chart */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Revenue Trend</h2>
-          <div className="h-64">
-            <div className="flex items-end justify-between h-full gap-4">
+          <div className="h-64 relative">
+            <div className="absolute left-0 top-0 bottom-0 w-16 flex flex-col justify-between text-xs text-gray-500 py-2">
+              <span>₱{maxRevenue.toLocaleString()}</span>
+              <span>₱{Math.round((maxRevenue * 0.75)).toLocaleString()}</span>
+              <span>₱{Math.round((maxRevenue * 0.5)).toLocaleString()}</span>
+              <span>₱{Math.round((maxRevenue * 0.25)).toLocaleString()}</span>
+              <span>₱0</span>
+            </div>
+
+            <div className="ml-16 flex justify-between h-full gap-3 border-b border-gray-300 pb-2">
               {revenueData.map((data, index) => {
-                const maxRevenue = Math.max(...revenueData.map(d => d.revenue));
-                const height = (data.revenue / maxRevenue) * 100;
+                const height = calculateBarHeight(data.revenue);
                 return (
-                  <div key={index} className="flex-1 flex flex-col items-center">
-                    <div className="w-full bg-green-600 rounded-t-lg hover:bg-green-700 transition-colors cursor-pointer relative group" style={{ height: `${height}%` }}>
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  <div key={index} className="flex-1 flex flex-col items-center justify-end h-full"> {/* CHANGED: Added justify-end */}
+                    <div
+                      className="w-full bg-green-500 rounded-t-lg hover:bg-green-600 transition-all cursor-pointer relative group"
+                      style={{ height: `${height}%` }}
+                    >
+                      {/* Tooltip */}
+                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                         ₱{data.revenue.toLocaleString()}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mt-2">{data.month}</p>
+                    <p className="text-sm text-gray-600 mt-2 font-medium">{data.month}</p>
                   </div>
                 );
               })}

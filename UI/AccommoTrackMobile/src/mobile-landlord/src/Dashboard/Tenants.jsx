@@ -19,47 +19,47 @@ export default function TenantsScreen({ navigation }) {
   const [tenants] = useState([
     {
       id: 1,
-      name: 'John Doe',
-      email: 'john.doe@email.com',
-      phone: '+63 912 345 6789',
+      name: 'Pheinz Magnun',
+      email: 'pheinz.magnun@gmail.com',
+      phone: '+63 993 692 9775',
       roomNumber: '101',
       roomType: 'Single Room',
       monthlyRent: 5000,
       paymentStatus: 'paid',
-      lastPayment: '2024-11-01'
+      lastPayment: '2025-11-01'
     },
     {
       id: 2,
-      name: 'Jane Smith',
-      email: 'jane.smith@email.com',
-      phone: '+63 923 456 7890',
+      name: 'Jean Claro',
+      email: 'JeanClaro@gmail.com',
+      phone: '+63 976 434 1384',
       roomNumber: '102',
       roomType: 'Double Room',
       monthlyRent: 4500,
       paymentStatus: 'pending',
-      lastPayment: '2024-10-01'
+      lastPayment: '2025-10-01'
     },
     {
       id: 3,
-      name: 'Mike Johnson',
+      name: 'Ar-rauf Imar',
       email: 'mike.j@email.com',
       phone: '+63 934 567 8901',
       roomNumber: '102',
       roomType: 'Double Room',
       monthlyRent: 4500,
       paymentStatus: 'paid',
-      lastPayment: '2024-11-01'
+      lastPayment: '2025-11-01'
     },
     {
       id: 4,
-      name: 'Sarah Williams',
-      email: 'sarah.w@email.com',
+      name: 'Rhadzmiel Sali',
+      email: 'rhadzsali@gmail.com',
       phone: '+63 945 678 9012',
       roomNumber: '201',
       roomType: 'Quad Room',
       monthlyRent: 3500,
       paymentStatus: 'overdue',
-      lastPayment: '2024-09-01'
+      lastPayment: '2025-09-01'
     }
   ]);
 

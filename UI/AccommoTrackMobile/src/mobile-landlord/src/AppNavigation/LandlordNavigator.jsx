@@ -11,6 +11,10 @@ import Messages from '../Dashboard/Messages.jsx';
 import DormProfile from '../Dashboard/DormProfile.jsx';
 import Settings from '../Dashboard/Settings.jsx';
 import Bookings from '../Dashboard/Bookings.jsx';
+import Analytics from '../Dashboard/Analytics.jsx';
+import MyProfile from '../Dashboard/MyProfile.jsx';
+import HelpSupport from '../Dashboard/HelpSupport.jsx';
+import About from '../Dashboard/About.jsx';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -112,41 +116,10 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="DormProfile" component={DormProfile} options={{ animation: 'none' }}/>
       <Stack.Screen name="RoomManagement" component={RoomManagement} options={{ animation: 'none' }}/>
       <Stack.Screen name="Message" component={Messages} options={{ animation: 'none' }}/>
-      <Stack.Screen name="Settings">
-        {(props) => <Settings {...props} onLogout={onLogout} />}
-      </Stack.Screen>
+      <Stack.Screen name="Analytics" component={Analytics} options={{ animation: 'none' }}/>
+      <Stack.Screen name="MyProfile" component={MyProfile} options={{ animation: 'none' }}/>
+      <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }}/>
+      <Stack.Screen name="About" component={About} options={{ animation: 'none' }}/>
     </Stack.Navigator>
   );
 }
-
-// Add placeholder styles
-const placeholderStyles = {
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF'
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#4CAF50'
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF'
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16
-  },
-  message: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center'
-  }
-};

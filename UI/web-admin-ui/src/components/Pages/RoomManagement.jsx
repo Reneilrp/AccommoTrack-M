@@ -16,7 +16,7 @@ export default function RoomManagement() {
       floor: '1st Floor',
       capacity: 1,
       occupied: 1,
-      tenant: 'John Doe',
+      tenant: 'Pheinz Magnun',
       images: ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400'],
       amenities: ['WiFi', 'AC', 'Study Desk']
     },
@@ -29,7 +29,7 @@ export default function RoomManagement() {
       floor: '1st Floor',
       capacity: 2,
       occupied: 2,
-      tenant: 'Jane Smith, Mike Johnson',
+      tenant: 'Ar-rauf Imar, JP Enriquez',
       images: ['https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400'],
       amenities: ['WiFi', 'AC', 'Study Desk', 'Cabinet']
     },
@@ -42,7 +42,7 @@ export default function RoomManagement() {
       floor: '1st Floor',
       capacity: 1,
       occupied: 0,
-      tenant: null,
+      tenant: 'Jean Claro',
       images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400'],
       amenities: ['WiFi', 'AC', 'Study Desk', 'Private Bathroom']
     },
@@ -55,7 +55,7 @@ export default function RoomManagement() {
       floor: '2nd Floor',
       capacity: 4,
       occupied: 3,
-      tenant: 'Sarah Williams, Tom Brown, Lisa Garcia',
+      tenant: 'Rhadzmiel Sali',
       images: ['https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400'],
       amenities: ['WiFi', 'Fan', 'Study Desk']
     },
@@ -296,7 +296,7 @@ export default function RoomManagement() {
         {/* Rooms Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRooms.map((room) => (
-            <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+            <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
               {/* Room Image */}
               <div className="relative h-48">
                 <img 
@@ -310,7 +310,7 @@ export default function RoomManagement() {
               </div>
 
               {/* Room Details */}
-              <div className="p-4">
+              <div className="p-4 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">Room {room.roomNumber}</h3>
@@ -352,7 +352,7 @@ export default function RoomManagement() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
                   <select
                     value={room.status}
                     onChange={(e) => handleStatusChange(room.id, e.target.value)}

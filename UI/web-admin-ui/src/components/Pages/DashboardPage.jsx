@@ -47,9 +47,38 @@ export default function DashboardPage({ user }) {
   ]);
 
   const [upcomingPayments] = useState([
-    { tenant: 'John Doe', room: '101', amount: '₱5,000', dueDate: 'Nov 15' },
-    { tenant: 'Jane Smith', room: '204', amount: '₱6,500', dueDate: 'Nov 18' },
-    { tenant: 'Mike Johnson', room: '308', amount: '₱5,500', dueDate: 'Nov 20' }
+    { tenant: 'Pheinz Magnun', 
+      room: '101', 
+      amount: '₱5,000', 
+      dueDate: 'Nov 15' 
+      },
+
+    { tenant: 'Jean Claro', 
+      room: '204', 
+      amount: '₱7,000', 
+      dueDate: 'Nov 18' 
+      },
+
+    { tenant: 'JP Enriquez', 
+      room: '308', 
+      amount: '₱5,500', 
+      dueDate: 'Nov 20' 
+      },
+
+    {
+      tenant: 'Ar-rauf Imar',
+      room: '777',
+      amount: '3,500',
+      dueDate: 'Nov 22',
+      },
+
+    {
+      tenant: 'Rhadzmiel Sali',
+      room: '123',
+      amount: '4,500',
+      dueDate: 'Nov 25'
+      },
+
   ]);
 
   const getActivityIcon = (type, color) => {

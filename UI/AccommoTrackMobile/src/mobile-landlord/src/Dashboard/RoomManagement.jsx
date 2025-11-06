@@ -27,7 +27,7 @@ export default function RoomManagementScreen({ navigation }) {
       floor: '1st Floor',
       capacity: 1,
       occupied: 1,
-      tenant: 'John Doe',
+      tenant: 'Pheinz Magnun',
       image: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400',
       amenities: ['WiFi', 'AC', 'Study Desk']
     },
@@ -40,7 +40,7 @@ export default function RoomManagementScreen({ navigation }) {
       floor: '1st Floor',
       capacity: 2,
       occupied: 2,
-      tenant: 'Jane Smith, Mike Johnson',
+      tenant: 'Ar-rauf Imar, JP Enriquez',
       image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400',
       amenities: ['WiFi', 'AC', 'Study Desk']
     },
@@ -53,7 +53,7 @@ export default function RoomManagementScreen({ navigation }) {
       floor: '1st Floor',
       capacity: 1,
       occupied: 0,
-      tenant: null,
+      tenant: 'Jean claro',
       image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400',
       amenities: ['WiFi', 'AC', 'Private Bath']
     },
@@ -66,7 +66,7 @@ export default function RoomManagementScreen({ navigation }) {
       floor: '2nd Floor',
       capacity: 4,
       occupied: 0,
-      tenant: null,
+      tenant: 'Rhadzmiel Sali',
       image: 'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400',
       amenities: ['WiFi', 'Fan']
     }
@@ -267,7 +267,7 @@ export default function RoomManagementScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <Text style={styles.modalMessage}>
-              Add room feature will be implemented here
+              Soon, dont have time na XD
             </Text>
             <TouchableOpacity 
               style={styles.modalButton}

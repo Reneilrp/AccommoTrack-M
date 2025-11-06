@@ -7,42 +7,52 @@ export default function Messages() {
   const [conversations] = useState([
     {
       id: 1,
-      name: 'John Doe',
+      name: 'Pheinz Magnun',
       room: '101',
       lastMessage: 'Thank you for fixing the AC!',
       time: '10:30 AM',
       unread: 2,
-      avatar: 'JD',
+      avatar: 'PM',
       online: true
     },
     {
       id: 2,
-      name: 'Jane Smith',
+      name: 'Jean Claro',
       room: '102',
       lastMessage: 'When is the rent due?',
       time: 'Yesterday',
       unread: 0,
-      avatar: 'JS',
+      avatar: 'JC',
       online: false
     },
     {
       id: 3,
-      name: 'Mike Johnson',
+      name: 'Ar-rauf Imar',
       room: '102',
       lastMessage: 'Can I have guests this weekend?',
       time: '2 days ago',
       unread: 1,
-      avatar: 'MJ',
+      avatar: 'AI',
       online: true
     },
     {
       id: 4,
-      name: 'Sarah Williams',
+      name: 'JP Enriquez',
       room: '201',
       lastMessage: 'The WiFi is not working',
       time: '3 days ago',
       unread: 0,
-      avatar: 'SW',
+      avatar: 'JE',
+      online: false
+    },
+    {
+      id: 4,
+      name: 'Rhadzmiel Sali',
+      room: '202',
+      lastMessage: 'The floor has cracked',
+      time: '3 days ago',
+      unread: 0,
+      avatar: 'RS',
       online: false
     }
   ]);

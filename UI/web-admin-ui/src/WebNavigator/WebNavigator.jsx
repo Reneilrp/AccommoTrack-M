@@ -1,16 +1,15 @@
 import { useState } from 'react';
-import LandlordDashboard from './LandlordDashboard';
+import LandlordDashboard from '../components/LandlordDashboard';
 import Logo from '../assets/Logo.png';
 
-// Import your page components (you mentioned you have these already)
-import DashboardPage from './pages/DashboardPage';
-import DormProfile from './pages/DormProfile';
-import RoomManagement from './pages/RoomManagement';
-import Tenants from './pages/Tenants';
-import Bookings from './pages/Bookings';
-import Messages from './pages/Messages';
-import Analytics from './pages/Analytics';
-import Settings from './pages/Settings';
+import DashboardPage from '../components/Pages/DashboardPage';
+import DormProfile from '../components/Pages/DormProfileSettings';
+import RoomManagement from '../components/Pages/RoomManagement';
+import Tenants from '../components/Pages/TenantManagement';
+import Bookings from '../components/Pages/Bookings';
+import Messages from '../components/Pages/Messages';
+import Analytics from '../components/Pages/Analytics';
+import Settings from '../components/Pages/Settings';
 
 export default function WebNavigator({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState('dashboard');

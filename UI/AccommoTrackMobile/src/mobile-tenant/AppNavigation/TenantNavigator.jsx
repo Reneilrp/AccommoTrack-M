@@ -10,7 +10,6 @@ import Favorites from '../src/Menu/Favorites.jsx';
 import Payments from '../src/Menu/Payments.jsx';
 import Settings from '../src/Menu/Settings.jsx';
 import HelpSupport from '../src/Menu/HelpSupport.jsx';
-import { styles } from '../../styles/AppNavigator.js';
 
 const Stack = createNativeStackNavigator();
 

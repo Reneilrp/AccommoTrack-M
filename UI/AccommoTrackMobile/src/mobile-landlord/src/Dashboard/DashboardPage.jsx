@@ -48,10 +48,25 @@ export default function LandlordDashboard({ navigation, user }) {
   ]);
 
   const quickActions = [
-    { id: 1, title: 'Rooms', icon: 'bed', color: '#4CAF50', screen: 'Rooms' },
-    { id: 2, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants' },
-    { id: 3, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings' },
-    { id: 4, title: 'Messages', icon: 'chatbubbles', color: '#9C27B0', screen: 'Messages' }
+    { id: 1, title: 'Rooms', 
+      icon: 'bed', 
+      color: '#4CAF50', 
+      screen: 'Rooms' },
+    { id: 2, 
+      title: 'Tenants', 
+      icon: 'people', 
+      color: '#2196F3', 
+      screen: 'Tenants' },
+    { id: 3, 
+      title: 'Bookings', 
+      icon: 'calendar', 
+      color: '#FF9800', 
+      screen: 'Bookings' },
+    { id: 4, 
+      title: 'Messages', 
+      icon: 'chatbubbles', 
+      color: '#9C27B0', 
+      screen: 'Messages' }
   ];
 
   return (

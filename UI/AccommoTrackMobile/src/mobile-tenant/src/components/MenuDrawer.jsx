@@ -14,8 +14,8 @@ const menuItems = [
 ];
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
-  const [userName, setUserName] = useState("John Doe");
-  const [userEmail, setUserEmail] = useState("john.doe@example.com");
+  const [userName, setUserName] = useState("demo");
+  const [userEmail, setUserEmail] = useState("demo@example.com");
 
   useEffect(() => {
     if (visible) {
@@ -30,9 +30,9 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
         const user = JSON.parse(userString);
         const fullName = user.first_name && user.last_name 
           ? `${user.first_name} ${user.last_name}` 
-          : 'John Doe';
+          : 'demo';
         setUserName(fullName);
-        setUserEmail(user.email || 'john.doe@example.com');
+        setUserEmail(user.email || 'demo@example.com');
       }
     } catch (error) {
       console.error('Error loading user data:', error);

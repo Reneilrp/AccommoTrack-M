@@ -13,13 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../styles/Landlord/Settings.js';
+import { styles } from '../../../styles/Landlord/Settings';
 
 export default function SettingsScreen({ navigation, onLogout }) {
   const [user, setUser] = useState({
-    first_name: 'Maria',
-    last_name: 'Garcia',
-    email: 'maria.garcia@email.com'
+    first_name: 'Neal Jean',
+    last_name: 'Claro',
+    email: 'NealJeanClaro@gmail.com'
   });
 
   const [notifications, setNotifications] = useState({
@@ -105,7 +105,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
           id: 'help',
           title: 'Help & Support',
           icon: 'help-circle-outline',
-          screen: 'Help'
+          screen: 'HelpSupport'
         },
         {
           id: 'about',

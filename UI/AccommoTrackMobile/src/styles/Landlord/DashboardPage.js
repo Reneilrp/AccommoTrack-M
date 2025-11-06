@@ -52,7 +52,7 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   statsContainer: {
-    marginTop: -20,
+    marginTop: 10,
     paddingHorizontal: 20
   },
   statsGrid: {
