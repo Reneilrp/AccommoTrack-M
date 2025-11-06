@@ -121,9 +121,7 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="MyProfile" component={MyProfile} options={{ animation: 'none' }}/>
       <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }}/>
       <Stack.Screen name="About" component={About} options={{ animation: 'none' }}/>
-      <Stack.Screen name="DevTeam" component={DevTeam} options={{ headerShown: false }} />
-
-
+      <Stack.Screen name="DevTeam" component={DevTeam} options={{ animation: 'none', headerShown: false }} />
     </Stack.Navigator>
   );
 }

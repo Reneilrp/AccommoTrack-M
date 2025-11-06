@@ -6,8 +6,8 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6', // Light gray background
   },
   header: {
-    paddingTop: 30, 
-    paddingBottom: 12,
+    paddingTop: 40, 
+    paddingBottom: 15,
     paddingHorizontal: 16,
     backgroundColor: '#4CAF50', 
     flexDirection: 'row',

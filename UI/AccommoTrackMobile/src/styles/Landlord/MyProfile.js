@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6', 
   },
   header: {
-    paddingTop: 35, 
+    paddingTop: 43, 
     paddingBottom: 12,
     paddingHorizontal: 16,
     backgroundColor: '#4CAF50',

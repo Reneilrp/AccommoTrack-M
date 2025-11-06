@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   backButton: {
-    padding: 4,
+    padding: 3,
   },
   headerTitle: {
     fontSize: 20,

@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 17,
     backgroundColor: '#4CAF50',
   },
   headerTitle: {
