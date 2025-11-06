@@ -140,9 +140,6 @@ export default function SettingsScreen({ navigation, onLogout }) {
             </Text>
             <Text style={styles.profileEmail}>{user.email}</Text>
           </View>
-          <TouchableOpacity>
-            <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-          </TouchableOpacity>
         </View>
 
         {/* Notifications */}

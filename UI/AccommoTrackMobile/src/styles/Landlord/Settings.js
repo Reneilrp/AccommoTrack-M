@@ -6,8 +6,8 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   header: {
-    paddingTop: 40,
-    paddingBottom: 12,
+    padding: 16,
+    paddingBottom: 20,
     paddingHorizontal: 16,
     backgroundColor: '#4CAF50',
     flexDirection: 'row',
@@ -18,7 +18,7 @@ export const styles = StyleSheet.create({
     padding: 5,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',

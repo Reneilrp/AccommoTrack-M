@@ -11,17 +11,19 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    paddingBottom: 20
+    paddingBottom: 23
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    textAlign: 'center'
+
   },
   statsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginTop: -10,
+    marginTop: -5,
     backgroundColor: '#F5F5F5'
   },
   statChip: {

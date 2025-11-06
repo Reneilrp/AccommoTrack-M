@@ -2,9 +2,11 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import LeadDev from './assets/LeadDeveloper.jpeg';
 import Draft from './assets/DraftIcon.jpg';
 import { styles } from './DevTeamStyles.js';
+import LeadDev from './assets/LeadDeveloper.jpeg';
+import PM from './assets/ProjectManager.jpg';
+import BA from './assets/BusinessAnalyst.jpg';
 
 export default function DevTeam({ navigation }) {
   const teamMembers = [
@@ -12,7 +14,7 @@ export default function DevTeam({ navigation }) {
       id: 1,
       name: 'Neal Jean Claro',
       role: 'Project Manager',
-      image: Draft,
+      image: PM,
       description: 'Coordinates team efforts and ensures timely delivery',
     },
     {
@@ -33,7 +35,7 @@ export default function DevTeam({ navigation }) {
       id: 4,
       name: 'John Paul Enriquez',
       role: 'Business Analyst',
-      image: Draft,
+      image: BA,
       description: 'analyzing an organization systems and processes to identify areas for improvement and increase efficiency and profitability',
     },
     
