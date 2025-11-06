@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Dashboard from './components/LandlordDashboard';
+import WebNavigator from './WebNavigator/WebNavigator';
 import AuthScreen from './AuthScreen/Web-Auth';
 
 function App() {
@@ -50,9 +50,9 @@ function App() {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
-  // Show Dashboard if logged in
+  // Show WebNavigator if logged in
   return (
-    <Dashboard 
+    <WebNavigator 
       user={user} 
       onLogout={handleLogout}
     />

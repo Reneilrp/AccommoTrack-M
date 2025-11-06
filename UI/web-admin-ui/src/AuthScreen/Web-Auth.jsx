@@ -137,28 +137,18 @@ function AuthScreen({ onLogin }) {
         throw new Error(data.message || 'Registration failed');
       }
 
-      // If backend returns token on registration:
-      if (data.token && data.user) {
-        // Only allow landlords
-        if (data.user.role !== 'landlord') {
-          setError('Access denied. This portal is for landlords only.');
-          return;
-        }
-        onLogin(data.user, data.token);
-      } else {
-        // If backend requires login after registration:
-        alert('Registration successful! Please login.');
-        setIsLogin(true);
-        setFormData({
-          first_name: '',
-          last_name: '',
-          email: formData.email,
-          password: '',
-          password_confirmation: '',
-          role: 'landlord',
-          phone: '',
-        });
-      }
+      // Always redirect to login after successful registration
+      alert('Registration successful! Please login with your credentials.');
+      setIsLogin(true);
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: formData.email,
+        password: '',
+        password_confirmation: '',
+        role: 'landlord',
+        phone: '',
+      });
     } catch (err) {
       setError(err.message);
     } finally {
