@@ -8,7 +8,8 @@ export default function SearchBar({
   onSearchChange, 
   onFilterPress, 
   onSearchPress,
-  selectedFilter 
+  selectedFilter,
+  onClearFilter 
 }) {
   return (
     <View style={styles.searchContainer}>
@@ -25,6 +26,8 @@ export default function SearchBar({
           placeholderTextColor="#9CA3AF"
           value={searchQuery}
           onChangeText={onSearchChange}
+          onSubmitEditing={onSearchPress}
+          returnKeyType="search"
         />
         <TouchableOpacity style={styles.searchButton} onPress={onSearchPress}>
           <Text style={styles.searchButtonText}>Search</Text>
@@ -36,7 +39,7 @@ export default function SearchBar({
         <View style={styles.activeFilterContainer}>
           <View style={styles.activeFilterChip}>
             <Text style={styles.activeFilterText}>{selectedFilter}</Text>
-            <TouchableOpacity onPress={() => onSearchChange('')}>
+            <TouchableOpacity onPress={onClearFilter}>
               <Ionicons name="close-circle" size={18} color="#4CAF50" />
             </TouchableOpacity>
           </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StatusBar, TouchableOpacity, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,6 +28,7 @@ export default function TenantHomePage({ onLogout }) {
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [activeNavTab, setActiveNavTab] = useState('home');
+  const [filteredAccommodations, setFilteredAccommodations] = useState([]);
 
   const getCurrentAccommodation = () => {
     let accommodation;
@@ -44,15 +45,64 @@ export default function TenantHomePage({ onLogout }) {
     return accommodation.filter(item => item.type === selectedFilter);
   };
 
+  // Search functionality
+  const handleSearch = () => {
+    const baseAccommodations = getCurrentAccommodation();
+    
+    if (!searchQuery.trim()) {
+      setFilteredAccommodations(baseAccommodations);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    
+    const filtered = baseAccommodations.filter(accommodation => {
+      // Search by name/title
+      const matchesName = accommodation.name?.toLowerCase().includes(query) ||
+                         accommodation.title?.toLowerCase().includes(query);
+      
+      // Search by location
+      const matchesLocation = accommodation.location?.toLowerCase().includes(query) ||
+                            accommodation.address?.toLowerCase().includes(query) ||
+                            accommodation.city?.toLowerCase().includes(query);
+      
+      // Search by amenities
+      const matchesAmenities = accommodation.amenities?.some(amenity => 
+        amenity.toLowerCase().includes(query)
+      );
+
+      // Search by type
+      const matchesType = accommodation.type?.toLowerCase().includes(query);
+
+      // Search by owner/landlord name if available
+      const matchesOwner = accommodation.ownerName?.toLowerCase().includes(query) ||
+                          accommodation.landlord?.toLowerCase().includes(query);
+
+      return matchesName || matchesLocation || matchesAmenities || matchesType || matchesOwner;
+    });
+
+    setFilteredAccommodations(filtered);
+  };
+
+  // Update filtered accommodations when tab, filter, or search changes
+  useEffect(() => {
+    handleSearch();
+  }, [activeTab, selectedFilter, searchQuery]);
+
+  // Selection FilterButton
   const handleFilterSelect = (filter) => {
     setSelectedFilter(filter);
     setFilterModalVisible(false);
+  };
+  // Clear/Unclicked
+  const handleClearFilter = () => {
+    setSelectedFilter('All');
+    setSearchQuery('');
   };
 
   const handleMenuItemPress = async (itemTitle) => {
     setMenuModalVisible(false);
 
-    // Navigate based on menu item
     switch (itemTitle) {
       case 'My Bookings':
         navigation.navigate('MyBookings');
@@ -83,8 +133,6 @@ export default function TenantHomePage({ onLogout }) {
                   await AsyncStorage.removeItem('token');
                   await AsyncStorage.removeItem('user');
 
-                  // This is the line that will now successfully call 
-                  // the function passed from AppNavigator
                   if (onLogout) {
                     onLogout();
                   }
@@ -111,6 +159,11 @@ export default function TenantHomePage({ onLogout }) {
     // Toggle like status
   };
 
+  // Get accommodations to display
+  const accommodationsToDisplay = searchQuery.trim() 
+    ? filteredAccommodations 
+    : getCurrentAccommodation();
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="light-content" />
@@ -125,8 +178,9 @@ export default function TenantHomePage({ onLogout }) {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onFilterPress={() => setFilterModalVisible(true)}
-          onSearchPress={() => console.log('Search:', searchQuery)}
+          onSearchPress={handleSearch}
           selectedFilter={selectedFilter}
+          onClearFilter={handleClearFilter}
         />
 
         <CategoryTabs
@@ -136,22 +190,32 @@ export default function TenantHomePage({ onLogout }) {
 
         {/* Accommodation Cards */}
         <View style={styles.cardsContainer}>
-          {getCurrentAccommodation().map((accommodation) => (
-            <AccommodationCard
-              key={accommodation.id}
-              accommodation={accommodation}
-              onPress={handleAccommodationPress}
-              onLikePress={handleLikePress}
-            />
-          ))}
+          {accommodationsToDisplay.length > 0 ? (
+            accommodationsToDisplay.map((accommodation) => (
+              <AccommodationCard
+                key={accommodation.id}
+                accommodation={accommodation}
+                onPress={handleAccommodationPress}
+                onLikePress={handleLikePress}
+              />
+            ))
+          ) : (
+            <View style={styles.noResultsContainer}>
+              <Text style={styles.noResultsText}>
+                No accommodations found for "{searchQuery}"
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Load More Button */}
-        <View style={styles.loadMoreContainer}>
-          <TouchableOpacity style={styles.loadMoreButton}>
-            <Text style={styles.loadMoreText}>Load More</Text>
-          </TouchableOpacity>
-        </View>
+        {accommodationsToDisplay.length > 0 && (
+          <View style={styles.loadMoreContainer}>
+            <TouchableOpacity style={styles.loadMoreButton}>
+              <Text style={styles.loadMoreText}>Load More</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       <MenuDrawer
