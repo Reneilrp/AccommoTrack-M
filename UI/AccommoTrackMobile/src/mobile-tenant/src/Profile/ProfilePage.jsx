@@ -45,8 +45,10 @@ export default function ProfilePage() {
         const user = JSON.parse(userString);
         setProfileData(prev => ({
           ...prev,
-          name: user.first_name && user.last_name 
-            ? `${user.first_name} ${user.last_name}` 
+          name: user.first_name || user.middle_name || user.last_name 
+            ? [user.first_name, user.middle_name, user.last_name]
+            .filter(Boolean)
+            .join(' ') 
             : prev.name,
           email: user.email || prev.email,
         }));
