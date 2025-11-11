@@ -10,6 +10,7 @@ function AuthScreen({ onLogin }) {
   
   const [formData, setFormData] = useState({
     first_name: '',
+    middle_name: '',
     last_name: '',
     email: '',
     password: '',
@@ -142,6 +143,7 @@ function AuthScreen({ onLogin }) {
       setIsLogin(true);
       setFormData({
         first_name: '',
+        middle_name: '',
         last_name: '',
         email: formData.email,
         password: '',
@@ -161,6 +163,7 @@ function AuthScreen({ onLogin }) {
     setError('');
     setFormData({
       first_name: '',
+      middle_name: '',
       last_name: '',
       email: '',
       password: '',
@@ -330,6 +333,29 @@ function AuthScreen({ onLogin }) {
                   placeholder="Enter your first name"
                   disabled={loading}
                   required
+                />
+              </div>
+            </div>
+
+            {/* Middle Name */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Middle Name <span className="text-gray-400 text-xs">(Optional)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  name="middle_name"
+                  value={formData.middle_name}
+                  onChange={(e) => handleInputChange('middle_name', e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  placeholder="Enter your middle name"
+                  disabled={loading}
                 />
               </div>
             </div>

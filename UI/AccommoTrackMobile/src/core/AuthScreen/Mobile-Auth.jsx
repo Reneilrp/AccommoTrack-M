@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +28,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     email: '',
     password: '',
@@ -168,6 +168,7 @@ export default function AuthScreen({ onLoginSuccess }) {
         },
         body: JSON.stringify({
           first_name: formData.firstName,
+          middle_name: formData.middleName,
           last_name: formData.lastName,
           email: formData.email,
           password: formData.password,
@@ -191,6 +192,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                 setSignupStep(1);
                 setFormData({
                   firstName: '',
+                  middleName: '',
                   lastName: '',
                   email: formData.email,
                   password: '',
@@ -224,7 +226,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const toggleScreen = () => {
     setIsLogin(!isLogin);
     setSignupStep(1);
-    setFormData({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '', role: '' });
+    setFormData({ firstName: '', middleName:'', lastName: '', email: '', password: '', confirmPassword: '', role: '' });
     setAgreedToTerms(false);
     setError('');
   };
@@ -395,6 +397,20 @@ export default function AuthScreen({ onLoginSuccess }) {
                       placeholderTextColor="#9CA3AF"
                       value={formData.firstName}
                       onChangeText={(text) => handleInputChange('firstName', text)}
+                      autoCapitalize="words"
+                      editable={!loading}
+                    />
+                  </View>
+
+                  {/* Middle Name */}
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Middle Name"
+                      placeholderTextColor="#9CA3AF"
+                      value={formData.middleName}
+                      onChangeText={(text) => handleInputChange('middleName', text)}
                       autoCapitalize="words"
                       editable={!loading}
                     />
