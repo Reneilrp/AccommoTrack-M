@@ -7,7 +7,7 @@ function AuthScreen({ onLogin }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [formData, setFormData] = useState({
     first_name: '',
     middle_name: '',
@@ -68,7 +68,7 @@ function AuthScreen({ onLogin }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     if (!validateLoginForm()) return;
 
     setLoading(true);
@@ -91,16 +91,18 @@ function AuthScreen({ onLogin }) {
 
       if (response.ok) {
         console.log('✅ Login successful! Role:', data.user.role);
-        
+
         // Only allow landlords to access web admin
         if (data.user.role !== 'landlord') {
           setError('Access denied. This portal is for landlords only.');
           return;
         }
 
-        // Call the callback to App.jsx with user data and token
+        localStorage.setItem('auth_token', data.token);
+        console.log('✅ Token saved to localStorage');
+
         onLogin(data.user, data.token);
-        
+
         // Clear form
         setFormData({ ...formData, email: '', password: '' });
       } else {
@@ -116,7 +118,7 @@ function AuthScreen({ onLogin }) {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    
+
     if (!validateRegisterForm()) return;
 
     setLoading(true);
@@ -180,9 +182,9 @@ function AuthScreen({ onLogin }) {
         <div className="text-center mb-8">
           {/* Logo with text side-by-side */}
           <div className="flex items-center justify-center mb-6">
-            <img 
-              src={Logo} 
-              alt="AccommoTrack Logo" 
+            <img
+              src={Logo}
+              alt="AccommoTrack Logo"
               className="h-16 w-auto"
             />
             <div className="text-left ml-1">
@@ -194,7 +196,7 @@ function AuthScreen({ onLogin }) {
               </h1>
             </div>
           </div>
-          
+
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>

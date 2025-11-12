@@ -5,7 +5,7 @@ export default function RoomManagement() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
-  
+
   const [rooms, setRooms] = useState([
     {
       id: 1,
@@ -98,8 +98,8 @@ export default function RoomManagement() {
     images: []
   });
 
-  const filteredRooms = filterStatus === 'all' 
-    ? rooms 
+  const filteredRooms = filterStatus === 'all'
+    ? rooms
     : rooms.filter(room => room.status === filterStatus);
 
   const stats = {
@@ -108,26 +108,69 @@ export default function RoomManagement() {
     available: rooms.filter(r => r.status === 'available').length,
     maintenance: rooms.filter(r => r.status === 'maintenance').length
   };
+  const API_URL = '/api';
 
-  const handleAddRoom = () => {
-    const room = {
-      id: rooms.length + 1,
-      ...newRoom,
-      occupied: 0,
-      tenant: null
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`
     };
-    setRooms([...rooms, room]);
-    setShowAddModal(false);
-    setNewRoom({
-      roomNumber: '',
-      type: 'Single Room',
-      price: '',
-      floor: '1st Floor',
-      capacity: 1,
-      status: 'available',
-      amenities: [],
-      images: []
-    });
+  };
+
+  const handleAddRoom = async () => {
+    try {
+      // Convert frontend field names to match backend
+      const roomTypeMap = {
+        'Single Room': 'single',
+        'Double Room': 'double',
+        'Quad Room': 'quad',
+        'Suite': 'suite'
+      };
+
+      // Extract floor number from string like "1st Floor"
+      const floorNumber = parseInt(newRoom.floor.match(/\d+/)[0]);
+
+      const response = await fetch(`${API_URL}/rooms`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          property_id: selectedPropertyId,
+          room_number: newRoom.roomNumber,
+          room_type: roomTypeMap[newRoom.type] || 'single',
+          floor: floorNumber,
+          monthly_rate: parseFloat(newRoom.price),
+          capacity: parseInt(newRoom.capacity),
+          status: newRoom.status,
+          description: newRoom.description || null
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add room');
+      }
+
+      const addedRoom = await response.json();
+      setRooms([...rooms, addedRoom]);
+      setShowAddModal(false);
+
+      // Reset form
+      setNewRoom({
+        roomNumber: '',
+        type: 'Single Room',
+        price: '',
+        floor: '1st Floor',
+        capacity: 1,
+        status: 'available',
+        amenities: [],
+        images: []
+      });
+    } catch (err) {
+      console.error('Error adding room:', err);
+      alert('Error adding room: ' + err.message);
+    }
   };
 
   const handleEditRoom = (room) => {
@@ -136,7 +179,7 @@ export default function RoomManagement() {
   };
 
   const handleUpdateRoom = () => {
-    setRooms(rooms.map(room => 
+    setRooms(rooms.map(room =>
       room.id === selectedRoom.id ? selectedRoom : room
     ));
     setShowEditModal(false);
@@ -150,13 +193,13 @@ export default function RoomManagement() {
   };
 
   const handleStatusChange = (roomId, newStatus) => {
-    setRooms(rooms.map(room => 
+    setRooms(rooms.map(room =>
       room.id === roomId ? { ...room, status: newStatus } : room
     ));
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'occupied': return 'bg-red-100 text-red-800';
       case 'available': return 'bg-green-100 text-green-800';
       case 'maintenance': return 'bg-yellow-100 text-yellow-800';
@@ -174,15 +217,22 @@ export default function RoomManagement() {
               <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
               <p className="text-sm text-gray-500 mt-1">Manage all rooms in your dormitory</p>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Room
-            </button>
+
+            <div className="flex items-center gap-4">
+              <select className="px-4 py-2 border border-gray-300 rounded-lg">
+                <option>Q&M Dormitory - San Jose</option>
+                <option>Sunrise Apartments - Cebu City</option>
+              </select>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Room
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -252,41 +302,37 @@ export default function RoomManagement() {
           <div className="flex gap-2">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'all' 
-                  ? 'bg-green-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'all'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               All Rooms ({stats.total})
             </button>
             <button
               onClick={() => setFilterStatus('occupied')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'occupied' 
-                  ? 'bg-red-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'occupied'
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Occupied ({stats.occupied})
             </button>
             <button
               onClick={() => setFilterStatus('available')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'available' 
-                  ? 'bg-green-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'available'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Available ({stats.available})
             </button>
             <button
               onClick={() => setFilterStatus('maintenance')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterStatus === 'maintenance' 
-                  ? 'bg-yellow-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'maintenance'
+                ? 'bg-yellow-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Maintenance ({stats.maintenance})
             </button>
@@ -299,8 +345,8 @@ export default function RoomManagement() {
             <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
               {/* Room Image */}
               <div className="relative h-48">
-                <img 
-                  src={room.images[0]} 
+                <img
+                  src={room.images[0]}
                   alt={`Room ${room.roomNumber}`}
                   className="w-full h-full object-cover"
                 />
@@ -399,7 +445,7 @@ export default function RoomManagement() {
                   <input
                     type="text"
                     value={newRoom.roomNumber}
-                    onChange={(e) => setNewRoom({...newRoom, roomNumber: e.target.value})}
+                    onChange={(e) => setNewRoom({ ...newRoom, roomNumber: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="e.g., 301"
                   />
@@ -408,7 +454,7 @@ export default function RoomManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Room Type</label>
                   <select
                     value={newRoom.type}
-                    onChange={(e) => setNewRoom({...newRoom, type: e.target.value})}
+                    onChange={(e) => setNewRoom({ ...newRoom, type: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   >
                     <option>Single Room</option>
@@ -425,7 +471,7 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={newRoom.price}
-                    onChange={(e) => setNewRoom({...newRoom, price: e.target.value})}
+                    onChange={(e) => setNewRoom({ ...newRoom, price: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="5000"
                   />
@@ -434,7 +480,7 @@ export default function RoomManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Floor</label>
                   <select
                     value={newRoom.floor}
-                    onChange={(e) => setNewRoom({...newRoom, floor: e.target.value})}
+                    onChange={(e) => setNewRoom({ ...newRoom, floor: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   >
                     <option>1st Floor</option>
@@ -450,7 +496,7 @@ export default function RoomManagement() {
                 <input
                   type="number"
                   value={newRoom.capacity}
-                  onChange={(e) => setNewRoom({...newRoom, capacity: parseInt(e.target.value)})}
+                  onChange={(e) => setNewRoom({ ...newRoom, capacity: parseInt(e.target.value) })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   min="1"
                 />
@@ -488,7 +534,7 @@ export default function RoomManagement() {
                   <input
                     type="text"
                     value={selectedRoom.roomNumber}
-                    onChange={(e) => setSelectedRoom({...selectedRoom, roomNumber: e.target.value})}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, roomNumber: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>
@@ -497,7 +543,7 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.price}
-                    onChange={(e) => setSelectedRoom({...selectedRoom, price: parseInt(e.target.value)})}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                 </div>

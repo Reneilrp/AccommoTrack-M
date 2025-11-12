@@ -146,14 +146,6 @@ export default function Settings({ user }) {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <nav className="space-y-1">
                 <button
-                  onClick={() => setActiveTab('dorm-profile')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'dorm-profile' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Dorm Profile
-                </button>
-                <button
                   onClick={() => setActiveTab('profile')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
                     activeTab === 'profile' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
@@ -191,13 +183,6 @@ export default function Settings({ user }) {
 
           {/* Content */}
           <div className="lg:col-span-3">
-            {/* Dorm Profile Tab - Full Component */}
-            {activeTab === 'dorm-profile' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <DormProfileSettings user={user} />
-              </div>
-            )}
-
             {/* My Profile Tab */}
             {activeTab === 'profile' && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

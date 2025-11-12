@@ -207,3 +207,140 @@ CREATE TABLE maintenance_requests (
     INDEX idx_status (status),
     INDEX idx_landlord (landlord_id)
 );
+-- ROOMS TABLE (CRITICAL)
+CREATE TABLE rooms (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    room_number VARCHAR(50) NOT NULL,
+    room_type ENUM('single', 'double', 'quad', 'suite') NOT NULL,
+    floor INT NOT NULL,
+    monthly_rate DECIMAL(10, 2) NOT NULL,
+    capacity INT NOT NULL DEFAULT 1,
+    status ENUM('available', 'occupied', 'maintenance') NOT NULL DEFAULT 'available',
+    current_tenant_id BIGINT UNSIGNED NULL,
+    description TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    FOREIGN KEY (current_tenant_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_room_per_property (property_id, room_number),
+    INDEX idx_property (property_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- PAYMENTS TABLE (CRITICAL)
+CREATE TABLE payments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    room_id BIGINT UNSIGNED NULL,
+    booking_id BIGINT UNSIGNED NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_date DATE NULL,
+    due_date DATE NOT NULL,
+    status ENUM('paid', 'pending', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
+    payment_method ENUM('cash', 'bank_transfer', 'gcash', 'paymaya', 'card') NULL,
+    reference_number VARCHAR(100) NULL,
+    notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+    INDEX idx_tenant (tenant_id),
+    INDEX idx_status (status),
+    INDEX idx_due_date (due_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- MESSAGES TABLE (CRITICAL)
+CREATE TABLE messages (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sender_id BIGINT UNSIGNED NOT NULL,
+    receiver_id BIGINT UNSIGNED NOT NULL,
+    room_id BIGINT UNSIGNED NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_conversation (sender_id, receiver_id),
+    INDEX idx_unread (receiver_id, is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ROOM_TENANT_ASSIGNMENTS TABLE
+CREATE TABLE room_tenant_assignments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    room_id BIGINT UNSIGNED NOT NULL,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NULL,
+    monthly_rent DECIMAL(10, 2) NOT NULL,
+    status ENUM('active', 'ended', 'cancelled') NOT NULL DEFAULT 'active',
+    deposit_amount DECIMAL(10, 2) NULL,
+    notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_room (room_id),
+    INDEX idx_tenant (tenant_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- NOTIFICATIONS TABLE (OPTIONAL)
+CREATE TABLE notifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    data JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user (user_id),
+    INDEX idx_read (is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- EXPENSES TABLE (OPTIONAL)
+CREATE TABLE expenses (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    category ENUM('maintenance', 'utilities', 'repairs', 'supplies', 'taxes', 'insurance', 'other') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    description TEXT NOT NULL,
+    expense_date DATE NOT NULL,
+    receipt_image VARCHAR(255) NULL,
+    paid_to VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    INDEX idx_property (property_id),
+    INDEX idx_date (expense_date),
+    INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- INQUIRIES TABLE (OPTIONAL - for those 280 inquiries)
+CREATE TABLE inquiries (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    property_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NULL,
+    message TEXT NOT NULL,
+    status ENUM('new', 'contacted', 'converted', 'closed') NOT NULL DEFAULT 'new',
+    source VARCHAR(50) NULL,
+    responded_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    INDEX idx_property (property_id),
+    INDEX idx_status (status),
+    INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

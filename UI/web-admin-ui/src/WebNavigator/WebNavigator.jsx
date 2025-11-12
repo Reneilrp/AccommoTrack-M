@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import LandlordDashboard from '../components/LandlordDashboard';
-import Logo from '../assets/Logo.png';
 
 import DashboardPage from '../components/Pages/DashboardPage';
 import DormProfile from '../components/Pages/DormProfileSettings';
@@ -10,46 +9,22 @@ import Bookings from '../components/Pages/Bookings';
 import Messages from '../components/Pages/Messages';
 import Analytics from '../components/Pages/Analytics';
 import Settings from '../components/Pages/Settings';
+import MyProperties from '../components/Pages/MyProperties';
 
 export default function WebNavigator({ user, onLogout }) {
-  const [currentPage, setCurrentPage] = useState('dashboard');
-
-  const handleNavigate = (pageId) => {
-    setCurrentPage(pageId);
-  };
-
-  // Render the appropriate page component based on currentPage
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <DashboardPage user={user} />;
-      case 'dorm-profile':
-        return <DormProfile user={user} />;
-      case 'rooms':
-        return <RoomManagement user={user} />;
-      case 'tenants':
-        return <Tenants user={user} />;
-      case 'bookings':
-        return <Bookings user={user} />;
-      case 'messages':
-        return <Messages user={user} />;
-      case 'analytics':
-        return <Analytics user={user} />;
-      case 'settings':
-        return <Settings user={user} />;
-      default:
-        return <DashboardPage user={user} />;
-    }
-  };
-
   return (
-    <LandlordDashboard
-      user={user}
-      onLogout={onLogout}
-      currentPage={currentPage}
-      onNavigate={handleNavigate}
-    >
-      {renderPage()}
+    <LandlordDashboard user={user} onLogout={onLogout}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<DashboardPage user={user} />} />
+        <Route path="/properties" element={<MyProperties user={user} />} />
+        <Route path="/rooms" element={<RoomManagement user={user} />} />
+        <Route path="/tenants" element={<Tenants user={user} />} />
+        <Route path="/bookings" element={<Bookings user={user} />} />
+        <Route path="/messages" element={<Messages user={user} />} />
+        <Route path="/analytics" element={<Analytics user={user} />} />
+        <Route path="/settings" element={<Settings user={user} />} />
+      </Routes>
     </LandlordDashboard>
   );
 }

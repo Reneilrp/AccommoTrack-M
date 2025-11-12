@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
 
-export default function LandlordDashboard({ user, onLogout, children, currentPage, onNavigate }) {
+export default function LandlordDashboard({ user, onLogout, children }) {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const location = useLocation();
 
   const menuItems = [
     { 
-      id: 'dashboard', 
+      path: '/Dashboard', 
       label: 'Dashboard', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -17,8 +19,8 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       )
     },
     { 
-      id: 'dorm-profile', 
-      label: 'Dorm Profile', 
+      path: '/Properties', 
+      label: 'My Properties', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -26,7 +28,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       )
     },
     { 
-      id: 'rooms', 
+      path: '/Rooms', 
       label: 'Room Management', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +37,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       )
     },
     { 
-      id: 'tenants', 
+      path: '/Tenants', 
       label: 'Tenants', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,7 +46,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       )
     },
     { 
-      id: 'bookings', 
+      path: '/Bookings', 
       label: 'Bookings', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +55,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       )
     },
     { 
-      id: 'messages', 
+      path: '/Messages', 
       label: 'Messages', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,7 +65,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       badge: 6
     },
     { 
-      id: 'analytics', 
+      path: '/Analytics', 
       label: 'Analytics', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +74,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
       )
     },
     { 
-      id: 'settings', 
+      path: '/settings', 
       label: 'Settings', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,14 +164,16 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4">
           {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 transition-colors relative ${
-                currentPage === item.id
-                  ? 'bg-green-50 text-green-600 border-r-4 border-green-600'
-                  : 'text-gray-700 hover:bg-gray-50'
-              } ${!isSidebarOpen && 'justify-center'}`}
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => 
+                `w-full flex items-center gap-3 px-4 py-3 transition-colors relative ${
+                  isActive
+                    ? 'bg-green-50 text-green-600 border-r-4 border-green-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                } ${!isSidebarOpen && 'justify-center'}`
+              }
             >
               {item.icon}
               {isSidebarOpen && (
@@ -185,7 +189,7 @@ export default function LandlordDashboard({ user, onLogout, children, currentPag
               {!isSidebarOpen && item.badge && (
                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
               )}
-            </button>
+            </NavLink>
           ))}
         </nav>
 
