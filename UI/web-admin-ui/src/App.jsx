@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import WebNavigator from './WebNavigator/WebNavigator';
 import AuthScreen from './AuthScreen/Web-Auth';
 
@@ -45,17 +46,18 @@ function App() {
     );
   }
 
-  // Show AuthScreen if not logged in
-  if (!user) {
-    return <AuthScreen onLogin={handleLogin} />;
-  }
-
   // Show WebNavigator if logged in
   return (
-    <WebNavigator 
-      user={user} 
-      onLogout={handleLogout}
-    />
+    <Routes>
+      <Route 
+        path="/login" 
+        element={!user ? <AuthScreen onLogin={handleLogin} /> : <Navigate to="/dashboard" replace />} 
+      />
+      <Route 
+        path="/*" 
+        element={user ? <WebNavigator user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+    </Routes>
   );
 }
 

@@ -18,6 +18,16 @@ return new class extends Migration
             
             $table->index('property_id');
         });
+        
+        // Create room_images pivot table
+        Schema::create('room_images', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('room_id')->constrained('rooms')->onDelete('cascade');
+            $table->string('image_url');
+            $table->boolean('is_primary')->default(false);
+            $table->integer('order')->default(0);
+            $table->timestamps();
+        });
     }
 
     public function down(): void

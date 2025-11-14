@@ -1,15 +1,28 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+// IP
+const HOST_IP = '192.168.254.106';
 
 export default defineConfig({
   plugins: [react()],
+
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    open: false,
     proxy: {
       '/api': {
-        target: 'http://192.168.254.106:8000/',
+        target: `http://${HOST_IP}:8000`,
         changeOrigin: true,
         secure: false,
-      }
-    }
-  }
-})
+      },
+    },
+  },
+
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,
+  },
+});

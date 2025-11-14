@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('properties', function (Blueprint $table) {
@@ -31,6 +34,9 @@ return new class extends Migration
             $table->decimal('longitude', 10, 7)->nullable();
             $table->text('nearby_landmarks')->nullable();
             
+            // Property Rules (added here instead of using ->after())
+            $table->text('property_rules')->nullable();
+            
             // Property Specifications
             $table->integer('number_of_bedrooms')->nullable();
             $table->integer('number_of_bathrooms')->nullable();
@@ -42,13 +48,6 @@ return new class extends Migration
             // Room Management
             $table->integer('total_rooms')->default(1);
             $table->integer('available_rooms')->default(1);
-            
-            // Rental Information
-            $table->decimal('price_per_month', 10, 2);
-            $table->decimal('security_deposit', 10, 2)->nullable();
-            $table->string('currency', 10)->default('PHP');
-            $table->enum('utilities_included', ['all', 'partial', 'none'])->default('none');
-            $table->enum('minimum_lease_term', ['daily', 'weekly', 'monthly', '3_months', '6_months', '1_year'])->nullable();
             
             // Status
             $table->boolean('is_published')->default(false);
@@ -67,6 +66,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('properties');

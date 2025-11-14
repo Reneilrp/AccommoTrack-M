@@ -1,17 +1,28 @@
 import { useState } from 'react';
+import {
+  ArrowLeft,
+  AlertCircle,
+  X,
+  MapPin,
+  FileText,
+  Plus,
+  CheckCircle,
+  Upload,
+  Check,
+  Loader2,
+  ArrowRight,
+} from 'lucide-react';
 
 export default function AddProperty({ onBack, onSave }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [newRule, setNewRule] = useState('');
 
   const [formData, setFormData] = useState({
-    // Basic Information
     propertyName: '',
     propertyType: '',
-    currentStatus: '',
-
-    // Location
+    currentStatus: 'active',
     streetAddress: '',
     city: '',
     provinceRegion: '',
@@ -21,23 +32,19 @@ export default function AddProperty({ onBack, onSave }) {
     latitude: '',
     longitude: '',
     nearbyLandmarks: '',
-
-    // Specifications
-    total_rooms: '',
+    bedrooms: '',
     bathrooms: '',
     floorArea: '',
     parkingSpaces: '',
     floorLevel: '',
     maxTenants: '',
+    totalRooms: '',
     amenities: [],
-
-    // Rental Info
+    rules: [],
     monthlyPrice: '',
     securityDeposit: '',
-    utilitiesIncluded: '',
-    minimumLease: '',
-
-    // Description & Images
+    utilitiesIncluded: 'none',
+    minimumLease: 'monthly',
     description: '',
     images: []
   });
@@ -64,7 +71,7 @@ export default function AddProperty({ onBack, onSave }) {
     { number: 1, title: 'Basic Information', description: 'Property details' },
     { number: 2, title: 'Location', description: 'Address & coordinates' },
     { number: 3, title: 'Specifications', description: 'Property features' },
-    { number: 4, title: 'Rental Info', description: 'Pricing & terms' },
+    { number: 4, title: 'Property Rules', description: 'House rules' },
     { number: 5, title: 'Description & Images', description: 'Details & photos' }
   ];
 
@@ -83,7 +90,6 @@ export default function AddProperty({ onBack, onSave }) {
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    // In a real app, you'd upload these to a server
     setFormData(prev => ({
       ...prev,
       images: [...prev.images, ...files.map(f => URL.createObjectURL(f))]
@@ -97,6 +103,23 @@ export default function AddProperty({ onBack, onSave }) {
     }));
   };
 
+  const addRule = () => {
+    if (newRule.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        rules: [...prev.rules, newRule.trim()]
+      }));
+      setNewRule('');
+    }
+  };
+
+  const removeRule = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleNext = () => {
     if (currentStep < 5) setCurrentStep(currentStep + 1);
   };
@@ -105,7 +128,59 @@ export default function AddProperty({ onBack, onSave }) {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
+  const mapPropertyToBackend = (isDraft = false) => {
+    return {
+      title: formData.propertyName,
+      description: formData.description || null,
+      property_type: formData.propertyType,
+      current_status: isDraft ? 'inactive' : 'active',
+      street_address: formData.streetAddress,
+      city: formData.city,
+      province: formData.provinceRegion,
+      postal_code: formData.postalCode || null,
+      country: formData.country || 'Philippines',
+      barangay: formData.barangay || null,
+      latitude: parseFloat(formData.latitude) || null,
+      longitude: parseFloat(formData.longitude) || null,
+      nearby_landmarks: formData.nearbyLandmarks || null,
+      number_of_bedrooms: parseInt(formData.bedrooms) || 1,
+      number_of_bathrooms: parseInt(formData.bathrooms) || 1,
+      floor_area: parseFloat(formData.floorArea) || null,
+      parking_spaces: parseInt(formData.parkingSpaces) || 0,
+      floor_level: formData.floorLevel || null,
+      max_occupants: parseInt(formData.maxTenants) || 1,
+      total_rooms: parseInt(formData.totalRooms) || 1,
+      available_rooms: parseInt(formData.totalRooms) || 1,
+      property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
+      is_published: !isDraft,
+      is_available: !isDraft
+    };
+  };
+
+  const validateForm = () => {
+    const errors = [];
+
+    if (!formData.propertyName) errors.push('Property name is required');
+    if (!formData.propertyType) errors.push('Property type is required');
+    if (!formData.streetAddress) errors.push('Street address is required');
+    if (!formData.city) errors.push('City is required');
+    if (!formData.provinceRegion) errors.push('Province is required');
+    if (!formData.totalRooms) errors.push('Total rooms is required');
+
+    if (errors.length > 0) {
+      setError(errors.join(', '));
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSaveDraft = async () => {
+    if (!formData.propertyName || !formData.propertyType) {
+      setError('Please fill in at least the property name and type');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -113,50 +188,11 @@ export default function AddProperty({ onBack, onSave }) {
       const response = await fetch(`${API_URL}/properties`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          title: formData.propertyName,
-          description: formData.description || null,
-          property_type: formData.propertyType,
-          current_status: 'inactive', // Draft = inactive
-
-          // Location
-          street_address: formData.streetAddress,
-          city: formData.city,
-          province: formData.provinceRegion,
-          postal_code: formData.postalCode || null,
-          country: formData.country || 'Philippines',
-          barangay: formData.barangay || null,
-          latitude: parseFloat(formData.latitude) || null,
-          longitude: parseFloat(formData.longitude) || null,
-          nearby_landmarks: formData.nearbyLandmarks || null,
-
-          // Specifications - ⭐ FIXED: Changed field names to match backend
-          number_of_bedrooms: parseInt(formData.total_rooms) || 1,  // Backend expects 'number_of_bedrooms' not 'number_of_total_rooms'
-          number_of_bathrooms: parseInt(formData.bathrooms) || 1,
-          floor_area: parseFloat(formData.floorArea) || null,
-          parking_spaces: parseInt(formData.parkingSpaces) || 0,
-          floor_level: formData.floorLevel || null,
-          max_occupants: parseInt(formData.maxTenants) || 1,
-
-          // Room Management - ⭐ FIXED: Must be at least 1
-          total_rooms: parseInt(formData.total_rooms) || 1,
-          available_rooms: parseInt(formData.total_rooms) || 1,
-
-          // Rental Info
-          price_per_month: parseFloat(formData.monthlyPrice),
-          security_deposit: parseFloat(formData.securityDeposit) || null,
-          utilities_included: formData.utilitiesIncluded || 'none',
-          minimum_lease_term: formData.minimumLease || 'monthly',  // ⭐ FIXED: Added fallback
-
-          // Status
-          is_published: false,
-          is_available: false
-        })
+        body: JSON.stringify(mapPropertyToBackend(true))
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Validation errors:', errorData);
         throw new Error(errorData.message || 'Failed to save property');
       }
 
@@ -167,29 +203,21 @@ export default function AddProperty({ onBack, onSave }) {
       if (onBack) onBack();
 
     } catch (err) {
-      console.error('Error saving draft:', err);
       setError(err.message);
-      alert('Error saving property: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePublish = async () => {
-    // Debug: Check token
     const token = localStorage.getItem('auth_token');
-    console.log('Token exists:', !!token);
-    console.log('Token value:', token);
 
     if (!token) {
-      alert('You are not logged in. Please log in again.');
+      setError('You are not logged in. Please log in again.');
       return;
     }
 
-    // Validate required fields - ⭐ ADDED: Check total_rooms
-    if (!formData.propertyName || !formData.propertyType || !formData.streetAddress ||
-      !formData.city || !formData.provinceRegion || !formData.monthlyPrice || !formData.total_rooms) {
-      alert('Please fill in all required fields');
+    if (!validateForm()) {
       return;
     }
 
@@ -200,50 +228,11 @@ export default function AddProperty({ onBack, onSave }) {
       const response = await fetch(`${API_URL}/properties`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          title: formData.propertyName,
-          description: formData.description || null,
-          property_type: formData.propertyType,
-          current_status: 'active',
-
-          // Location
-          street_address: formData.streetAddress,
-          city: formData.city,
-          province: formData.provinceRegion,
-          postal_code: formData.postalCode || null,
-          country: formData.country || 'Philippines',
-          barangay: formData.barangay || null,
-          latitude: parseFloat(formData.latitude) || null,
-          longitude: parseFloat(formData.longitude) || null,
-          nearby_landmarks: formData.nearbyLandmarks || null,
-
-          // Specifications - ⭐ FIXED: Changed field names to match backend
-          number_of_bedrooms: parseInt(formData.total_rooms) || 1,  // Backend expects 'number_of_bedrooms' not 'number_of_total_rooms'
-          number_of_bathrooms: parseInt(formData.bathrooms) || 1,
-          floor_area: parseFloat(formData.floorArea) || null,
-          parking_spaces: parseInt(formData.parkingSpaces) || 0,
-          floor_level: formData.floorLevel || null,
-          max_occupants: parseInt(formData.maxTenants) || 1,
-
-          // Room Management - ⭐ FIXED: Must be at least 1
-          total_rooms: parseInt(formData.total_rooms) || 1,
-          available_rooms: parseInt(formData.total_rooms) || 1,
-
-          // Rental Info
-          price_per_month: parseFloat(formData.monthlyPrice),
-          security_deposit: parseFloat(formData.securityDeposit) || null,
-          utilities_included: formData.utilitiesIncluded || 'none',
-          minimum_lease_term: formData.minimumLease || 'monthly', 
-
-          // Status
-          is_published: true,
-          is_available: true
-        })
+        body: JSON.stringify(mapPropertyToBackend(false))
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Validation errors:', errorData);
         throw new Error(errorData.message || 'Failed to publish property');
       }
 
@@ -254,9 +243,7 @@ export default function AddProperty({ onBack, onSave }) {
       if (onBack) onBack();
 
     } catch (err) {
-      console.error('Error publishing property:', err);
       setError(err.message);
-      alert('Error publishing property: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -271,9 +258,7 @@ export default function AddProperty({ onBack, onSave }) {
             onClick={onBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ArrowLeft className="w-5 h-5" />
             Back to Properties
           </button>
           <div>
@@ -287,10 +272,13 @@ export default function AddProperty({ onBack, onSave }) {
       {error && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <span className="text-red-700 text-sm">{error}</span>
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="text-red-700 text-sm">{error}</span>
+            </div>
+            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}
@@ -361,24 +349,24 @@ export default function AddProperty({ onBack, onSave }) {
                   <option value="">Select type</option>
                   <option value="dormitory">Dormitory</option>
                   <option value="apartment">Apartment</option>
-                  <option value="boarding-house">Boarding House</option>
-                  <option value="bed-spacer">Bed Spacer</option>
+                  <option value="boardingHouse">Boarding House</option>
+                  <option value="bedSpacer">Bed Spacer</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current Status <span className="text-red-500">*</span>
+                  Current Status
                 </label>
                 <select
                   value={formData.currentStatus}
                   onChange={(e) => handleInputChange('currentStatus', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
                 >
-                  <option value="">Select status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="draft">Draft</option>
+                  <option value="pending">Pending</option>
+                  <option value="maintenance">Maintenance</option>
                 </select>
               </div>
             </div>
@@ -392,18 +380,31 @@ export default function AddProperty({ onBack, onSave }) {
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-1">Location Details</h2>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Street Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., 123 Main Street"
-                  value={formData.streetAddress}
-                  onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Street Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., 123 Main Street"
+                    value={formData.streetAddress}
+                    onChange={(e) => handleInputChange('streetAddress', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Barangay
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Barangay 123"
+                    value={formData.barangay}
+                    onChange={(e) => handleInputChange('barangay', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -450,7 +451,7 @@ export default function AddProperty({ onBack, onSave }) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Country <span className="text-red-500">*</span>
+                    Country
                   </label>
                   <input
                     type="text"
@@ -466,9 +467,7 @@ export default function AddProperty({ onBack, onSave }) {
             {/* Map Section */}
             <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
               <div className="flex items-start gap-2 mb-4">
-                <svg className="w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
+                <MapPin className="w-5 h-5 text-red-500 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-gray-900">Set Property Coordinates</h3>
                   <p className="text-sm text-gray-600">Click on the map below to set the exact location of your property</p>
@@ -477,10 +476,7 @@ export default function AddProperty({ onBack, onSave }) {
 
               <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center mb-4">
                 <div className="text-center text-gray-500">
-                  <svg className="w-16 h-16 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                  <MapPin className="w-16 h-16 mx-auto mb-2 text-gray-400" />
                   <p className="text-sm">Interactive map would appear here</p>
                   <p className="text-xs mt-1">Click to set location pin</p>
                 </div>
@@ -494,6 +490,7 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.latitude}
                     onChange={(e) => handleInputChange('latitude', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="e.g., 14.5995"
                   />
                 </div>
                 <div>
@@ -503,6 +500,7 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.longitude}
                     onChange={(e) => handleInputChange('longitude', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="e.g., 120.9842"
                   />
                 </div>
               </div>
@@ -532,14 +530,15 @@ export default function AddProperty({ onBack, onSave }) {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Rooms <span className="text-red-500">*</span>
+                    Total Rooms <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
-                    placeholder="e.g., 2"
-                    value={formData.total_rooms}
-                    onChange={(e) => handleInputChange('total_rooms', e.target.value)}
+                    placeholder="e.g., 10"
+                    value={formData.totalRooms}
+                    onChange={(e) => handleInputChange('totalRooms', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    min="1"
                   />
                 </div>
 
@@ -553,12 +552,13 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.bathrooms}
                     onChange={(e) => handleInputChange('bathrooms', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    min="0"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Floor Area (sqm) <span className="text-red-500">*</span>
+                    Floor Area (sqm)
                   </label>
                   <input
                     type="number"
@@ -566,6 +566,7 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.floorArea}
                     onChange={(e) => handleInputChange('floorArea', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    min="0"
                   />
                 </div>
               </div>
@@ -576,11 +577,12 @@ export default function AddProperty({ onBack, onSave }) {
                     Parking Spaces
                   </label>
                   <input
-                    type="string"
+                    type="number"
                     placeholder="e.g., 1"
                     value={formData.parkingSpaces}
                     onChange={(e) => handleInputChange('parkingSpaces', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    min="0"
                   />
                 </div>
 
@@ -596,10 +598,9 @@ export default function AddProperty({ onBack, onSave }) {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Tenants
+                    Max Occupants
                   </label>
                   <input
                     type="number"
@@ -607,6 +608,7 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.maxTenants}
                     onChange={(e) => handleInputChange('maxTenants', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    min="1"
                   />
                 </div>
               </div>
@@ -633,79 +635,109 @@ export default function AddProperty({ onBack, onSave }) {
           </div>
         )}
 
-        {/* Step 4: Rental Information */}
+        {/* Step 4: Property Rules */}
         {currentStep === 4 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Rental Information</h2>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-1">Property Rules</h2>
+              <p className="text-sm text-gray-600">Add house rules and policies for your property</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add Rule
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="e.g., No smoking inside the premises"
+                  value={newRule}
+                  onChange={(e) => setNewRule(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addRule();
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                />
+                <button
+                  onClick={addRule}
+                  disabled={!newRule.trim()}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add
+                </button>
               </div>
+              <p className="text-xs text-gray-500 mt-2">Press Enter or click Add to include the rule</p>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monthly Rental Price (₱) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 12000"
-                    value={formData.monthlyPrice}
-                    onChange={(e) => handleInputChange('monthlyPrice', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Security Deposit (₱)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 24000"
-                    value={formData.securityDeposit}
-                    onChange={(e) => handleInputChange('securityDeposit', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Utilities Included
-                  </label>
-                  <select
-                    value={formData.utilitiesIncluded}
-                    onChange={(e) => handleInputChange('utilitiesIncluded', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+            {/* Common Rules Suggestions */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-3">Common Rules (Click to add):</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'No smoking',
+                  'No pets allowed',
+                  'No visitors after 10 PM',
+                  'Quiet hours: 10 PM - 6 AM',
+                  'No illegal activities',
+                  'Keep common areas clean',
+                  'Respect other tenants',
+                  'No cooking in rooms'
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => {
+                      if (!formData.rules.includes(suggestion)) {
+                        setFormData(prev => ({
+                          ...prev,
+                          rules: [...prev.rules, suggestion]
+                        }));
+                      }
+                    }}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-full hover:bg-gray-50 transition-colors text-gray-700"
                   >
-                    <option value="">Select option</option>
-                    <option value="all">All Utilities Included</option>
-                    <option value="partial">Partially Included</option>
-                    <option value="none">Not Included</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Lease Term
-                  </label>
-                  <select
-                    value={formData.minimumLease}
-                    onChange={(e) => handleInputChange('minimumLease', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                  >
-                    <option value="">Select term</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="3_months">3 Months</option>
-                    <option value="6_months">6 Months</option>
-                    <option value="1_year">1 Year</option>
-                  </select>
-                </div>
+                    + {suggestion}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* Rules List */}
+            {formData.rules.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">Your Property Rules:</p>
+                <div className="space-y-2">
+                  {formData.rules.map((rule, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 group hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex-shrink-0 mt-0.5">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <p className="flex-1 text-sm text-gray-700">{rule}</p>
+                      <button
+                        onClick={() => removeRule(index)}
+                        className="flex-shrink-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.rules.length === 0 && (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 text-sm">No rules added yet</p>
+                <p className="text-gray-500 text-xs mt-1">Add rules to help tenants understand your property policies</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -719,7 +751,7 @@ export default function AddProperty({ onBack, onSave }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description <span className="text-red-500">*</span>
+                  Description
                 </label>
                 <textarea
                   placeholder="Provide a detailed description of the property, including any special features, nearby conveniences, and other relevant info"
@@ -745,9 +777,7 @@ export default function AddProperty({ onBack, onSave }) {
                   id="image-upload"
                 />
                 <label htmlFor="image-upload" className="cursor-pointer">
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
                   <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
                 </label>
@@ -762,17 +792,13 @@ export default function AddProperty({ onBack, onSave }) {
                         onClick={() => removeImage(index)}
                         className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
                   {formData.images.length < 10 && (
                     <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
+                      <Plus className="w-8 h-8 text-gray-400" />
                     </label>
                   )}
                 </div>
@@ -782,68 +808,57 @@ export default function AddProperty({ onBack, onSave }) {
         )}
 
         {/* Navigation Buttons */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between pt-6">
-            <button
-              onClick={handlePrevious}
-              disabled={currentStep === 1 || loading}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${currentStep === 1 || loading
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Previous
-            </button>
+        <div className="flex items-center justify-between pt-6">
+          <button
+            onClick={handlePrevious}
+            disabled={currentStep === 1 || loading}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${currentStep === 1 || loading
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Previous
+          </button>
 
-            <div className="flex items-center gap-3">
-              {currentStep === 5 ? (
-                <>
-                  <button
-                    onClick={handleSaveDraft}
-                    disabled={loading}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Saving...' : 'Save as Draft'}
-                  </button>
-                  <button
-                    onClick={handlePublish}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Publishing...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Publish Property
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
+          <div className="flex items-center gap-3">
+            {currentStep === 5 ? (
+              <>
                 <button
-                  onClick={handleNext}
+                  onClick={handleSaveDraft}
                   disabled={loading}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  {loading ? 'Saving...' : 'Save as Draft'}
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={handlePublish}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 text-white" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Publish Property
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleNext}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+              >
+                Next
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

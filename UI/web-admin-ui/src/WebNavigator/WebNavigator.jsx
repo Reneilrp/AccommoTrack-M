@@ -1,8 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import LandlordDashboard from '../components/LandlordDashboard';
+import LandlordLayout from '../components/LandlordDashboard';
 
 import DashboardPage from '../components/Pages/DashboardPage';
-import DormProfile from '../components/Pages/DormProfileSettings';
 import RoomManagement from '../components/Pages/RoomManagement';
 import Tenants from '../components/Pages/TenantManagement';
 import Bookings from '../components/Pages/Bookings';
@@ -13,7 +12,7 @@ import MyProperties from '../components/Pages/MyProperties';
 
 export default function WebNavigator({ user, onLogout }) {
   return (
-    <LandlordDashboard user={user} onLogout={onLogout}>
+    <LandlordLayout user={user} onLogout={onLogout}>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
@@ -25,6 +24,6 @@ export default function WebNavigator({ user, onLogout }) {
         <Route path="/analytics" element={<Analytics user={user} />} />
         <Route path="/settings" element={<Settings user={user} />} />
       </Routes>
-    </LandlordDashboard>
+    </LandlordLayout>
   );
 }

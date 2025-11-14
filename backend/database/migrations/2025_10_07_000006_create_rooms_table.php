@@ -15,9 +15,9 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('property_id')->index('idx_property');
             $table->string('room_number', 50);
-            $table->enum('room_type', ['single', 'double', 'quad', 'suite']);
+            $table->enum('room_type', ['single', 'double', 'quad', 'bedSpacer']);
             $table->integer('floor');
-            $table->decimal('monthly_rate', 10);
+            $table->decimal('monthly_rate', 10, 2);
             $table->integer('capacity')->default(1);
             $table->enum('status', ['available', 'occupied', 'maintenance'])->default('available')->index('idx_status');
             $table->unsignedBigInteger('current_tenant_id')->nullable()->index('current_tenant_id');

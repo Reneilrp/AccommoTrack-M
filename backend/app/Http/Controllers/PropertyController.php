@@ -32,7 +32,7 @@ class PropertyController extends Controller
                         'city' => $property->city,
                         'province' => $property->province,
                         'barangay' => $property->barangay,
-                        'price_per_month' => $property->price_per_month,
+                        'property_rules' => $property->property_rules ?? [],
                         'total_rooms' => $property->rooms->count(),
                         'available_rooms' => $property->rooms->where('status', 'available')->count(),
                         'occupied_rooms' => $property->rooms->where('status', 'occupied')->count(),
@@ -63,7 +63,7 @@ class PropertyController extends Controller
                 // Basic Information
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'property_type' => 'required|in:apartment,house,room,studio,dormitory,condo,boarding_house',
+                'property_type' => 'required|in:apartment,dormitory,boardingHouse,bedSpacer',
                 'current_status' => 'sometimes|in:active,inactive,pending,maintenance',
                 
                 // Location Details
@@ -79,6 +79,9 @@ class PropertyController extends Controller
                 'longitude' => 'nullable|numeric',
                 'nearby_landmarks' => 'nullable|string',
                 
+                // Property Rules
+                'property_rules' => 'nullable|string',
+                
                 // Property Specifications
                 'number_of_bedrooms' => 'nullable|integer|min:0',
                 'number_of_bathrooms' => 'nullable|integer|min:0',
@@ -90,26 +93,22 @@ class PropertyController extends Controller
                 // Room Management
                 'total_rooms' => 'required|integer|min:1',
                 'available_rooms' => 'required|integer|min:0',
-                
-                // Rental Information
-                'price_per_month' => 'required|numeric|min:0',
-                'security_deposit' => 'nullable|numeric|min:0',
-                'currency' => 'sometimes|string|max:10',
-                'utilities_included' => 'sometimes|in:all,partial,none',
-                'minimum_lease_term' => 'nullable|in:daily,weekly,monthly,3_months,6_months,1_year',
-                
+                                
                 // Status
                 'is_published' => 'sometimes|boolean',
                 'is_available' => 'sometimes|boolean'
             ]);
+
+            // Handle property_rules - convert JSON string to array if needed
+            if (isset($validated['property_rules'])) {
+                $validated['property_rules'] = json_decode($validated['property_rules'], true);
+            }
 
             $property = Property::create([
                 'landlord_id' => Auth::id(),
                 ...$validated,
                 'current_status' => $validated['current_status'] ?? 'active',
                 'country' => $validated['country'] ?? 'Philippines',
-                'currency' => $validated['currency'] ?? 'PHP',
-                'utilities_included' => $validated['utilities_included'] ?? 'none',
                 'is_published' => $validated['is_published'] ?? false,
                 'is_available' => $validated['is_available'] ?? true
             ]);
@@ -172,6 +171,7 @@ class PropertyController extends Controller
                 'latitude' => 'nullable|numeric',
                 'longitude' => 'nullable|numeric',
                 'nearby_landmarks' => 'nullable|string',
+                'property_rules' => 'nullable|string',
                 'number_of_bedrooms' => 'nullable|integer|min:0',
                 'number_of_bathrooms' => 'nullable|integer|min:0',
                 'floor_area' => 'nullable|numeric|min:0',
@@ -180,13 +180,14 @@ class PropertyController extends Controller
                 'max_occupants' => 'sometimes|integer|min:1',
                 'total_rooms' => 'sometimes|integer|min:1',
                 'available_rooms' => 'sometimes|integer|min:0',
-                'price_per_month' => 'sometimes|numeric|min:0',
-                'security_deposit' => 'nullable|numeric|min:0',
-                'utilities_included' => 'sometimes|in:all,partial,none',
-                'minimum_lease_term' => 'nullable|in:daily,weekly,monthly,3_months,6_months,1_year',
                 'is_published' => 'sometimes|boolean',
                 'is_available' => 'sometimes|boolean'
             ]);
+
+            // Handle property_rules - convert JSON string to array if needed
+            if (isset($validated['property_rules'])) {
+                $validated['property_rules'] = json_decode($validated['property_rules'], true);
+            }
 
             $property->update($validated);
 

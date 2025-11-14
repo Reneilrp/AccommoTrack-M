@@ -46,8 +46,23 @@ class Room extends Model
     }
 
     /**
+     * Relationship: Room has many amenities (many-to-many)
+     */
+    public function amenities()
+    {
+        return $this->belongsToMany(Amenity::class, 'room_amenities', 'room_id', 'amenity_id');
+    }
+
+    /**
+     * Relationship: Room has many images
+     */
+    public function images()
+    {
+        return $this->hasMany(RoomImage::class, 'room_id');
+    }
+
+    /**
      * Get occupied count (for compatibility with frontend)
-     * Since your DB doesn't have 'occupied' field, we'll use status
      */
     public function getOccupiedAttribute()
     {
@@ -63,22 +78,6 @@ class Room extends Model
             return $this->currentTenant->first_name . ' ' . $this->currentTenant->last_name;
         }
         return null;
-    }
-
-    /**
-     * Get amenities (for compatibility - you might want to add this later)
-     */
-    public function getAmenitiesAttribute()
-    {
-        return [];
-    }
-
-    /**
-     * Get images (for compatibility - you might want to add this later)
-     */
-    public function getImagesAttribute()
-    {
-        return ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400'];
     }
 
     /**
@@ -99,10 +98,18 @@ class Room extends Model
             'single' => 'Single Room',
             'double' => 'Double Room',
             'quad' => 'Quad Room',
-            'suite' => 'Suite'
+            'bedSpacer' => 'Bed Spacer'
         ];
         
         return $types[$this->room_type] ?? ucfirst($this->room_type);
+    }
+
+    /**
+     * Get roomNumber (alias for room_number for frontend compatibility)
+     */
+    public function getRoomNumberAttribute()
+    {
+        return $this->attributes['room_number'];
     }
 
     /**
@@ -146,6 +153,80 @@ class Room extends Model
     }
 
     /**
+     * Mark room as available
+     */
+    public function markAsAvailable()
+    {
+        $this->update(['status' => 'available', 'current_tenant_id' => null]);
+        
+        // Update property available rooms count
+        if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
+            $this->property->updateAvailableRooms();
+        }
+    }
+
+    /**
+     * Mark room as occupied
+     */
+    public function markAsOccupied($tenantId = null)
+    {
+        $this->update([
+            'status' => 'occupied',
+            'current_tenant_id' => $tenantId
+        ]);
+        
+        // Update property available rooms count
+        if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
+            $this->property->updateAvailableRooms();
+        }
+    }
+
+    /**
+     * Mark room as under maintenance
+     */
+    public function markAsUnderMaintenance()
+    {
+        $this->update(['status' => 'maintenance']);
+        
+        // Update property available rooms count
+        if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
+            $this->property->updateAvailableRooms();
+        }
+    }
+
+    /**
+     * Assign tenant to room
+     */
+    public function assignTenant($tenantId)
+    {
+        $this->update([
+            'current_tenant_id' => $tenantId,
+            'status' => 'occupied'
+        ]);
+        
+        // Update property available rooms count
+        if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
+            $this->property->updateAvailableRooms();
+        }
+    }
+
+    /**
+     * Remove tenant from room
+     */
+    public function removeTenant()
+    {
+        $this->update([
+            'current_tenant_id' => null,
+            'status' => 'available'
+        ]);
+        
+        // Update property available rooms count
+        if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
+            $this->property->updateAvailableRooms();
+        }
+    }
+
+    /**
      * Scope: Get only available rooms
      */
     public function scopeAvailable($query)
@@ -159,6 +240,14 @@ class Room extends Model
     public function scopeOccupied($query)
     {
         return $query->where('status', 'occupied');
+    }
+
+    /**
+     * Scope: Get rooms under maintenance
+     */
+    public function scopeUnderMaintenance($query)
+    {
+        return $query->where('status', 'maintenance');
     }
 
     /**
@@ -183,5 +272,49 @@ class Room extends Model
     public function scopeForProperty($query, $propertyId)
     {
         return $query->where('property_id', $propertyId);
+    }
+
+    /**
+     * Scope: Get rooms with capacity greater than or equal to specified value
+     */
+    public function scopeWithMinCapacity($query, $minCapacity)
+    {
+        return $query->where('capacity', '>=', $minCapacity);
+    }
+
+    /**
+     * Scope: Get rooms within price range
+     */
+    public function scopeInPriceRange($query, $minPrice, $maxPrice)
+    {
+        return $query->whereBetween('monthly_rate', [$minPrice, $maxPrice]);
+    }
+
+    /**
+     * Boot method - handle model events
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // When a room is deleted, update property stats
+        static::deleted(function ($room) {
+            if ($room->property && method_exists($room->property, 'updateTotalRooms')) {
+                $room->property->updateTotalRooms();
+            }
+            if ($room->property && method_exists($room->property, 'updateAvailableRooms')) {
+                $room->property->updateAvailableRooms();
+            }
+        });
+
+        // When a room is created, update property stats
+        static::created(function ($room) {
+            if ($room->property && method_exists($room->property, 'updateTotalRooms')) {
+                $room->property->updateTotalRooms();
+            }
+            if ($room->property && method_exists($room->property, 'updateAvailableRooms')) {
+                $room->property->updateAvailableRooms();
+            }
+        });
     }
 }

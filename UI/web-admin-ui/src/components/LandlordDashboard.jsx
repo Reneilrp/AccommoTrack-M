@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
 
-export default function LandlordDashboard({ user, onLogout, children }) {
+export default function LandlordLayout({ user, onLogout, children }) {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);

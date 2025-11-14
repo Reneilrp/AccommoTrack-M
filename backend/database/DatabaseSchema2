@@ -1,0 +1,414 @@
+CREATE TABLE cache (
+    `key` VARCHAR(255) PRIMARY KEY,
+    `value` MEDIUMTEXT NOT NULL,
+    `expiration` INT NOT NULL
+);
+
+CREATE TABLE cache_locks (
+    `key` VARCHAR(255) PRIMARY KEY,
+    `owner` VARCHAR(255) NOT NULL,
+    `expiration` INT NOT NULL
+);
+
+CREATE TABLE jobs (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `queue` VARCHAR(255) NOT NULL,
+    `payload` LONGTEXT NOT NULL,
+    `attempts` TINYINT UNSIGNED NOT NULL,
+    `reserved_at` INT UNSIGNED NULL,
+    `available_at` INT UNSIGNED NOT NULL,
+    `created_at` INT UNSIGNED NOT NULL,
+    INDEX `jobs_queue_index` (`queue`)
+);
+
+CREATE TABLE job_batches (
+    `id` VARCHAR(255) PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `total_jobs` INT NOT NULL,
+    `pending_jobs` INT NOT NULL,
+    `failed_jobs` INT NOT NULL,
+    `failed_job_ids` LONGTEXT NOT NULL,
+    `options` MEDIUMTEXT NULL,
+    `cancelled_at` INT NULL,
+    `created_at` INT NOT NULL,
+    `finished_at` INT NULL
+);
+
+CREATE TABLE failed_jobs (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(255) UNIQUE NOT NULL,
+    `connection` TEXT NOT NULL,
+    `queue` TEXT NOT NULL,
+    `payload` LONGTEXT NOT NULL,
+    `exception` LONGTEXT NOT NULL,
+    `failed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE personal_access_tokens (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `tokenable_type` VARCHAR(255) NOT NULL,
+    `tokenable_id` BIGINT UNSIGNED NOT NULL,
+    `name` TEXT NOT NULL,
+    `token` VARCHAR(64) UNIQUE NOT NULL,
+    `abilities` TEXT NULL,
+    `last_used_at` TIMESTAMP NULL,
+    `expires_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `personal_access_tokens_tokenable_type_tokenable_id_index` (`tokenable_type`, `tokenable_id`),
+    INDEX `personal_access_tokens_expires_at_index` (`expires_at`)
+);
+
+CREATE TABLE users (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `role` ENUM('landlord', 'tenant') NOT NULL,
+    `email` VARCHAR(255) UNIQUE NOT NULL,
+    `password` VARCHAR(255) NOT NULL,
+    `first_name` VARCHAR(100) NOT NULL,
+    `middle_name` VARCHAR(100) NULL,
+    `last_name` VARCHAR(100) NOT NULL,
+    `phone` VARCHAR(20) NULL,
+    `profile_image` VARCHAR(255) NULL,
+    `age` INT NULL,
+    `preference` VARCHAR(255) NULL,
+    `is_verified` BOOLEAN DEFAULT FALSE NOT NULL,
+    `is_active` BOOLEAN DEFAULT TRUE NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `users_role_index` (`role`)
+);
+
+CREATE TABLE landlord_profiles (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `business_name` VARCHAR(255) NULL,
+    `address` TEXT NULL,
+    `barangay` VARCHAR(255) NULL,
+    `city` VARCHAR(100) NULL,
+    `postal_code` VARCHAR(20) NULL,
+    `verification_status` ENUM('pending', 'verified', 'rejected') DEFAULT 'pending' NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    UNIQUE `landlord_profiles_user_id_unique` (`user_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE tenant_profiles (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `age` INT NULL,
+    `date_of_birth` DATE NULL,
+    `emergency_contact_name` VARCHAR(255) NULL,
+    `emergency_contact_phone` VARCHAR(20) NULL,
+    `emergency_contact_relationship` VARCHAR(100) NULL,
+    `current_address` TEXT NULL,
+    `preference` VARCHAR(255) NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    UNIQUE `tenant_profiles_user_id_unique` (`user_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE properties (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `landlord_id` BIGINT UNSIGNED NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `description` TEXT NULL,
+    `property_type` ENUM('apartment', 'house', 'room', 'studio', 'dormitory', 'condo', 'boarding_house') NOT NULL,
+    `current_status` ENUM('active', 'inactive', 'pending', 'maintenance') DEFAULT 'active' NOT NULL,
+    `street_address` VARCHAR(255) NOT NULL,
+    `city` VARCHAR(100) NOT NULL,
+    `province` VARCHAR(100) NOT NULL,
+    `postal_code` VARCHAR(20) NULL,
+    `country` VARCHAR(100) DEFAULT 'Philippines' NOT NULL,
+    `barangay` VARCHAR(100) NULL,
+    `latitude` DECIMAL(10, 7) NULL,
+    `longitude` DECIMAL(10, 7) NULL,
+    `nearby_landmarks` TEXT NULL,
+    `number_of_bedrooms` INT NULL,
+    `number_of_bathrooms` INT NULL,
+    `floor_area` DECIMAL(8, 2) NULL,
+    `parking_spaces` INT NULL,
+    `floor_level` VARCHAR(50) NULL,
+    `max_occupants` INT DEFAULT 1 NOT NULL,
+    `total_rooms` INT DEFAULT 1 NOT NULL,
+    `available_rooms` INT DEFAULT 1 NOT NULL,
+    `price_per_month` DECIMAL(10, 2) NOT NULL,
+    `security_deposit` DECIMAL(10, 2) NULL,
+    `currency` VARCHAR(10) DEFAULT 'PHP' NOT NULL,
+    `utilities_included` ENUM('all', 'partial', 'none') DEFAULT 'none' NOT NULL,
+    `minimum_lease_term` ENUM('daily', 'weekly', 'monthly', '3_months', '6_months', '1_year') NULL,
+    `is_published` BOOLEAN DEFAULT FALSE NOT NULL,
+    `is_available` BOOLEAN DEFAULT TRUE NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `properties_landlord_id_index` (`landlord_id`),
+    INDEX `properties_city_index` (`city`),
+    INDEX `properties_province_index` (`province`),
+    INDEX `properties_current_status_index` (`current_status`),
+    INDEX `properties_property_type_index` (`property_type`),
+    INDEX `properties_is_published_index` (`is_published`),
+    INDEX `properties_is_available_index` (`is_available`),
+    FOREIGN KEY (`landlord_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE amenities (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) UNIQUE NOT NULL,
+    `category` ENUM('basic', 'comfort', 'safety', 'other') DEFAULT 'other' NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL
+);
+
+CREATE TABLE property_amenities (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `amenity_id` BIGINT UNSIGNED NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    UNIQUE `property_amenities_property_id_amenity_id_unique` (`property_id`, `amenity_id`),
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`amenity_id`) REFERENCES `amenities` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE property_images (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `image_url` VARCHAR(255) NOT NULL,
+    `is_primary` BOOLEAN DEFAULT FALSE NOT NULL,
+    `display_order` INT DEFAULT 0 NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `property_images_property_id_index` (`property_id`),
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE bookings (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `tenant_id` BIGINT UNSIGNED NOT NULL,
+    `landlord_id` BIGINT UNSIGNED NOT NULL,
+    `booking_reference` VARCHAR(50) UNIQUE NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `total_months` INT NOT NULL,
+    `monthly_rent` DECIMAL(10, 2) NOT NULL,
+    `total_amount` DECIMAL(10, 2) NOT NULL,
+    `status` ENUM('pending', 'confirmed', 'cancelled', 'completed', 'rejected') DEFAULT 'pending' NOT NULL,
+    `payment_status` ENUM('unpaid', 'partial', 'paid', 'refunded') DEFAULT 'unpaid' NOT NULL,
+    `notes` TEXT NULL,
+    `cancelled_at` TIMESTAMP NULL,
+    `cancellation_reason` TEXT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `bookings_tenant_id_index` (`tenant_id`),
+    INDEX `bookings_landlord_id_index` (`landlord_id`),
+    INDEX `bookings_status_index` (`status`),
+    INDEX `bookings_start_date_end_date_index` (`start_date`, `end_date`),
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`tenant_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`landlord_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+);
+
+CREATE TABLE reviews (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `booking_id` BIGINT UNSIGNED NOT NULL,
+    `tenant_id` BIGINT UNSIGNED NOT NULL,
+    `rating` INT NOT NULL,
+    `cleanliness_rating` INT NULL,
+    `location_rating` INT NULL,
+    `value_rating` INT NULL,
+    `communication_rating` INT NULL,
+    `comment` TEXT NULL,
+    `is_published` BOOLEAN DEFAULT TRUE NOT NULL,
+    `landlord_response` TEXT NULL,
+    `landlord_response_date` TIMESTAMP NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    UNIQUE `reviews_booking_id_unique` (`booking_id`),
+    INDEX `reviews_property_id_index` (`property_id`),
+    INDEX `reviews_rating_index` (`rating`),
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`tenant_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE favorites (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `tenant_id` BIGINT UNSIGNED NOT NULL,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    UNIQUE `favorites_tenant_id_property_id_unique` (`tenant_id`, `property_id`),
+    INDEX `favorites_tenant_id_index` (`tenant_id`),
+    FOREIGN KEY (`tenant_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE property_rules (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `rule_type` ENUM('allowed', 'not_allowed', 'policy') NOT NULL,
+    `rule_text` TEXT NOT NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `property_rules_property_id_index` (`property_id`),
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE maintenance_requests (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `booking_id` BIGINT UNSIGNED NOT NULL,
+    `tenant_id` BIGINT UNSIGNED NOT NULL,
+    `landlord_id` BIGINT UNSIGNED NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `description` TEXT NOT NULL,
+    `priority` ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium' NOT NULL,
+    `status` ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending' NOT NULL,
+    `images` TEXT NULL,
+    `resolved_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    INDEX `maintenance_requests_property_id_index` (`property_id`),
+    INDEX `maintenance_requests_status_index` (`status`),
+    INDEX `maintenance_requests_landlord_id_index` (`landlord_id`),
+    FOREIGN KEY (`property_id`) REFERENCES `properties` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`tenant_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`landlord_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE sessions (
+    `id` VARCHAR(255) PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NULL,
+    `ip_address` VARCHAR(45) NULL,
+    `user_agent` TEXT NULL,
+    `payload` LONGTEXT NOT NULL,
+    `last_activity` INT NOT NULL,
+    INDEX `sessions_user_id_index` (`user_id`),
+    INDEX `sessions_last_activity_index` (`last_activity`)
+);
+
+CREATE TABLE expenses (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `category` ENUM('maintenance', 'utilities', 'repairs', 'supplies', 'taxes', 'insurance', 'other') NOT NULL,
+    `amount` DECIMAL(10, 2) NOT NULL,
+    `description` TEXT NOT NULL,
+    `expense_date` DATE NOT NULL,
+    `receipt_image` VARCHAR(255) NULL,
+    `paid_to` VARCHAR(255) NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    INDEX `idx_property` (`property_id`),
+    INDEX `idx_category` (`category`),
+    INDEX `idx_date` (`expense_date`)
+);
+
+CREATE TABLE inquiries (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL,
+    `phone` VARCHAR(20) NULL,
+    `message` TEXT NOT NULL,
+    `status` ENUM('new', 'contacted', 'converted', 'closed') DEFAULT 'new' NOT NULL,
+    `source` VARCHAR(50) NULL,
+    `responded_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    INDEX `idx_property` (`property_id`),
+    INDEX `idx_email` (`email`),
+    INDEX `idx_status` (`status`)
+);
+
+CREATE TABLE messages (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `sender_id` BIGINT UNSIGNED NOT NULL,
+    `receiver_id` BIGINT UNSIGNED NOT NULL,
+    `room_id` BIGINT UNSIGNED NULL,
+    `message` TEXT NOT NULL,
+    `is_read` BOOLEAN DEFAULT FALSE,
+    `read_at` TIMESTAMP NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    INDEX `idx_sender` (`sender_id`),
+    INDEX `idx_receiver` (`receiver_id`),
+    INDEX `room_id` (`room_id`),
+    INDEX `idx_conversation` (`sender_id`, `receiver_id`),
+    INDEX `idx_unread` (`receiver_id`, `is_read`)
+);
+
+CREATE TABLE notifications (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `type` VARCHAR(50) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `message` TEXT NOT NULL,
+    `is_read` BOOLEAN DEFAULT FALSE,
+    `read_at` TIMESTAMP NULL,
+    `data` JSON NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    INDEX `idx_user` (`user_id`),
+    INDEX `idx_read` (`is_read`)
+);
+
+CREATE TABLE payments (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `tenant_id` BIGINT UNSIGNED NOT NULL,
+    `room_id` BIGINT UNSIGNED NULL,
+    `booking_id` BIGINT UNSIGNED NULL,
+    `amount` DECIMAL(10, 2) NOT NULL,
+    `payment_date` DATE NULL,
+    `due_date` DATE NOT NULL,
+    `status` ENUM('paid', 'pending', 'overdue', 'cancelled') DEFAULT 'pending' NOT NULL,
+    `payment_method` ENUM('cash', 'bank_transfer', 'gcash', 'paymaya', 'card') NULL,
+    `reference_number` VARCHAR(100) NULL,
+    `notes` TEXT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    INDEX `idx_tenant` (`tenant_id`),
+    INDEX `room_id` (`room_id`),
+    INDEX `booking_id` (`booking_id`),
+    INDEX `idx_due_date` (`due_date`),
+    INDEX `idx_status` (`status`)
+);
+
+CREATE TABLE room_tenant_assignments (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `room_id` BIGINT UNSIGNED NOT NULL,
+    `tenant_id` BIGINT UNSIGNED NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NULL,
+    `monthly_rent` DECIMAL(10, 2) NOT NULL,
+    `status` ENUM('active', 'ended', 'cancelled') DEFAULT 'active' NOT NULL,
+    `deposit_amount` DECIMAL(10, 2) NULL,
+    `notes` TEXT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    INDEX `idx_room` (`room_id`),
+    INDEX `idx_tenant` (`tenant_id`),
+    INDEX `idx_status` (`status`)
+);
+
+CREATE TABLE rooms (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `property_id` BIGINT UNSIGNED NOT NULL,
+    `room_number` VARCHAR(50) NOT NULL,
+    `room_type` ENUM('single', 'double', 'quad', 'suite') NOT NULL,
+    `floor` INT NOT NULL,
+    `monthly_rate` DECIMAL(10, 2) NOT NULL,
+    `capacity` INT DEFAULT 1 NOT NULL,
+    `status` ENUM('available', 'occupied', 'maintenance') DEFAULT 'available' NOT NULL,
+    `current_tenant_id` BIGINT UNSIGNED NULL,
+    `description` TEXT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE `unique_room_per_property` (`property_id`, `room_number`),
+    INDEX `idx_property` (`property_id`),
+    INDEX `idx_status` (`status`),
+    INDEX `current_tenant_id` (`current_tenant_id`)
+);

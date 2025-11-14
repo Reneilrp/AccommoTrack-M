@@ -11,11 +11,13 @@ class Property extends Model
 
     protected $fillable = [
         'landlord_id',
+
         // Basic Information
         'title',
         'description',
         'property_type',
         'current_status',
+
         // Location Details
         'street_address',
         'city',
@@ -23,10 +25,15 @@ class Property extends Model
         'postal_code',
         'country',
         'barangay',
+
         // Property Coordinates
         'latitude',
         'longitude',
         'nearby_landmarks',
+
+        // Property Rules
+        'property_rules',
+
         // Property Specifications
         'number_of_bedrooms',
         'number_of_bathrooms',
@@ -34,15 +41,11 @@ class Property extends Model
         'parking_spaces',
         'floor_level',
         'max_occupants',
+
         // Room Management
         'total_rooms',
         'available_rooms',
-        // Rental Information
-        'price_per_month',
-        'security_deposit',
-        'currency',
-        'utilities_included',
-        'minimum_lease_term',
+        
         // Status
         'is_published',
         'is_available'
@@ -62,7 +65,8 @@ class Property extends Model
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
         'is_published' => 'boolean',
-        'is_available' => 'boolean'
+        'is_available' => 'boolean',
+        'property_rules' => 'array',
     ];
 
     /**
@@ -95,6 +99,39 @@ class Property extends Model
         ]);
         
         return implode(', ', $parts);
+    }
+
+    /**
+     * Accessor: Get property rules as array
+     */
+    public function getPropertyRulesAttribute($value)
+    {
+        if (is_null($value)) {
+            return [];
+        }
+        
+        // If already an array, return it
+        if (is_array($value)) {
+            return $value;
+        }
+        
+        // Try to decode JSON
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Mutator: Set property rules as JSON
+     */
+    public function setPropertyRulesAttribute($value)
+    {
+        if (is_null($value) || (is_array($value) && empty($value))) {
+            $this->attributes['property_rules'] = null;
+        } elseif (is_array($value)) {
+            $this->attributes['property_rules'] = json_encode($value);
+        } else {
+            $this->attributes['property_rules'] = $value;
+        }
     }
 
     /**

@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('property_id')->constrained()->onDelete('restrict');
+            $table->foreignId('room_id')->constrained()->onDelete('restrict');
             $table->foreignId('tenant_id')->references('id')->on('users')->onDelete('restrict');
             $table->foreignId('landlord_id')->references('id')->on('users')->onDelete('restrict');
             $table->string('booking_reference', 50)->unique();
@@ -28,6 +29,7 @@ return new class extends Migration
             
             $table->index('tenant_id');
             $table->index('landlord_id');
+            $table->index('room_id');
             $table->index('status');
             $table->index(['start_date', 'end_date']);
         });

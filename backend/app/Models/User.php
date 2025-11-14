@@ -19,15 +19,12 @@ class User extends Authenticatable
         'role',
         'phone',
         'profile_image',
-        'age',
-        'preference',
         'is_verified',
         'is_active',
     ];
 
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
     protected $casts = [
@@ -36,4 +33,39 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];
+    protected $appends = [
+        'age'
+    ];
+
+
+    // === RELATIONSHIPS ===
+    public function tenantProfile()
+    {
+        return $this->hasOne(TenantProfile::class);
+    }
+
+    public function room()
+    {
+        return $this->hasOne(Room::class, 'tenant_id');
+    }
+
+    public function isTenant()
+    {
+        return $this->role === 'tenant';
+    }
+
+    public function isLandlord()
+    {
+        return $this->role === 'landlord';
+    }
+
+    public function getAgeAttribute()
+    {
+        if (!$this->tenantProfile || !$this->tenantProfile->date_of_birth) {
+            return null;
+        }
+
+        $birthDate = $this->tenantProfile->date_of_birth;
+        return \Carbon\Carbon::parse($birthDate)->age;
+    }
 }
