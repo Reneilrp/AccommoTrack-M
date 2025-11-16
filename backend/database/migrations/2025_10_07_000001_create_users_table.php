@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->string('first_name', 100);
+            $table->string('middle_name', 100);
             $table->string('last_name', 100);
             $table->string('phone', 20)->nullable();
             $table->string('profile_image')->nullable();

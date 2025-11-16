@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('expenses', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('property_id')->index('idx_property');
+            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
             $table->enum('category', ['maintenance', 'utilities', 'repairs', 'supplies', 'taxes', 'insurance', 'other'])->index('idx_category');
             $table->decimal('amount', 10);
             $table->text('description');

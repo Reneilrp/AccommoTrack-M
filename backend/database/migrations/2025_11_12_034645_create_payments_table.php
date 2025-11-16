@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('tenant_id')->index('idx_tenant');
-            $table->unsignedBigInteger('room_id')->nullable()->index('room_id');
-            $table->unsignedBigInteger('booking_id')->nullable()->index('booking_id');
+            $table->foreignId('tenant_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('room_id')->nullable()->constrained('rooms')->onDelete('set null');
+            $table->foreignId('booking_id')->nullable()->constrained('bookings')->onDelete('set null');
             $table->decimal('amount', 10);
             $table->date('payment_date')->nullable();
             $table->date('due_date')->index('idx_due_date');

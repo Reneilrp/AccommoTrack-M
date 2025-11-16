@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('messages', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('sender_id')->index('idx_sender');
-            $table->unsignedBigInteger('receiver_id')->index('idx_receiver');
-            $table->unsignedBigInteger('room_id')->nullable()->index('room_id');
+            $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('receiver_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('room_id')->nullable()->constrained('rooms')->onDelete('cascade');
             $table->text('message');
             $table->boolean('is_read')->nullable()->default(false);
             $table->timestamp('read_at')->nullable();

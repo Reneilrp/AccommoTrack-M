@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('inquiries', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('property_id')->index('idx_property');
+            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
             $table->string('name');
             $table->string('email')->index('idx_email');
             $table->string('phone', 20)->nullable();

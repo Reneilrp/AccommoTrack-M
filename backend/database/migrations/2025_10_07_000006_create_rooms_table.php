@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('rooms', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('property_id')->index('idx_property');
+            $table->foreignId('property_id')->constrained('properties')->onDelete('cascade');
             $table->string('room_number', 50);
             $table->enum('room_type', ['single', 'double', 'quad', 'bedSpacer']);
             $table->integer('floor');
