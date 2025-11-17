@@ -35,7 +35,6 @@ export default function AddProperty({ onBack, onSave }) {
     bedrooms: '',
     bathrooms: '',
     floorArea: '',
-    parkingSpaces: '',
     floorLevel: '',
     maxTenants: '',
     totalRooms: '',
@@ -92,7 +91,7 @@ export default function AddProperty({ onBack, onSave }) {
     const files = Array.from(e.target.files);
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...files.map(f => URL.createObjectURL(f))]
+      images: [...prev.images, ...files]
     }));
   };
 
@@ -146,14 +145,11 @@ export default function AddProperty({ onBack, onSave }) {
       number_of_bedrooms: parseInt(formData.bedrooms) || 1,
       number_of_bathrooms: parseInt(formData.bathrooms) || 1,
       floor_area: parseFloat(formData.floorArea) || null,
-      parking_spaces: parseInt(formData.parkingSpaces) || 0,
       floor_level: formData.floorLevel || null,
       max_occupants: parseInt(formData.maxTenants) || 1,
-      total_rooms: parseInt(formData.totalRooms) || 1,
-      available_rooms: parseInt(formData.totalRooms) || 1,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
-      is_published: !isDraft,
-      is_available: !isDraft
+      is_published: !isDraft ? true : false,
+      is_available: !isDraft ? true : false,
     };
   };
 
@@ -175,75 +171,60 @@ export default function AddProperty({ onBack, onSave }) {
     return true;
   };
 
-  const handleSaveDraft = async () => {
-    if (!formData.propertyName || !formData.propertyType) {
-      setError('Please fill in at least the property name and type');
-      return;
-    }
+  const handleSubmit = async (isDraft = false) => {
+    if (!isDraft && !validateForm()) return;
 
     setLoading(true);
     setError('');
 
-    try {
-      const response = await fetch(`${API_URL}/properties`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(mapPropertyToBackend(true))
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save property');
-      }
-
-      const savedProperty = await response.json();
-      alert('Property saved as draft successfully!');
-
-      if (onSave) onSave(savedProperty, 'draft');
-      if (onBack) onBack();
-
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePublish = async () => {
     const token = localStorage.getItem('auth_token');
-
     if (!token) {
-      setError('You are not logged in. Please log in again.');
+      setError('Authentication token missing');
+      setLoading(false);
       return;
     }
 
-    if (!validateForm()) {
-      return;
-    }
+    // Use FormData (multipart/form-data)
+    const payload = new FormData();  // ← Renamed to avoid confusion
 
-    setLoading(true);
-    setError('');
+    // Append text fields
+    const mapped = mapPropertyToBackend(isDraft);
+    Object.entries(mapped).forEach(([key, value]) => {
+      if (key === 'is_published' || key === 'is_available') {
+        payload.append(key, value ? '1' : '0');  // Send as '1' or '0'
+      } else if (value !== null && value !== undefined) {
+        payload.append(key, value.toString());  // Ensure everything is string
+      }
+    });
+
+    formData.images.forEach((file, index) => {
+      if (file instanceof File) {
+        payload.append(`images[${index}]`, file);
+      }
+    });
 
     try {
-      const response = await fetch(`${API_URL}/properties`, {
+      const response = await fetch(`${API_URL}/landlord/properties`, {
         method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(mapPropertyToBackend(false))
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        body: payload
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to publish property');
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to save property');
       }
 
-      const publishedProperty = await response.json();
-      alert('Property published successfully!');
-
-      if (onSave) onSave(publishedProperty, 'active');
+      const result = await response.json();
+      alert(isDraft ? 'Draft saved!' : 'Property published successfully!');
+      if (onSave) onSave(result, isDraft ? 'draft' : 'active');
       if (onBack) onBack();
 
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -574,20 +555,6 @@ export default function AddProperty({ onBack, onSave }) {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Parking Spaces
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 1"
-                    value={formData.parkingSpaces}
-                    onChange={(e) => handleInputChange('parkingSpaces', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Floor Level
                   </label>
                   <input
@@ -690,16 +657,24 @@ export default function AddProperty({ onBack, onSave }) {
                   <button
                     key={suggestion}
                     onClick={() => {
-                      if (!formData.rules.includes(suggestion)) {
-                        setFormData(prev => ({
+                      setFormData(prev => {
+                        const isSelected = prev.rules.includes(suggestion);
+
+                        return {
                           ...prev,
-                          rules: [...prev.rules, suggestion]
-                        }));
-                      }
+                          rules: isSelected
+                            ? prev.rules.filter(rule => rule !== suggestion)  // Remove
+                            : [...prev.rules, suggestion]                     // Add
+                        };
+                      });
                     }}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-full hover:bg-gray-50 transition-colors text-gray-700"
+                    className={`px-3 py-1.5 text-sm border rounded-full transition-all duration-200 font-medium
+    ${formData.rules.includes(suggestion)
+                        ? 'border-green-500 bg-green-500 bg-opacity-50 text-green-800 shadow-sm'
+                        : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                      }`}
                   >
-                    + {suggestion}
+                    {formData.rules.includes(suggestion) ? '✓' : '+'} {suggestion}
                   </button>
                 ))}
               </div>
@@ -787,7 +762,11 @@ export default function AddProperty({ onBack, onSave }) {
                 <div className="grid grid-cols-4 gap-3">
                   {formData.images.map((img, index) => (
                     <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                      <img src={img} alt={`Property ${index + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
+                        alt={`Property ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                       <button
                         onClick={() => removeImage(index)}
                         className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -825,14 +804,14 @@ export default function AddProperty({ onBack, onSave }) {
             {currentStep === 5 ? (
               <>
                 <button
-                  onClick={handleSaveDraft}
+                  onClick={() => handleSubmit(true)}
                   disabled={loading}
                   className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Saving...' : 'Save as Draft'}
                 </button>
                 <button
-                  onClick={handlePublish}
+                  onClick={() => handleSubmit(false)}
                   disabled={loading}
                   className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >

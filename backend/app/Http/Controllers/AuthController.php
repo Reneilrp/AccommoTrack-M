@@ -13,22 +13,22 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
+            'middle_name' => 'nullable|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:landlord,tenant',
             'phone' => 'nullable|string|max:20',
-            'age' => 'nullable|integer',
         ]);
 
         $user = User::create([
             'first_name' => $validated['first_name'],
+            'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => $validated['last_name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
             'phone' => $validated['phone'] ?? null,
-            'age' => $validated['age'] ?? null,
             'is_verified' => false,
             'is_active' => true,
         ]);

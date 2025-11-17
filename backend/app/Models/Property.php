@@ -38,14 +38,13 @@ class Property extends Model
         'number_of_bedrooms',
         'number_of_bathrooms',
         'floor_area',
-        'parking_spaces',
         'floor_level',
         'max_occupants',
 
         // Room Management
         'total_rooms',
         'available_rooms',
-        
+
         // Status
         'is_published',
         'is_available'
@@ -56,7 +55,6 @@ class Property extends Model
         'number_of_bedrooms' => 'integer',
         'number_of_bathrooms' => 'integer',
         'floor_area' => 'decimal:2',
-        'parking_spaces' => 'integer',
         'max_occupants' => 'integer',
         'total_rooms' => 'integer',
         'available_rooms' => 'integer',
@@ -97,7 +95,7 @@ class Property extends Model
             $this->province,
             $this->postal_code
         ]);
-        
+
         return implode(', ', $parts);
     }
 
@@ -109,12 +107,12 @@ class Property extends Model
         if (is_null($value)) {
             return [];
         }
-        
+
         // If already an array, return it
         if (is_array($value)) {
             return $value;
         }
-        
+
         // Try to decode JSON
         $decoded = json_decode($value, true);
         return is_array($decoded) ? $decoded : [];
@@ -164,6 +162,11 @@ class Property extends Model
     public function getMaintenanceRoomsCountAttribute()
     {
         return $this->rooms()->where('status', 'maintenance')->count();
+    }
+
+    public function images()
+    {
+        return $this->hasMany(PropertyImage::class);
     }
 
     /**
@@ -220,7 +223,7 @@ class Property extends Model
     public function scopeAvailable($query)
     {
         return $query->where('is_available', true)
-                     ->where('available_rooms', '>', 0);
+            ->where('available_rooms', '>', 0);
     }
 
     /**

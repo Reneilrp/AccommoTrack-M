@@ -40,7 +40,7 @@ export default function RoomManagement() {
     const loadInitialData = async () => {
       try {
         setLoadingProperties(true);
-        const res = await fetch(`${API_URL}/properties`, { headers: getAuthHeaders() });
+        const res = await fetch(`${API_URL}/landlord/properties`, { headers: getAuthHeaders() });
         if (!res.ok) throw new Error('Failed to load properties');
         const data = await res.json();
 
@@ -68,12 +68,10 @@ export default function RoomManagement() {
         setError(null);
 
         const [roomsRes, statsRes] = await Promise.all([
-          fetch(`${API_URL}/properties/${selectedPropertyId}/rooms?t=${Date.now()}`, { headers: getAuthHeaders() }),
-          fetch(`${API_URL}/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`, { headers: getAuthHeaders() })
+          fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`, { headers: getAuthHeaders() }),
+          fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`, { headers: getAuthHeaders() })
         ]);
-
-        if (!roomsRes.ok || !statsRes.ok) throw new Error('Failed to load rooms');
-
+        
         const [roomsData, statsData] = await Promise.all([roomsRes.json(), statsRes.json()]);
         setRooms(roomsData);
         setStats(statsData);
@@ -95,8 +93,8 @@ export default function RoomManagement() {
       setError(null);
 
       const [roomsRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/properties/${selectedPropertyId}/rooms?t=${Date.now()}`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`, { headers: getAuthHeaders() })
+        fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`, { headers: getAuthHeaders() })
       ]);
 
       if (!roomsRes.ok || !statsRes.ok) throw new Error('Failed to load rooms');
@@ -586,24 +584,6 @@ export default function RoomManagement() {
             </div>
           )}
         </div>
-
-        {/* Empty State (fallback) */}
-        {filteredRooms.length === 0 && !loadingRooms && (
-          <div className="text-center py-12">
-            <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by adding a new room.</p>
-            <div className="mt-6">
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-              >
-                <Plus className="-ml-1 mr-2 h-5 w-5" />
-                Add Room
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Add Room Modal */}

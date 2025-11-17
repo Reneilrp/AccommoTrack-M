@@ -62,7 +62,6 @@ export default function DormProfileSettings({ propertyId, onBack }) {
           bedrooms: data.number_of_bedrooms,
           bathrooms: data.number_of_bathrooms,
           floorArea: data.floor_area,
-          parkingSpaces: data.parking_spaces,
           floorLevel: data.floor_level,
           maxOccupants: data.max_occupants,
           totalRooms: data.total_rooms,
@@ -89,7 +88,6 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       wifi: false,
       airConditioning: false,
       furnished: false,
-      parking: false,
       security: false,
       generator: false,
       waterHeater: false,
@@ -190,7 +188,6 @@ export default function DormProfileSettings({ propertyId, onBack }) {
         number_of_bedrooms: parseInt(dormData.specifications.bedrooms) || 1,
         number_of_bathrooms: parseInt(dormData.specifications.bathrooms) || 1,
         floor_area: parseFloat(dormData.specifications.floorArea) || null,
-        parking_spaces: parseInt(dormData.specifications.parkingSpaces) || 0,
         floor_level: dormData.specifications.floorLevel,
         max_occupants: parseInt(dormData.specifications.maxOccupants) || 1,
         total_rooms: parseInt(dormData.specifications.totalRooms) || 1,
@@ -521,16 +518,6 @@ export default function DormProfileSettings({ propertyId, onBack }) {
                     type="number"
                     value={dormData.specifications.floorArea || ''}
                     onChange={(e) => handleSpecificationChange('floorArea', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Parking Spaces</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.parkingSpaces}
-                    onChange={(e) => handleSpecificationChange('parkingSpaces', e.target.value)}
                     disabled={!isEditing}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   />

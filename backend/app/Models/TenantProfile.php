@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TenantProfile extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'move_in_date',
@@ -26,8 +29,27 @@ class TenantProfile extends Model
         'date_of_birth' => 'date',
     ];
 
+    /**
+     * Belongs to User
+     */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Scope: Active tenants only
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    /**
+     * Scope: Inactive tenants
+     */
+    public function scopeInactive($query)
+    {
+        return $query->where('status', 'inactive');
     }
 }

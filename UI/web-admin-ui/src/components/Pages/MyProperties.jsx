@@ -7,11 +7,12 @@ import {
   Search,
   Filter,
   MapPin,
-  Eye,
+  Edit,
   MoreVertical,
   Building2,
   Loader2
 } from 'lucide-react';
+import { getImageUrl, apiUrl } from '../../utils/api';
 
 export default function MyProperties({ user }) {
   const [activeTab, setActiveTab] = useState('all');
@@ -40,8 +41,7 @@ export default function MyProperties({ user }) {
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/properties`, {
-        method: 'GET',
+      const response = await fetch(apiUrl('/landlord/properties'), {
         headers: getAuthHeaders()
       });
 
@@ -183,33 +183,29 @@ export default function MyProperties({ user }) {
               <div className="flex items-center bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                  }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    }`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setActiveTab('active')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                  }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    }`}
                 >
                   Active
                 </button>
                 <button
                   onClick={() => setActiveTab('inactive')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                  }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    }`}
                 >
                   Inactive
                 </button>
                 <button
                   onClick={() => setActiveTab('pending')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                  }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    }`}
                 >
                   Pending
                 </button>
@@ -231,8 +227,22 @@ export default function MyProperties({ user }) {
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4 flex-1">
                       {/* Property Icon */}
-                      <div className="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Home className="w-8 h-8 text-green-600" />
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
+                        {property.images && property.images.length > 0 ? (
+                          <img
+                            src={`${import.meta.env.VITE_APP_URL || ''}/storage/${property.images[0].image_url}`}
+                            alt={property.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/images/no-image.png'; // optional local fallback
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Home className="w-8 h-8 text-gray-400" />
+                          </div>
+                        )}
                       </div>
 
                       {/* Property Details */}
@@ -240,13 +250,12 @@ export default function MyProperties({ user }) {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-lg font-semibold text-gray-900">{property.title}</h3>
                           <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
-                              property.current_status === 'active'
-                                ? 'bg-green-100 text-green-700'
-                                : property.current_status === 'inactive'
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${property.current_status === 'active'
+                              ? 'bg-green-100 text-green-700'
+                              : property.current_status === 'inactive'
                                 ? 'bg-gray-100 text-gray-700'
                                 : 'bg-yellow-100 text-yellow-700'
-                            }`}
+                              }`}
                           >
                             {property.current_status}
                           </span>
@@ -282,9 +291,9 @@ export default function MyProperties({ user }) {
                       <button
                         onClick={() => handleViewProperty(property.id)}
                         className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="View Details"
+                        title="Edit"
                       >
-                        <Eye className="w-5 h-5" />
+                        <Edit className="w-5 h-5" />
                       </button>
                       <button
                         className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"

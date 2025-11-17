@@ -124,7 +124,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
         payload.append(`images[${idx}]`, file);
       });
 
-      const response = await fetch('/api/rooms', {
+      const response = await fetch('/api/landlord/rooms', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

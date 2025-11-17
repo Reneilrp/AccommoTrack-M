@@ -2,21 +2,21 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, Notifiable;
 
     protected $fillable = [
-        'first_name',
-        'last_name',
+        'role',
         'email',
         'password',
-        'role',
+        'first_name',
+        'middle_name',
+        'last_name',
         'phone',
         'profile_image',
         'is_verified',
@@ -25,47 +25,77 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
+        'remember_token',
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
         'is_verified' => 'boolean',
         'is_active' => 'boolean',
-        'password' => 'hashed',
-    ];
-    protected $appends = [
-        'age'
+        'email_verified_at' => 'datetime',
     ];
 
-
-    // === RELATIONSHIPS ===
+    /**
+     * Tenant Profile relationship (for tenants only)
+     */
     public function tenantProfile()
     {
-        return $this->hasOne(TenantProfile::class);
+        return $this->hasOne(TenantProfile::class, 'user_id');
     }
 
+    /**
+     * Room relationship (tenant's current room)
+     * Uses 'current_tenant_id' column in rooms table
+     */
     public function room()
     {
-        return $this->hasOne(Room::class, 'tenant_id');
+        return $this->hasOne(Room::class, 'current_tenant_id');
     }
 
-    public function isTenant()
+    /**
+     * Properties owned by landlord
+     */
+    public function properties()
     {
-        return $this->role === 'tenant';
+        return $this->hasMany(Property::class, 'landlord_id');
     }
 
-    public function isLandlord()
+    /**
+     * Bookings made by tenant
+     */
+    public function bookings()
     {
-        return $this->role === 'landlord';
+        return $this->hasMany(Booking::class, 'tenant_id');
     }
 
-    public function getAgeAttribute()
+    /**
+     * Bookings received by landlord
+     */
+    public function receivedBookings()
     {
-        if (!$this->tenantProfile || !$this->tenantProfile->date_of_birth) {
-            return null;
-        }
+        return $this->hasMany(Booking::class, 'landlord_id');
+    }
 
-        $birthDate = $this->tenantProfile->date_of_birth;
-        return \Carbon\Carbon::parse($birthDate)->age;
+    /**
+     * Scope: Get only landlords
+     */
+    public function scopeLandlords($query)
+    {
+        return $query->where('role', 'landlord');
+    }
+
+    /**
+     * Scope: Get only tenants
+     */
+    public function scopeTenants($query)
+    {
+        return $query->where('role', 'tenant');
+    }
+
+    /**
+     * Get full name attribute
+     */
+    public function getFullNameAttribute()
+    {
+        return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
     }
 }

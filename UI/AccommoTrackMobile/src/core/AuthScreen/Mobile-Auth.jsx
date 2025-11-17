@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -138,7 +138,6 @@ export default function AuthScreen({ onLoginSuccess }) {
         
         console.log('✅ Login successful! Role:', data.user.role);
         
-        // Call the callback to trigger navigation
         if (onLoginSuccess) {
           onLoginSuccess(data.user.role);
         }
@@ -160,21 +159,28 @@ export default function AuthScreen({ onLoginSuccess }) {
     setError('');
 
     try {
+      // Build payload dynamically — only include middle_name if it has content
+      const payload = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        password_confirmation: formData.confirmPassword,
+        role: formData.role,
+      };
+
+      // Only add middle_name if it's not empty/whitespace
+      if (formData.middleName?.trim()) {
+        payload.middle_name = formData.middleName.trim();
+      }
+
       const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          first_name: formData.firstName,
-          middle_name: formData.middleName,
-          last_name: formData.lastName,
-          email: formData.email,
-          password: formData.password,
-          password_confirmation: formData.confirmPassword,
-          role: formData.role
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -205,7 +211,8 @@ export default function AuthScreen({ onLoginSuccess }) {
           ]
         );
       } else {
-        setError(data.message || 'Registration failed. Please try again.');
+        const errMsg = data.message || 'Registration failed. Please try again.';
+        setError(errMsg);
       }
     } catch (err) {
       setError('Network error. Please check your connection.');
@@ -226,7 +233,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const toggleScreen = () => {
     setIsLogin(!isLogin);
     setSignupStep(1);
-    setFormData({ firstName: '', middleName:'', lastName: '', email: '', password: '', confirmPassword: '', role: '' });
+    setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: '' });
     setAgreedToTerms(false);
     setError('');
   };
@@ -402,12 +409,12 @@ export default function AuthScreen({ onLoginSuccess }) {
                     />
                   </View>
 
-                  {/* Middle Name */}
+                  {/* Middle Name (optional) */}
                   <View style={styles.inputContainer}>
                     <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Middle Name"
+                      placeholder="Middle Name (optional)"
                       placeholderTextColor="#9CA3AF"
                       value={formData.middleName}
                       onChangeText={(text) => handleInputChange('middleName', text)}
@@ -546,7 +553,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                       <Text style={styles.submitButtonText}>Sign Up</Text>
                     )}
                   </TouchableOpacity>
-                </View> // This correctly closes the <View style={styles.form}> for Step 2
+                </View>
               )}
             </>
           )}

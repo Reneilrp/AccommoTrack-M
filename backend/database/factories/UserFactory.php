@@ -24,10 +24,17 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'middle_name' => fake()->optional()->firstName(),
+            'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => fake()->randomElement(['landlord', 'tenant']),
+            'phone' => '09' . fake()->numerify('#########'),
+            'profile_image' => null,
+            'is_verified' => true,
+            'is_active' => true,
             'remember_token' => Str::random(10),
         ];
     }
@@ -39,6 +46,27 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+            'is_verified' => false,
+        ]);
+    }
+
+    /**
+     * Create a landlord user.
+     */
+    public function landlord(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'landlord',
+        ]);
+    }
+
+    /**
+     * Create a tenant user.
+     */
+    public function tenant(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'tenant',
         ]);
     }
 }

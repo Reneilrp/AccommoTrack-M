@@ -19,13 +19,24 @@ return new class extends Migration
             $table->integer('floor');
             $table->decimal('monthly_rate', 10, 2);
             $table->integer('capacity')->default(1);
-            $table->enum('status', ['available', 'occupied', 'maintenance'])->default('available')->index('idx_status');
-            $table->unsignedBigInteger('current_tenant_id')->nullable()->index('current_tenant_id');
+            $table->enum('status', ['available', 'occupied', 'maintenance'])
+                  ->default('available')
+                  ->index('idx_status');
+
+            // This is the correct way when you allow NULL (tenant can be null)
+            $table->unsignedBigInteger('current_tenant_id')->nullable()->index();
+            
             $table->text('description')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
 
             $table->unique(['property_id', 'room_number'], 'unique_room_per_property');
+
+            // Add the foreign key constraint with SET NULL on delete
+            $table->foreign('current_tenant_id')
+                  ->references('id')
+                  ->on('users')
+                  ->onDelete('set null');
         });
     }
 

@@ -41,11 +41,11 @@ export default function DashboardPage() {
       setError('');
 
       const [statsRes, activitiesRes, paymentsRes, chartRes, performanceRes] = await Promise.all([
-        fetch(`${API_URL}/dashboard/stats`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/dashboard/recent-activities`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/dashboard/upcoming-payments`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/dashboard/revenue-chart`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/dashboard/property-performance`, { headers: getAuthHeaders() })
+        fetch(`${API_URL}/landlord/dashboard/stats`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/landlord/dashboard/recent-activities`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/landlord/dashboard/upcoming-payments`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/landlord/dashboard/revenue-chart`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/landlord/dashboard/property-performance`, { headers: getAuthHeaders() })
       ]);
 
       if (!statsRes.ok || !activitiesRes.ok || !paymentsRes.ok || !chartRes.ok || !performanceRes.ok) {

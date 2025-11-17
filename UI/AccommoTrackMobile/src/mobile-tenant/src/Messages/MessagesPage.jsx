@@ -235,7 +235,7 @@ export default function MessagesPage() {
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom', 'top']}>
+        <SafeAreaView style={styles.container} edges={[ 'top']}>
             {selectedChat ? renderChatScreen() : renderChatList()}
         </SafeAreaView>
     );

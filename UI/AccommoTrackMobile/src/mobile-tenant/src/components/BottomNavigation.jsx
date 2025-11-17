@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../styles/Tenant/TenantHomePage.js';
+import { styles } from '../../../styles/Tenant/HomePage.js';
 
 export default function BottomNavigation({ activeTab, onTabPress }) {
   const navigation = useNavigation();

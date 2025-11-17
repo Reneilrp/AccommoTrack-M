@@ -2,15 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../styles/Tenant/TenantHomePage.js';
+import { styles } from '../../../styles/Tenant/HomePage.js';
 
 const menuItems = [
   { id: 1, title: 'My Bookings', icon: 'calendar-outline', color: '#00A651' },
-  { id: 2, title: 'Favorites', icon: 'heart-outline', color: '#EF4444' },
-  { id: 4, title: 'Payments', icon: 'card-outline', color: '#10B981' },
-  { id: 5, title: 'Settings', icon: 'settings-outline', color: '#6B7280' },
-  { id: 6, title: 'Help & Support', icon: 'help-circle-outline', color: '#F59E0B' },
-  { id: 7, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
+  { id: 2, title: 'Payments', icon: 'card-outline', color: '#10B981' },
+  { id: 3, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
 ];
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
