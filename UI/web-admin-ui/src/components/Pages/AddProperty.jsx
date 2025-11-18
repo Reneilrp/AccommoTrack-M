@@ -1,8 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import {
   ArrowLeft,
   AlertCircle,
-  X,
   MapPin,
   FileText,
   Plus,
@@ -11,7 +11,14 @@ import {
   Check,
   Loader2,
   ArrowRight,
+  X
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 export default function AddProperty({ onBack, onSave }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -19,13 +26,43 @@ export default function AddProperty({ onBack, onSave }) {
   const [error, setError] = useState('');
   const [newRule, setNewRule] = useState('');
 
+  // Fix Leaflet marker icon issue
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl: markerIcon,
+    iconRetinaUrl: markerIcon2x,
+    shadowUrl: markerShadow,
+  });
+
+
+  function DraggableMarker({ position, setPosition }) {
+    useMapEvents({
+      click(e) {
+        setPosition([e.latlng.lat, e.latlng.lng]);
+      },
+    });
+    return (
+      <Marker
+        position={position}
+        draggable={true}
+        eventHandlers={{
+          dragend: (e) => {
+            const marker = e.target;
+            const latLng = marker.getLatLng();
+            setPosition([latLng.lat, latLng.lng]);
+          },
+        }}
+      />
+    );
+  }
+
   const [formData, setFormData] = useState({
     propertyName: '',
     propertyType: '',
     currentStatus: 'active',
     streetAddress: '',
     city: '',
-    provinceRegion: '',
+    provinceRegion: 'Zamboanga Del Sur',
     postalCode: '',
     country: 'Philippines',
     barangay: '',
@@ -47,6 +84,34 @@ export default function AddProperty({ onBack, onSave }) {
     description: '',
     images: []
   });
+
+  // Auto-fill address fields when latitude/longitude changes
+  useEffect(() => {
+    const lat = formData.latitude;
+    const lng = formData.longitude;
+    if (lat && lng) {
+      (async () => {
+        try {
+          const nominatimUrl = `/api/reverse-geocode?lat=${lat}&lon=${lng}`;
+          const res = await fetch(nominatimUrl);
+          const data = await res.json();
+          if (data && data.address) {
+            setFormData((prev) => ({
+              ...prev,
+              streetAddress: data.address.road || prev.streetAddress,
+              city: data.address.city || data.address.town || data.address.village || prev.city,
+              provinceRegion: data.address.state || prev.provinceRegion,
+              postalCode: data.address.postcode || prev.postalCode,
+              country: data.address.country || prev.country,
+              barangay: data.address.suburb || data.address.neighbourhood || prev.barangay,
+            }));
+          }
+        } catch (err) {
+          // Optionally handle error
+        }
+      })();
+    }
+  }, [formData.latitude, formData.longitude]);
 
   const API_URL = '/api';
 
@@ -75,7 +140,18 @@ export default function AddProperty({ onBack, onSave }) {
   ];
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      let updated = { ...prev, [field]: value };
+      // If city is Zamboanga City, lock province and country
+      if (
+        (field === 'city' && value.trim().toLowerCase() === 'zamboanga city') ||
+        (field !== 'city' && prev.city.trim().toLowerCase() === 'zamboanga city')
+      ) {
+        updated.provinceRegion = 'Zamboanga Del Sur';
+        updated.country = 'Philippines';
+      }
+      return updated;
+    });
   };
 
   const toggleAmenity = (amenity) => {
@@ -103,20 +179,28 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const addRule = () => {
-    if (newRule.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        rules: [...prev.rules, newRule.trim()]
-      }));
-      setNewRule('');
+    try {
+      if (newRule.trim()) {
+        setFormData(prev => ({
+          ...prev,
+          rules: Array.isArray(prev.rules) ? [...prev.rules, newRule.trim()] : [newRule.trim()]
+        }));
+        setNewRule('');
+      }
+    } catch (err) {
+      setError('Failed to add rule. Please try again.');
     }
   };
 
   const removeRule = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      rules: prev.rules.filter((_, i) => i !== index)
-    }));
+    try {
+      setFormData(prev => ({
+        ...prev,
+        rules: Array.isArray(prev.rules) ? prev.rules.filter((_, i) => i !== index) : []
+      }));
+    } catch (err) {
+      setError('Failed to remove rule. Please try again.');
+    }
   };
 
   const handleNext = () => {
@@ -362,6 +446,70 @@ export default function AddProperty({ onBack, onSave }) {
         {/* Step 2: Location Details */}
         {currentStep === 2 && (
           <div className="space-y-6">
+            {/* Map Section */}
+            <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+              <div className="flex items-start gap-2 mb-4">
+                <MapPin className="w-5 h-5 text-red-500 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Set Property Coordinates</h3>
+                  <p className="text-sm text-gray-600">Drag or click on the map below to set the exact location of your property</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center mb-4" style={{ position: 'relative', height: '300px' }}>
+                <MapContainer
+                  center={[
+                    formData.latitude ? parseFloat(formData.latitude) : 6.912559646590693,
+                    formData.longitude ? parseFloat(formData.longitude) : 122.06180691719057,
+                  ]}
+                  zoom={16}
+                  style={{ height: '100%', width: '100%', borderRadius: '8px' }}
+                  scrollWheelZoom={true}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <DraggableMarker
+                    position={[
+                      formData.latitude ? parseFloat(formData.latitude) : 6.9147,
+                      formData.longitude ? parseFloat(formData.longitude) : 122.0781,
+                    ]}
+                    setPosition={([lat, lng]) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        latitude: lat,
+                        longitude: lng,
+                      }));
+                    }}
+                  />
+
+                </MapContainer>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                  <input
+                    type="text"
+                    value={formData.latitude}
+                    onChange={(e) => handleInputChange('latitude', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="e.g., 6.9147"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                  <input
+                    type="text"
+                    value={formData.longitude}
+                    onChange={(e) => handleInputChange('longitude', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="e.g., 122.0781"
+                  />
+                </div>
+              </div>
+            </div>
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-1">Location Details</h2>
@@ -417,6 +565,7 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.provinceRegion}
                     onChange={(e) => handleInputChange('provinceRegion', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
                 </div>
               </div>
@@ -445,48 +594,7 @@ export default function AddProperty({ onBack, onSave }) {
                     value={formData.country}
                     onChange={(e) => handleInputChange('country', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Map Section */}
-            <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
-              <div className="flex items-start gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-red-500 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-gray-900">Set Property Coordinates</h3>
-                  <p className="text-sm text-gray-600">Click on the map below to set the exact location of your property</p>
-                </div>
-              </div>
-
-              <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center mb-4">
-                <div className="text-center text-gray-500">
-                  <MapPin className="w-16 h-16 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm">Interactive map would appear here</p>
-                  <p className="text-xs mt-1">Click to set location pin</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
-                  <input
-                    type="text"
-                    value={formData.latitude}
-                    onChange={(e) => handleInputChange('latitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    placeholder="e.g., 14.5995"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
-                  <input
-                    type="text"
-                    value={formData.longitude}
-                    onChange={(e) => handleInputChange('longitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    placeholder="e.g., 120.9842"
+                    readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
                 </div>
               </div>
@@ -686,7 +794,7 @@ export default function AddProperty({ onBack, onSave }) {
             </div>
 
             {/* Rules List */}
-            {formData.rules.length > 0 && (
+            {Array.isArray(formData.rules) && formData.rules.length > 0 && (
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-3">Your Property Rules:</p>
                 <div className="space-y-2">
@@ -711,7 +819,7 @@ export default function AddProperty({ onBack, onSave }) {
               </div>
             )}
 
-            {formData.rules.length === 0 && (
+            {(!Array.isArray(formData.rules) || formData.rules.length === 0) && (
               <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600 text-sm">No rules added yet</p>

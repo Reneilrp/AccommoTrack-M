@@ -10,6 +10,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\TenantDashboardController;
 use App\Http\Controllers\TenantBookingController;
 use App\Http\Controllers\TenantSettingsController;
+use App\Http\Controllers\GeocodeController;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -19,6 +20,9 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+
+// Public reverse geocoding endpoint
+Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 
 // ====================================
 // PROTECTED ROUTES (Authentication required)
