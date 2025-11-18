@@ -14,7 +14,7 @@ import RoomDetailsScreen from '../src/components/RoomDetailsScreen.jsx';
 
 const Stack = createNativeStackNavigator();
 
-export default function TenantNavigator({ onLogout }) {
+export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequired }) {
   return (
     <Stack.Navigator
       initialRouteName="TenantHome"
@@ -25,19 +25,57 @@ export default function TenantNavigator({ onLogout }) {
       }}
     >
       <Stack.Screen name="TenantHome" options={{ animation: 'none' }}>
-      {(props) => <TenantHomePage {...props} onLogout={onLogout} />}
+        {(props) => (
+          <TenantHomePage 
+            {...props} 
+            onLogout={onLogout}
+            isGuest={isGuest}
+            onAuthRequired={onAuthRequired}
+          />
+        )}
       </Stack.Screen>
-      <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
-      <Stack.Screen name="AccommodationDetails" component={AccommodationDetails} options={{ animation: 'none' }} />
-      <Stack.Screen name="RoomsList" component={RoomListScreen} options={{ animation: 'none' }} />
-      <Stack.Screen name="RoomDetails" component={RoomDetailsScreen} options={{ animation: 'none' }} />
-      <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
-      <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
-      <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
-      <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
-      <Stack.Screen name="Settings">
-        {(props) => <Settings {...props} onLogout={onLogout} />}
+      
+      <Stack.Screen name="AccommodationDetails" options={{ animation: 'none' }}>
+        {(props) => (
+          <AccommodationDetails 
+            {...props}
+            isGuest={isGuest}
+          />
+        )}
       </Stack.Screen>
+      
+      <Stack.Screen name="RoomsList" options={{ animation: 'none' }}>
+        {(props) => (
+          <RoomListScreen 
+            {...props}
+            isGuest={isGuest}
+          />
+        )}
+      </Stack.Screen>
+      
+      <Stack.Screen name="RoomDetails" options={{ animation: 'none' }}>
+        {(props) => (
+          <RoomDetailsScreen 
+            {...props}
+            isGuest={isGuest}
+            onAuthRequired={onAuthRequired}
+          />
+        )}
+      </Stack.Screen>
+
+      {/* Protected Routes - Only for authenticated users */}
+      {!isGuest && (
+        <>
+          <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
+          <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
+          <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
+          <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+          <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
+          <Stack.Screen name="Settings">
+            {(props) => <Settings {...props} onLogout={onLogout} />}
+          </Stack.Screen>
+        </>
+      )}
     </Stack.Navigator>
   );
 }

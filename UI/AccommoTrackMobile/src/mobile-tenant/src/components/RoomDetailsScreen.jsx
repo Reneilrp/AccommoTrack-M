@@ -21,7 +21,7 @@ import BookingService from '../../../services/BookingServices';
 
 const { width } = Dimensions.get('window');
 
-export default function RoomDetailsScreen({ route }) {
+export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
   const navigation = useNavigation();
   const { room, property } = route.params;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -61,9 +61,30 @@ export default function RoomDetailsScreen({ route }) {
     return (status || '').replace(/^\w/, c => c.toUpperCase()) || 'Unknown';
   };
 
+  // 🔐 AUTH GATE: Check if user is authenticated before booking
   const handleBook = () => {
     if (room.status !== 'available') {
       Alert.alert('Unavailable', 'This room is not available for booking.');
+      return;
+    }
+
+    // If guest user, trigger auth requirement
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to sign in to book a room. Create an account or log in to continue.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Sign In', 
+            onPress: () => {
+              if (onAuthRequired) {
+                onAuthRequired();
+              }
+            }
+          }
+        ]
+      );
       return;
     }
     
@@ -171,6 +192,31 @@ export default function RoomDetailsScreen({ route }) {
     const months = parseInt(bookingData.total_months);
     if (isNaN(months) || months < 1) return 0;
     return room.monthly_rate * months;
+  };
+
+  // 🔐 AUTH GATE: Contact landlord also requires auth
+  const handleContactLandlord = () => {
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to sign in to contact the landlord.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Sign In', 
+            onPress: () => {
+              if (onAuthRequired) {
+                onAuthRequired();
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    // TODO: Navigate to messages/chat
+    Alert.alert('Contact Landlord', 'Messaging feature coming soon!');
   };
 
   return (
@@ -331,21 +377,33 @@ export default function RoomDetailsScreen({ route }) {
             )}
           </View>
 
+          {/* 🔐 GUEST USER NOTICE */}
+          {isGuest && (
+            <View style={styles.guestNotice}>
+              <Ionicons name="information-circle" size={20} color="#3B82F6" />
+              <Text style={styles.guestNoticeText}>
+                Sign in to book rooms and contact landlords
+              </Text>
+            </View>
+          )}
+
           {/* Action Buttons */}
           {room.status === 'available' && (
             <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
-              <Text style={styles.bookButtonText}>Book This Room</Text>
+              <Text style={styles.bookButtonText}>
+                {isGuest ? 'Sign In to Book' : 'Book This Room'}
+              </Text>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.contactButton}>
+          <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
             <Ionicons name="chatbubble-outline" size={18} color="#10b981" />
             <Text style={styles.contactButtonText}>Contact Landlord</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Booking Modal */}
+      {/* Booking Modal - Only shown for authenticated users */}
       <Modal
         visible={bookingModalVisible}
         animationType="slide"

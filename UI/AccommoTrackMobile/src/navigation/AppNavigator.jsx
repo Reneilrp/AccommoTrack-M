@@ -15,13 +15,14 @@ const Stack = createNativeStackNavigator();
 export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
+  const [showLanding, setShowLanding] = useState(false);
 
   const handleLogout = async () => {
     try {
-      // Only clear auth-related data, keep hasLaunched
+      // Clear auth-related data only
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      setUserRole('auth'); // Go to auth screen, not landing
+      setUserRole('guest'); // Return to guest mode instead of auth
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -33,18 +34,27 @@ export default function AppNavigator() {
       const token = await AsyncStorage.getItem('token');
       const userString = await AsyncStorage.getItem('user');
 
+      // First launch - show landing pages
+      if (!hasLaunched) {
+        setShowLanding(true);
+        setUserRole(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if user is authenticated
       if (token && userString) {
         const user = JSON.parse(userString);
-        console.log('👤 User role:', user.role);
+        console.log('👤 User authenticated - Role:', user.role);
         setUserRole(user.role);
       } else {
-        // If logged out but app has launched before, set to 'auth'
-        // If first launch, set to null to show landing pages
-        setUserRole(hasLaunched ? 'auth' : null);
+        // Not authenticated - show guest mode
+        console.log('👤 Guest mode activated');
+        setUserRole('guest');
       }
     } catch (error) {
       console.error('Error checking app state:', error);
-      setUserRole(null);
+      setUserRole('guest'); // Default to guest on error
     } finally {
       setIsLoading(false);
     }
@@ -62,21 +72,54 @@ export default function AppNavigator() {
     );
   }
 
-  // If user is logged in as tenant
-  if (userRole === 'tenant') {
-    console.log(' Rendering TenantNavigator');
-    return <TenantNavigator onLogout={handleLogout} />;
+  // First-launch flow - show landing pages
+  if (showLanding) {
+    console.log('🎬 Rendering Landing Pages (first launch)');
+    return (
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'none',
+          animationTypeForReplace: 'pop',
+        }}
+      >
+        <Stack.Screen name="Landing">
+          {(props) => (
+            <LandingPages
+              {...props}
+              onFinish={async () => {
+                await AsyncStorage.setItem('hasLaunched', 'true');
+                setShowLanding(false);
+                setUserRole('guest'); // Go directly to guest mode
+              }}
+            />
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    );
   }
 
-  // If user is logged in as landlord
+  // Authenticated Landlord
   if (userRole === 'landlord') {
-    console.log(' Rendering LandlordNavigator');
+    console.log('🏠 Rendering LandlordNavigator');
     return <LandlordNavigator onLogout={handleLogout} />;
   }
 
-  // Returning user (logged out) - go straight to Auth
+  // Authenticated Tenant OR Guest Mode
+  if (userRole === 'tenant' || userRole === 'guest') {
+    console.log(`${userRole === 'guest' ? '👀' : '✅'} Rendering TenantNavigator (${userRole} mode)`);
+    return (
+      <TenantNavigator 
+        onLogout={handleLogout}
+        isGuest={userRole === 'guest'}
+        onAuthRequired={() => setUserRole('auth')}
+      />
+    );
+  }
+
+  // Auth screen (when login is required)
   if (userRole === 'auth') {
-    console.log(' Rendering Auth screen (returning user)');
+    console.log('🔐 Rendering Auth screen');
     return (
       <AuthScreens
         onLoginSuccess={(role) => {
@@ -86,27 +129,12 @@ export default function AppNavigator() {
     );
   }
 
-  // First-launch flow - show landing pages
-  console.log(' Rendering Landing Pages (first launch)');
+  // Fallback to guest mode
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-        animationTypeForReplace: 'pop',
-      }}
-    >
-      <Stack.Screen name="Landing">
-        {(props) => (
-          <LandingPages
-            {...props}
-            onFinish={async () => {
-              await AsyncStorage.setItem('hasLaunched', 'true');
-              setUserRole('auth'); // Trigger re-render to show auth
-            }}
-          />
-        )}
-      </Stack.Screen>
-    </Stack.Navigator>
+    <TenantNavigator 
+      onLogout={handleLogout}
+      isGuest={true}
+      onAuthRequired={() => setUserRole('auth')}
+    />
   );
 }

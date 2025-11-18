@@ -298,4 +298,21 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  guestNotice: {
+  backgroundColor: '#EFF6FF',
+  padding: 16,
+  borderRadius: 12,
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: '#BFDBFE',
+},
+guestNoticeText: {
+  flex: 1,
+  marginLeft: 12,
+  fontSize: 14,
+  color: '#1E40AF',
+  lineHeight: 20,
+},
 });

@@ -8,13 +8,12 @@ import { styles } from '../../../styles/Tenant/HomePage.js';
 import Header from '../components/Header.jsx';
 import MenuDrawer from '../components/MenuDrawer.jsx';
 import SearchBar from '../components/SearchBar.jsx';
-// import FilterModal from '../components/FilterModal.jsx'; // Commented out since we're using buttons now
 import PropertyCard from '../components/PropertyCard.jsx';
 import BottomNavigation from '../components/BottomNavigation.jsx';
 
 import PropertyService from '../../../services/PropertyServices.js';
 
-export default function TenantHomePage({ onLogout }) {
+export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequired }) {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('featured');
@@ -59,21 +58,11 @@ export default function TenantHomePage({ onLogout }) {
       const result = await PropertyService.getPublicProperties(filters);
 
       if (result.success) {
-        // DEBUG: Check raw data from API
-        console.log('=== RAW API DATA ===');
-        console.log('First property:', JSON.stringify(result.data[0], null, 2));
-
         const transformedProperties = result.data.map(property =>
           PropertyService.transformPropertyToAccommodation(property)
         );
 
-        // DEBUG: Check transformed data
-        console.log('=== TRANSFORMED DATA ===');
-        console.log('First transformed:', JSON.stringify(transformedProperties[0], null, 2));
-        console.log('Total properties:', transformedProperties.length);
-
         setProperties(transformedProperties);
-        console.log('Properties set in state');
       } else {
         setError(result.error || 'Failed to load properties');
         Alert.alert('Error', 'Failed to load properties. Please try again.');
@@ -153,7 +142,7 @@ export default function TenantHomePage({ onLogout }) {
 
   const handleFilterSelect = (filterValue) => {
     setSelectedFilter(filterValue);
-    loadProperties(); // Reload with new filter
+    loadProperties();
   };
 
   const handleClearFilter = () => {
@@ -166,8 +155,33 @@ export default function TenantHomePage({ onLogout }) {
     filterProperties();
   };
 
+  // 🔐 Modified: Handle menu items for guest vs authenticated users
   const handleMenuItemPress = async (itemTitle) => {
     setMenuModalVisible(false);
+
+    // Guest users can't access these features
+    if (isGuest) {
+      const protectedItems = ['My Bookings', 'Favorites', 'Payments', 'Settings'];
+      
+      if (protectedItems.includes(itemTitle)) {
+        Alert.alert(
+          'Sign In Required',
+          `You need to sign in to access ${itemTitle}.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Sign In', 
+              onPress: () => {
+                if (onAuthRequired) {
+                  onAuthRequired();
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+    }
 
     switch (itemTitle) {
       case 'My Bookings':
@@ -186,28 +200,36 @@ export default function TenantHomePage({ onLogout }) {
         navigation.navigate('HelpSupport');
         break;
       case 'Logout':
-        Alert.alert(
-          'Logout',
-          'Are you sure you want to log out?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Logout',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await AsyncStorage.removeItem('token');
-                  await AsyncStorage.removeItem('user');
-                  if (onLogout) {
-                    onLogout();
+        if (isGuest) {
+          // For guests, show sign in option
+          if (onAuthRequired) {
+            onAuthRequired();
+          }
+        } else {
+          // For authenticated users, show logout confirmation
+          Alert.alert(
+            'Logout',
+            'Are you sure you want to log out?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Logout',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await AsyncStorage.removeItem('token');
+                    await AsyncStorage.removeItem('user');
+                    if (onLogout) {
+                      onLogout();
+                    }
+                  } catch (error) {
+                    console.error('Logout error:', error);
                   }
-                } catch (error) {
-                  console.error('Logout error:', error);
                 }
               }
-            }
-          ]
-        );
+            ]
+          );
+        }
         break;
       default:
         console.log('Menu item pressed:', itemTitle);
@@ -219,8 +241,39 @@ export default function TenantHomePage({ onLogout }) {
   };
 
   const handleLikePress = async (id) => {
+    // If guest, prompt to sign in
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to sign in to save favorites.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Sign In', 
+            onPress: () => {
+              if (onAuthRequired) {
+                onAuthRequired();
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
     console.log('Like pressed for:', id);
     // TODO: Implement favorites functionality
+  };
+
+  // 🔐 Modified: Handle profile press for guest users
+  const handleProfilePress = () => {
+    if (isGuest) {
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
+    } else {
+      navigation.navigate('Profile');
+    }
   };
 
   if (loading && properties.length === 0) {
@@ -229,7 +282,8 @@ export default function TenantHomePage({ onLogout }) {
         <StatusBar barStyle="light-content" />
         <Header
           onMenuPress={() => setMenuModalVisible(true)}
-          onProfilePress={() => navigation.navigate('Profile')}
+          onProfilePress={handleProfilePress}
+          isGuest={isGuest}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#10b981" />
@@ -239,6 +293,7 @@ export default function TenantHomePage({ onLogout }) {
           visible={menuModalVisible}
           onClose={() => setMenuModalVisible(false)}
           onMenuItemPress={handleMenuItemPress}
+          isGuest={isGuest}
         />
         <BottomNavigation
           activeTab={activeNavTab}
@@ -265,8 +320,25 @@ export default function TenantHomePage({ onLogout }) {
       >
         <Header
           onMenuPress={() => setMenuModalVisible(true)}
-          onProfilePress={() => navigation.navigate('Profile')}
+          onProfilePress={handleProfilePress}
+          isGuest={isGuest}
         />
+
+        {/* 🔐 Guest Mode Banner */}
+        {isGuest && (
+          <TouchableOpacity 
+            style={styles.guestBanner}
+            onPress={() => onAuthRequired && onAuthRequired()}
+          >
+            <View style={styles.guestBannerContent}>
+              <Text style={styles.guestBannerText}>
+                👋 Browse properties as a guest or{' '}
+                <Text style={styles.guestBannerLink}>Sign In</Text>
+                {' '}to book
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         <SearchBar
           searchQuery={searchQuery}
@@ -276,7 +348,7 @@ export default function TenantHomePage({ onLogout }) {
           onClearFilter={handleClearFilter}
         />
 
-        {/* NEW: Filter Buttons Row (matches your screenshot) */}
+        {/* Filter Buttons Row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -356,15 +428,8 @@ export default function TenantHomePage({ onLogout }) {
         visible={menuModalVisible}
         onClose={() => setMenuModalVisible(false)}
         onMenuItemPress={handleMenuItemPress}
+        isGuest={isGuest}
       />
-
-      {/* FilterModal is no longer needed with buttons, but keep if you want
-      <FilterModal
-        visible={filterModalVisible}
-        onClose={() => setFilterModalVisible(false)}
-        selectedFilter={selectedFilter}
-        onFilterSelect={handleFilterSelect}
-      /> */}
 
       <BottomNavigation
         activeTab={activeNavTab}

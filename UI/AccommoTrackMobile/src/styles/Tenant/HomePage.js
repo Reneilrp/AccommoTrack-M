@@ -569,6 +569,33 @@ viewButtonText: {
     borderRadius: 2,
     marginTop: 4,
   },
+  guestBanner: {
+  backgroundColor: '#EFF6FF',
+  marginHorizontal: 16,
+  marginTop: 12,
+  marginBottom: 8,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#BFDBFE',
+  overflow: 'hidden',
+},
+guestBannerContent: {
+  padding: 12,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+guestBannerText: {
+  fontSize: 14,
+  color: '#1E40AF',
+  textAlign: 'center',
+  lineHeight: 20,
+},
+guestBannerLink: {
+  fontWeight: '700',
+  color: '#2563EB',
+  textDecorationLine: 'underline',
+},
 });
 
 export default styles;
