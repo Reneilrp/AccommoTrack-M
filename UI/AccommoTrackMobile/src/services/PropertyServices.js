@@ -99,16 +99,34 @@ const PropertyService = {
         // Backend already provides the image URL or placeholder
         const coverImage = property.image || 'https://via.placeholder.com/400x200?text=No+Image';
 
+        // Parse property_rules if it's a JSON string
+        let propertyRules = [];
+        if (property.property_rules) {
+            if (Array.isArray(property.property_rules)) {
+                propertyRules = property.property_rules;
+            } else if (typeof property.property_rules === 'string') {
+                try {
+                    const parsed = JSON.parse(property.property_rules);
+                    propertyRules = Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    // If parsing fails, treat as single rule or empty
+                    propertyRules = property.property_rules.trim() ? [property.property_rules] : [];
+                }
+            }
+        }
+
         return {
             id: property.id,
             name: property.name || property.title,
             title: property.title,
-            type: property.type || 'Property',
+            type: property.type || property.property_type || 'Property',
             location: property.location || property.city,
-            address: property.full_address,
+            address: property.full_address || property.address,
+            street_address: property.street_address,
             city: property.city,
             province: property.province,
             barangay: property.barangay,
+            postal_code: property.postal_code,
             description: property.description,
             image: coverImage,
             priceRange: property.priceRange || property.price_range,
@@ -120,10 +138,10 @@ const PropertyService = {
             occupiedRooms: property.total_rooms - (property.availableRooms || property.available_rooms || 0),
             rating: null, // Not implemented yet
             amenities: this.extractPropertyAmenities(property.rooms),
-            propertyRules: property.property_rules || [],
+            propertyRules: propertyRules,
             rooms: property.rooms || [],
-            latitude: property.latitude,
-            longitude: property.longitude,
+            latitude: property.latitude ? parseFloat(property.latitude) : null,
+            longitude: property.longitude ? parseFloat(property.longitude) : null,
             nearby_landmarks: property.nearby_landmarks,
         };
     },

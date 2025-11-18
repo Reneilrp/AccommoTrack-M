@@ -124,20 +124,27 @@ export default function RoomListScreen({ route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Rooms in {property.name || property.title}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+          {property.name || property.title}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
       {/* Filters */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-        {['all', 'available', 'occupied', 'maintenance'].map(filter => (
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'available', label: 'Available' },
+          { key: 'occupied', label: 'Occupied' },
+          { key: 'maintenance', label: 'Maintenance' }
+        ].map(filter => (
           <TouchableOpacity
-            key={filter}
-            style={[styles.filterButton, selectedFilter === filter && styles.filterButtonActive]}
-            onPress={() => setSelectedFilter(filter)}
+            key={filter.key}
+            style={[styles.filterButton, selectedFilter === filter.key && styles.filterButtonActive]}
+            onPress={() => setSelectedFilter(filter.key)}
           >
-            <Text style={[styles.filterText, selectedFilter === filter && styles.filterTextActive]}>
-              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            <Text style={[styles.filterText, selectedFilter === filter.key && styles.filterTextActive]}>
+              {filter.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -170,7 +177,7 @@ export default function RoomListScreen({ route }) {
                   </View>
                   <View style={styles.priceSection}>
                     <Text style={styles.roomPrice}>₱{room.monthly_rate.toLocaleString()}</Text>
-                    <Text style={styles.priceLabel}>per month</Text>
+                    <Text style={styles.priceLabel}>/month</Text>
                   </View>
                 </View>
 

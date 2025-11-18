@@ -52,7 +52,9 @@ class PropertyController extends Controller
                                 : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
                             : 'Price on request',
                         'image' => $coverImage
-                            ? asset('storage/' . $coverImage->image_url)
+                            ? (str_starts_with($coverImage->image_url, 'http') 
+                                ? $coverImage->image_url 
+                                : asset('storage/' . ltrim($coverImage->image_url, '/')))
                             : 'https://via.placeholder.com/400x200?text=No+Image',
                         'created_at' => $property->created_at,
                         'updated_at' => $property->updated_at,
@@ -117,8 +119,16 @@ class PropertyController extends Controller
                         ? '₱' . number_format($minPrice, 0)
                         : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
                     : 'Contact for price',
-                'image' => $coverImage ? asset('storage/' . $coverImage->image_url) : null,
-                'images' => $property->images->sortBy('display_order')->map(fn($img) => asset('storage/' . $img->image_url))->toArray(),
+                'image' => $coverImage 
+                    ? (str_starts_with($coverImage->image_url, 'http') 
+                        ? $coverImage->image_url 
+                        : asset('storage/' . ltrim($coverImage->image_url, '/')))
+                    : null,
+                'images' => $property->images->sortBy('display_order')->map(function($img) {
+                    return str_starts_with($img->image_url, 'http') 
+                        ? $img->image_url 
+                        : asset('storage/' . ltrim($img->image_url, '/'));
+                })->toArray(),
                 'rooms' => $availableRooms->map(function ($room) {
                     return [
                         'id' => $room->id,
@@ -176,9 +186,12 @@ class PropertyController extends Controller
             'number_of_bedrooms' => 'nullable|integer',
             'number_of_bathrooms' => 'nullable|integer',
             'floor_area' => 'nullable|numeric',
+            'floor_level' => 'nullable|string',
             'max_occupants' => 'required|integer|min:1',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
+            'amenities' => 'nullable|array',
+            'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'images' => 'nullable|array|max:10',
         ]);
@@ -222,14 +235,43 @@ class PropertyController extends Controller
             }
         }
 
-        return response()->json($property->load('images'), 201);
+        // Handle amenities sync
+        if ($request->has('amenities') && is_array($request->amenities)) {
+            $amenityIds = [];
+            foreach ($request->amenities as $amenityName) {
+                if (!empty($amenityName)) {
+                    $amenity = \App\Models\Amenity::firstOrCreate(['name' => $amenityName]);
+                    $amenityIds[] = $amenity->id;
+                }
+            }
+            $property->amenities()->sync($amenityIds);
+        }
+
+        // Format images with proper URLs
+        $property->load(['images', 'amenities']);
+        $property->images->transform(function ($image) {
+            $image->image_url = asset('storage/' . $image->image_url);
+            return $image;
+        });
+        $property->amenities_list = $property->amenities->pluck('name')->toArray();
+
+        return response()->json($property, 201);
     }
 
     public function show($id)
     {
         $property = Property::where('landlord_id', Auth::id())
-            ->with(['rooms', 'images'])
+            ->with(['rooms', 'images', 'amenities'])
             ->findOrFail($id);
+
+        // Format images with proper URLs
+        $property->images->transform(function ($image) {
+            $image->image_url = asset('storage/' . $image->image_url);
+            return $image;
+        });
+
+        // Format amenities
+        $property->amenities_list = $property->amenities->pluck('name')->toArray();
 
         return response()->json($property, 200);
     }
@@ -245,27 +287,63 @@ class PropertyController extends Controller
             'street_address' => 'sometimes|required|string',
             'city' => 'sometimes|required|string',
             'province' => 'sometimes|required|string',
+            'barangay' => 'nullable|string',
+            'postal_code' => 'nullable|string',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'nearby_landmarks' => 'nullable|string',
+            'property_rules' => 'nullable|string',
+            'number_of_bedrooms' => 'nullable|integer',
+            'number_of_bathrooms' => 'nullable|integer',
+            'floor_area' => 'nullable|numeric',
+            'floor_level' => 'nullable|string',
+            'max_occupants' => 'nullable|integer',
+            'total_rooms' => 'nullable|integer',
+            'current_status' => 'nullable|string',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
+            'amenities' => 'nullable|array',
+            'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'images' => 'nullable|array|max:10',
         ]);
 
         $property->update($validated);
 
+        // Handle amenities sync
+        if ($request->has('amenities') && is_array($request->amenities)) {
+            $amenityIds = [];
+            foreach ($request->amenities as $amenityName) {
+                if (!empty($amenityName)) {
+                    $amenity = \App\Models\Amenity::firstOrCreate(['name' => $amenityName]);
+                    $amenityIds[] = $amenity->id;
+                }
+            }
+            $property->amenities()->sync($amenityIds);
+        }
+
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $file) {
                 $path = $file->store('property_images', 'public');
+                $filename = basename($path);
                 PropertyImage::create([
                     'property_id' => $property->id,
-                    'image_url' => $path,
+                    'image_url' => 'property_images/' . $filename,
                     'is_primary' => $index === 0 && $property->images->where('is_primary', true)->count() === 0,
                     'display_order' => $property->images->count() + $index,
                 ]);
             }
         }
 
-        return response()->json($property->load('images'), 200);
+        // Format images with proper URLs
+        $property->load(['images', 'amenities']);
+        $property->images->transform(function ($image) {
+            $image->image_url = asset('storage/' . $image->image_url);
+            return $image;
+        });
+        $property->amenities_list = $property->amenities->pluck('name')->toArray();
+
+        return response()->json($property, 200);
     }
 
     public function destroy($id)

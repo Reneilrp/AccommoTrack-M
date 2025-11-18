@@ -197,6 +197,11 @@ export default function AddProperty({ onBack, onSave }) {
       }
     });
 
+    // Append amenities as array
+    formData.amenities.forEach((amenity, index) => {
+      payload.append(`amenities[${index}]`, amenity);
+    });
+
     formData.images.forEach((file, index) => {
       if (file instanceof File) {
         payload.append(`images[${index}]`, file);

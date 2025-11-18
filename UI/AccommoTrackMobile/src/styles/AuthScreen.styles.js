@@ -25,6 +25,20 @@ export const styles = StyleSheet.create({
     marginBottom: 50,
     marginTop: 20,
   },
+  dismissButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  dismissButtonText: {
+    color: '#4B5563',
+    fontSize: 14,
+    fontWeight: '500',
+  },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,5 +269,32 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: '#07770B',
     fontWeight: '600',
+  },
+  guestOptionContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  guestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#07770B',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    gap: 8,
+    backgroundColor: '#F0FDF4',
+  },
+  guestButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#07770B',
+  },
+  guestHintText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

@@ -16,7 +16,7 @@ export default function DormProfileSettings({ propertyId, onBack }) {
   const API_URL = '/api';
 
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('auth_token');
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -34,7 +34,7 @@ export default function DormProfileSettings({ propertyId, onBack }) {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`${API_URL}/properties/${propertyId}`, {
+      const response = await fetch(`${API_URL}/landlord/properties/${propertyId}`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -44,6 +44,24 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       }
 
       const data = await response.json();
+      
+      // Parse amenities from relationship or amenities_list
+      const amenitiesData = data.amenities_list || data.amenities || [];
+      const parsedAmenities = parseAmenities(amenitiesData);
+      
+      // Parse images - backend returns objects with image_url property that's already a full URL
+      const images = (data.images || []).map(img => {
+        // If it's already a string URL, use it
+        if (typeof img === 'string') {
+          return img;
+        }
+        // If it's an object with image_url property, extract it
+        if (img && typeof img === 'object' && img.image_url) {
+          return img.image_url;
+        }
+        // Fallback
+        return img;
+      }).filter(Boolean); // Remove any null/undefined values
       
       setDormData({
         id: data.id,
@@ -67,13 +85,13 @@ export default function DormProfileSettings({ propertyId, onBack }) {
           totalRooms: data.total_rooms,
           availableRooms: data.available_rooms
         },
-        amenities: parseAmenities(data.amenities),
+        amenities: parsedAmenities,
         rules: data.property_rules ? (typeof data.property_rules === 'string' ? JSON.parse(data.property_rules) : data.property_rules) : [],
         status: data.current_status,
         nearbyLandmarks: data.nearby_landmarks || '',
         latitude: data.latitude,
         longitude: data.longitude,
-        images: data.images || []
+        images: images
       });
     } catch (err) {
       console.error('Error fetching property:', err);
@@ -95,11 +113,33 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       balcony: false,
       elevator: false,
       petFriendly: false,
-      gymAccess: false
+      gymAccess: false,
+      parking: false
     };
 
-    if (!amenitiesData) return defaultAmenities;
+    if (!amenitiesData || (Array.isArray(amenitiesData) && amenitiesData.length === 0)) {
+      return defaultAmenities;
+    }
     
+    // If it's an array of strings (amenity names)
+    if (Array.isArray(amenitiesData)) {
+      const amenitiesObj = { ...defaultAmenities };
+      amenitiesData.forEach(amenityName => {
+        const key = amenityName.toLowerCase()
+          .replace(/\s+/g, '')
+          .replace('wifi', 'wifi')
+          .replace('airconditioning', 'airConditioning')
+          .replace('waterheater', 'waterHeater')
+          .replace('gymaccess', 'gymAccess')
+          .replace('petfriendly', 'petFriendly');
+        if (key in amenitiesObj) {
+          amenitiesObj[key] = true;
+        }
+      });
+      return amenitiesObj;
+    }
+    
+    // If it's a string, try to parse as JSON
     if (typeof amenitiesData === 'string') {
       try {
         const parsed = JSON.parse(amenitiesData);
@@ -109,6 +149,7 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       }
     }
     
+    // If it's an object, merge with defaults
     return { ...defaultAmenities, ...amenitiesData };
   };
 
@@ -154,13 +195,42 @@ export default function DormProfileSettings({ propertyId, onBack }) {
     }));
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    const newImages = files.map(f => URL.createObjectURL(f));
+    if (files.length === 0) return;
+    
+    // Create preview URLs for immediate display
+    const previewUrls = files.map(f => URL.createObjectURL(f));
     setDormData(prev => ({
       ...prev,
-      images: [...prev.images, ...newImages]
+      images: [...prev.images, ...previewUrls]
     }));
+    
+    // Upload images to backend
+    try {
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`images[${index}]`, file);
+      });
+      
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/landlord/properties/${propertyId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        // Refresh property data to get updated image URLs
+        fetchPropertyDetails();
+      }
+    } catch (err) {
+      console.error('Error uploading images:', err);
+      setError('Failed to upload images');
+    }
   };
 
   const handleRemoveImage = (index) => {
@@ -175,6 +245,28 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       setLoading(true);
       setError('');
       
+      // Convert amenities object to array of amenity names
+      const amenitiesArray = Object.entries(dormData.amenities)
+        .filter(([key, value]) => value === true)
+        .map(([key]) => {
+          // Convert camelCase to proper names
+          const nameMap = {
+            wifi: 'WiFi',
+            airConditioning: 'Air Conditioning',
+            furnished: 'Furnished',
+            security: 'Security',
+            generator: 'Generator',
+            waterHeater: 'Water Heater',
+            kitchen: 'Kitchen',
+            balcony: 'Balcony',
+            elevator: 'Elevator',
+            petFriendly: 'Pet Friendly',
+            gymAccess: 'Gym Access',
+            parking: 'Parking'
+          };
+          return nameMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
+        });
+
       const updateData = {
         title: dormData.name,
         description: dormData.description,
@@ -191,7 +283,7 @@ export default function DormProfileSettings({ propertyId, onBack }) {
         floor_level: dormData.specifications.floorLevel,
         max_occupants: parseInt(dormData.specifications.maxOccupants) || 1,
         total_rooms: parseInt(dormData.specifications.totalRooms) || 1,
-        amenities: JSON.stringify(dormData.amenities),
+        amenities: amenitiesArray,
         property_rules: JSON.stringify(dormData.rules),
         nearby_landmarks: dormData.nearbyLandmarks,
         latitude: parseFloat(dormData.latitude) || null,
@@ -199,7 +291,7 @@ export default function DormProfileSettings({ propertyId, onBack }) {
         current_status: dormData.status
       };
 
-      const response = await fetch(`${API_URL}/properties/${propertyId}`, {
+      const response = await fetch(`${API_URL}/landlord/properties/${propertyId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(updateData)
@@ -598,7 +690,21 @@ export default function DormProfileSettings({ propertyId, onBack }) {
                 <div className="grid grid-cols-4 gap-3">
                   {dormData.images.map((img, index) => (
                     <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                      <img src={img} alt={`Property ${index + 1}`} className="w-full h-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt={`Property ${index + 1}`} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback if image fails to load
+                          e.target.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
+                        }}
+                        onLoad={(e) => {
+                          // Revoke object URL if it's a preview
+                          if (img.startsWith('blob:')) {
+                            // Keep the preview until replaced by server URL
+                          }
+                        }}
+                      />
                       {isEditing && (
                         <button
                           onClick={() => handleRemoveImage(index)}

@@ -297,7 +297,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           {/* Price */}
           <View style={styles.priceContainer}>
             <Text style={styles.price}>₱{room.monthly_rate.toLocaleString()}</Text>
-            <Text style={styles.priceLabel}>per month</Text>
+            <Text style={styles.priceLabel}>/month</Text>
           </View>
 
           {/* Room Details Grid */}

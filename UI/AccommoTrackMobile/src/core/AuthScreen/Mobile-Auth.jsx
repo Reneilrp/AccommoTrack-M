@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const API_URL = 'http://192.168.254.106:8000/api';
 
-export default function AuthScreen({ onLoginSuccess }) {
+export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);
   const [signupStep, setSignupStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -248,6 +248,12 @@ export default function AuthScreen({ onLoginSuccess }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {onClose && (
+          <TouchableOpacity style={styles.dismissButton} onPress={onClose}>
+            <Ionicons name="close" size={18} color="#4B5563" />
+            <Text style={styles.dismissButtonText}>Back to browsing</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.logoContainer}>
           <View style={styles.logoRow}>
             <Image
@@ -265,7 +271,7 @@ export default function AuthScreen({ onLoginSuccess }) {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
-              {isLogin ? 'Log In' : 'Create Account'}
+              {isLogin ? 'Sign In' : 'Create Account'}
             </Text>
             {!isLogin && (
               <Text style={styles.subtitle}>
@@ -565,10 +571,32 @@ export default function AuthScreen({ onLoginSuccess }) {
             </Text>
             <TouchableOpacity onPress={toggleScreen}>
               <Text style={styles.toggleLink}>
-                {isLogin ? 'Sign Up' : 'Log In'}
+                {isLogin ? 'Sign Up' : 'Sign In'}
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Continue as Guest Button - Only show when user logged out */}
+          {onContinueAsGuest && (
+            <View style={styles.guestOptionContainer}>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <TouchableOpacity
+                style={styles.guestButton}
+                onPress={onContinueAsGuest}
+                disabled={loading}
+              >
+                <Ionicons name="person-outline" size={18} color="#07770B" />
+                <Text style={styles.guestButtonText}>Continue as Guest</Text>
+              </TouchableOpacity>
+              <Text style={styles.guestHintText}>
+                Browse properties without signing in
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

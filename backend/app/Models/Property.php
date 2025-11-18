@@ -170,6 +170,15 @@ class Property extends Model
     }
 
     /**
+     * Relationship: Property has many amenities (many-to-many)
+     */
+    public function amenities()
+    {
+        return $this->belongsToMany(Amenity::class, 'property_amenities', 'property_id', 'amenity_id')
+                    ->withTimestamps();
+    }
+
+    /**
      * Check if property is active
      */
     public function isActive()
