@@ -14,6 +14,10 @@ class BookingService {
     }
   }
 
+  /**
+   * Create a new booking
+   * UPDATED: Now sends start_date and end_date instead of total_months
+   */
   async createBooking(bookingData) {
     try {
       const token = await this.getAuthToken();

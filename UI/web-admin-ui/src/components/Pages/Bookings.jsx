@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Eye, X, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Eye, X, CheckCircle, XCircle, Calendar } from 'lucide-react';
 
 export default function Bookings() {
   const [filterStatus, setFilterStatus] = useState('all');
@@ -9,6 +9,12 @@ export default function Bookings() {
   const [error, setError] = useState('');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationData, setCancellationData] = useState({
+    reason: '',
+    refundAmount: 0,
+    shouldRefund: false
+  });
 
   const API_URL = '/api';
 
@@ -19,6 +25,37 @@ export default function Bookings() {
       'Accept': 'application/json',
       'Authorization': `Bearer ${token}`
     };
+  };
+
+  // Format date to readable string
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Format datetime with time
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Calculate days between two dates
+  const calculateDays = (checkIn, checkOut) => {
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   useEffect(() => {
@@ -62,14 +99,16 @@ export default function Bookings() {
     }
   };
 
-  const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null) => {
+  const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
     try {
       const response = await fetch(`${API_URL}/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({
           status: newStatus,
-          cancellation_reason: cancellationReason
+          cancellation_reason: cancellationReason,
+          refund_amount: refundData?.refundAmount || 0,
+          should_refund: refundData?.shouldRefund || false
         })
       });
 
@@ -78,6 +117,7 @@ export default function Bookings() {
       await fetchBookings();
       await fetchStats();
       setShowDetailModal(false);
+      setShowCancelModal(false);
       
       alert(`Booking ${newStatus} successfully!`);
     } catch (err) {
@@ -96,8 +136,26 @@ export default function Bookings() {
 
       if (!response.ok) throw new Error('Failed to update payment');
 
+      const result = await response.json();
+
+      // Refresh bookings list
       await fetchBookings();
-      alert('Payment status updated!');
+      
+      // Update the selected booking in the modal with the response data
+      if (selectedBooking && selectedBooking.id === bookingId) {
+        setSelectedBooking(prev => ({
+          ...prev,
+          paymentStatus: result.booking.payment_status,
+          status: result.booking.status // Update status too in case it changed
+        }));
+      }
+      
+      // Show appropriate message
+      if (result.status_upgraded) {
+        alert('Payment updated! Booking automatically upgraded to Completed.');
+      } else {
+        alert('Payment status updated!');
+      }
     } catch (err) {
       console.error('Error updating payment:', err);
       alert('Failed to update payment status');
@@ -109,6 +167,38 @@ export default function Bookings() {
     setShowDetailModal(true);
   };
 
+  const handleOpenCancelModal = (booking) => {
+    setSelectedBooking(booking);
+    setCancellationData({
+      reason: '',
+      refundAmount: 0,
+      shouldRefund: false
+    });
+    setShowCancelModal(true);
+  };
+
+  const handleCancelConfirm = () => {
+    if (!cancellationData.reason.trim()) {
+      alert('Please provide a cancellation reason');
+      return;
+    }
+
+    if (cancellationData.shouldRefund && cancellationData.refundAmount <= 0) {
+      alert('Please enter a valid refund amount');
+      return;
+    }
+
+    handleUpdateStatus(
+      selectedBooking.id,
+      'cancelled',
+      cancellationData.reason,
+      cancellationData.shouldRefund ? {
+        refundAmount: cancellationData.refundAmount,
+        shouldRefund: true
+      } : null
+    );
+  };
+
   const filteredBookings = filterStatus === 'all'
     ? bookings
     : bookings.filter(booking => booking.status === filterStatus);
@@ -118,8 +208,8 @@ export default function Bookings() {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
-      case 'cancelled':
-      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'partial-completed': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -129,7 +219,7 @@ export default function Bookings() {
       case 'paid': return 'bg-green-100 text-green-800';
       case 'partial': return 'bg-yellow-100 text-yellow-800';
       case 'unpaid': return 'bg-red-100 text-red-800';
-      case 'refunded': return 'bg-gray-100 text-gray-800';
+      case 'refunded': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -207,7 +297,7 @@ export default function Bookings() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)} Bookings
+                {status.charAt(0).toUpperCase() + status.slice(1)}
               </button>
             ))}
           </div>
@@ -221,7 +311,7 @@ export default function Bookings() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property/Room</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check In</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -237,48 +327,63 @@ export default function Bookings() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((booking) => (
-                    <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{booking.guestName}</div>
-                          <div className="text-xs text-gray-500">{booking.email}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{booking.propertyTitle}</div>
-                        <div className="text-xs text-gray-500">Room {booking.roomNumber} - {booking.roomType}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {booking.checkIn}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {booking.duration}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        ₱{booking.amount.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
-                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(booking.paymentStatus)}`}>
-                          {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => handleViewDetails(booking)}
-                          className="text-green-600 hover:text-green-800 font-medium flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredBookings.map((booking) => {
+                    const totalDays = calculateDays(booking.checkIn, booking.checkOut);
+                    return (
+                      <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{booking.guestName}</div>
+                            <div className="text-xs text-gray-500">{booking.email}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">{booking.propertyTitle}</div>
+                          <div className="text-xs text-gray-500">Room {booking.roomNumber} - {booking.roomType}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-start gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <div className="text-sm text-gray-900 whitespace-nowrap">{formatDate(booking.checkIn)}</div>
+                              <div className="text-xs text-gray-500 whitespace-nowrap">to {formatDate(booking.checkOut)}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{booking.duration}</div>
+                          <div className="text-xs text-gray-500">{totalDays} days</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                            ₱{booking.amount.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-gray-500 whitespace-nowrap">
+                            ₱{booking.monthlyRent.toLocaleString()}/mo
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(booking.paymentStatus)}`}>
+                            {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => handleViewDetails(booking)}
+                            className="text-green-600 hover:text-green-800 font-medium flex items-center gap-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -289,8 +394,8 @@ export default function Bookings() {
       {/* Detail Modal */}
       {showDetailModal && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-900">Booking Details</h2>
               <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-6 h-6" />
@@ -298,28 +403,74 @@ export default function Bookings() {
             </div>
 
             <div className="p-6 space-y-6">
+              {/* Booking Timeline */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-xs text-blue-600 font-medium mb-1">CHECK-IN</p>
+                    <p className="text-lg font-bold text-blue-900">{formatDate(selectedBooking.checkIn)}</p>
+                  </div>
+                  <div className="text-blue-400 text-xl">→</div>
+                  <div className="flex-1 text-center">
+                    <p className="text-xs text-blue-600 font-medium mb-1">DURATION</p>
+                    <p className="text-lg font-bold text-blue-900">{selectedBooking.duration}</p>
+                    <p className="text-xs text-blue-600">({calculateDays(selectedBooking.checkIn, selectedBooking.checkOut)} days)</p>
+                  </div>
+                  <div className="text-blue-400 text-xl">→</div>
+                  <div className="flex-1 text-right">
+                    <p className="text-xs text-blue-600 font-medium mb-1">CHECK-OUT</p>
+                    <p className="text-lg font-bold text-blue-900">{formatDate(selectedBooking.checkOut)}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Guest Info */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Guest Information</h3>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Name:</span> {selectedBooking.guestName}</p>
-                  <p><span className="font-medium">Email:</span> {selectedBooking.email}</p>
-                  <p><span className="font-medium">Phone:</span> {selectedBooking.phone}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="font-medium">{selectedBooking.guestName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="font-medium text-sm break-all">{selectedBooking.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="font-medium">{selectedBooking.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Booked On</p>
+                    <p className="font-medium text-sm">{formatDateTime(selectedBooking.created_at)}</p>
+                  </div>
                 </div>
               </div>
 
               {/* Booking Info */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Booking Information</h3>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Reference:</span> {selectedBooking.bookingReference}</p>
-                  <p><span className="font-medium">Property:</span> {selectedBooking.propertyTitle}</p>
-                  <p><span className="font-medium">Room:</span> Room {selectedBooking.roomNumber} - {selectedBooking.roomType}</p>
-                  <p><span className="font-medium">Check-in:</span> {selectedBooking.checkIn}</p>
-                  <p><span className="font-medium">Check-out:</span> {selectedBooking.checkOut}</p>
-                  <p><span className="font-medium">Duration:</span> {selectedBooking.duration}</p>
-                  <p><span className="font-medium">Monthly Rent:</span> ₱{selectedBooking.monthlyRent.toLocaleString()}</p>
-                  <p><span className="font-medium">Total Amount:</span> ₱{selectedBooking.amount.toLocaleString()}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Reference</p>
+                    <p className="font-mono font-bold text-green-600">{selectedBooking.bookingReference}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Property</p>
+                    <p className="font-medium">{selectedBooking.propertyTitle}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Room</p>
+                    <p className="font-medium">Room {selectedBooking.roomNumber} - {selectedBooking.roomType}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Monthly Rent</p>
+                    <p className="font-medium">₱{selectedBooking.monthlyRent.toLocaleString()}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500 mb-1">Total Amount</p>
+                    <p className="text-2xl font-bold text-gray-900">₱{selectedBooking.amount.toLocaleString()}</p>
+                  </div>
                 </div>
               </div>
 
@@ -327,58 +478,323 @@ export default function Bookings() {
               {selectedBooking.notes && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Notes</h3>
-                  <p className="text-sm text-gray-700">{selectedBooking.notes}</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedBooking.notes}</p>
                 </div>
               )}
 
-              {/* Status & Payment */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Current Status Display */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Booking Status</label>
-                  <select
-                    value={selectedBooking.status}
-                    onChange={(e) => {
-                      if (e.target.value === 'cancelled' || e.target.value === 'rejected') {
-                        const reason = prompt('Please enter cancellation reason:');
-                        if (reason) {
-                          handleUpdateStatus(selectedBooking.id, e.target.value, reason);
-                        }
-                      } else {
-                        handleUpdateStatus(selectedBooking.id, e.target.value);
-                      }
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                  <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedBooking.status)}`}>
+                    {selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1)}
+                  </span>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Payment Status</label>
-                  <select
-                    value={selectedBooking.paymentStatus}
-                    onChange={(e) => handleUpdatePayment(selectedBooking.id, e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="unpaid">Unpaid</option>
-                    <option value="partial">Partial</option>
-                    <option value="paid">Paid</option>
-                    <option value="refunded">Refunded</option>
-                  </select>
+                  <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(selectedBooking.paymentStatus)}`}>
+                    {selectedBooking.paymentStatus.charAt(0).toUpperCase() + selectedBooking.paymentStatus.slice(1)}
+                  </span>
                 </div>
+              </div>
+
+              {/* Smart Action Buttons */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">Booking Actions</label>
+                <div className="flex gap-2 flex-wrap">
+                  {(() => {
+                    const { status, paymentStatus } = selectedBooking;
+                    
+                    // Cancelled - only show refund option if payment was made
+                    if (status === 'cancelled') {
+                      if (paymentStatus === 'refunded') {
+                        return (
+                          <div className="w-full p-3 bg-purple-50 rounded-lg border border-purple-200">
+                            <p className="text-sm text-purple-800">
+                              <strong>Refunded:</strong> This booking has been cancelled and refunded.
+                            </p>
+                          </div>
+                        );
+                      } else if (paymentStatus === 'paid' || paymentStatus === 'partial') {
+                        return (
+                          <div className="w-full">
+                            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-2">
+                              <p className="text-sm text-yellow-800">
+                                <strong>Note:</strong> This booking is cancelled but payment hasn't been refunded yet.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleUpdatePayment(selectedBooking.id, 'refunded')}
+                              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Mark as Refunded
+                            </button>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="w-full p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-sm text-gray-500 italic">Booking cancelled (no payment to refund)</p>
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    // Completed - allow cancellation with refund
+                    if (status === 'completed') {
+                      return (
+                        <div className="w-full">
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-2">
+                            <p className="text-sm text-blue-800">
+                              <strong>Completed:</strong> This booking is completed. You can still cancel and process refund if needed.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleOpenCancelModal(selectedBooking)}
+                            className="flex items-center gap-2 px-4 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Cancel & Refund
+                          </button>
+                        </div>
+                      );
+                    }
+                    
+                    // Pending status - can confirm or cancel
+                    if (status === 'pending') {
+                      return (
+                        <>
+                          <button
+                            onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed')}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Confirm Booking
+                          </button>
+                          <button
+                            onClick={() => handleOpenCancelModal(selectedBooking)}
+                            className="flex items-center gap-2 px-4 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </>
+                      );
+                    }
+                    
+                    // Confirmed status - smart completion based on payment
+                    if (status === 'confirmed') {
+                      if (paymentStatus === 'paid') {
+                        return (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Mark this booking as completed?')) {
+                                  handleUpdateStatus(selectedBooking.id, 'completed');
+                                }
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => handleOpenCancelModal(selectedBooking)}
+                              className="flex items-center gap-2 px-4 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Cancel & Refund
+                            </button>
+                          </>
+                        );
+                      } else if (paymentStatus === 'partial') {
+                        return (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Mark as completed with full payment received?')) {
+                                  handleUpdateStatus(selectedBooking.id, 'completed');
+                                }
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Mark as completed with partial payment? Remaining balance should be tracked separately.')) {
+                                  handleUpdateStatus(selectedBooking.id, 'partial-completed');
+                                }
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Partial Complete
+                            </button>
+                            <button
+                              onClick={() => handleOpenCancelModal(selectedBooking)}
+                              className="flex items-center gap-2 px-4 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Cancel & Refund
+                            </button>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <div className="w-full p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-2">
+                              <p className="text-sm text-yellow-800">
+                                <strong>Note:</strong> Payment is required before completion. Only cancellation is available.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleOpenCancelModal(selectedBooking)}
+                              className="flex items-center gap-2 px-4 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </>
+                        );
+                      }
+                    }
+                    
+                    return null;
+                  })()}
+                </div>
+              </div>
+
+              {/* Payment Status Update - Keep separate for manual updates */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Update Payment Status</label>
+                <select
+                  value={selectedBooking.paymentStatus}
+                  onChange={(e) => handleUpdatePayment(selectedBooking.id, e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  disabled={selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded'}
+                >
+                  <option value="unpaid">Unpaid</option>
+                  <option value="partial">Partial</option>
+                  <option value="paid">Paid</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+                {selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded' && (
+                  <p className="text-xs text-gray-500 mt-1">Payment status locked for refunded cancellations</p>
+                )}
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel & Refund Modal */}
+      {showCancelModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Cancel Booking</h3>
+              <button onClick={() => setShowCancelModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="bg-red-50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-medium mb-1">Booking: {selectedBooking.guestName}</p>
+              <p className="text-xs text-red-700">Reference: {selectedBooking.bookingReference}</p>
+              <p className="text-xs text-red-700">Amount: ₱{selectedBooking.amount.toLocaleString()}</p>
+              <p className="text-xs text-red-700">Payment Status: {selectedBooking.paymentStatus}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cancellation Reason *
+              </label>
+              <textarea
+                value={cancellationData.reason}
+                onChange={(e) => setCancellationData({...cancellationData, reason: e.target.value})}
+                placeholder="Enter reason for cancellation..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                rows="3"
+              />
+            </div>
+
+            {(selectedBooking.paymentStatus === 'paid' || selectedBooking.paymentStatus === 'partial') && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="shouldRefund"
+                    checked={cancellationData.shouldRefund}
+                    onChange={(e) => setCancellationData({
+                      ...cancellationData, 
+                      shouldRefund: e.target.checked,
+                      refundAmount: e.target.checked ? selectedBooking.amount : 0
+                    })}
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label htmlFor="shouldRefund" className="text-sm font-medium text-gray-700">
+                    Process Refund
+                  </label>
+                </div>
+
+                {cancellationData.shouldRefund && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Refund Amount
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-gray-500">₱</span>
+                      <input
+                        type="number"
+                        value={cancellationData.refundAmount}
+                        onChange={(e) => setCancellationData({
+                          ...cancellationData, 
+                          refundAmount: parseFloat(e.target.value) || 0
+                        })}
+                        max={selectedBooking.amount}
+                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Maximum refundable: ₱{selectedBooking.amount.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-xs text-yellow-800">
+                <strong>Warning:</strong> This action cannot be undone. The booking will be marked as cancelled
+                {cancellationData.shouldRefund && ' and the refund will need to be processed.'}.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleCancelConfirm}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Confirm Cancel
               </button>
             </div>
           </div>

@@ -20,7 +20,13 @@ return new class extends Migration
             $table->integer('total_months');
             $table->decimal('monthly_rent', 10, 2);
             $table->decimal('total_amount', 10, 2);
-            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'completed', 'rejected'])->default('pending');
+            
+            // NEW: Refund tracking columns
+            $table->decimal('refund_amount', 10, 2)->nullable();
+            $table->timestamp('refund_processed_at')->nullable();
+            
+            // Updated status enum to include 'partial-completed'
+            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'completed', 'partial-completed'])->default('pending');
             $table->enum('payment_status', ['unpaid', 'partial', 'paid', 'refunded'])->default('unpaid');
             $table->text('notes')->nullable();
             $table->timestamp('cancelled_at')->nullable();

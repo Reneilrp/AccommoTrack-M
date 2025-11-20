@@ -315,4 +315,64 @@ guestNoticeText: {
   color: '#1E40AF',
   lineHeight: 20,
 },
+dateButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  borderWidth: 1,
+  borderColor: '#d1d5db',
+  borderRadius: 8,
+  padding: 14,
+  gap: 10,
+},
+dateButtonText: {
+  fontSize: 16,
+  color: '#111827',
+  flex: 1,
+},
+
+// Summary container styles
+summaryContainer: {
+  backgroundColor: '#f0fdf4',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: '#bbf7d0',
+},
+summaryRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+summaryLabel: {
+  fontSize: 14,
+  color: '#166534',
+},
+summaryValue: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#166534',
+},
+summaryLabelBold: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#166534',
+},
+summaryValueBold: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: '#15803d',
+},
+summaryNote: {
+  fontSize: 12,
+  color: '#166534',
+  marginTop: 4,
+},
+
+// Update existing submitButtonDisabled style
+submitButtonDisabled: {
+  backgroundColor: '#d1d5db',
+  opacity: 0.6,
+},
 });

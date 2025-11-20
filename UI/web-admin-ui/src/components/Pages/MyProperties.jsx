@@ -12,7 +12,7 @@ import {
   Building2,
   Loader2
 } from 'lucide-react';
-import { getImageUrl, apiUrl } from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 
 export default function MyProperties({ user }) {
   const [activeTab, setActiveTab] = useState('all');
@@ -23,17 +23,6 @@ export default function MyProperties({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
-  };
-
   useEffect(() => {
     fetchProperties();
   }, []);
@@ -41,19 +30,16 @@ export default function MyProperties({ user }) {
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl('/landlord/properties'), {
-        headers: getAuthHeaders()
-      });
+      setError(null);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch properties');
-      }
-
-      const data = await response.json();
-      setProperties(data);
+      // Using the axios instance
+      const response = await api.get('/landlord/properties');
+      console.log('📦 Properties fetched:', response.data);
+      setProperties(response.data);
+      
     } catch (err) {
       console.error('Error fetching properties:', err);
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
@@ -183,29 +169,33 @@ export default function MyProperties({ user }) {
               <div className="flex items-center bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                    }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setActiveTab('active')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                    }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   Active
                 </button>
                 <button
                   onClick={() => setActiveTab('inactive')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                    }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   Inactive
                 </button>
                 <button
                   onClick={() => setActiveTab('pending')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
-                    }`}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   Pending
                 </button>
@@ -222,89 +212,106 @@ export default function MyProperties({ user }) {
                 <p className="text-gray-400 text-sm">Add your first property to get started</p>
               </div>
             ) : (
-              filteredProperties.map((property) => (
-                <div key={property.id} className="p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4 flex-1">
-                      {/* Property Icon */}
-                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
-                        {property.images && property.images.length > 0 ? (
-                          <img
-                            src={`${import.meta.env.VITE_APP_URL || ''}/storage/${property.images[0].image_url}`}
-                            alt={property.title}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = '/images/no-image.png'; // optional local fallback
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Home className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
+              filteredProperties.map((property) => {
+                // Get the image URL using the utility function
+                const imageUrl = property.images && property.images.length > 0 
+                  ? getImageUrl(property.images[0].image_url)
+                  : null;
 
-                      {/* Property Details */}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900">{property.title}</h3>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${property.current_status === 'active'
-                              ? 'bg-green-100 text-green-700'
-                              : property.current_status === 'inactive'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-yellow-100 text-yellow-700'
+                // Debug log (you can remove this later)
+                if (property.images && property.images.length > 0) {
+                  console.log('🖼️ Property:', property.title);
+                  console.log('🖼️ Raw image_url:', property.images[0].image_url);
+                  console.log('🖼️ Final URL:', imageUrl);
+                }
+
+                return (
+                  <div key={property.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        {/* Property Image */}
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={property.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('❌ Image failed to load:', e.target.src);
+                                e.target.onerror = null;
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg></div>';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Home className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Property Details */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-semibold text-gray-900">{property.title}</h3>
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
+                                property.current_status === 'active'
+                                  ? 'bg-green-100 text-green-700'
+                                  : property.current_status === 'inactive'
+                                  ? 'bg-gray-100 text-gray-700'
+                                  : 'bg-yellow-100 text-yellow-700'
                               }`}
-                          >
-                            {property.current_status}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1 text-sm text-gray-600 mb-3">
-                          <MapPin className="w-4 h-4" />
-                          {property.street_address}, {property.city}
-                        </div>
-
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded capitalize">
-                            {property.property_type}
-                          </span>
-                        </div>
-
-                        {/* Property Stats */}
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <p className="text-xs text-gray-500 mb-1">Available Rooms</p>
-                            <p className="text-sm font-semibold text-gray-900">{property.available_rooms || 0}</p>
+                            >
+                              {property.current_status}
+                            </span>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500 mb-1">Total Rooms</p>
-                            <p className="text-sm font-semibold text-gray-900">{property.total_rooms || 0}</p>
+
+                          <div className="flex items-center gap-1 text-sm text-gray-600 mb-3">
+                            <MapPin className="w-4 h-4" />
+                            {property.street_address}, {property.city}
+                          </div>
+
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded capitalize">
+                              {property.property_type}
+                            </span>
+                          </div>
+
+                          {/* Property Stats */}
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Available Rooms</p>
+                              <p className="text-sm font-semibold text-gray-900">{property.available_rooms || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Total Rooms</p>
+                              <p className="text-sm font-semibold text-gray-900">{property.total_rooms || 0}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => handleViewProperty(property.id)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="More Options"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleViewProperty(property.id)}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="More Options"
+                        >
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

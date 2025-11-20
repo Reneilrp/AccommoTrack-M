@@ -10,11 +10,13 @@ import {
   Modal, 
   TextInput, 
   Alert,
-  ActivityIndicator } from 'react-native';
+  ActivityIndicator,
+  Platform } from 'react-native';
   
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
 
 import BookingService from '../../../services/BookingServices';  
@@ -27,9 +29,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Date picker states
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  
   const [bookingData, setBookingData] = useState({
-    start_date: '',
-    total_months: '',
+    start_date: new Date(),
+    end_date: null,
     notes: ''
   });
 
@@ -61,7 +68,61 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     return (status || '').replace(/^\w/, c => c.toUpperCase()) || 'Unknown';
   };
 
-  // 🔐 AUTH GATE: Check if user is authenticated before booking
+  // Format date for display
+  const formatDate = (date) => {
+    if (!date) return 'Select date';
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  // Calculate duration between dates
+  const calculateDuration = () => {
+    if (!bookingData.start_date || !bookingData.end_date) return null;
+    
+    const start = new Date(bookingData.start_date);
+    const end = new Date(bookingData.end_date);
+    
+    if (end <= start) return null;
+    
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const months = Math.ceil(diffDays / 30); // Approximate months
+    
+    return { days: diffDays, months };
+  };
+
+  // Calculate total cost
+  const calculateTotal = () => {
+    const duration = calculateDuration();
+    if (!duration) return 0;
+    return room.monthly_rate * duration.months;
+  };
+
+  // Handle start date change
+  const onStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setBookingData(prev => ({ ...prev, start_date: selectedDate }));
+      
+      // Reset end date if it's before the new start date
+      if (prev.end_date && selectedDate >= prev.end_date) {
+        setBookingData(prev => ({ ...prev, end_date: null }));
+      }
+    }
+  };
+
+  // Handle end date change
+  const onEndDateChange = (event, selectedDate) => {
+    setShowEndDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setBookingData(prev => ({ ...prev, end_date: selectedDate }));
+    }
+  };
+
+  // AUTH GATE: Check if user is authenticated before booking
   const handleBook = () => {
     if (room.status !== 'available') {
       Alert.alert('Unavailable', 'This room is not available for booking.');
@@ -88,64 +149,54 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       return;
     }
     
-    // Pre-fill with today's date in correct format
+    // Reset form with today's date and tomorrow as default end date
     const today = new Date();
-    const formattedDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     
     setBookingData({
-      start_date: formattedDate,
-      total_months: '',
+      start_date: today,
+      end_date: tomorrow,
       notes: ''
     });
     
     setBookingModalVisible(true);
   };
 
-  const validateDate = (dateString) => {
-    // Check format YYYY-MM-DD
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(dateString)) {
+  const validateDates = () => {
+    if (!bookingData.start_date || !bookingData.end_date) {
+      Alert.alert('Missing Information', 'Please select both check-in and check-out dates.');
       return false;
     }
-    
-    const date = new Date(dateString);
+
+    const start = new Date(bookingData.start_date);
+    const end = new Date(bookingData.end_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    // Check if valid date and not in the past
-    return date instanceof Date && !isNaN(date) && date >= today;
+
+    if (start < today) {
+      Alert.alert('Invalid Date', 'Check-in date cannot be in the past.');
+      return false;
+    }
+
+    if (end <= start) {
+      Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmitBooking = async () => {
     try {
-      // Validate inputs
-      if (!bookingData.start_date || !bookingData.total_months) {
-        Alert.alert('Missing Information', 'Please fill in all required fields.');
-        return;
-      }
-
-      // Validate date format
-      if (!validateDate(bookingData.start_date)) {
-        Alert.alert(
-          'Invalid Date', 
-          'Please enter a valid date in YYYY-MM-DD format (e.g., 2024-12-25) that is not in the past.'
-        );
-        return;
-      }
-
-      // Validate total months
-      const months = parseInt(bookingData.total_months);
-      if (isNaN(months) || months < 1) {
-        Alert.alert('Invalid Duration', 'Please enter a valid number of months (minimum 1).');
-        return;
-      }
+      if (!validateDates()) return;
 
       setIsSubmitting(true);
 
       const data = {
         room_id: room.id,
-        start_date: bookingData.start_date,
-        total_months: months,
+        start_date: bookingData.start_date.toISOString().split('T')[0], // YYYY-MM-DD
+        end_date: bookingData.end_date.toISOString().split('T')[0], // YYYY-MM-DD
         notes: bookingData.notes || null
       };
 
@@ -184,17 +235,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     }
   };
 
-  const updateBookingData = (field, value) => {
-    setBookingData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const calculateTotal = () => {
-    const months = parseInt(bookingData.total_months);
-    if (isNaN(months) || months < 1) return 0;
-    return room.monthly_rate * months;
-  };
-
-  // 🔐 AUTH GATE: Contact landlord also requires auth
+  // AUTH GATE: Contact landlord also requires auth
   const handleContactLandlord = () => {
     if (isGuest) {
       Alert.alert(
@@ -218,6 +259,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     // TODO: Navigate to messages/chat
     Alert.alert('Contact Landlord', 'Messaging feature coming soon!');
   };
+
+  const duration = calculateDuration();
+  const total = calculateTotal();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -377,7 +421,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             )}
           </View>
 
-          {/* 🔐 GUEST USER NOTICE */}
+          {/* GUEST USER NOTICE */}
           {isGuest && (
             <View style={styles.guestNotice}>
               <Ionicons name="information-circle" size={20} color="#3B82F6" />
@@ -403,7 +447,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         </View>
       </ScrollView>
 
-      {/* Booking Modal - Only shown for authenticated users */}
+      {/* Booking Modal - UPDATED WITH DATE PICKERS */}
       <Modal
         visible={bookingModalVisible}
         animationType="slide"
@@ -414,38 +458,72 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Book Room {room.room_number}</Text>
             
+            {/* Start Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Start Date *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD (e.g., 2024-12-25)"
-                placeholderTextColor="#999"
-                value={bookingData.start_date}
-                onChangeText={(text) => updateBookingData('start_date', text)}
-                editable={!isSubmitting}
-              />
+              <Text style={styles.inputLabel}>Check-in Date *</Text>
+              <TouchableOpacity 
+                style={styles.dateButton}
+                onPress={() => setShowStartDatePicker(true)}
+                disabled={isSubmitting}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+                <Text style={styles.dateButtonText}>{formatDate(bookingData.start_date)}</Text>
+              </TouchableOpacity>
+              
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={bookingData.start_date || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onStartDateChange}
+                  minimumDate={new Date()}
+                />
+              )}
             </View>
             
+            {/* End Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Duration (Months) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter number of months"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-                value={bookingData.total_months}
-                onChangeText={(text) => updateBookingData('total_months', text)}
-                editable={!isSubmitting}
-              />
+              <Text style={styles.inputLabel}>Check-out Date *</Text>
+              <TouchableOpacity 
+                style={styles.dateButton}
+                onPress={() => setShowEndDatePicker(true)}
+                disabled={isSubmitting}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+                <Text style={styles.dateButtonText}>{formatDate(bookingData.end_date)}</Text>
+              </TouchableOpacity>
+              
+              {showEndDatePicker && (
+                <DateTimePicker
+                  value={bookingData.end_date || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onEndDateChange}
+                  minimumDate={bookingData.start_date || new Date()}
+                />
+              )}
             </View>
 
-            {bookingData.total_months && parseInt(bookingData.total_months) > 0 && (
-              <View style={styles.totalContainer}>
-                <Text style={styles.totalLabel}>Total Amount:</Text>
-                <Text style={styles.totalAmount}>₱{calculateTotal().toLocaleString()}</Text>
+            {/* Duration & Cost Summary */}
+            {duration && (
+              <View style={styles.summaryContainer}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Duration</Text>
+                  <Text style={styles.summaryValue}>
+                    {duration.days} days ({duration.months} {duration.months === 1 ? 'month' : 'months'})
+                  </Text>
+                </View>
+                <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
+                  <Text style={styles.summaryLabelBold}>Total Amount</Text>
+                  <Text style={styles.summaryValueBold}>₱{total.toLocaleString()}</Text>
+                </View>
+                <Text style={styles.summaryNote}>
+                  ₱{room.monthly_rate.toLocaleString()}/month × {duration.months} months
+                </Text>
               </View>
             )}
             
+            {/* Notes */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Notes (Optional)</Text>
               <TextInput
@@ -454,15 +532,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 placeholderTextColor="#999"
                 multiline
                 value={bookingData.notes}
-                onChangeText={(text) => updateBookingData('notes', text)}
+                onChangeText={(text) => setBookingData(prev => ({ ...prev, notes: text }))}
                 editable={!isSubmitting}
               />
             </View>
             
             <TouchableOpacity 
-              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+              style={[styles.submitButton, (!duration || isSubmitting) && styles.submitButtonDisabled]} 
               onPress={handleSubmitBooking}
-              disabled={isSubmitting}
+              disabled={!duration || isSubmitting}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" />

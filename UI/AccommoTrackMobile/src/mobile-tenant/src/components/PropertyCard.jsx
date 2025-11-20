@@ -6,7 +6,9 @@ import { styles } from '../../../styles/Tenant/HomePage.js';
 export default function PropertyCard({ accommodation, property, onPress }) {
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
-  
+
+  const API_BASE_URL = 'http://192.168.254.106:8000';
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Early return if property is invalid
@@ -20,9 +22,19 @@ export default function PropertyCard({ accommodation, property, onPress }) {
     if (!item.image) {
       return { uri: 'https://via.placeholder.com/400x200?text=No+Image' };
     }
+
     if (typeof item.image === 'string') {
-      return { uri: item.image };
+      // If it's already a full URL, use it directly
+      if (item.image.startsWith('http://') || item.image.startsWith('https://')) {
+        return { uri: item.image };
+      }
+
+      // If it's a relative path, construct full URL
+      // Remove any leading 'storage/' if present since backend adds it
+      const cleanPath = item.image.replace(/^\/?(storage\/)?/, '');
+      return { uri: `${API_BASE_URL}/storage/${cleanPath}` };
     }
+
     return item.image;
   };
 
@@ -62,7 +74,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
         <Text style={styles.dormName} numberOfLines={2}>
           {item.name || item.title || 'Unnamed Property'}
         </Text>
-        
+
         {/* Location */}
         <View style={styles.locationContainer}>
           <Ionicons name="location-outline" size={16} color="#757575" />
@@ -90,7 +102,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
 
         {/* View Button */}
         <View style={styles.cardFooter}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.viewButton}
             onPress={(e) => {
               e.stopPropagation();

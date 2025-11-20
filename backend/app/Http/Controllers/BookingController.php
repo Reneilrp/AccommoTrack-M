@@ -71,7 +71,7 @@ class BookingController extends Controller
             $validated = $request->validate([
                 'room_id' => 'required|exists:rooms,id',
                 'start_date' => 'required|date|after_or_equal:today',
-                'total_months' => 'required|integer|min:1',
+                'end_date' => 'required|date|after:start_date',
                 'notes' => 'nullable|string'
             ]);
 
@@ -93,8 +93,15 @@ class BookingController extends Controller
 
             // Calculate end date and total amount
             $startDate = \Carbon\Carbon::parse($validated['start_date']);
-            $endDate = $startDate->copy()->addMonths($validated['total_months']);
-            $totalAmount = $room->monthly_rate * $validated['total_months'];
+            $endDate = \Carbon\Carbon::parse($validated['end_date']);
+            $totalMonths = $startDate->diffInMonths($endDate);
+
+            // Round up if there are remaining days
+            if ($startDate->copy()->addMonths($totalMonths) < $endDate) {
+                $totalMonths++;
+            }
+            
+            $totalAmount = $room->monthly_rate * $totalMonths;
 
             // Generate unique booking reference
             $bookingReference = 'BK-' . strtoupper(Str::random(8));
@@ -108,7 +115,7 @@ class BookingController extends Controller
                 'booking_reference' => $bookingReference,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate->format('Y-m-d'),
-                'total_months' => $validated['total_months'],
+                'total_months' => $totalMonths,
                 'monthly_rent' => $room->monthly_rate,
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
@@ -147,8 +154,9 @@ class BookingController extends Controller
     }
 
     /**
-     * Update booking status (landlord confirms/rejects)
-     * 🆕 AUTOMATICALLY UPDATES TENANT PROFILE ON CONFIRMATION
+     * Update booking status (landlord confirms/rejects/completes/cancels)
+     * ✅ HANDLES: confirmed, completed, partial-completed, cancelled
+     * ✅ UPDATES: Room status + Tenant profile + Refunds
      */
     public function updateStatus(Request $request, $id)
     {
@@ -160,15 +168,20 @@ class BookingController extends Controller
                 ->findOrFail($id);
 
             $validated = $request->validate([
-                'status' => 'required|in:pending,confirmed,cancelled,completed,rejected',
-                'cancellation_reason' => 'required_if:status,cancelled,rejected'
+                'status' => 'required|in:pending,confirmed,cancelled,completed,partial-completed',
+                'cancellation_reason' => 'required_if:status,cancelled',
+                'refund_amount' => 'nullable|numeric|min:0',
+                'should_refund' => 'nullable|boolean'
             ]);
 
             $oldStatus = $booking->status;
-            $booking->status = $validated['status'];
+            $newStatus = $validated['status'];
+            $booking->status = $newStatus;
 
-            // ✅ IF CONFIRMED: Mark room as occupied AND update tenant profile
-            if ($validated['status'] === 'confirmed') {
+            // ========================================
+            // 1. CONFIRMED - Occupy room + Activate tenant
+            // ========================================
+            if ($newStatus === 'confirmed') {
                 // Update room
                 $booking->room->update([
                     'status' => 'occupied',
@@ -181,59 +194,77 @@ class BookingController extends Controller
                     [
                         'move_in_date' => $booking->start_date,
                         'status' => 'active',
-                        'booking_id' => $booking->id  // optional: link to booking
+                        'booking_id' => $booking->id
                     ]
                 );
 
-                Log::info('Tenant assigned to room and profile activated', [
+                Log::info('Booking confirmed - Room occupied and tenant activated', [
+                    'booking_id' => $booking->id,
                     'tenant_id' => $booking->tenant_id,
-                    'room_id' => $booking->room_id,
-                    'booking_id' => $booking->id
+                    'room_id' => $booking->room_id
                 ]);
 
                 $booking->room->property->updateAvailableRooms();
             }
 
-            // IF CANCELLED OR REJECTED
-            if (in_array($validated['status'], ['cancelled', 'rejected'])) {
+            // ========================================
+            // 2. COMPLETED or PARTIAL-COMPLETED - Keep room occupied
+            // ========================================
+            if (in_array($newStatus, ['completed', 'partial-completed'])) {
+                // ✅ KEEP the room OCCUPIED (tenant is still there)
+                // The room should only become available when tenant moves out
+                // or booking is cancelled
+                
+                Log::info('Booking marked as completed', [
+                    'booking_id' => $booking->id,
+                    'status' => $newStatus,
+                    'room_still_occupied' => true
+                ]);
+
+                // Room stays occupied - no changes needed
+            }
+
+            // ========================================
+            // 3. CANCELLED - Free room + Handle refunds
+            // ========================================
+            if ($newStatus === 'cancelled') {
                 $booking->cancelled_at = now();
                 $booking->cancellation_reason = $validated['cancellation_reason'] ?? null;
 
-                // Make room available again
-                $booking->room->update([
-                    'status' => 'available',
-                    'tenant_id' => null
-                ]);
-
-                // Update tenant profile status if exists
-                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)->first();
-                if ($tenantProfile && $tenantProfile->move_in_date == $booking->start_date) {
-                    $tenantProfile->update([
-                        'status' => 'inactive',
-                        'move_out_date' => now()->format('Y-m-d')
-                    ]);
-
-                    Log::info('Tenant profile marked inactive due to cancellation', [
-                        'tenant_profile_id' => $tenantProfile->id,
-                        'booking_id' => $booking->id
+                // Handle refund if requested
+                if ($validated['should_refund'] ?? false) {
+                    $booking->refund_amount = $validated['refund_amount'] ?? 0;
+                    $booking->refund_processed_at = now();
+                    
+                    // Auto-update payment status to refunded
+                    $booking->payment_status = 'refunded';
+                    
+                    Log::info('Refund processed for cancelled booking', [
+                        'booking_id' => $booking->id,
+                        'refund_amount' => $booking->refund_amount
                     ]);
                 }
 
-                $booking->room->property->updateAvailableRooms();
-            }
-
-            // IF COMPLETED: Make room available and mark tenant as inactive
-            if ($validated['status'] === 'completed') {
+                // Make room available again
                 $booking->room->update([
                     'status' => 'available',
                     'current_tenant_id' => null
                 ]);
 
-                $tenantProfile = $booking->tenant->tenantProfile;
+                // Update tenant profile if exists
+                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                    ->where('booking_id', $booking->id)
+                    ->first();
+                    
                 if ($tenantProfile) {
                     $tenantProfile->update([
                         'status' => 'inactive',
                         'move_out_date' => now()->format('Y-m-d')
+                    ]);
+
+                    Log::info('Tenant profile deactivated due to cancellation', [
+                        'tenant_profile_id' => $tenantProfile->id,
+                        'booking_id' => $booking->id
                     ]);
                 }
 
@@ -244,10 +275,14 @@ class BookingController extends Controller
 
             DB::commit();
 
+            // Load fresh data with tenant name for room card
+            $booking->load(['property', 'tenant.tenantProfile', 'room.currentTenant']);
+
             return response()->json([
                 'message' => 'Booking status updated successfully',
-                'booking' => $booking->load(['property', 'tenant.tenantProfile', 'room']),
-                'tenant_profile_updated' => $validated['status'] === 'confirmed'
+                'booking' => $booking,
+                'room_updated' => true,
+                'tenant_name' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -265,6 +300,7 @@ class BookingController extends Controller
 
     /**
      * Update payment status
+     * AUTO-UPGRADE: partial-completed → completed when payment becomes 'paid'
      */
     public function updatePaymentStatus(Request $request, $id)
     {
@@ -275,12 +311,33 @@ class BookingController extends Controller
                 'payment_status' => 'required|in:unpaid,partial,paid,refunded'
             ]);
 
+            $oldPaymentStatus = $booking->payment_status;
+            $oldBookingStatus = $booking->status;
             $booking->payment_status = $validated['payment_status'];
+            
+            $statusUpgraded = false;
+
+            // AUTO-UPGRADE: If booking is 'partial-completed' and payment becomes 'paid', upgrade to 'completed'
+            if ($booking->status === 'partial-completed' && $validated['payment_status'] === 'paid') {
+                $booking->status = 'completed';
+                $statusUpgraded = true;
+                
+                Log::info('Booking auto-upgraded from partial-completed to completed', [
+                    'booking_id' => $booking->id,
+                    'old_status' => $oldBookingStatus,
+                    'new_status' => 'completed',
+                    'payment_status' => 'paid'
+                ]);
+            }
+
             $booking->save();
 
             return response()->json([
-                'message' => 'Payment status updated successfully',
-                'booking' => $booking
+                'message' => $statusUpgraded 
+                    ? 'Payment updated and booking upgraded to completed!' 
+                    : 'Payment status updated successfully',
+                'booking' => $booking,
+                'status_upgraded' => $statusUpgraded
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -299,7 +356,9 @@ class BookingController extends Controller
             $total = Booking::where('landlord_id', Auth::id())->count();
             $confirmed = Booking::where('landlord_id', Auth::id())->where('status', 'confirmed')->count();
             $pending = Booking::where('landlord_id', Auth::id())->where('status', 'pending')->count();
-            $completed = Booking::where('landlord_id', Auth::id())->where('status', 'completed')->count();
+            $completed = Booking::where('landlord_id', Auth::id())
+                ->whereIn('status', ['completed', 'partial-completed'])
+                ->count();
 
             return response()->json([
                 'total' => $total,
