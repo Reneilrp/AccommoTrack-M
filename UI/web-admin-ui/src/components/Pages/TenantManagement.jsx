@@ -69,7 +69,7 @@ export default function TenantManagement() {
       setError('');
       
       // Add timestamp to prevent caching
-      const response = await fetch(`${API}/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`, { headers });
+      const response = await fetch(`${API}/landlord/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`, { headers });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -127,7 +127,7 @@ export default function TenantManagement() {
     if (!confirm('Are you sure you want to remove this tenant? This will also free up their room.')) return;
     
     try {
-      await fetch(`${API}/tenants/${id}`, { method: 'DELETE', headers });
+      await fetch(`${API}/landlord/tenants/${id}`, { method: 'DELETE', headers });
       refresh();
     } catch (err) {
       setError('Failed to remove tenant');
@@ -145,7 +145,7 @@ export default function TenantManagement() {
 
   const handleSave = async () => {
     try {
-      const url = editingTenant ? `${API}/tenants/${editingTenant.id}` : `${API}/tenants`;
+      const url = editingTenant ? `${API}/landlord/tenants/${editingTenant.id}` : `${API}/landlord/tenants`;
       const method = editingTenant ? 'PUT' : 'POST';
       const response = await fetch(url, {
         method,

@@ -11,6 +11,8 @@ use App\Http\Controllers\TenantDashboardController;
 use App\Http\Controllers\TenantBookingController;
 use App\Http\Controllers\TenantSettingsController;
 use App\Http\Controllers\GeocodeController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\MessageController;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -51,7 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/change-password', [TenantSettingsController::class, 'changePassword']);
     });
 
-    // ===== LANDLORD ROUTES (Unchanged) =====
+    // ===== LANDLORD ROUTES =====
     Route::prefix('landlord')->group(function () {
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
@@ -72,15 +74,30 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/upcoming-payments', [DashboardController::class, 'getUpcomingPayments']);
         Route::get('/dashboard/revenue-chart', [DashboardController::class, 'getRevenueChart']);
         Route::get('/dashboard/property-performance', [DashboardController::class, 'getPropertyPerformance']);
+
+        // Main Analytics Dashboard (All-in-one)
+        Route::get('/analytics/dashboard', [AnalyticsController::class, 'getDashboardAnalytics']);
+        
+        // Specific Analytics Endpoints (if you need them individually)
+        Route::get('/analytics/overview', [AnalyticsController::class, 'getOverviewStats']);
+        Route::get('/analytics/revenue', [AnalyticsController::class, 'getRevenueAnalytics']);
+        Route::get('/analytics/occupancy', [AnalyticsController::class, 'getOccupancyAnalytics']);
+        Route::get('/analytics/room-types', [AnalyticsController::class, 'getRoomTypeAnalytics']);
+        Route::get('/analytics/properties', [AnalyticsController::class, 'getPropertyComparison']);
+        Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
+        Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
+        Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
+
+            // Tenants Management (Landlord only)
+        Route::get('/tenants', [TenantController::class, 'index']);
+        Route::post('/tenants', [TenantController::class, 'store']);
+        Route::put('/tenants/{id}', [TenantController::class, 'update']);
+        Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
+        Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
+        Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
     });
     
-    // Tenants Management (Landlord only)
-    Route::get('/tenants', [TenantController::class, 'index']);
-    Route::post('/tenants', [TenantController::class, 'store']);
-    Route::put('/tenants/{id}', [TenantController::class, 'update']);
-    Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
-    Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
-    Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
+
 
     // Bookings (Shared - context based on user role)
     Route::get('/bookings', [BookingController::class, 'index']);
@@ -89,4 +106,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
     Route::patch('/bookings/{id}/payment', [BookingController::class, 'updatePaymentStatus']);
+
+    // Inside auth:sanctum middleware group
+    Route::prefix('messages')->group(function () {
+        Route::get('/conversations', [MessageController::class, 'getConversations']);
+        Route::get('/unread-count', [MessageController::class, 'getUnreadCount']);
+        Route::get('/{conversationId}', [MessageController::class, 'getMessages']);
+        Route::post('/send', [MessageController::class, 'sendMessage']);
+        Route::post('/start', [MessageController::class, 'startConversation']);
+    });
 });

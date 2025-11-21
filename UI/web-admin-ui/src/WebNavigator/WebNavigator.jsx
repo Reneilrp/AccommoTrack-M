@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import LandlordLayout from '../components/LandlordDashboard';
+import LandlordLayout from '../components/LandlordLayout';
 
 import DashboardPage from '../components/Pages/DashboardPage';
 import RoomManagement from '../components/Pages/RoomManagement';
