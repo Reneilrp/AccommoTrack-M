@@ -321,7 +321,17 @@ class RoomController extends Controller
                 'status' => 'required|in:available,occupied,maintenance'
             ]);
 
-            $room->update(['status' => $validated['status']]);
+            // Handle status changes
+            if ($validated['status'] === 'available') {
+                // Remove all tenants from room
+                $room->removeTenant();
+            } elseif ($validated['status'] === 'maintenance') {
+                // Set to maintenance (tenants can stay but no new bookings)
+                $room->update(['status' => 'maintenance']);
+            } else {
+                // For 'occupied', just update status (tenants managed separately)
+                $room->update(['status' => $validated['status']]);
+            }
 
             // Update property available rooms count
             $room->property->updateAvailableRooms();
@@ -396,12 +406,11 @@ class RoomController extends Controller
             'floor_label' => $this->formatFloor($room->floor),
             'monthly_rate' => (float) $room->monthly_rate,
             'capacity' => $room->capacity,
-            'occupied' => $room->status === 'occupied' ? $room->capacity : 0,
+            'occupied' => $room->occupied,
             'status' => $room->status,
             'current_tenant_id' => $room->current_tenant_id,
-            'tenant' => $room->currentTenant
-                ? $room->currentTenant->first_name . ' ' . $room->currentTenant->last_name
-                : null,
+            'tenant' => $room->tenant,
+            'available_slots' => $room->available_slots,
             'description' => $room->description,
             'amenities' => $room->amenities ? $room->amenities->pluck('name')->toArray() : [],
             'images' => $room->images ? $room->images->pluck('image_url')->map(fn($url) => asset($url))->toArray() : [],

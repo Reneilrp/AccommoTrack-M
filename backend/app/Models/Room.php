@@ -62,21 +62,49 @@ class Room extends Model
     }
 
     /**
-     * Get occupied count (for compatibility with frontend)
+     * Relationship: Room has many tenants (many-to-many through room_tenant_assignments)
      */
-    public function getOccupiedAttribute()
+    public function tenants()
     {
-        return $this->status === 'occupied' ? $this->capacity : 0;
+        return $this->belongsToMany(User::class, 'room_tenant_assignments', 'room_id', 'tenant_id')
+                    ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
+                    ->wherePivot('status', 'active');
     }
 
     /**
-     * Get tenant name (for compatibility with frontend)
+     * Get occupied count (actual number of tenants)
+     */
+    public function getOccupiedAttribute()
+    {
+        // Count active tenants in this room
+        $activeTenantsCount = $this->tenants()->count();
+        
+        // If no active tenants but room has current_tenant_id (legacy support)
+        if ($activeTenantsCount === 0 && $this->current_tenant_id) {
+            return 1;
+        }
+        
+        return $activeTenantsCount;
+    }
+
+    /**
+     * Get tenant name(s) (for compatibility with frontend)
      */
     public function getTenantAttribute()
     {
+        $activeTenants = $this->tenants;
+        
+        if ($activeTenants->count() > 0) {
+            return $activeTenants->map(function ($tenant) {
+                return $tenant->first_name . ' ' . $tenant->last_name;
+            })->implode(', ');
+        }
+        
+        // Fallback to current_tenant_id for legacy support
         if ($this->currentTenant) {
             return $this->currentTenant->first_name . ' ' . $this->currentTenant->last_name;
         }
+        
         return null;
     }
 
@@ -117,7 +145,7 @@ class Room extends Model
      */
     public function isFullyOccupied()
     {
-        return $this->status === 'occupied';
+        return $this->occupied >= $this->capacity;
     }
 
     /**
@@ -125,15 +153,20 @@ class Room extends Model
      */
     public function getAvailableSlotsAttribute()
     {
-        return $this->status === 'available' ? $this->capacity : 0;
+        if ($this->status === 'maintenance') {
+            return 0;
+        }
+        
+        $occupiedCount = $this->occupied;
+        return max(0, $this->capacity - $occupiedCount);
     }
 
     /**
-     * Check if room is available
+     * Check if room is available (has available slots)
      */
     public function isAvailable()
     {
-        return $this->status === 'available';
+        return $this->status !== 'maintenance' && $this->available_slots > 0;
     }
 
     /**
@@ -195,14 +228,31 @@ class Room extends Model
     }
 
     /**
-     * Assign tenant to room
+     * Assign tenant to room (supports multiple tenants)
      */
-    public function assignTenant($tenantId)
+    public function assignTenant($tenantId, $moveInDate = null)
     {
-        $this->update([
-            'current_tenant_id' => $tenantId,
-            'status' => 'occupied'
+        // Check if room has available slots
+        if ($this->available_slots <= 0) {
+            throw new \Exception('Room is fully occupied');
+        }
+        
+        // Add tenant to room_tenant_assignments
+        $this->tenants()->attach($tenantId, [
+            'start_date' => $moveInDate ?? now()->format('Y-m-d'),
+            'monthly_rent' => $this->monthly_rate,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now()
         ]);
+        
+        // Update room status and current_tenant_id (for legacy compatibility)
+        $updateData = ['status' => 'occupied'];
+        if (!$this->current_tenant_id) {
+            $updateData['current_tenant_id'] = $tenantId;
+        }
+        
+        $this->update($updateData);
         
         // Update property available rooms count
         if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
@@ -213,12 +263,38 @@ class Room extends Model
     /**
      * Remove tenant from room
      */
-    public function removeTenant()
+    public function removeTenant($tenantId = null)
     {
-        $this->update([
-            'current_tenant_id' => null,
-            'status' => 'available'
-        ]);
+        if ($tenantId) {
+            // Remove specific tenant
+            $this->tenants()->updateExistingPivot($tenantId, [
+                'status' => 'ended',
+                'end_date' => now()->format('Y-m-d'),
+                'updated_at' => now()
+            ]);
+            
+            // If this was the current_tenant_id, update it
+            if ($this->current_tenant_id == $tenantId) {
+                $remainingTenants = $this->tenants()->where('tenant_id', '!=', $tenantId)->first();
+                $this->update([
+                    'current_tenant_id' => $remainingTenants ? $remainingTenants->id : null
+                ]);
+            }
+        } else {
+            // Remove all tenants (legacy behavior)
+            $this->tenants()->updateExistingPivot($this->tenants()->pluck('id')->toArray(), [
+                'status' => 'ended',
+                'end_date' => now()->format('Y-m-d'),
+                'updated_at' => now()
+            ]);
+            
+            $this->update(['current_tenant_id' => null]);
+        }
+        
+        // Update room status if no active tenants remain
+        if ($this->occupied === 0) {
+            $this->update(['status' => 'available']);
+        }
         
         // Update property available rooms count
         if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {

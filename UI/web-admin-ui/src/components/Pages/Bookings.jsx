@@ -311,12 +311,12 @@ export default function Bookings() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property/Room</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
+                  <th className="pl-16 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="pl-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="pl-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
+                  <th className="pl-1 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -331,13 +331,13 @@ export default function Bookings() {
                     const totalDays = calculateDays(booking.checkIn, booking.checkOut);
                     return (
                       <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-5 py-4">
+                        <td className="pl-5 py-4">
                           <div>
                             <div className="text-sm font-medium text-gray-900">{booking.guestName}</div>
                             <div className="text-xs text-gray-500">{booking.email}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="pl-6 py-4">
                           <div className="text-sm font-medium text-gray-900">{booking.propertyTitle}</div>
                           <div className="text-xs text-gray-500">Room {booking.roomNumber} - {booking.roomType}</div>
                         </td>
@@ -359,20 +359,20 @@ export default function Bookings() {
                             ₱{booking.amount.toLocaleString()}
                           </div>
                           <div className="text-xs text-gray-500 whitespace-nowrap">
-                            ₱{booking.monthlyRent.toLocaleString()}/mo
+                            ₱{booking.monthlyRent.toLocaleString()}/m
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="pr-9 py-4 whitespace-nowrap">
                           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
                             {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="pr-9 py-4 whitespace-nowrap">
                           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(booking.paymentStatus)}`}>
                             {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td className="pr-5 py-4 whitespace-nowrap text-sm">
                           <button
                             onClick={() => handleViewDetails(booking)}
                             className="text-green-600 hover:text-green-800 font-medium flex items-center gap-1"

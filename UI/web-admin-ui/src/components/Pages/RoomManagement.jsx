@@ -459,14 +459,24 @@ export default function RoomManagement() {
 
                     {/* Status Badge */}
                     <span
-                      className={`absolute top-3 right-3 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider ${room.status === 'occupied'
-                        ? 'bg-red-100 text-red-700'
-                        : room.status === 'available'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                        }`}
+                      className={`absolute top-3 right-3 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider ${
+                        room.status === 'maintenance'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : room.occupied >= room.capacity
+                            ? 'bg-red-100 text-red-700'
+                            : room.occupied > 0
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-green-100 text-green-700'
+                      }`}
                     >
-                      {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
+                      {room.status === 'maintenance' 
+                        ? 'Maintenance'
+                        : room.occupied >= room.capacity
+                          ? 'Full'
+                          : room.occupied > 0
+                            ? 'Partial'
+                            : 'Available'
+                      }
                     </span>
                   </div>
 
@@ -491,6 +501,11 @@ export default function RoomManagement() {
                       <Users className="w-4 h-4" />
                       <span>
                         {room.occupied}/{room.capacity} {room.occupied === 1 ? 'Tenant' : 'Tenants'}
+                        {room.available_slots > 0 && (
+                          <span className="text-green-600 ml-1">
+                            ({room.available_slots} slot{room.available_slots === 1 ? '' : 's'} available)
+                          </span>
+                        )}
                       </span>
                     </div>
 

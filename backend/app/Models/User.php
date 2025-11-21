@@ -52,6 +52,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Room assignments relationship (many-to-many through room_tenant_assignments)
+     */
+    public function roomAssignments()
+    {
+        return $this->belongsToMany(Room::class, 'room_tenant_assignments', 'tenant_id', 'room_id')
+                    ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
+                    ->wherePivot('status', 'active');
+    }
+
+    /**
+     * Get current active room assignment
+     */
+    public function getCurrentRoomAttribute()
+    {
+        return $this->roomAssignments()->first();
+    }
+
+    /**
      * Properties owned by landlord
      */
     public function properties()

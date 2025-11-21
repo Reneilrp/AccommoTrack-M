@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class TenantController extends Controller
 {
@@ -17,63 +18,94 @@ class TenantController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $propertyId = $request->query('property_id');
+        try {
+            $propertyId = $request->query('property_id');
 
-        // Get all tenants who are occupying rooms in landlord's properties
-        $query = User::where('role', 'tenant')
-            ->with(['tenantProfile', 'room.property'])
-            ->whereHas('room', function ($q) {
-                $q->whereHas('property', function ($q2) {
-                    $q2->where('landlord_id', Auth::id());
+            // Start with a simpler query to avoid relationship issues
+            // Get all tenants who are occupying rooms in landlord's properties (legacy system only for now)
+            $query = User::where('role', 'tenant')
+                ->with(['tenantProfile', 'room.property', 'bookings' => function($q) {
+                    $q->where('status', 'confirmed')
+                      ->orWhere('status', 'completed')
+                      ->orWhere('status', 'partial-completed')
+                      ->orderBy('created_at', 'desc');
+                }])
+                ->whereHas('room', function ($q) {
+                    $q->whereHas('property', function ($q2) {
+                        $q2->where('landlord_id', Auth::id());
+                    });
                 });
+
+            // Filter by specific property if provided
+            if ($propertyId) {
+                $query->whereHas('room', function ($q) use ($propertyId) {
+                    $q->where('property_id', $propertyId);
+                });
+            }
+
+            $tenants = $query->get()->map(function ($tenant) {
+                return [
+                    'id' => $tenant->id,
+                    'first_name' => $tenant->first_name,
+                    'middle_name' => $tenant->middle_name,
+                    'last_name' => $tenant->last_name,
+                    'full_name' => $tenant->first_name . ' ' . $tenant->last_name,
+                    'email' => $tenant->email,
+                    'phone' => $tenant->phone,
+                    'profile_image' => $tenant->profile_image,
+                    'is_active' => $tenant->is_active,
+
+                    // Room assignment (legacy system)
+                    'room' => $tenant->room ? [
+                        'id' => $tenant->room->id,
+                        'room_number' => $tenant->room->room_number,
+                        'room_type' => $tenant->room->room_type,
+                        'monthly_rate' => $tenant->room->monthly_rate,
+                        'property_name' => $tenant->room->property->title ?? 'N/A',
+                        'property_id' => $tenant->room->property_id,
+                    ] : null,
+
+                    // Tenant profile details
+                    'tenantProfile' => $tenant->tenantProfile ? [
+                        'move_in_date' => $tenant->tenantProfile->move_in_date,
+                        'move_out_date' => $tenant->tenantProfile->move_out_date,
+                        'status' => $tenant->tenantProfile->status,
+                        'date_of_birth' => $tenant->tenantProfile->date_of_birth,
+                        'emergency_contact_name' => $tenant->tenantProfile->emergency_contact_name,
+                        'emergency_contact_phone' => $tenant->tenantProfile->emergency_contact_phone,
+                        'emergency_contact_relationship' => $tenant->tenantProfile->emergency_contact_relationship,
+                        'current_address' => $tenant->tenantProfile->current_address,
+                        'preference' => $tenant->tenantProfile->preference,
+                        'notes' => $tenant->tenantProfile->notes,
+                    ] : null,
+
+                    // Latest booking information for payment tracking
+                    'latestBooking' => $tenant->bookings->first() ? [
+                        'id' => $tenant->bookings->first()->id,
+                        'status' => $tenant->bookings->first()->status,
+                        'payment_status' => $tenant->bookings->first()->payment_status,
+                        'created_at' => $tenant->bookings->first()->created_at,
+                        'updated_at' => $tenant->bookings->first()->updated_at,
+                        'start_date' => $tenant->bookings->first()->start_date,
+                        'end_date' => $tenant->bookings->first()->end_date,
+                        'total_amount' => $tenant->bookings->first()->total_amount,
+                    ] : null,
+                ];
             });
 
-        // Filter by specific property if provided
-        if ($propertyId) {
-            $query->whereHas('room', function ($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
-            });
+            return response()->json($tenants);
+        } catch (\Exception $e) {
+            Log::error('Error in TenantController@index: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'property_id' => $request->query('property_id'),
+                'user_id' => Auth::id()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to load tenants',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $tenants = $query->get()->map(function ($tenant) {
-            return [
-                'id' => $tenant->id,
-                'first_name' => $tenant->first_name,
-                'middle_name' => $tenant->middle_name,
-                'last_name' => $tenant->last_name,
-                'full_name' => $tenant->first_name . ' ' . $tenant->last_name,
-                'email' => $tenant->email,
-                'phone' => $tenant->phone,
-                'profile_image' => $tenant->profile_image,
-                'is_active' => $tenant->is_active,
-
-                // Room assignment
-                'room' => $tenant->room ? [
-                    'id' => $tenant->room->id,
-                    'room_number' => $tenant->room->room_number,
-                    'room_type' => $tenant->room->room_type,
-                    'monthly_rate' => $tenant->room->monthly_rate,
-                    'property_name' => $tenant->room->property->title ?? 'N/A',
-                    'property_id' => $tenant->room->property_id,
-                ] : null,
-
-                // Tenant profile details
-                'profile' => $tenant->tenantProfile ? [
-                    'move_in_date' => $tenant->tenantProfile->move_in_date,
-                    'move_out_date' => $tenant->tenantProfile->move_out_date,
-                    'status' => $tenant->tenantProfile->status,
-                    'date_of_birth' => $tenant->tenantProfile->date_of_birth,
-                    'emergency_contact_name' => $tenant->tenantProfile->emergency_contact_name,
-                    'emergency_contact_phone' => $tenant->tenantProfile->emergency_contact_phone,
-                    'emergency_contact_relationship' => $tenant->tenantProfile->emergency_contact_relationship,
-                    'current_address' => $tenant->tenantProfile->current_address,
-                    'preference' => $tenant->tenantProfile->preference,
-                    'notes' => $tenant->tenantProfile->notes,
-                ] : null,
-            ];
-        });
-
-        return response()->json($tenants);
     }
 
     /**
@@ -200,15 +232,17 @@ class TenantController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        if ($room->status !== 'available') {
-            return response()->json(['error' => 'Room not available'], 400);
+        if (!$room->isAvailable() || $room->available_slots <= 0) {
+            return response()->json([
+                'error' => 'Room not available',
+                'occupied_slots' => $room->occupied,
+                'total_capacity' => $room->capacity,
+                'available_slots' => $room->available_slots
+            ], 400);
         }
 
-        // Update room
-        $room->update([
-            'current_tenant_id' => $tenant->id,
-            'status' => 'occupied',
-        ]);
+        // Assign tenant to room using the new system
+        $room->assignTenant($tenant->id, $validated['move_in_date'] ?? now()->format('Y-m-d'));
 
         // Update or create tenant profile
         $tenant->tenantProfile()->updateOrCreate(
@@ -224,6 +258,7 @@ class TenantController extends Controller
 
         return response()->json($tenant->load(['tenantProfile', 'room']));
     }
+
 
     /**
      * Unassign tenant from room

@@ -84,10 +84,14 @@ class BookingController extends Controller
                 'monthly_rate' => $room->monthly_rate
             ]);
 
-            if ($room->status !== 'available') {
+            // Check if room has available slots
+            if (!$room->isAvailable() || $room->available_slots <= 0) {
                 return response()->json([
                     'message' => 'Room is not available for booking',
-                    'room_status' => $room->status
+                    'room_status' => $room->status,
+                    'occupied_slots' => $room->occupied,
+                    'total_capacity' => $room->capacity,
+                    'available_slots' => $room->available_slots
                 ], 422);
             }
 
@@ -179,14 +183,16 @@ class BookingController extends Controller
             $booking->status = $newStatus;
 
             // ========================================
-            // 1. CONFIRMED - Occupy room + Activate tenant
+            // 1. CONFIRMED - Assign tenant to room + Activate tenant
             // ========================================
             if ($newStatus === 'confirmed') {
-                // Update room
-                $booking->room->update([
-                    'status' => 'occupied',
-                    'current_tenant_id' => $booking->tenant_id
-                ]);
+                // Check if room has available slots
+                if ($booking->room->available_slots <= 0) {
+                    throw new \Exception('Room is fully occupied and cannot accommodate more tenants');
+                }
+
+                // Assign tenant to room using the new system
+                $booking->room->assignTenant($booking->tenant_id, $booking->start_date);
 
                 // Create or update tenant profile
                 $booking->tenant->tenantProfile()->updateOrCreate(
@@ -198,10 +204,12 @@ class BookingController extends Controller
                     ]
                 );
 
-                Log::info('Booking confirmed - Room occupied and tenant activated', [
+                Log::info('Booking confirmed - Tenant assigned to room', [
                     'booking_id' => $booking->id,
                     'tenant_id' => $booking->tenant_id,
-                    'room_id' => $booking->room_id
+                    'room_id' => $booking->room_id,
+                    'occupied_slots' => $booking->room->occupied,
+                    'available_slots' => $booking->room->available_slots
                 ]);
 
                 $booking->room->property->updateAvailableRooms();

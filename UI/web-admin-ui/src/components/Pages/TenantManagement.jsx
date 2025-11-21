@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit2, Eye } from 'lucide-react';
+import { Search, Eye, RefreshCw, X, Loader2 } from 'lucide-react';
 
 export default function TenantManagement() {
   const [tenants, setTenants] = useState([]);
@@ -10,6 +10,7 @@ export default function TenantManagement() {
   const [editingTenant, setEditingTenant] = useState(null);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -45,17 +46,51 @@ export default function TenantManagement() {
 
   useEffect(() => {
     if (!selectedPropertyId) return;
-    fetch(`${API}/tenants?property_id=${selectedPropertyId}`, { headers })
-      .then(r => r.json())
-      .then(data => {
-        setTenants(Array.isArray(data) ? data : []);
-      })
-      .catch(err => {
-        console.error('Failed to load tenants:', err);
-        setTenants([]);
-        setError('Failed to load tenants');
-      });
+    loadTenants();
   }, [selectedPropertyId]);
+
+  // Auto-refresh when page becomes visible (user switches back to tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && selectedPropertyId) {
+        loadTenants();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedPropertyId]);
+
+  const loadTenants = async () => {
+    if (!selectedPropertyId) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Add timestamp to prevent caching
+      const response = await fetch(`${API}/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`, { headers });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.message || data.error);
+      }
+      
+      setTenants(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load tenants:', err);
+      setTenants([]);
+      setError('Failed to load tenants: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (editingTenant) {
@@ -132,11 +167,7 @@ export default function TenantManagement() {
   };
 
   const refresh = () => {
-    if (!selectedPropertyId) return;
-    fetch(`${API}/tenants?property_id=${selectedPropertyId}`, { headers })
-      .then(r => r.json())
-      .then(data => setTenants(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Failed to refresh:', err));
+    loadTenants();
   };
 
   const filteredTenants = tenants.filter(tenant => {
@@ -151,10 +182,30 @@ export default function TenantManagement() {
   const stats = {
     total: tenants.length,
     active: tenants.filter(t => t.tenantProfile?.status === 'active').length,
-    paid: 0, // You can calculate this based on payment records
-    pending: 0,
-    overdue: 0
+    paid: tenants.filter(t => t.latestBooking?.payment_status === 'paid').length,
+    pending: tenants.filter(t => t.latestBooking?.payment_status === 'unpaid').length,
+    overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
   };
+
+  // Show loading state if properties are still loading
+  if (properties.length === 0 && !selectedPropertyId) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">Tenant Management</h1>
+            <p className="text-gray-600 mt-1">Manage all tenants and their room assignments</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <div className="flex flex-col items-center justify-center text-gray-500">
+              <Loader2 className="w-8 h-8 animate-spin text-green-600 mb-2" />
+              <p className="text-lg font-medium">Loading properties...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -211,6 +262,16 @@ export default function TenantManagement() {
                 <option key={p.id} value={p.id}>{p.title}</option>
               ))}
             </select>
+            <button
+              onClick={refresh}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh tenant list"
+            >
+              <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : 'hidden'}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'hidden' : ''}`} />
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
           </div>
         </div>
 
@@ -238,7 +299,16 @@ export default function TenantManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTenants.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-gray-500">
+                      <Loader2 className="w-8 h-8 animate-spin text-green-600 mb-2" />
+                      <p className="text-lg font-medium">Loading tenants...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredTenants.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-gray-500">
@@ -277,14 +347,36 @@ export default function TenantManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm font-medium text-gray-900">
-                        {tenant.room ? `$${tenant.room.monthly_rate}` : 'N/A'}
+                        {tenant.room ? `₱${tenant.room.monthly_rate}` : 'N/A'}
                       </p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Paid
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">Jan 2025-01-01</p>
+                      {tenant.latestBooking ? (
+                        <>
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${
+                            tenant.latestBooking.payment_status === 'paid' 
+                              ? 'bg-green-100 text-green-800'
+                              : tenant.latestBooking.payment_status === 'partial'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                          }`}>
+                            {tenant.latestBooking.payment_status || 'unpaid'}
+                          </span>
+                          {tenant.latestBooking.payment_status === 'paid' && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Paid on {new Date(tenant.latestBooking.updated_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: '2-digit'
+                              })}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          No booking
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
@@ -302,13 +394,6 @@ export default function TenantManagement() {
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleEdit(tenant)}
-                          className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded"
-                          title="Edit Tenant Info"
-                        >
-                          <Edit2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -360,7 +445,7 @@ export default function TenantManagement() {
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <p><span className="text-gray-600">Room:</span> {viewingTenant.room.room_number}</p>
                       <p><span className="text-gray-600">Type:</span> {viewingTenant.room.type_label}</p>
-                      <p><span className="text-gray-600">Monthly Rate:</span> ${viewingTenant.room.monthly_rate}</p>
+                      <p><span className="text-gray-600">Monthly Rate:</span> ₱{viewingTenant.room.monthly_rate}</p>
                     </div>
                   ) : (
                     <p className="text-amber-600 italic">No room assigned</p>
