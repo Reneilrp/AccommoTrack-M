@@ -75,7 +75,6 @@ export default function AppNavigator() {
         setAuthContext(null);
         setUserRole('guest');
       } else {
-        // If logged out but app has launched before, set to 'auth'
         // If first launch, set to null to show landing pages
         if (hasLaunched) {
           setAuthContext('returning');

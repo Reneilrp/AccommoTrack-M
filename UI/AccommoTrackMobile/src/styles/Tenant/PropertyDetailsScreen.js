@@ -304,7 +304,7 @@ export const styles = StyleSheet.create({
   roomInfo: {
     flex: 1,
     justifyContent: 'flex-start',
-    minWidth: 0, // Prevent flex overflow
+    minWidth: 0,
   },
   roomHeader: {
     flexDirection: 'row',
