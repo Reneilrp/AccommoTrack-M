@@ -7,6 +7,9 @@ use App\Models\Property;
 use App\Models\PropertyImage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class PropertyController extends Controller
 {
@@ -346,12 +349,101 @@ class PropertyController extends Controller
         return response()->json($property, 200);
     }
 
-    public function destroy($id)
+    /**
+     * Verify password before deletion
+     */
+    public function verifyPassword(Request $request)
     {
-        $property = Property::where('landlord_id', Auth::id())->findOrFail($id);
-        $property->delete();
+        $request->validate([
+            'password' => 'required|string',
+        ]);
 
-        return response()->json(['message' => 'Property deleted successfully'], 200);
+        $user = User::findOrFail(Auth::id());
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Incorrect password',
+                'verified' => false
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Password verified',
+            'verified' => true
+        ], 200);
+    }
+
+    public function destroy($id, Request $request)
+    {
+        // Verify password if provided
+        if ($request->has('password')) {
+            $user = User::findOrFail(Auth::id());
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'message' => 'Incorrect password. Please try again.',
+                    'error' => 'password_incorrect'
+                ], 422);
+            }
+        }
+
+        DB::beginTransaction();
+        
+        try {
+            $property = Property::where('landlord_id', Auth::id())
+                ->with(['rooms', 'bookings', 'images'])
+                ->findOrFail($id);
+
+            // Check if property has active bookings
+            $activeBookings = $property->bookings()
+                ->whereIn('status', ['pending', 'confirmed'])
+                ->count();
+
+            if ($activeBookings > 0) {
+                return response()->json([
+                    'message' => 'Cannot delete property with active bookings. Please cancel or complete all bookings first.',
+                    'error' => 'active_bookings_exist'
+                ], 400);
+            }
+
+            // Delete property images from storage
+            foreach ($property->images as $image) {
+                $imagePath = storage_path('app/public/' . $image->image_url);
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
+            }
+
+            // Delete room images
+            foreach ($property->rooms as $room) {
+                $roomImages = \App\Models\RoomImage::where('room_id', $room->id)->get();
+                foreach ($roomImages as $roomImage) {
+                    $roomImagePath = storage_path('app/public/' . $roomImage->image_url);
+                    if (file_exists($roomImagePath)) {
+                        unlink($roomImagePath);
+                    }
+                }
+            }
+
+            // Delete the property (rooms will be cascade deleted due to foreign key)
+            $property->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Property and all associated rooms deleted successfully'
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Property not found'
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to delete property',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // ====================================================================

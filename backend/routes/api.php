@@ -9,6 +9,7 @@ use App\Http\Controllers\TenantController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\TenantDashboardController;
 use App\Http\Controllers\TenantBookingController;
+use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantSettingsController;
 use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\AnalyticsController;
@@ -47,6 +48,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);
 
+        // Payments
+        Route::get('/payments', [TenantPaymentController::class, 'index']);
+        Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);
+        Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
+
         // Settings / Profile
         Route::get('/profile', [TenantSettingsController::class, 'getProfile']);
         Route::put('/profile', [TenantSettingsController::class, 'updateProfile']);
@@ -57,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('landlord')->group(function () {
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
+        Route::post('/properties/verify-password', [PropertyController::class, 'verifyPassword']);
         Route::get('/properties/{id}', [PropertyController::class, 'show']);
         Route::put('/properties/{id}', [PropertyController::class, 'update']);
         Route::delete('/properties/{id}', [PropertyController::class, 'destroy']);

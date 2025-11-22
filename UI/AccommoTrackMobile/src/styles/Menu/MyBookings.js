@@ -111,7 +111,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#00A651',
+    color: '#10b981',
   },
   emptyState: {
     alignItems: 'center',
@@ -132,7 +132,7 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,
@@ -140,6 +140,23 @@ export const styles = StyleSheet.create({
   exploreButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  paymentStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  paymentStatusLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  paymentStatusText: {
+    fontSize: 14,
     fontWeight: '600',
   },
 });

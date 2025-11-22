@@ -84,6 +84,14 @@ class Property extends Model
     }
 
     /**
+     * Relationship: Property has many Bookings
+     */
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class);
+    }
+
+    /**
      * Get the full address
      */
     public function getFullAddressAttribute()

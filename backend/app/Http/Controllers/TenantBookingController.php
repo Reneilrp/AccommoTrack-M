@@ -14,7 +14,7 @@ class TenantBookingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Booking::with(['property', 'landlord', 'room'])
+            $query = Booking::with(['property.images', 'landlord', 'room'])
                 ->where('tenant_id', Auth::id());
 
             // Filter by status if provided
@@ -25,6 +25,20 @@ class TenantBookingController extends Controller
             $bookings = $query->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($booking) {
+                    // Get property images
+                    $property = $booking->property;
+                    $images = [];
+                    if ($property && $property->images) {
+                        $images = $property->images->map(function ($image) {
+                            return [
+                                'id' => $image->id,
+                                'image_url' => $image->image_url,
+                                'is_primary' => $image->is_primary ?? false,
+                                'display_order' => $image->display_order ?? 0
+                            ];
+                        })->toArray();
+                    }
+
                     return [
                         'id' => $booking->id,
                         'landlordName' => $booking->landlord->first_name . ' ' . $booking->landlord->last_name,
@@ -33,6 +47,14 @@ class TenantBookingController extends Controller
                         'roomType' => $booking->room ? $booking->room->type : 'N/A',
                         'roomNumber' => $booking->room ? $booking->room->room_number : 'N/A',
                         'propertyTitle' => $booking->property->title,
+                        'property' => [
+                            'id' => $property->id,
+                            'title' => $property->title,
+                            'city' => $property->city,
+                            'province' => $property->province,
+                            'country' => $property->country,
+                            'images' => $images
+                        ],
                         'checkIn' => $booking->start_date,
                         'checkOut' => $booking->end_date,
                         'duration' => $booking->total_months . ' month' . ($booking->total_months > 1 ? 's' : ''),

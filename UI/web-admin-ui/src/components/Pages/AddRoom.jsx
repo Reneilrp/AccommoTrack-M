@@ -308,7 +308,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Room Images</h3>
               
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                 <input
                   type="file"
                   multiple
@@ -317,37 +317,40 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
                   className="hidden"
                   id="room-image-upload"
                 />
-                <label htmlFor="room-image-upload" className="cursor-pointer">
-                  <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600 text-sm mb-1">Click to upload room images</p>
-                  <p className="text-gray-500 text-xs">PNG, JPG up to 10MB (Max 10 images)</p>
-                </label>
-              </div>
-
-              {previewImages.length > 0 && (
-                <div className="grid grid-cols-5 gap-3">
-                  {previewImages.map((img, index) => (
-                    <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                      <img src={img} alt={`Room ${index + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                
+                {previewImages.length === 0 ? (
+                  <label htmlFor="room-image-upload" className="cursor-pointer block text-center">
+                    <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-600 text-sm mb-1">Click to upload room images</p>
+                    <p className="text-gray-500 text-xs">PNG, JPG up to 10MB (Max 10 images)</p>
+                  </label>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-5 gap-3">
+                      {previewImages.map((img, index) => (
+                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                          <img src={img} alt={`Room ${index + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.images.length < 10 && (
+                        <label
+                          htmlFor="room-image-upload"
+                          className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                        >
+                          <Plus className="w-8 h-8 text-gray-400" />
+                        </label>
+                      )}
                     </div>
-                  ))}
-                  {formData.images.length < 10 && (
-                    <label
-                      htmlFor="room-image-upload"
-                      className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
-                    >
-                      <Plus className="w-8 h-8 text-gray-400" />
-                    </label>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

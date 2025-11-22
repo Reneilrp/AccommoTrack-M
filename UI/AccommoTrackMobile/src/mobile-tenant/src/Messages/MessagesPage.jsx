@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createEcho from '../../utils/echo';
 import { styles } from '../../../styles/Tenant/MessagesPage';
 
-const API_URL = 'http://192.168.254.106:8000/api';
+const API_URL = 'http://192.168.43.84:8000/api';
 
 export default function MessagesPage({ navigation }) {
     const [conversations, setConversations] = useState([]);

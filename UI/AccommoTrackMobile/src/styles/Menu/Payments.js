@@ -24,7 +24,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   balanceCard: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     margin: 20,
     padding: 24,
     borderRadius: 16,
@@ -48,12 +48,11 @@ export const styles = StyleSheet.create({
   },
   balanceDetails: {
     flexDirection: 'row',
-    gap: 16,
   },
   balanceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginRight: 16,
   },
   balanceItemText: {
     fontSize: 14,
@@ -67,12 +66,17 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
     marginBottom: 16,
   },
   methodsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   methodCard: {
     width: '48%',
@@ -85,6 +89,11 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+    position: 'relative',
+    marginBottom: 12,
+  },
+  methodCardDisabled: {
+    opacity: 0.6,
   },
   methodIcon: {
     width: 56,
@@ -94,10 +103,50 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  methodIconDisabled: {
+    opacity: 0.5,
+  },
   methodName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
+    marginBottom: 4,
+  },
+  methodNameDisabled: {
+    color: '#9CA3AF',
+  },
+  methodComingSoon: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  methodAvailableBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  methodAvailableText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  paymentNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  paymentNoteText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
+    marginLeft: 8,
   },
   paymentCard: {
     backgroundColor: '#FFFFFF',
@@ -163,11 +212,39 @@ export const styles = StyleSheet.create({
   paymentAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#00A651',
+    color: '#10b981',
   },
   paymentValue: {
     fontSize: 14,
     color: '#111827',
     fontWeight: '500',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

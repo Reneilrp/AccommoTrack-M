@@ -162,7 +162,7 @@ export default function Settings({ onLogout }) {
                 >
                   <View style={styles.settingLeft}>
                     <View style={styles.settingIcon}>
-                      <Ionicons name={item.icon} size={22} color="#00A651" />
+                      <Ionicons name={item.icon} size={22} color="#10b981" />
                     </View>
                     <Text style={styles.settingLabel}>{item.label}</Text>
                   </View>
@@ -173,7 +173,7 @@ export default function Settings({ onLogout }) {
                         value={item.value}
                         onValueChange={item.onChange}
                         trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-                        thumbColor={item.value ? '#00A651' : '#F3F4F6'}
+                        thumbColor={item.value ? '#10b981' : '#F3F4F6'}
                       />
                     ) : (
                       <>

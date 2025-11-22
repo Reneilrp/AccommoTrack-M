@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   header: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingHorizontal: 24,
     paddingVertical: 20,
     flexDirection: 'row',
@@ -135,7 +135,7 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sendButton: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -17,7 +17,7 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => ['http://localhost:5173', 'http://192.168.254.106:5173'], // <-- add your IP
+    'allowed_origins' => ['http://localhost:5173', 'http://192.168.43.84:5173'], // <-- add your IP
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],

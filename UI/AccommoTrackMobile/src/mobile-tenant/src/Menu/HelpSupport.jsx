@@ -172,7 +172,7 @@ export default function HelpSupport() {
         <View style={[styles.section, { marginBottom: 40 }]}>
           <Text style={styles.sectionTitle}>Additional Resources</Text>
           <TouchableOpacity style={styles.resourceCard}>
-            <Ionicons name="document-text" size={24} color="#00A651" />
+            <Ionicons name="document-text" size={24} color="#10b981" />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.resourceTitle}>User Guide</Text>
               <Text style={styles.resourceSubtitle}>Learn how to use AccommoTrack</Text>

@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
 
   // HEADER STYLES - Green Bar
   header: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingHorizontal: 20,
     paddingTop: 40,
     paddingBottom: 15,
@@ -126,7 +126,7 @@ export const styles = StyleSheet.create({
     color: '#212121',
   },
   searchButton: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 25,
@@ -154,7 +154,7 @@ export const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
   },
   filterOptionsContainer: {
     padding: 20,
@@ -165,7 +165,7 @@ export const styles = StyleSheet.create({
   gap: 8,
 },
   filterButtonActive: {
-  backgroundColor: '#00A651',
+  backgroundColor: '#10b981',
   },
   filterButtonText: {
   color: '#757575',
@@ -188,7 +188,7 @@ export const styles = StyleSheet.create({
   },
   filterOptionActive: {
     backgroundColor: '#E8F5E9',
-    borderColor: '#00A651',
+    borderColor: '#10b981',
   },
   filterOptionContent: {
     flexDirection: 'row',
@@ -201,7 +201,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   filterOptionTextActive: {
-    color: '#00A651',
+    color: '#10b981',
     fontWeight: '600',
   },
   activeFilterContainer: {
@@ -219,7 +219,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   activeFilterText: {
-    color: '#00A651',
+    color: '#10b981',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -259,7 +259,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -301,7 +301,7 @@ export const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: 13,
-    color: '#00A651',
+    color: '#10b981',
     fontWeight: '600',
     marginLeft: 6,
   },
@@ -317,7 +317,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#00A651',
+    color: '#10b981',
   },
   priceLabel: {
     fontSize: 12,
@@ -325,7 +325,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   viewButton: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 25,
@@ -400,7 +400,7 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   clearButton: {
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -465,7 +465,7 @@ typeBadge: {
   position: 'absolute',
   top: 12,
   left: 12,
-  backgroundColor: '#00A651',
+  backgroundColor: '#10b981',
   paddingHorizontal: 12,
   paddingVertical: 6,
   borderRadius: 6,
@@ -514,7 +514,7 @@ availabilityBadge: {
 
 availabilityText: {
   fontSize: 12,
-  color: '#00A651',
+  color: '#10b981',
   marginLeft: 4,
   fontWeight: '500',
 },
@@ -526,7 +526,7 @@ cardFooter: {
 },
 
 viewButton: {
-  backgroundColor: '#00A651',
+  backgroundColor: '#10b981',
   paddingVertical: 12,
   paddingHorizontal: 40,
   borderRadius: 8,
@@ -547,7 +547,7 @@ viewButtonText: {
     left: 0,
     right: 0,
     flexDirection: 'row',
-    backgroundColor: '#00A651',
+    backgroundColor: '#10b981',
     paddingVertical: 12,
     paddingBottom: 24,
     shadowColor: '#000',

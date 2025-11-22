@@ -10,7 +10,8 @@ import {
   Edit,
   MoreVertical,
   Building2,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 
@@ -22,6 +23,11 @@ export default function MyProperties({ user }) {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, property: null });
+  const [passwordModal, setPasswordModal] = useState({ show: false, property: null });
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -68,6 +74,73 @@ export default function MyProperties({ user }) {
     setCurrentView('list');
     setSelectedPropertyId(null);
     fetchProperties();
+  };
+
+  const handleDeleteProperty = async (propertyId) => {
+    const property = properties.find(p => p.id === propertyId);
+    setPasswordModal({ show: true, property });
+    setPassword('');
+    setPasswordError('');
+  };
+
+  const verifyPassword = async () => {
+    if (!password) {
+      setPasswordError('Please enter your password');
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      setPasswordError('');
+      
+      const response = await api.post('/landlord/properties/verify-password', {
+        password: password
+      });
+
+      if (response.data.verified) {
+        // Password verified, show confirmation modal (keep password for final deletion)
+        setPasswordModal({ show: false, property: passwordModal.property });
+        setDeleteConfirm({ show: true, property: passwordModal.property });
+        setPasswordError('');
+        // Keep password in state for final deletion
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Incorrect password';
+      setPasswordError(errorMessage);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.property) return;
+    
+    try {
+      setLoading(true);
+      // Send password in request body for DELETE request
+      const response = await api.delete(`/landlord/properties/${deleteConfirm.property.id}`, {
+        data: { password: password }
+      });
+      
+      if (response.status === 200) {
+        alert(response.data.message || 'Property deleted successfully');
+        fetchProperties();
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to delete property';
+      alert(errorMessage);
+      // If password is wrong, go back to password modal
+      if (err.response?.data?.error === 'password_incorrect') {
+        setDeleteConfirm({ show: false, property: null });
+        setPasswordModal({ show: true, property: deleteConfirm.property });
+        setPassword('');
+        setPasswordError(err.response?.data?.message || 'Incorrect password');
+      }
+    } finally {
+      setLoading(false);
+      setDeleteConfirm({ show: false, property: null });
+      setPassword('');
+    }
   };
 
   if (currentView === 'detail' && selectedPropertyId) {
@@ -302,10 +375,11 @@ export default function MyProperties({ user }) {
                           <Edit className="w-5 h-5" />
                         </button>
                         <button
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="More Options"
+                          onClick={() => handleDeleteProperty(property.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Property"
                         >
-                          <MoreVertical className="w-5 h-5" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -316,6 +390,99 @@ export default function MyProperties({ user }) {
           </div>
         </div>
       </div>
+
+      {/* Password Verification Modal */}
+      {passwordModal.show && passwordModal.property && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Verify Password</h3>
+            <p className="text-gray-600 mb-4">
+              Please enter your password to confirm deletion of "{passwordModal.property.title}".
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !verifying) {
+                    verifyPassword();
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                  passwordError ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter your password"
+                autoFocus
+              />
+              {passwordError && (
+                <p className="mt-2 text-sm text-red-600">{passwordError}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setPasswordModal({ show: false, property: null });
+                  setPassword('');
+                  setPasswordError('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                disabled={verifying}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={verifyPassword}
+                disabled={verifying || !password}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show && deleteConfirm.property && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete "{deleteConfirm.property.title}"?
+              {deleteConfirm.property.total_rooms > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  This will also delete all {deleteConfirm.property.total_rooms} associated room(s).
+                </span>
+              )}
+              <span className="block mt-2">This action cannot be undone.</span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setDeleteConfirm({ show: false, property: null });
+                  setPassword('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete Property
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

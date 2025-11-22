@@ -856,7 +856,7 @@ export default function AddProperty({ onBack, onSave }) {
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Images</h2>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
                 <input
                   type="file"
                   multiple
@@ -865,37 +865,40 @@ export default function AddProperty({ onBack, onSave }) {
                   className="hidden"
                   id="image-upload"
                 />
-                <label htmlFor="image-upload" className="cursor-pointer">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
-                  <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
-                </label>
-              </div>
-
-              {formData.images.length > 0 && (
-                <div className="grid grid-cols-4 gap-3">
-                  {formData.images.map((img, index) => (
-                    <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                      <img
-                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
-                        alt={`Property ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                
+                {formData.images.length === 0 ? (
+                  <label htmlFor="image-upload" className="cursor-pointer block text-center">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
+                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                  </label>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-4 gap-3">
+                      {formData.images.map((img, index) => (
+                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                          <img
+                            src={typeof img === 'string' ? img : URL.createObjectURL(img)}
+                            alt={`Property ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.images.length < 10 && (
+                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
+                          <Plus className="w-8 h-8 text-gray-400" />
+                        </label>
+                      )}
                     </div>
-                  ))}
-                  {formData.images.length < 10 && (
-                    <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
-                      <Plus className="w-8 h-8 text-gray-400" />
-                    </label>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

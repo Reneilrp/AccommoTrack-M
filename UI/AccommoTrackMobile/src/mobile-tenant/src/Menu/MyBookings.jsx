@@ -1,43 +1,120 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/MyBookings.js';
-import R101 from '../../../../assets/SunshineDorm.jpeg';
-import OVR from '../../../../assets/ImageDetails.jpeg';
+import BookingService from '../../../services/BookingServices.js';
+
+const API_BASE_URL = 'http://192.168.43.84:8000';
 
 export default function MyBookings() {
   const navigation = useNavigation();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Sample bookings data
-  const bookings = [
-    {
-      id: 1,
-      name: "Sunshine Dormitory",
-      image: R101,
-      location: "Manila, Philippines",
-      checkIn: "Jan 15, 2024",
-      checkOut: "May 15, 2024",
-      price: 5000,
-      status: "Confirmed"
-    },
-    {
-      id: 2,
-      name: "Ocean View Residence",
-      image: OVR,
-      location: "Makati, Philippines",
-      checkIn: "Feb 1, 2024",
-      checkOut: "Jun 1, 2024",
-      price: 6500,
-      status: "Pending"
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const result = await BookingService.getMyBookings();
+      
+      if (result.success && result.data) {
+        // Transform backend data to match frontend format
+        const transformedBookings = result.data.map(booking => {
+          // Get property image
+          let imageUri = null;
+          if (booking.property && booking.property.images && booking.property.images.length > 0) {
+            const primaryImage = booking.property.images.find(img => img.is_primary) || booking.property.images[0];
+            if (primaryImage && primaryImage.image_url) {
+              const cleanPath = primaryImage.image_url.replace(/^\/?(storage\/)?/, '');
+              imageUri = { uri: `${API_BASE_URL}/storage/${cleanPath}` };
+            }
+          }
+          
+          // Fallback to placeholder if no image
+          if (!imageUri) {
+            imageUri = { uri: 'https://via.placeholder.com/400x200?text=No+Image' };
+          }
+
+          // Format location
+          const locationParts = [];
+          if (booking.property) {
+            if (booking.property.city) locationParts.push(booking.property.city);
+            if (booking.property.province) locationParts.push(booking.property.province);
+            if (booking.property.country) locationParts.push(booking.property.country);
+          }
+          const location = locationParts.length > 0 ? locationParts.join(', ') : 'Location not available';
+
+          // Format dates
+          const checkIn = booking.checkIn ? new Date(booking.checkIn).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : 'N/A';
+          
+          const checkOut = booking.checkOut ? new Date(booking.checkOut).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : 'N/A';
+
+          // Map status from backend to display format
+          const statusMap = {
+            'pending': 'Pending',
+            'confirmed': 'Confirmed',
+            'cancelled': 'Cancelled',
+            'completed': 'Completed',
+            'partial-completed': 'Partial Complete'
+          };
+
+          return {
+            id: booking.id,
+            name: booking.propertyTitle || 'Unknown Property',
+            image: imageUri,
+            location: location,
+            checkIn: checkIn,
+            checkOut: checkOut,
+            price: booking.monthlyRent || booking.amount || 0,
+            status: statusMap[booking.status] || booking.status || 'Pending',
+            statusRaw: booking.status,
+            paymentStatus: booking.paymentStatus,
+            bookingReference: booking.bookingReference
+          };
+        });
+        
+        setBookings(transformedBookings);
+      } else {
+        console.error('Failed to fetch bookings:', result.error);
+        setBookings([]);
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      setBookings([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  ];
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchBookings();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchBookings();
+  };
 
   const getStatusColor = (status) => {
     switch(status) {
       case 'Confirmed': return '#10B981';
+      case 'Completed': return '#10B981';
       case 'Pending': return '#F59E0B';
+      case 'Partial': return '#3B82F6';
+      case 'Partial Complete': return '#3B82F6';
       case 'Cancelled': return '#EF4444';
       default: return '#6B7280';
     }
@@ -54,8 +131,19 @@ export default function MyBookings() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {bookings.length > 0 ? (
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {loading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color="#10b981" />
+            <Text style={styles.emptyText}>Loading bookings...</Text>
+          </View>
+        ) : bookings.length > 0 ? (
           bookings.map((booking) => (
             <TouchableOpacity key={booking.id} style={styles.bookingCard}>
               <Image source={booking.image} style={styles.bookingImage} />
@@ -84,9 +172,23 @@ export default function MyBookings() {
                   </View>
                 </View>
                 <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Total Price:</Text>
+                  <Text style={styles.priceLabel}>Monthly Rent:</Text>
                   <Text style={styles.price}>₱{booking.price.toLocaleString()}/month</Text>
                 </View>
+                {booking.paymentStatus && (
+                  <View style={styles.paymentStatusRow}>
+                    <Text style={styles.paymentStatusLabel}>Payment:</Text>
+                    <Text style={[styles.paymentStatusText, { 
+                      color: booking.paymentStatus === 'paid' ? '#10B981' : 
+                             booking.paymentStatus === 'partial' ? '#3B82F6' : 
+                             booking.paymentStatus === 'refunded' ? '#8B5CF6' : '#F59E0B'
+                    }]}>
+                      {booking.paymentStatus === 'paid' ? 'Paid' : 
+                       booking.paymentStatus === 'partial' ? 'Partial Paid' : 
+                       booking.paymentStatus === 'refunded' ? 'Refunded' : 'Unpaid'}
+                    </Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           ))

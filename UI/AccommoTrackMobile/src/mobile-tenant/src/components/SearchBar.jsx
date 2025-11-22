@@ -25,7 +25,7 @@ export default function SearchBar({
           style={styles.mapButton}
           onPress={onMapPress}
         >
-          <Ionicons name="map-outline" size={20} color="#00A651" />
+          <Ionicons name="map-outline" size={20} color="#10b981" />
         </TouchableOpacity>
       </View>
     </View>

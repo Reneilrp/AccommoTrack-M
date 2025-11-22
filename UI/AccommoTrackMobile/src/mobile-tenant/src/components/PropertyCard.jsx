@@ -7,7 +7,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
 
-  const API_BASE_URL = 'http://192.168.254.106:8000';
+  const API_BASE_URL = 'http://192.168.43.84:8000';
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -86,7 +86,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
         {/* Availability */}
         {availableRooms > 0 ? (
           <View style={styles.availabilityBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#00A651" />
+            <Ionicons name="checkmark-circle" size={14} color="#10b981" />
             <Text style={styles.availabilityText}>
               {availableRooms} room{availableRooms !== 1 ? 's' : ''} available
             </Text>

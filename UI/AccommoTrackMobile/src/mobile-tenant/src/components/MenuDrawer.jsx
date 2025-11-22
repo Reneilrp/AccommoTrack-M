@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 
 const menuItems = [
-  { id: 1, title: 'My Bookings', icon: 'calendar-outline', color: '#00A651' },
+  { id: 1, title: 'My Bookings', icon: 'calendar-outline', color: '#10b981' },
   { id: 2, title: 'Payments', icon: 'card-outline', color: '#10B981' },
   { id: 3, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
 ];

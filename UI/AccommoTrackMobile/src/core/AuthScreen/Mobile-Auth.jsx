@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 
-const API_URL = 'http://192.168.254.106:8000/api';
+const API_URL = 'http://192.168.43.84:8000/api';
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -456,7 +456,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 <View style={styles.form}>
                   {/* Back Button */}
                   <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
-                    <Ionicons name="arrow-back" size={20} color="#00A651" />
+                    <Ionicons name="arrow-back" size={20} color="#10b981" />
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
 
