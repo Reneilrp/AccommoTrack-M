@@ -74,10 +74,19 @@ export default function Messages() {
       const res = await fetch(`${API_URL}/messages/conversations`, {
         headers: getAuthHeaders(),
       });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
-      setConversations(data);
+      
+      // FIX: Ensure data is always an array
+      setConversations(Array.isArray(data) ? data : []);
+      
     } catch (err) {
       console.error('Failed to load conversations:', err);
+      setConversations([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

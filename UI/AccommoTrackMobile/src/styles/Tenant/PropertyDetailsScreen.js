@@ -1,6 +1,6 @@
 import { StyleSheet, Dimensions } from "react-native";
 
-const { width } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
   container: {
@@ -14,10 +14,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    backgroundColor: '#10b981',
     borderBottomColor: '#e5e7eb',
   },
   backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#000' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
   placeholder: { width: 40 },
 
   infoSection: {
@@ -49,8 +50,8 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mainImage: {
-    width: width,
-    height: width * 0.75,
+    width: screenWidth - 32, // Full width minus padding (16px on each side)
+    height: (screenWidth - 32) * 0.75, // Maintain 4:3 aspect ratio
     borderRadius: 12,
     marginBottom: 16,
   },

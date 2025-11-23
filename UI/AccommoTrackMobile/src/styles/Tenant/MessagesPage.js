@@ -54,6 +54,7 @@ export const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#F9FAFB',
     },
     loadingText: {
         marginTop: 12,
@@ -76,6 +77,7 @@ export const styles = StyleSheet.create({
         fontSize: 14,
         color: '#9CA3AF',
         marginTop: 4,
+        textAlign: 'center',
     },
 
     // Conversation List
@@ -147,7 +149,7 @@ export const styles = StyleSheet.create({
     },
 
     // Chat Header
-    chatHeader: {
+    chatScreenHeader: {
         backgroundColor: '#16a34a',
         paddingHorizontal: 8,
         paddingVertical: 12,
@@ -196,6 +198,7 @@ export const styles = StyleSheet.create({
     },
     messagesContent: {
         padding: 16,
+        flexGrow: 1,
     },
     propertyCard: {
         backgroundColor: '#FFFFFF',
@@ -221,6 +224,23 @@ export const styles = StyleSheet.create({
     propertyCardSubtitle: {
         fontSize: 12,
         color: '#9CA3AF',
+    },
+    emptyMessagesContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 60,
+    },
+    emptyMessagesText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#6B7280',
+        marginTop: 12,
+    },
+    emptyMessagesSubtext: {
+        fontSize: 14,
+        color: '#9CA3AF',
+        marginTop: 4,
     },
     messageWrapper: {
         marginBottom: 12,

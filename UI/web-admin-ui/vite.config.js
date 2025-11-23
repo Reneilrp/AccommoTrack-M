@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // IP
-const HOST_IP = '192.168.43.84';
+const HOST_IP = '192.168.254.106';
 
 export default defineConfig({
   plugins: [react()],

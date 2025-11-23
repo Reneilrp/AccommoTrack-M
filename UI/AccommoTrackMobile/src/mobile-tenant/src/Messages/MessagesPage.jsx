@@ -10,6 +10,7 @@ import {
     Platform,
     ActivityIndicator,
     FlatList,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,18 +18,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createEcho from '../../utils/echo';
 import { styles } from '../../../styles/Tenant/MessagesPage';
 
-const API_URL = 'http://192.168.43.84:8000/api';
+const API_URL = 'http://192.168.254.106:8000/api';
 
-export default function MessagesPage({ navigation }) {
+export default function MessagesPage({ navigation, route }) {
     const [conversations, setConversations] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
     const [messages, setMessages] = useState([]);
     const [messageText, setMessageText] = useState('');
     const [loading, setLoading] = useState(true);
+    const [initialLoading, setInitialLoading] = useState(false);
     const [sendingMessage, setSendingMessage] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
 
@@ -51,6 +53,64 @@ export default function MessagesPage({ navigation }) {
         fetchConversations();
     }, []);
 
+    // Handle navigation params for starting new conversation
+    useEffect(() => {
+        const handleStartConversation = async () => {
+            if (route?.params?.startConversation && route?.params?.recipient) {
+                setInitialLoading(true);
+                try {
+                    const headers = await getAuthHeaders();
+                    const res = await fetch(`${API_URL}/messages/start`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            recipient_id: route.params.recipient.id,
+                            property_id: route.params.property?.id || null,
+                        }),
+                    });
+
+                    const conversation = await res.json();
+
+                    // Fetch updated conversations list
+                    await fetchConversations();
+
+                    // Determine other user
+                    const otherUser = conversation.user_one_id === currentUserId
+                        ? conversation.user_two
+                        : conversation.user_one;
+
+                    // Set the new/existing conversation as selected
+                    setSelectedChat({
+                        id: conversation.id,
+                        other_user: otherUser || {
+                            id: route.params.recipient.id,
+                            first_name: route.params.recipient.name?.split(' ')[0] || 'Landlord',
+                            last_name: route.params.recipient.name?.split(' ')[1] || '',
+                        },
+                        property: conversation.property || route.params.property,
+                    });
+
+                    // Clear the navigation params
+                    navigation.setParams({
+                        startConversation: false,
+                        recipient: null,
+                        property: null,
+                        room: null
+                    });
+                } catch (err) {
+                    console.error('Failed to start conversation:', err);
+                    Alert.alert('Error', 'Failed to start conversation');
+                } finally {
+                    setInitialLoading(false);
+                }
+            }
+        };
+
+        if (currentUserId) {
+            handleStartConversation();
+        }
+    }, [route?.params, currentUserId]);
+
     // Set up Echo listener when chat is selected
     useEffect(() => {
         if (selectedChat) {
@@ -68,7 +128,7 @@ export default function MessagesPage({ navigation }) {
     const setupEcho = async () => {
         try {
             echoRef.current = await createEcho();
-            
+
             echoRef.current
                 .private(`conversation.${selectedChat.id}`)
                 .listen('.message.sent', (e) => {
@@ -87,23 +147,33 @@ export default function MessagesPage({ navigation }) {
     };
 
     const fetchConversations = async () => {
-    try {
-        setLoading(true);
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${API_URL}/messages/conversations`, { headers });
-        const data = await res.json();
-        
-        console.log('API Response:', data); // Add this line
-        console.log('Is Array?', Array.isArray(data)); // Add this line
-        
-        setConversations(Array.isArray(data) ? data : []);
-    } catch (err) {
-        console.error('Failed to load conversations:', err);
-        setConversations([]);
-    } finally {
-        setLoading(false);
-    }
-};
+        try {
+            setLoading(true);
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${API_URL}/messages/conversations`, { headers });
+
+            // Check if response is ok
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            // Ensure data is an array
+            if (Array.isArray(data)) {
+                setConversations(data);
+            } else {
+                console.error('Unexpected response format:', data);
+                setConversations([]);
+            }
+        } catch (err) {
+            console.error('Failed to load conversations:', err);
+            setConversations([]); // Always set to empty array on error
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const fetchMessages = async (conversationId) => {
         try {
             const headers = await getAuthHeaders();
@@ -146,6 +216,7 @@ export default function MessagesPage({ navigation }) {
             );
         } catch (err) {
             console.error('Failed to send message:', err);
+            Alert.alert('Error', 'Failed to send message');
         } finally {
             setSendingMessage(false);
         }
@@ -172,12 +243,23 @@ export default function MessagesPage({ navigation }) {
         return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
     };
 
-    const filteredConversations = Array.isArray(conversations) 
-    ? conversations.filter((conv) => {
-        const name = `${conv.other_user?.first_name} ${conv.other_user?.last_name}`.toLowerCase();
+    const filteredConversations = (conversations || []).filter((conv) => {
+        const otherUser = conv.other_user || {};
+        const name = `${otherUser.first_name || ''} ${otherUser.last_name || ''}`.toLowerCase();
         return name.includes(searchQuery.toLowerCase());
-    })
-    : [];
+    });
+
+    // Loading screen for initial conversation start
+    if (initialLoading) {
+        return (
+            <SafeAreaView style={styles.safeArea} edges={['top']}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#16a34a" />
+                    <Text style={styles.loadingText}>Starting conversation...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     // Chat List Screen
     const renderChatList = () => (
@@ -216,7 +298,9 @@ export default function MessagesPage({ navigation }) {
                 <View style={styles.emptyContainer}>
                     <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
                     <Text style={styles.emptyTitle}>No conversations yet</Text>
-                    <Text style={styles.emptySubtitle}>Start chatting with a landlord</Text>
+                    <Text style={styles.emptySubtitle}>
+                        Contact a landlord from a property listing to start chatting
+                    </Text>
                 </View>
             ) : (
                 <FlatList
@@ -273,7 +357,7 @@ export default function MessagesPage({ navigation }) {
             <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
 
             {/* Chat Header */}
-            <View style={styles.chatHeader}>
+            <View style={styles.chatScreenHeader}>
                 <TouchableOpacity
                     onPress={() => setSelectedChat(null)}
                     style={styles.backButton}
@@ -318,6 +402,17 @@ export default function MessagesPage({ navigation }) {
                             <Text style={styles.propertyCardTitle}>{selectedChat.property.title}</Text>
                             <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
                         </View>
+                    </View>
+                )}
+
+                {/* Empty Messages State */}
+                {messages.length === 0 && (
+                    <View style={styles.emptyMessagesContainer}>
+                        <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
+                        <Text style={styles.emptyMessagesText}>No messages yet</Text>
+                        <Text style={styles.emptyMessagesSubtext}>
+                            Say hello to start the conversation!
+                        </Text>
                     </View>
                 )}
 
