@@ -12,32 +12,33 @@ class MessageController extends Controller
 {
     // Get all conversations for current user
     public function getConversations()
-    {
-        $userId = Auth::id();
+{
+    $userId = Auth::id();
 
-        $conversations = Conversation::where('user_one_id', $userId)
-            ->orWhere('user_two_id', $userId)
-            ->with(['userOne:id,first_name,last_name,role', 'userTwo:id,first_name,last_name,role', 'property:id,title', 'lastMessage'])
-            ->withCount(['messages as unread_count' => function ($q) use ($userId) {
-                $q->where('receiver_id', $userId)
-                  ->where('is_read', false);
-            }])
-            ->orderBy('last_message_at', 'desc')
-            ->get()
-            ->map(function ($conv) use ($userId) {
-                $otherUser = $conv->user_one_id === $userId ? $conv->userTwo : $conv->userOne;
-                return [
-                    'id' => $conv->id,
-                    'other_user' => $otherUser,
-                    'property' => $conv->property,
-                    'last_message' => $conv->lastMessage,
-                    'unread_count' => $conv->unread_count,
-                    'last_message_at' => $conv->last_message_at,
-                ];
-            });
+    $conversations = Conversation::where('user_one_id', $userId)
+        ->orWhere('user_two_id', $userId)
+        ->with(['userOne:id,first_name,last_name,role', 'userTwo:id,first_name,last_name,role', 'property:id,title', 'lastMessage'])
+        ->withCount(['messages as unread_count' => function ($q) use ($userId) {
+            $q->where('receiver_id', $userId)
+              ->where('is_read', false);
+        }])
+        ->orderBy('last_message_at', 'desc')
+        ->get()
+        ->map(function ($conv) use ($userId) {
+            $otherUser = $conv->user_one_id === $userId ? $conv->userTwo : $conv->userOne;
+            return [
+                'id' => $conv->id,
+                'other_user' => $otherUser,
+                'property' => $conv->property,
+                'last_message' => $conv->lastMessage,
+                'unread_count' => $conv->unread_count,
+                'last_message_at' => $conv->last_message_at,
+            ];
+        })
+        ->values(); // Add this to ensure it's a proper array
 
-        return response()->json($conversations);
-    }
+    return response()->json($conversations);
+}
 
     // Get messages for a conversation
     public function getMessages($conversationId)

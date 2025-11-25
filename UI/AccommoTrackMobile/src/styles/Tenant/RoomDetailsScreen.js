@@ -13,9 +13,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#10b981',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -25,9 +25,10 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: '#fff',
     flex: 1,
     marginLeft: 12,
+    textAlign: 'center',
   },
   placeholder: {
     width: 40,
@@ -237,6 +238,7 @@ export const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: '#10b981',
+    marginBottom: 20,
   },
   contactButtonText: {
     color: '#10b981',

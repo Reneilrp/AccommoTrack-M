@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Eye, X, CheckCircle, XCircle, Calendar } from 'lucide-react';
+import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
 
 export default function Bookings() {
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({ total: 0, confirmed: 0, pending: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
@@ -118,7 +119,7 @@ export default function Bookings() {
       await fetchStats();
       setShowDetailModal(false);
       setShowCancelModal(false);
-      
+
       alert(`Booking ${newStatus} successfully!`);
     } catch (err) {
       console.error('Error updating status:', err);
@@ -140,7 +141,7 @@ export default function Bookings() {
 
       // Refresh bookings list
       await fetchBookings();
-      
+
       // Update the selected booking in the modal with the response data
       if (selectedBooking && selectedBooking.id === bookingId) {
         setSelectedBooking(prev => ({
@@ -149,7 +150,7 @@ export default function Bookings() {
           status: result.booking.status // Update status too in case it changed
         }));
       }
-      
+
       // Show appropriate message
       if (result.status_upgraded) {
         alert('Payment updated! Booking automatically upgraded to Completed.');
@@ -199,9 +200,41 @@ export default function Bookings() {
     );
   };
 
-  const filteredBookings = filterStatus === 'all'
-    ? bookings
-    : bookings.filter(booking => booking.status === filterStatus);
+  // Filter bookings by status and search query
+  const filteredBookings = bookings.filter(booking => {
+    // Status filter
+    if (filterStatus !== 'all' && booking.status !== filterStatus) {
+      return false;
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const totalDays = calculateDays(booking.checkIn, booking.checkOut);
+
+      const searchableFields = [
+        booking.guestName,
+        booking.email,
+        booking.roomNumber?.toString(),
+        booking.propertyTitle,
+        formatDate(booking.checkIn),
+        formatDate(booking.checkOut),
+        booking.duration,
+        `${totalDays} days`,
+        booking.amount?.toString(),
+        `₱${booking.amount?.toLocaleString()}`,
+        booking.paymentStatus,
+        booking.bookingReference,
+        booking.roomType,
+      ];
+
+      return searchableFields.some(field =>
+        field && field.toLowerCase().includes(query)
+      );
+    }
+
+    return true;
+  });
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -284,22 +317,46 @@ export default function Bookings() {
           </div>
         </div>
 
-        {/* Filter */}
+        {/* Search and Filter */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="flex gap-2 flex-wrap">
-            {['all', 'confirmed', 'pending', 'completed', 'cancelled'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filterStatus === status
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Search Input */}
+            <div className="w-fit">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name, room, property, dates, amount..."
+                  className="w-[27rem] pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Status Filter Buttons */}
+            <div className="flex gap-2 flex-wrap flex-shrink-0 ml-2">
+              {['all', 'confirmed', 'pending', 'completed', 'cancelled'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-4 py-2.5 rounded-lg font-medium transition-colors ${filterStatus === status
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -323,7 +380,7 @@ export default function Bookings() {
                 {filteredBookings.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                      No bookings found
+                      {searchQuery ? `No bookings found matching "${searchQuery}"` : 'No bookings found'}
                     </td>
                   </tr>
                 ) : (
@@ -504,7 +561,7 @@ export default function Bookings() {
                 <div className="flex gap-2 flex-wrap">
                   {(() => {
                     const { status, paymentStatus } = selectedBooking;
-                    
+
                     // Cancelled - only show refund option if payment was made
                     if (status === 'cancelled') {
                       if (paymentStatus === 'refunded') {
@@ -540,7 +597,7 @@ export default function Bookings() {
                         );
                       }
                     }
-                    
+
                     // Completed - allow cancellation with refund
                     if (status === 'completed') {
                       return (
@@ -560,7 +617,7 @@ export default function Bookings() {
                         </div>
                       );
                     }
-                    
+
                     // Pending status - can confirm or cancel
                     if (status === 'pending') {
                       return (
@@ -582,7 +639,7 @@ export default function Bookings() {
                         </>
                       );
                     }
-                    
+
                     // Confirmed status - smart completion based on payment
                     if (status === 'confirmed') {
                       if (paymentStatus === 'paid') {
@@ -661,7 +718,7 @@ export default function Bookings() {
                         );
                       }
                     }
-                    
+
                     return null;
                   })()}
                 </div>
@@ -709,7 +766,7 @@ export default function Bookings() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="bg-red-50 rounded-lg p-4 mb-4">
               <p className="text-sm text-red-800 font-medium mb-1">Booking: {selectedBooking.guestName}</p>
               <p className="text-xs text-red-700">Reference: {selectedBooking.bookingReference}</p>
@@ -723,7 +780,7 @@ export default function Bookings() {
               </label>
               <textarea
                 value={cancellationData.reason}
-                onChange={(e) => setCancellationData({...cancellationData, reason: e.target.value})}
+                onChange={(e) => setCancellationData({ ...cancellationData, reason: e.target.value })}
                 placeholder="Enter reason for cancellation..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 rows="3"
@@ -738,7 +795,7 @@ export default function Bookings() {
                     id="shouldRefund"
                     checked={cancellationData.shouldRefund}
                     onChange={(e) => setCancellationData({
-                      ...cancellationData, 
+                      ...cancellationData,
                       shouldRefund: e.target.checked,
                       refundAmount: e.target.checked ? selectedBooking.amount : 0
                     })}
@@ -760,7 +817,7 @@ export default function Bookings() {
                         type="number"
                         value={cancellationData.refundAmount}
                         onChange={(e) => setCancellationData({
-                          ...cancellationData, 
+                          ...cancellationData,
                           refundAmount: parseFloat(e.target.value) || 0
                         })}
                         max={selectedBooking.amount}

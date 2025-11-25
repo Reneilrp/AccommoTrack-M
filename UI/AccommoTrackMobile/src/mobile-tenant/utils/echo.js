@@ -2,6 +2,8 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+window.Pusher = Pusher;
+
 const createEcho = async () => {
     const token = await AsyncStorage.getItem('auth_token');
 

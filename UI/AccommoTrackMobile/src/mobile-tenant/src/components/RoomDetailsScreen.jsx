@@ -1,25 +1,26 @@
 import { useState } from 'react';
-import { 
-  View, 
-  ScrollView, 
-  Text, 
-  TouchableOpacity, 
-  Image, 
-  StatusBar, 
-  Dimensions, 
-  Modal, 
-  TextInput, 
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Image,
+  StatusBar,
+  Dimensions,
+  Modal,
+  TextInput,
   Alert,
   ActivityIndicator,
-  Platform } from 'react-native';
-  
+  Platform
+} from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
 
-import BookingService from '../../../services/BookingServices';  
+import BookingService from '../../../services/BookingServices';
 
 const { width } = Dimensions.get('window');
 
@@ -29,11 +30,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  
+
   const [bookingData, setBookingData] = useState({
     start_date: new Date(),
     end_date: null,
@@ -63,7 +64,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     const index = event.nativeEvent.contentOffset.x / slideSize;
     setCurrentImageIndex(Math.round(index));
   };
-  
+
   const capitalizeStatus = (status) => {
     return (status || '').replace(/^\w/, c => c.toUpperCase()) || 'Unknown';
   };
@@ -71,26 +72,26 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // Format date for display
   const formatDate = (date) => {
     if (!date) return 'Select date';
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
   // Calculate duration between dates
   const calculateDuration = () => {
     if (!bookingData.start_date || !bookingData.end_date) return null;
-    
+
     const start = new Date(bookingData.start_date);
     const end = new Date(bookingData.end_date);
-    
+
     if (end <= start) return null;
-    
+
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const months = Math.ceil(diffDays / 30); // Approximate months
-    
+
     return { days: diffDays, months };
   };
 
@@ -106,7 +107,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setShowStartDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setBookingData(prev => ({ ...prev, start_date: selectedDate }));
-      
+
       // Reset end date if it's before the new start date
       if (prev.end_date && selectedDate >= prev.end_date) {
         setBookingData(prev => ({ ...prev, end_date: null }));
@@ -136,8 +137,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         'You need to sign in to book a room. Create an account or log in to continue.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Sign In', 
+          {
+            text: 'Sign In',
             onPress: () => {
               if (onAuthRequired) {
                 onAuthRequired();
@@ -148,18 +149,18 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       );
       return;
     }
-    
+
     // Reset form with today's date and tomorrow as default end date
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     setBookingData({
       start_date: today,
       end_date: tomorrow,
       notes: ''
     });
-    
+
     setBookingModalVisible(true);
   };
 
@@ -203,10 +204,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       console.log('Submitting booking:', data);
 
       const result = await BookingService.createBooking(data);
-      
+
       if (result.success) {
         Alert.alert(
-          'Success', 
+          'Success',
           `Booking submitted successfully! Reference: ${result.data.booking?.booking_reference || 'N/A'}`,
           [
             {
@@ -236,15 +237,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   };
 
   // AUTH GATE: Contact landlord also requires auth
-  const handleContactLandlord = () => {
+  const handleContactLandlord = async () => {
     if (isGuest) {
       Alert.alert(
         'Sign In Required',
         'You need to sign in to contact the landlord.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Sign In', 
+          {
+            text: 'Sign In',
             onPress: () => {
               if (onAuthRequired) {
                 onAuthRequired();
@@ -256,8 +257,27 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       return;
     }
 
-    // TODO: Navigate to messages/chat
-    Alert.alert('Contact Landlord', 'Messaging feature coming soon!');
+    try {
+      // Navigate to Messages with landlord and property info
+      navigation.navigate('Messages', {
+        startConversation: true,
+        recipient: {
+          id: property.landlord_id,
+          name: property.landlord_name || 'Landlord',
+        },
+        property: {
+          id: property.id,
+          title: property.name || property.title,
+        },
+        room: {
+          id: room.id,
+          room_number: room.room_number,
+        }
+      });
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      Alert.alert('Error', 'Failed to start conversation. Please try again.');
+    }
   };
 
   const duration = calculateDuration();
@@ -266,11 +286,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Room Details</Text>
         <View style={styles.placeholder} />
@@ -296,7 +316,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 />
               ))}
             </ScrollView>
-            
+
             {/* Image Indicators */}
             {room.images.length > 1 && (
               <View style={styles.imageIndicator}>
@@ -304,7 +324,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <View
                     key={index}
                     style={[
-                      styles.indicatorDot, 
+                      styles.indicatorDot,
                       index === currentImageIndex && styles.indicatorDotActive
                     ]}
                   />
@@ -384,7 +404,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           {/* Property Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Property Information</Text>
-            
+
             {/* Property Name */}
             <View style={styles.infoRow}>
               <Ionicons name="business-outline" size={18} color="#6b7280" />
@@ -410,7 +430,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </View>
                 ))}
                 {property.propertyRules.length > 3 && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.viewAllButton}
                     onPress={() => navigation.navigate('AccommodationDetails', { accommodation: property })}
                   >
@@ -457,11 +477,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Book Room {room.room_number}</Text>
-            
+
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Check-in Date *</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowStartDatePicker(true)}
                 disabled={isSubmitting}
@@ -469,7 +489,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Ionicons name="calendar-outline" size={20} color="#6b7280" />
                 <Text style={styles.dateButtonText}>{formatDate(bookingData.start_date)}</Text>
               </TouchableOpacity>
-              
+
               {showStartDatePicker && (
                 <DateTimePicker
                   value={bookingData.start_date || new Date()}
@@ -480,11 +500,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 />
               )}
             </View>
-            
+
             {/* End Date Picker */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Check-out Date *</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowEndDatePicker(true)}
                 disabled={isSubmitting}
@@ -492,7 +512,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Ionicons name="calendar-outline" size={20} color="#6b7280" />
                 <Text style={styles.dateButtonText}>{formatDate(bookingData.end_date)}</Text>
               </TouchableOpacity>
-              
+
               {showEndDatePicker && (
                 <DateTimePicker
                   value={bookingData.end_date || new Date()}
@@ -522,7 +542,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 </Text>
               </View>
             )}
-            
+
             {/* Notes */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Notes (Optional)</Text>
@@ -536,9 +556,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 editable={!isSubmitting}
               />
             </View>
-            
-            <TouchableOpacity 
-              style={[styles.submitButton, (!duration || isSubmitting) && styles.submitButtonDisabled]} 
+
+            <TouchableOpacity
+              style={[styles.submitButton, (!duration || isSubmitting) && styles.submitButtonDisabled]}
               onPress={handleSubmitBooking}
               disabled={!duration || isSubmitting}
             >
@@ -548,9 +568,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Text style={styles.submitButtonText}>Submit Booking</Text>
               )}
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelButton} 
+
+            <TouchableOpacity
+              style={styles.cancelButton}
               onPress={() => setBookingModalVisible(false)}
               disabled={isSubmitting}
             >
