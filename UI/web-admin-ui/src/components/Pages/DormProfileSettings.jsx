@@ -5,13 +5,15 @@ import {
   Image,
   Upload,
 } from 'lucide-react';
+import api from '../../utils/api';
 
-export default function DormProfileSettings({ propertyId, onBack }) {
+export default function DormProfileSettings({ propertyId, onBack, onDeleteRequested }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dormData, setDormData] = useState(null);
   const [newRule, setNewRule] = useState('');
+  const [newCustomAmenity, setNewCustomAmenity] = useState('');
 
   const API_URL = '/api';
 
@@ -34,16 +36,8 @@ export default function DormProfileSettings({ propertyId, onBack }) {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`${API_URL}/landlord/properties/${propertyId}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch property details');
-      }
-
-      const data = await response.json();
+      const res = await api.get(`/landlord/properties/${propertyId}`);
+      const data = res.data;
       
       // Parse amenities from relationship or amenities_list
       const amenitiesData = data.amenities_list || data.amenities || [];
@@ -79,13 +73,12 @@ export default function DormProfileSettings({ propertyId, onBack }) {
         specifications: {
           bedrooms: data.number_of_bedrooms,
           bathrooms: data.number_of_bathrooms,
-          floorArea: data.floor_area,
-          floorLevel: data.floor_level,
           maxOccupants: data.max_occupants,
           totalRooms: data.total_rooms,
           availableRooms: data.available_rooms
         },
         amenities: parsedAmenities,
+        customAmenities: data.customAmenities || data.additional_amenities || [],
         rules: data.property_rules ? (typeof data.property_rules === 'string' ? JSON.parse(data.property_rules) : data.property_rules) : [],
         status: data.current_status,
         nearbyLandmarks: data.nearby_landmarks || '',
@@ -214,16 +207,14 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       });
       
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/landlord/properties/${propertyId}`, {
-        method: 'PUT',
+      const response = await api.put(`/landlord/properties/${propertyId}`, formData, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
-        },
-        body: formData
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      
-      if (response.ok) {
+
+      if (response.status === 200 || response.status === 201) {
         // Refresh property data to get updated image URLs
         fetchPropertyDetails();
       }
@@ -231,6 +222,23 @@ export default function DormProfileSettings({ propertyId, onBack }) {
       console.error('Error uploading images:', err);
       setError('Failed to upload images');
     }
+  };
+
+  const handleAddCustomAmenity = (amenity) => {
+    const value = (amenity || '').trim();
+    if (!value) return;
+    setDormData(prev => ({
+      ...prev,
+      customAmenities: Array.isArray(prev.customAmenities) ? [...prev.customAmenities, value] : [value]
+    }));
+    setNewCustomAmenity('');
+  };
+
+  const handleRemoveCustomAmenity = (index) => {
+    setDormData(prev => ({
+      ...prev,
+      customAmenities: (prev.customAmenities || []).filter((_, i) => i !== index)
+    }));
   };
 
   const handleRemoveImage = (index) => {
@@ -267,6 +275,10 @@ export default function DormProfileSettings({ propertyId, onBack }) {
           return nameMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
         });
 
+      // Include custom amenities (if any) and merge with the selected amenity names
+      const customAmenities = Array.isArray(dormData.customAmenities) ? dormData.customAmenities.map(a => (a || '').trim()).filter(Boolean) : [];
+      const merged = Array.from(new Set([...amenitiesArray, ...customAmenities]));
+
       const updateData = {
         title: dormData.name,
         description: dormData.description,
@@ -279,11 +291,9 @@ export default function DormProfileSettings({ propertyId, onBack }) {
         country: dormData.address.country,
         number_of_bedrooms: parseInt(dormData.specifications.bedrooms) || 1,
         number_of_bathrooms: parseInt(dormData.specifications.bathrooms) || 1,
-        floor_area: parseFloat(dormData.specifications.floorArea) || null,
-        floor_level: dormData.specifications.floorLevel,
         max_occupants: parseInt(dormData.specifications.maxOccupants) || 1,
         total_rooms: parseInt(dormData.specifications.totalRooms) || 1,
-        amenities: amenitiesArray,
+        amenities: merged,
         property_rules: JSON.stringify(dormData.rules),
         nearby_landmarks: dormData.nearbyLandmarks,
         latitude: parseFloat(dormData.latitude) || null,
@@ -291,16 +301,7 @@ export default function DormProfileSettings({ propertyId, onBack }) {
         current_status: dormData.status
       };
 
-      const response = await fetch(`${API_URL}/landlord/properties/${propertyId}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(updateData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update property');
-      }
+      const response = await api.put(`/landlord/properties/${propertyId}`, updateData);
 
       alert('Property updated successfully!');
       setIsEditing(false);
@@ -364,16 +365,27 @@ export default function DormProfileSettings({ propertyId, onBack }) {
             </div>
             <div className="flex items-center gap-3">
               {isEditing && (
-                <button
-                  onClick={() => {
-                    setIsEditing(false);
-                    fetchPropertyDetails();
-                  }}
-                  disabled={loading}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
-                >
-                  Cancel
-                </button>
+                <>
+                  <button
+                    onClick={() => onDeleteRequested && onDeleteRequested(dormData?.id)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 mr-2"
+                    title="Delete Property"
+                  >
+                    Delete
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      fetchPropertyDetails();
+                    }}
+                    disabled={loading}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </>
               )}
               <button
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -605,26 +617,6 @@ export default function DormProfileSettings({ propertyId, onBack }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Floor Area (sqm)</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.floorArea || ''}
-                    onChange={(e) => handleSpecificationChange('floorArea', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Floor Level</label>
-                  <input
-                    type="text"
-                    value={dormData.specifications.floorLevel || ''}
-                    onChange={(e) => handleSpecificationChange('floorLevel', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Max Occupants</label>
                   <input
                     type="number"
@@ -770,6 +762,45 @@ export default function DormProfileSettings({ propertyId, onBack }) {
                     </button>
                   </label>
                 ))}
+                {/* Custom Amenities (editable list) */}
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Custom Amenities</h3>
+                  {(!dormData.customAmenities || dormData.customAmenities.length === 0) ? (
+                    <p className="text-sm text-gray-500">No custom amenities added</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {dormData.customAmenities.map((amenity, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span className="text-sm text-gray-700">{amenity}</span>
+                          {isEditing && (
+                            <button onClick={() => handleRemoveCustomAmenity(idx)} className="text-red-600 hover:text-red-700">
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isEditing && (
+                    <div className="mt-3 flex gap-2">
+                      <input
+                        type="text"
+                        value={newCustomAmenity}
+                        onChange={(e) => setNewCustomAmenity(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (handleAddCustomAmenity(newCustomAmenity))}
+                        placeholder="Add a custom amenity..."
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={() => handleAddCustomAmenity(newCustomAmenity)}
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

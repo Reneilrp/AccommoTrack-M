@@ -16,6 +16,7 @@ class Room extends Model
         'floor',
         'monthly_rate',
         'capacity',
+        'pricing_model',
         'status',
         'current_tenant_id',
         'description'
@@ -392,5 +393,56 @@ class Room extends Model
                 $room->property->updateAvailableRooms();
             }
         });
+    }
+
+    /**
+     * Calculate actual payment per tenant based on pricing model and current occupancy
+     * Used for booking/payment calculations
+     */
+    public function calculatePaymentPerTenant()
+    {
+        $monthlyRateFloat = (float) $this->monthly_rate;
+        
+        // Get current number of tenants
+        $currentOccupants = $this->tenants()->count();
+        
+        if ($this->pricing_model === 'per_bed') {
+            // For per-bed pricing, each tenant pays the full monthly rate
+            return $monthlyRateFloat;
+        }
+        
+        // For full_room pricing, divide by number of tenants or capacity
+        if ($currentOccupants > 0) {
+            // Divide by actual occupants
+            return round($monthlyRateFloat / $currentOccupants, 2);
+        }
+        
+        // If no tenants yet, show full price
+        return $monthlyRateFloat;
+    }
+
+    /**
+     * Get formatted room payment display for booking page
+     */
+    public function getPaymentDisplay()
+    {
+        $monthlyRateFloat = (float) $this->monthly_rate;
+        
+        if ($this->pricing_model === 'per_bed') {
+            return [
+                'pricing_model' => 'per_bed',
+                'display' => '₱' . number_format($monthlyRateFloat, 2) . ' per bed/tenant',
+                'amount_per_tenant' => $monthlyRateFloat
+            ];
+        }
+        
+        $occupants = $this->tenants()->count();
+        $perTenant = $occupants > 0 ? round($monthlyRateFloat / $occupants, 2) : $monthlyRateFloat;
+        
+        return [
+            'pricing_model' => 'full_room',
+            'display' => '₱' . number_format($monthlyRateFloat, 2) . ' (÷' . ($occupants > 0 ? $occupants : 'capacity') . ')',
+            'amount_per_tenant' => $perTenant
+        ];
     }
 }

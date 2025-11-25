@@ -7,7 +7,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
 
-  const API_BASE_URL = 'http://10.251.236.156:8000';
+  const API_BASE_URL = 'http://192.168.254.106:8000';
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -44,6 +44,17 @@ export default function PropertyCard({ accommodation, property, onPress }) {
   // Capitalize type
   const propertyType = (item.type || 'property').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+  const getFullAddress = () => {
+    const parts = [];
+    if (item.street_address) parts.push(item.street_address);
+    if (item.barangay) parts.push(item.barangay);
+    if (item.city) parts.push(item.city);
+    if (item.province) parts.push(item.province);
+    if (item.postal_code) parts.push(item.postal_code);
+    if (parts.length > 0) return parts.join(', ');
+    return item.address || item.location || item.city || 'Unknown Location';
+  };
+
   return (
     <TouchableOpacity
       style={[styles.card, { transform: [{ scale: scaleAnim }] }]}
@@ -78,8 +89,8 @@ export default function PropertyCard({ accommodation, property, onPress }) {
         {/* Location */}
         <View style={styles.locationContainer}>
           <Ionicons name="location-outline" size={16} color="#757575" />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {item.city || item.location || 'Unknown Location'}
+          <Text style={styles.locationText} numberOfLines={2}>
+            {getFullAddress()}
           </Text>
         </View>
 

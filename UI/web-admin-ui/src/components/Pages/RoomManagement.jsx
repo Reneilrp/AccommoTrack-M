@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import api from '../../utils/api';
 import AddRoomModal from './AddRoom';
 import {
   X,
@@ -40,10 +41,8 @@ export default function RoomManagement() {
     const loadInitialData = async () => {
       try {
         setLoadingProperties(true);
-        const res = await fetch(`${API_URL}/landlord/properties`, { headers: getAuthHeaders() });
-        if (!res.ok) throw new Error('Failed to load properties');
-        const data = await res.json();
-
+        const res = await api.get('/landlord/properties');
+        const data = res.data;
         setProperties(data);
         if (data.length > 0) {
           setSelectedPropertyId(data[0].id);
@@ -68,11 +67,12 @@ export default function RoomManagement() {
         setError(null);
 
         const [roomsRes, statsRes] = await Promise.all([
-          fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`, { headers: getAuthHeaders() }),
-          fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`, { headers: getAuthHeaders() })
+          api.get(`/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`),
+          api.get(`/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`)
         ]);
-        
-        const [roomsData, statsData] = await Promise.all([roomsRes.json(), statsRes.json()]);
+
+        const roomsData = roomsRes.data;
+        const statsData = statsRes.data;
         setRooms(roomsData);
         setStats(statsData);
       } catch (err) {
@@ -93,13 +93,12 @@ export default function RoomManagement() {
       setError(null);
 
       const [roomsRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`, { headers: getAuthHeaders() })
+        api.get(`/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`),
+        api.get(`/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`)
       ]);
 
-      if (!roomsRes.ok || !statsRes.ok) throw new Error('Failed to load rooms');
-
-      const [roomsData, statsData] = await Promise.all([roomsRes.json(), statsRes.json()]);
+      const roomsData = roomsRes.data;
+      const statsData = statsRes.data;
       setRooms(roomsData);
       setStats(statsData);
     } catch (err) {
@@ -150,16 +149,8 @@ export default function RoomManagement() {
         description: selectedRoom.description || null
       };
 
-      const response = await fetch(`${API_URL}/rooms/${selectedRoom.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(updateData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update room');
-      }
+      const response = await api.put(`/rooms/${selectedRoom.id}`, updateData);
+      // axios throws on non-2xx so no manual ok check needed
 
       await fetchRooms();
       setShowEditModal(false);
@@ -172,35 +163,40 @@ export default function RoomManagement() {
 
   // Delete Room
   const handleDeleteRoom = async (roomId) => {
-    if (window.confirm('Are you sure you want to delete this room?')) {
-      try {
-        const response = await fetch(`${API_URL}/rooms/${roomId}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
-        });
+    if (!window.confirm('Are you sure you want to delete this room?')) return false;
+    try {
+      const response = await api.delete(`/rooms/${roomId}`);
 
-        if (!response.ok) throw new Error('Failed to delete room');
+      await fetchRooms();
+      return true;
+    } catch (error) {
+      console.error('Failed to delete room:', error);
+      setError('Failed to delete room. Please try again.');
+      return false;
+    }
+  };
 
-        await fetchRooms();
-      } catch (error) {
-        console.error('Failed to delete room:', error);
-        setError('Failed to delete room. Please try again.');
-      }
+  const handleDeleteFromModal = async () => {
+    if (!selectedRoom) return;
+    // Prevent deletion when room has occupants
+    if (selectedRoom.occupied && selectedRoom.occupied > 0) {
+      setError('Cannot delete room with active tenants. Please evict or reassign occupants first.');
+      return;
+    }
+
+    const success = await handleDeleteRoom(selectedRoom.id);
+    if (success) {
+      setShowEditModal(false);
+      setSelectedRoom(null);
+      setError(null);
     }
   };
 
   // Status Room
   const handleStatusChange = async (roomId, newStatus) => {
     try {
-      const response = await fetch(`${API_URL}/rooms/${roomId}/status`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (!response.ok) throw new Error('Failed to update status');
-
-      const updatedRoom = await response.json();
+      const res = await api.patch(`/rooms/${roomId}/status`, { status: newStatus });
+      const updatedRoom = res.data;
 
       // Update the room in state
       setRooms(prev => prev.map(r =>
@@ -489,6 +485,11 @@ export default function RoomManagement() {
                         <p className="text-sm text-gray-500">
                           {room.type_label} • {room.floor_label}
                         </p>
+                        <div className="mt-2">
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                            {room.pricing_model === 'per_bed' ? 'Per Bed' : (room.capacity > 1 ? 'Full Room (split)' : 'Full Room')}
+                          </span>
+                        </div>
                       </div>
                       <p className="text-xl font-bold text-green-600">
                         ₱{room.monthly_rate.toLocaleString()}
@@ -570,13 +571,7 @@ export default function RoomManagement() {
                       </button>
 
                       {/* Delete Button */}
-                      <button
-                        onClick={() => handleDeleteRoom(room.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Room"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {/* Delete intentionally moved to Edit modal for safer UX */}
                     </div>
                   </div>
                 </div>
@@ -607,6 +602,8 @@ export default function RoomManagement() {
         onClose={() => setShowAddModal(false)}
         propertyId={selectedPropertyId}
         onRoomAdded={handleRoomAdded}
+        propertyType={properties.find(p => p.id === selectedPropertyId)?.property_type}
+        propertyAmenities={properties.find(p => p.id === selectedPropertyId)?.amenities || properties.find(p => p.id === selectedPropertyId)?.property_rules?.amenities || []}
       />
 
       {/* Edit Room Modal */}
@@ -644,7 +641,9 @@ export default function RoomManagement() {
                     <option>Single Room</option>
                     <option>Double Room</option>
                     <option>Quad Room</option>
-                    <option>Bed Spacer</option>
+                    {properties.find(p => p.id === selectedPropertyId)?.property_type?.toLowerCase() !== 'apartment' && (
+                      <option>Bed Spacer</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -727,6 +726,14 @@ export default function RoomManagement() {
               >
                 Update Room
               </button>
+                <button
+                  onClick={handleDeleteFromModal}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  title="Delete Room"
+                  disabled={selectedRoom?.occupied > 0}
+                >
+                  Delete Room
+                </button>
             </div>
           </div>
         </div>

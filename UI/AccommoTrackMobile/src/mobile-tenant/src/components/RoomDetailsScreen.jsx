@@ -376,6 +376,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Text style={styles.amenityText}>Capacity: {room.capacity} {room.capacity === 1 ? 'person' : 'people'}</Text>
               </View>
             </View>
+            {room.capacity && parseInt(room.capacity, 10) > 1 && (
+              <Text style={{ marginTop: 6, fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
+                PS: This room has a capacity of {room.capacity}. The monthly rent can be divided if you find another tenant (or wait for one); otherwise you'll pay the full room rent.
+              </Text>
+            )}
           </View>
 
           {/* Description */}

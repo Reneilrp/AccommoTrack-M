@@ -8,13 +8,14 @@ import {
   Loader2,
 } from 'lucide-react';
 
-export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded }) {
+export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [] }) {
   const [formData, setFormData] = useState({
     roomNumber: '',
     roomType: 'single',
     floor: '1',
     monthlyRate: '',
     capacity: '1',
+    pricingModel: 'full_room', // 'full_room' or 'per_bed'
     description: '',
     amenities: [],
     images: []
@@ -24,19 +25,28 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const amenitiesList = [
+  const defaultAmenitiesList = [
     'WiFi', 'Air Conditioning', 'Furnished',
     'Window', 'Private Bathroom', 'Shared Bathroom',
     'Desk', 'Chair', 'Closet',
     'TV', 'Mini Fridge', 'Balcony'
   ];
 
-  const roomTypes = [
+  const amenitiesList = Array.isArray(propertyAmenities) && propertyAmenities.length > 0
+    ? propertyAmenities
+    : defaultAmenitiesList;
+
+  const allRoomTypes = [
     { value: 'single', label: 'Single Room' },
     { value: 'double', label: 'Double Room' },
     { value: 'quad', label: 'Quad Room' },
     { value: 'bedSpacer', label: 'Bed Spacer' }
   ];
+
+  // Filter room types: exclude Bed Spacer for apartments
+  const roomTypes = propertyType?.toLowerCase() === 'apartment'
+    ? allRoomTypes.filter(rt => rt.value !== 'bedSpacer')
+    : allRoomTypes;
 
   const floors = Array.from({ length: 10 }, (_, i) => ({
     value: i + 1,
@@ -53,7 +63,22 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
   }
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    let updated = { ...formData, [field]: value };
+    
+    // Auto-set capacity based on room type (only for fixed room types, not bed spacer)
+    if (field === 'roomType') {
+      const capacityMap = {
+        'single': '1',
+        'double': '2',
+        'quad': '4'
+        // bedSpacer is not auto-filled - user must set it manually
+      };
+      if (capacityMap[value]) {
+        updated.capacity = capacityMap[value];
+      }
+    }
+    
+    setFormData(updated);
     if (error) setError('');
   };
 
@@ -113,6 +138,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
       payload.append('floor', parseInt(formData.floor));
       payload.append('monthly_rate', parseFloat(formData.monthlyRate));
       payload.append('capacity', parseInt(formData.capacity));
+      payload.append('pricing_model', formData.pricingModel);
       payload.append('description', formData.description || '');
       payload.append('status', 'available');
       formData.amenities.forEach((amenity, idx) => {
@@ -146,6 +172,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
         floor: '1',
         monthlyRate: '',
         capacity: '1',
+        pricingModel: 'full_room',
         description: '',
         amenities: [],
         images: []
@@ -176,19 +203,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
             >
               <X className="w-6 h-6" />
             </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <span className="text-red-700 text-sm">{error}</span>
-            </div>
-          )}
-
-          <div className="space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
@@ -257,6 +271,9 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Capacity <span className="text-red-500">*</span>
+                    <span className="text-xs text-gray-500 font-normal ml-1">
+                      {formData.roomType === 'bedSpacer' ? '(manual set for bed spacer)' : '(auto-set by room type)'}
+                    </span>
                   </label>
                   <input
                     type="number"
@@ -267,6 +284,76 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded 
                     max="10"
                   />
                 </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Pricing Model</h4>
+                <p className="text-xs text-gray-600 mb-3">How should tenants pay for this room?</p>
+                
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                    style={{ backgroundColor: formData.pricingModel === 'full_room' ? '#dbeafe' : 'transparent' }}
+                  >
+                    <input
+                      type="radio"
+                      name="pricingModel"
+                      value="full_room"
+                      checked={formData.pricingModel === 'full_room'}
+                      onChange={(e) => handleInputChange('pricingModel', e.target.value)}
+                      className="w-4 h-4"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Full Room Price</p>
+                      <p className="text-xs text-gray-600">
+                        {formData.capacity > 1 
+                          ? `Tenants divide ₱${formData.monthlyRate || 0} equally (₱${formData.monthlyRate ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)) : 0}/person)`
+                          : 'Single tenant pays full price'
+                        }
+                      </p>
+                    </div>
+                  </label>
+
+                  {formData.roomType !== 'single' && (
+                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                      style={{ backgroundColor: formData.pricingModel === 'per_bed' ? '#dbeafe' : 'transparent' }}
+                    >
+                      <input
+                        type="radio"
+                        name="pricingModel"
+                        value="per_bed"
+                        checked={formData.pricingModel === 'per_bed'}
+                        onChange={(e) => handleInputChange('pricingModel', e.target.value)}
+                        className="w-4 h-4"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Per Bed/Tenant Price</p>
+                        <p className="text-xs text-gray-600">
+                          Each tenant pays ₱{formData.monthlyRate || 0} for their bed (independent billing)
+                        </p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Helper text explaining pricing model differences */}
+              <div className="mt-3 text-sm text-gray-700">
+                {formData.pricingModel === 'per_bed' ? (
+                  <p>
+                    Per bed — each tenant pays the listed price for their bed. Use this when beds are rented separately and billed individually.
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      Full room — tenants share the listed monthly rent; when multiple tenants occupy the room the amount is split among them.
+                    </p>
+                    {formData.capacity && parseInt(formData.capacity) > 1 && formData.monthlyRate && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Example: ₱{parseFloat(formData.monthlyRate).toLocaleString()} ÷ {formData.capacity} = ₱{Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)).toLocaleString()} each
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               <div>

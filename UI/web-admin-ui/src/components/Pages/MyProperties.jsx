@@ -144,7 +144,7 @@ export default function MyProperties({ user }) {
   };
 
   if (currentView === 'detail' && selectedPropertyId) {
-    return <DormProfileSettings propertyId={selectedPropertyId} onBack={handleBackToList} />;
+    return <DormProfileSettings propertyId={selectedPropertyId} onBack={handleBackToList} onDeleteRequested={handleDeleteProperty} />;
   }
 
   if (currentView === 'add') {
@@ -374,13 +374,7 @@ export default function MyProperties({ user }) {
                         >
                           <Edit className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteProperty(property.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Property"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        {/* Delete moved to property Edit screen (safer UX) */}
                       </div>
                     </div>
                   </div>

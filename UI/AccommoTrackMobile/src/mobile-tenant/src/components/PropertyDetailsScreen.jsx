@@ -24,6 +24,7 @@ export default function PropertyDetailsScreen({ route }) {
   const { accommodation } = route.params;
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
+  const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
   useEffect(() => {
@@ -41,8 +42,12 @@ export default function PropertyDetailsScreen({ route }) {
       setRoomsLoading(true);
       const result = await PropertyService.getPublicProperty(accommodation.id);
 
-      if (result.success && result.data?.rooms) {
-        const standardizedRooms = result.data.rooms.map((room) => ({
+      if (result.success && result.data) {
+        // Use transform helper to build a consistent accommodation object
+        const detailed = PropertyService.transformPropertyToAccommodation(result.data);
+        setDetailedAccommodation(detailed);
+
+        const standardizedRooms = (result.data.rooms || []).map((room) => ({
           ...room,
           images: room.images || [],
           monthly_rate: parseFloat(room.monthly_rate) || 0,
@@ -97,15 +102,17 @@ export default function PropertyDetailsScreen({ route }) {
   };
 
   const handleRoomPress = (room) => {
-    navigation.navigate('RoomDetails', { room, property: accommodation });
+    const active = detailedAccommodation || accommodation;
+    navigation.navigate('RoomDetails', { room, property: active });
   };
 
   // Parse property rules (could be JSON string or array)
   const getPropertyRules = () => {
-    if (!accommodation.propertyRules) return [];
-    if (Array.isArray(accommodation.propertyRules)) return accommodation.propertyRules;
+    const src = detailedAccommodation || accommodation;
+    if (!src || !src.propertyRules) return [];
+    if (Array.isArray(src.propertyRules)) return src.propertyRules;
     try {
-      const parsed = JSON.parse(accommodation.propertyRules);
+      const parsed = JSON.parse(src.propertyRules);
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
@@ -114,20 +121,23 @@ export default function PropertyDetailsScreen({ route }) {
 
   // Build full address
   const getFullAddress = () => {
+    const src = detailedAccommodation || accommodation;
     const parts = [];
-    if (accommodation.street_address) parts.push(accommodation.street_address);
-    if (accommodation.barangay) parts.push(accommodation.barangay);
-    if (accommodation.city) parts.push(accommodation.city);
-    if (accommodation.province) parts.push(accommodation.province);
-    if (accommodation.postal_code) parts.push(accommodation.postal_code);
-    
+    if (!src) return 'Address not available';
+    if (src.street_address) parts.push(src.street_address);
+    if (src.barangay) parts.push(src.barangay);
+    if (src.city) parts.push(src.city);
+    if (src.province) parts.push(src.province);
+    if (src.postal_code) parts.push(src.postal_code);
+
     if (parts.length > 0) return parts.join(', ');
-    return accommodation.address || accommodation.location || 'Address not available';
+    return src.address || src.location || 'Address not available';
   };
 
   // Open maps app
   const openMaps = () => {
-    const { latitude, longitude } = accommodation;
+    const src = detailedAccommodation || accommodation;
+    const { latitude, longitude } = src || {};
     if (!latitude || !longitude) {
       Alert.alert('Location Not Available', 'Map coordinates are not set for this property.');
       return;
@@ -135,7 +145,7 @@ export default function PropertyDetailsScreen({ route }) {
 
     const url = Platform.select({
       ios: `maps://app?daddr=${latitude},${longitude}`,
-      android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent(accommodation.name || accommodation.title)})`,
+      android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent((src && (src.name || src.title)) || '')})`,
     });
 
     Linking.openURL(url).catch(() => {
@@ -146,8 +156,9 @@ export default function PropertyDetailsScreen({ route }) {
 
   // Generate Leaflet HTML for WebView
   const getLeafletHTML = () => {
-    const { latitude, longitude } = accommodation;
-    const propertyName = (accommodation.name || accommodation.title || 'Property Location')
+    const src = detailedAccommodation || accommodation;
+    const { latitude, longitude } = src || {};
+    const propertyName = ((src && (src.name || src.title)) || 'Property Location')
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'")
       .replace(/"/g, '\\"')
@@ -204,6 +215,8 @@ export default function PropertyDetailsScreen({ route }) {
 
   // Tenant-relevant only: No landlord info, focus on vacancy, amenities, rules
 
+  const active = detailedAccommodation || accommodation;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -222,16 +235,16 @@ export default function PropertyDetailsScreen({ route }) {
         <View style={styles.infoSection}>
           {/* Title and Type */}
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{accommodation.name || accommodation.title}</Text>
+            <Text style={styles.title}>{active.name || active.title}</Text>
             <View style={styles.typeBadge}>
-              <Text style={styles.typeText}>{accommodation.type}</Text>
+              <Text style={styles.typeText}>{active.type}</Text>
             </View>
           </View>
           
           {/* Image */}
-          {accommodation.image && (
+          {active && active.image && (
             <Image
-              source={typeof accommodation.image === 'string' ? { uri: accommodation.image } : accommodation.image}
+              source={typeof active.image === 'string' ? { uri: active.image } : active.image}
               style={styles.mainImage}
               resizeMode="cover"
             />
@@ -244,10 +257,10 @@ export default function PropertyDetailsScreen({ route }) {
               <Ionicons name="location" size={20} color="#10b981" />
               <View style={styles.addressTextContainer}>
                 <Text style={styles.addressText}>{getFullAddress()}</Text>
-                {accommodation.nearby_landmarks && (
+                {active && active.nearby_landmarks && (
                   <Text style={styles.landmarksText}>
                     <Text style={styles.landmarksLabel}>Nearby: </Text>
-                    {accommodation.nearby_landmarks}
+                    {active.nearby_landmarks}
                   </Text>
                 )}
               </View>
@@ -255,38 +268,37 @@ export default function PropertyDetailsScreen({ route }) {
           </View>
 
           {/* Description */}
-          {accommodation.description && (
+          {active && active.description && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Description</Text>
-              <Text style={styles.description}>{accommodation.description}</Text>
+              <Text style={styles.description}>{active.description}</Text>
             </View>
           )}
 
-          {/* Stats (Vacancy Focus) */}
+          {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Ionicons name="bed-outline" size={24} color="#10b981" />
-              <Text style={styles.statNumber}>{accommodation.availableRooms || accommodation.available_rooms}</Text>
+              <Text style={styles.statNumber}>{(active && (active.availableRooms || active.available_rooms)) || 0}</Text>
               <Text style={styles.statLabel}>Available Rooms</Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="pricetag-outline" size={24} color="#10b981" />
-              <Text style={styles.statNumber}>{accommodation.priceRange}</Text>
+              <Text style={styles.statNumber}>{active && active.priceRange}</Text>
               <Text style={styles.statLabel}>Price Range</Text>
             </View>
           </View>
 
           {/* Amenities */}
-          {accommodation.amenities && accommodation.amenities.length > 0 && (
+          {active && active.amenities && active.amenities.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Amenities</Text>
-              <View style={styles.amenitiesGrid}>
-                {accommodation.amenities.map((amenity, index) => (
-                  <View key={index} style={styles.amenityChip}>
-                    <Text style={styles.amenityText}>{amenity}</Text>
-                  </View>
-                ))}
-              </View>
+              {active.amenities.map((amenity, index) => (
+                <View key={index} style={styles.ruleItem}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                  <Text style={styles.ruleText}>{amenity}</Text>
+                </View>
+              ))}
             </View>
           )}
 

@@ -26,6 +26,7 @@ export default function AddProperty({ onBack, onSave }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [newRule, setNewRule] = useState('');
+  const [newAmenity, setNewAmenity] = useState('');
 
   // Fix Leaflet marker icon issue
   delete L.Icon.Default.prototype._getIconUrl;
@@ -201,6 +202,31 @@ export default function AddProperty({ onBack, onSave }) {
       }));
     } catch (err) {
       setError('Failed to remove rule. Please try again.');
+    }
+  };
+
+  const addAmenity = () => {
+    try {
+      if (newAmenity.trim()) {
+        setFormData(prev => ({
+          ...prev,
+          amenities: Array.isArray(prev.amenities) ? [...prev.amenities, newAmenity.trim()] : [newAmenity.trim()]
+        }));
+        setNewAmenity('');
+      }
+    } catch (err) {
+      setError('Failed to add amenity. Please try again.');
+    }
+  };
+
+  const removeAmenity = (index) => {
+    try {
+      setFormData(prev => ({
+        ...prev,
+        amenities: Array.isArray(prev.amenities) ? prev.amenities.filter((_, i) => i !== index) : []
+      }));
+    } catch (err) {
+      setError('Failed to remove amenity. Please try again.');
     }
   };
 
@@ -617,88 +643,39 @@ export default function AddProperty({ onBack, onSave }) {
         {/* Step 3: Property Specifications */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Property Specifications</h2>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Total Rooms <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 10"
-                    value={formData.totalRooms}
-                    onChange={(e) => handleInputChange('totalRooms', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                    min="1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Bathrooms <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 1"
-                    value={formData.bathrooms}
-                    onChange={(e) => handleInputChange('bathrooms', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Floor Area (sqm)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 45"
-                    value={formData.floorArea}
-                    onChange={(e) => handleInputChange('floorArea', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                    min="0"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Floor Level
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., 3rd Floor"
-                    value={formData.floorLevel}
-                    onChange={(e) => handleInputChange('floorLevel', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Occupants
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 4"
-                    value={formData.maxTenants}
-                    onChange={(e) => handleInputChange('maxTenants', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                    min="1"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Amenities */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Amenities & Features</h2>
-              <div className="grid grid-cols-3 gap-3">
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Add Amenity</label>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="e.g., Water Heater"
+                    value={newAmenity}
+                    onChange={(e) => setNewAmenity(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addAmenity();
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  />
+                  <button
+                    onClick={addAmenity}
+                    disabled={!newAmenity.trim()}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Press Enter or click Add to include a custom amenity</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-4">
                 {amenitiesList.map((amenity) => (
                   <button
                     key={amenity}
@@ -712,6 +689,32 @@ export default function AddProperty({ onBack, onSave }) {
                   </button>
                 ))}
               </div>
+
+              {/* Current selected amenities (added + selected) */}
+              {Array.isArray(formData.amenities) && formData.amenities.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-3">Your Amenities:</p>
+                  <div className="space-y-2">
+                    {formData.amenities.map((amenity, index) => (
+                      <div
+                        key={index}
+                        className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 group hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        </div>
+                        <p className="flex-1 text-sm text-gray-700">{amenity}</p>
+                        <button
+                          onClick={() => removeAmenity(index)}
+                          className="flex-shrink-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
