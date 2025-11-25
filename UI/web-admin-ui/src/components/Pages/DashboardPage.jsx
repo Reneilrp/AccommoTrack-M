@@ -4,7 +4,7 @@ import {
   Users,
   Calendar,
   TrendingUp,
-  DollarSign,
+  LucidePhilippinePeso,
   AlertCircle,
   Loader2,
   Building2,
@@ -80,7 +80,7 @@ export default function DashboardPage() {
       case 'room':
         return <Home className="w-5 h-5" />;
       case 'payment':
-        return <DollarSign className="w-5 h-5" />;
+        return <LucidePhilippinePeso className="w-5 h-5" />;
       default:
         return <AlertCircle className="w-5 h-5" />;
     }
@@ -221,8 +221,8 @@ export default function DashboardPage() {
           {/* Monthly Revenue */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="orange" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-philippine-peso-icon lucide-philippine-peso"><path d="M20 11H4"/><path d="M20 7H4"/><path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7"/></svg>
               </div>
               <span className="text-xs text-green-600 font-medium">
                 <TrendingUp className="w-4 h-4 inline" />
