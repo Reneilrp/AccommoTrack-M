@@ -3,14 +3,13 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   StatusBar,
   Alert,
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/HelpSupport';
+import Button from '../components/ui/Button';
 
 export default function HelpSupportScreen({ navigation }) {
   
@@ -59,16 +58,16 @@ export default function HelpSupportScreen({ navigation }) {
 
   // --- Reusable Component for Support Links ---
   const SupportOption = ({ title, subtitle, icon, color, action }) => (
-    <TouchableOpacity style={styles.supportOptionItem} onPress={action}>
+    <Button style={styles.supportOptionItem} onPress={action} type="transparent">
       <View style={styles.supportLeft}>
-        <Ionicons name={icon} size={28} color={color} />
+        <Ionicons name={icon} size={26} color={color} />
         <View style={styles.supportTextContainer}>
           <Text style={styles.supportTitle}>{title}</Text>
           <Text style={styles.supportSubtitle}>{subtitle}</Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
+      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+    </Button>
   );
 
   return (
@@ -107,17 +106,18 @@ export default function HelpSupportScreen({ navigation }) {
             <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
             <View style={styles.card}>
                 {faqs.map((faq, index) => (
-                    <TouchableOpacity 
-                        key={index} 
-                        style={[
-                            styles.faqItem,
-                            index < faqs.length - 1 && styles.faqItemBorder
-                        ]}
-                        onPress={() => navigateToFAQDetail(faq)}
-                    >
-                        <Text style={styles.faqQuestion}>{faq.question}</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
+                  <Button
+                    key={index}
+                    style={[
+                      styles.faqItem,
+                      index < faqs.length - 1 && styles.faqItemBorder
+                    ]}
+                    onPress={() => navigateToFAQDetail(faq)}
+                    type="transparent"
+                  >
+                    <Text style={styles.faqQuestion}>{faq.question}</Text>
+                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                  </Button>
                 ))}
             </View>
         </View>

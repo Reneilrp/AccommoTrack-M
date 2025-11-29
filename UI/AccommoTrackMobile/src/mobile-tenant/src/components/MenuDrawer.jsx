@@ -4,21 +4,26 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 
-const menuItems = [
+const allMenuItems = [
   { id: 1, title: 'My Bookings', icon: 'calendar-outline', color: '#10b981' },
   { id: 2, title: 'Payments', icon: 'card-outline', color: '#10B981' },
   { id: 3, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
 ];
 
-export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
-  const [userName, setUserName] = useState("demo");
-  const [userEmail, setUserEmail] = useState("demo@example.com");
+export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest }) {
+  const [userName, setUserName] = useState("Guest User");
+  const [userEmail, setUserEmail] = useState("guest@example.com");
 
   useEffect(() => {
     if (visible) {
-      loadUserData();
+      if (isGuest) {
+        setUserName("Guest User");
+        setUserEmail("guest@example.com");
+      } else {
+        loadUserData();
+      }
     }
-  }, [visible]);
+  }, [visible, isGuest]);
 
   const loadUserData = async () => {
     try {
@@ -27,14 +32,23 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
         const user = JSON.parse(userString);
         const fullName = user.first_name && user.last_name 
           ? `${user.first_name} ${user.last_name}` 
-          : 'demo';
+          : 'User';
         setUserName(fullName);
-        setUserEmail(user.email || 'demo@example.com');
+        setUserEmail(user.email || 'user@example.com');
+      } else {
+        setUserName("User");
+        setUserEmail("user@example.com");
       }
     } catch (error) {
       console.error('Error loading user data:', error);
+      setUserName("User");
+      setUserEmail("user@example.com");
     }
   };
+
+  const menuItemsToDisplay = isGuest
+    ? allMenuItems.filter(item => item.title !== 'Logout')
+    : allMenuItems;
 
   return (
     <Modal
@@ -69,7 +83,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress }) {
 
           {/* Menu Items */}
           <ScrollView style={styles.menuItems}>
-            {menuItems.map((item) => (
+            {menuItemsToDisplay.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}

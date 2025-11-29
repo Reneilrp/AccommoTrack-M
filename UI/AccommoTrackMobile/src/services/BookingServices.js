@@ -6,7 +6,7 @@ const API_URL = 'http://192.168.254.106:8000/api';
 class BookingService {
   async getAuthToken() {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('auth_token');
       return token;
     } catch (error) {
       console.error('Error getting auth token:', error);
@@ -22,6 +22,8 @@ class BookingService {
     try {
       const token = await this.getAuthToken();
       
+      console.log('Token retrieved:', token ? 'Token exists' : 'No token found');
+      
       if (!token) {
         return {
           success: false,
@@ -30,6 +32,8 @@ class BookingService {
       }
 
       console.log('Sending booking data:', bookingData);
+      console.log('API URL:', `${API_URL}/bookings`);
+      console.log('Auth header:', `Bearer ${token.substring(0, 20)}...`);
 
       const response = await axios.post(
         `${API_URL}/bookings`,
@@ -50,14 +54,26 @@ class BookingService {
         data: response.data
       };
     } catch (error) {
-      console.error('Booking error:', error.response?.data || error.message);
+      console.error('Booking error full:', error);
+      console.error('Booking error response:', error.response?.data);
+      console.error('Booking error status:', error.response?.status);
       
       if (error.response) {
+        // Check for authentication errors
+        if (error.response.status === 401) {
+          return {
+            success: false,
+            error: 'Authentication failed. Your session may have expired. Please login again.',
+            authError: true
+          };
+        }
+
         // Server responded with error
         return {
           success: false,
           error: error.response.data.message || 'Failed to create booking',
-          details: error.response.data.errors || null
+          details: error.response.data.errors || null,
+          status: error.response.status
         };
       } else if (error.request) {
         // Request made but no response

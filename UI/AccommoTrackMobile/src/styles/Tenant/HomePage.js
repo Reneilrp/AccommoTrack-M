@@ -228,7 +228,6 @@ export const styles = StyleSheet.create({
   cardsContainer: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 100,
   },
 
   // CARD STYLES - Vertical Card with Image on Top
@@ -542,14 +541,9 @@ viewButtonText: {
 
   // BOTTOM NAVIGATION - Green Bar
   bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     backgroundColor: '#10b981',
     paddingVertical: 12,
-    paddingBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

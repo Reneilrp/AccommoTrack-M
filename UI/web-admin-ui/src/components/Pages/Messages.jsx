@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import createEcho from '../../utils/echo';
+import api from '../../utils/api';
 
 export default function Messages() {
   const [conversations, setConversations] = useState([]);
@@ -20,14 +21,6 @@ export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const echoRef = useRef(null);
-
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => ({
-    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  });
 
   // Fetch conversations
   useEffect(() => {
@@ -71,15 +64,8 @@ export default function Messages() {
   const fetchConversations = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/messages/conversations`, {
-        headers: getAuthHeaders(),
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      
-      const data = await res.json();
+      const res = await api.get('/messages/conversations');
+      const data = res.data;
       
       // FIX: Ensure data is always an array
       setConversations(Array.isArray(data) ? data : []);
@@ -94,10 +80,8 @@ export default function Messages() {
 
   const fetchMessages = async (conversationId) => {
     try {
-      const res = await fetch(`${API_URL}/messages/${conversationId}`, {
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
+      const res = await api.get(`/messages/${conversationId}`);
+      const data = res.data;
       setMessages(data);
     } catch (err) {
       console.error('Failed to load messages:', err);
@@ -109,16 +93,12 @@ export default function Messages() {
 
     setSendingMessage(true);
     try {
-      const res = await fetch(`${API_URL}/messages/send`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          conversation_id: selectedChat.id,
-          message: messageText,
-        }),
+      const res = await api.post('/messages/send', {
+        conversation_id: selectedChat.id,
+        message: messageText,
       });
 
-      const newMessage = await res.json();
+      const newMessage = res.data;
       setMessages((prev) => [...prev, newMessage]);
       setMessageText('');
       
@@ -163,7 +143,46 @@ export default function Messages() {
     return name.includes(searchQuery.toLowerCase());
   });
 
-  const currentUserId = parseInt(localStorage.getItem('user_id'));
+  // Read user_id from localStorage. Some clients store whole user object,
+  // so parse safely and extract `.id` when present, otherwise fall back to integer.
+  let currentUserId = null;
+  try {
+    const stored = localStorage.getItem('user_id');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object' && parsed.id) {
+          currentUserId = parseInt(parsed.id, 10);
+        } else {
+          const maybe = parseInt(stored, 10);
+          currentUserId = Number.isNaN(maybe) ? null : maybe;
+        }
+      } catch (e) {
+        const maybe = parseInt(stored, 10);
+        currentUserId = Number.isNaN(maybe) ? null : maybe;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to read currentUserId from localStorage', err);
+    currentUserId = null;
+  }
+
+  // Additional fallback: try reading full user object from localStorage (keys: 'user' or 'userData')
+  if (!currentUserId) {
+    try {
+      const userRaw = localStorage.getItem('user') || localStorage.getItem('userData');
+      if (userRaw) {
+        const parsedUser = JSON.parse(userRaw);
+        if (parsedUser && (parsedUser.id || parsedUser.user_id)) {
+          currentUserId = parseInt(parsedUser.id || parsedUser.user_id, 10);
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  console.log('Messages: currentUserId=', currentUserId, 'localStorage.user_id=', localStorage.getItem('user_id'), 'localStorage.user=', localStorage.getItem('user'), 'localStorage.userData=', localStorage.getItem('userData'));
 
   if (loading) {
     return (
@@ -278,29 +297,56 @@ export default function Messages() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}
-                >
+              {messages.map((msg, idx) => {
+                const getSenderId = (m) => {
+                  if (!m) return null;
+                  return (
+                    m.sender_id || m.senderId || m.user_id || m.userId || m.from_id ||
+                    (m.sender && (m.sender.id || m.sender.user_id)) ||
+                    (m.user && (m.user.id || m.user_id)) ||
+                    null
+                  );
+                };
+
+                const senderId = getSenderId(msg);
+                const isMine = String(senderId) === String(currentUserId);
+                // Debug first few messages to inspect sender ids and comparison
+                if (idx < 5) {
+                  console.log('Messages debug', { idx, id: msg.id, rawSender: msg.sender_id || msg.sender, senderId, currentUserId, isMine });
+                }
+                const getTimestamp = (m) => {
+                  if (!m) return null;
+                  return (
+                    m.created_at || m.createdAt || m.sent_at || m.sentAt || m.timestamp || m.time || m.date || m.updated_at || m.updatedAt || null
+                  );
+                };
+
+                let ts = getTimestamp(msg);
+                // Fallbacks: try message-level fallback or conversation last_message_at, otherwise now
+                if (!ts) ts = msg.last_message_at || msg.lastMessageAt || new Date().toISOString();
+
+                return (
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      msg.sender_id === currentUserId
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white text-gray-900 border border-gray-200'
-                    }`}
+                    key={msg.id}
+                    className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p className="text-sm">{msg.message}</p>
-                    <p
-                      className={`text-xs mt-1 ${
-                        msg.sender_id === currentUserId ? 'text-green-100' : 'text-gray-500'
-                      }`}
-                    >
-                      {formatTime(msg.created_at)}
-                    </p>
+                    <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-xs lg:max-w-md`}> 
+                      <div
+                        className={`w-auto px-4 py-2 rounded-lg ${
+                          isMine
+                            ? 'bg-green-700 text-white'
+                            : 'bg-green-50 text-gray-900 border border-gray-200'
+                        }`}
+                      >
+                        <p className="text-sm">{msg.message}</p>
+                      </div>
+                      <p className={`text-xs mt-2 text-gray-500`}>
+                        {formatTime(ts)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
 

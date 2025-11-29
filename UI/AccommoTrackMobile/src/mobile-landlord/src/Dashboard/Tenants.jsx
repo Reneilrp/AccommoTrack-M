@@ -1,17 +1,16 @@
-// TenantsScreen.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   TextInput,
-  StatusBar,
-  StyleSheet
+  StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/Tenants.js';
+import Button from '../components/ui/Button';
 
 export default function TenantsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,12 +163,13 @@ export default function TenantsScreen({ navigation }) {
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={styles.messageButton}
+            <Button
               onPress={() => navigation.navigate('Chat', { tenant })}
+              style={styles.messageButton}
+              type="primary"
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#4CAF50" />
-            </TouchableOpacity>
+              <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+            </Button>
           </TouchableOpacity>
         ))}
       </ScrollView>

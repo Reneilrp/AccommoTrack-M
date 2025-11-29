@@ -1,17 +1,15 @@
-// MessagesScreen.jsx
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   TextInput,
-  StatusBar,
-  StyleSheet
+  StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/Messages.js';
+import Button from '../components/ui/Button';
 
 export default function MessagesScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,13 +64,13 @@ export default function MessagesScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <Button onPress={() => navigation.goBack()} type="transparent" style={{ padding: 6 }}>
+          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+        </Button>
         <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity>
-          <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <Button type="transparent" style={{ padding: 6 }}>
+          <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+        </Button>
       </View>
 
       {/* Search */}
@@ -89,10 +87,11 @@ export default function MessagesScreen({ navigation }) {
       {/* Conversations List */}
       <ScrollView style={styles.messagesList} showsVerticalScrollIndicator={false}>
         {filteredConversations.map((chat) => (
-          <TouchableOpacity
+          <Button
             key={chat.id}
             style={styles.chatItem}
             onPress={() => navigation.navigate('Chat', { chat })}
+            type="transparent"
           >
             <View style={styles.chatAvatarContainer}>
               <View style={styles.chatAvatar}>
@@ -121,7 +120,7 @@ export default function MessagesScreen({ navigation }) {
                 <Text style={styles.unreadText}>{chat.unread}</Text>
               </View>
             )}
-          </TouchableOpacity>
+          </Button>
         ))}
       </ScrollView>
     </SafeAreaView>

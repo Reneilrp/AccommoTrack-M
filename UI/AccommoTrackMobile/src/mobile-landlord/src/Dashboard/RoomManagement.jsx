@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   StatusBar,
   Image,
-  StyleSheet,
   Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/RoomManagement.js';
+import Button from '../components/ui/Button';
 import R101 from '../../../../assets/101.jpeg';
 import R102 from '../../../../assets/102.jpeg';
 import R103 from '../../../../assets/103.jpeg';
@@ -117,9 +117,9 @@ export default function RoomManagementScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Rooms</Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Ionicons name="add-circle" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
+        <Button onPress={() => setShowAddModal(true)} style={{ padding: 6 }}>
+          <Ionicons name="add-circle" size={24} color="#fff" />
+        </Button>
       </View>
 
       {/* Stats */}
@@ -237,20 +237,20 @@ export default function RoomManagementScreen({ navigation }) {
               </View>
 
               <View style={styles.roomActions}>
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.editButton]}
-                  onPress={() => navigation.navigate('EditRoom', { room })}
-                >
-                  <Ionicons name="create-outline" size={20} color="#2196F3" />
-                  <Text style={[styles.actionButtonText, { color: '#2196F3' }]}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.statusButton]}
-                  onPress={() => {}}
-                >
-                  <Ionicons name="swap-horizontal" size={20} color="#FF9800" />
-                  <Text style={[styles.actionButtonText, { color: '#FF9800' }]}>Status</Text>
-                </TouchableOpacity>
+                      <Button
+                        onPress={() => navigation.navigate('EditRoom', { room })}
+                        style={[styles.actionButton, styles.editButton]}
+                      >
+                        <Ionicons name="create-outline" size={18} color="#2196F3" />
+                        <Text style={[styles.actionButtonText, { color: '#2196F3', marginLeft: 8 }]}>Edit</Text>
+                      </Button>
+                      <Button
+                        onPress={() => {}}
+                        style={[styles.actionButton, styles.statusButton]}
+                      >
+                        <Ionicons name="swap-horizontal" size={18} color="#FF9800" />
+                        <Text style={[styles.actionButtonText, { color: '#FF9800', marginLeft: 8 }]}>Status</Text>
+                      </Button>
               </View>
             </View>
           </TouchableOpacity>
@@ -268,19 +268,16 @@ export default function RoomManagementScreen({ navigation }) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add New Room</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color="#1F2937" />
-              </TouchableOpacity>
+              <Button onPress={() => setShowAddModal(false)} style={{ padding: 6 }}>
+                <Ionicons name="close" size={20} color="#1F2937" />
+              </Button>
             </View>
             <Text style={styles.modalMessage}>
               Soon, dont have time na XD
             </Text>
-            <TouchableOpacity 
-              style={styles.modalButton}
-              onPress={() => setShowAddModal(false)}
-            >
+            <Button style={styles.modalButton} onPress={() => setShowAddModal(false)}>
               <Text style={styles.modalButtonText}>Close</Text>
-            </TouchableOpacity>
+            </Button>
           </View>
         </View>
       </Modal>

@@ -3,7 +3,6 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#16a34a',
     },
     container: {
         flex: 1,
@@ -89,6 +88,9 @@ export const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#F3F4F6',
+    },
+    newConversation: {
+        backgroundColor: '#E0F2F1', // A light green color
     },
     avatarContainer: {
         marginRight: 12,
@@ -244,28 +246,43 @@ export const styles = StyleSheet.create({
     },
     messageWrapper: {
         marginBottom: 12,
-    },
-    myMessageWrapper: {
+        width: '100%',
+        flexDirection: 'row',
         alignItems: 'flex-end',
     },
+    myMessageWrapper: {
+        justifyContent: 'flex-end',
+    },
     theirMessageWrapper: {
+        justifyContent: 'flex-start',
+    },
+    // Column container that holds the bubble and the timestamp
+    messageContent: {
+        flexDirection: 'column',
+        maxWidth: '92%',
+    },
+    myMessageContent: {
+        alignItems: 'flex-end',
+    },
+    theirMessageContent: {
         alignItems: 'flex-start',
     },
     messageBubble: {
-        maxWidth: '80%',
+        maxWidth: '100%',
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 16,
     },
     myMessageBubble: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#166534',
         borderBottomRightRadius: 4,
+        alignSelf: 'flex-end',
     },
     theirMessageBubble: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#DCFCE7',
         borderBottomLeftRadius: 4,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderWidth: 0,
+        alignSelf: 'flex-start',
     },
     messageText: {
         fontSize: 15,
@@ -279,15 +296,14 @@ export const styles = StyleSheet.create({
     },
     messageTime: {
         fontSize: 11,
-        marginTop: 4,
+        marginTop: 6,
+        color: '#9CA3AF',
     },
     myMessageTime: {
-        color: '#9CA3AF',
-        textAlign: 'right',
+        // kept for potential overrides; timestamp color handled by messageTime
     },
     theirMessageTime: {
-        color: '#9CA3AF',
-        textAlign: 'left',
+        // kept for potential overrides; timestamp color handled by messageTime
     },
 
     // Input

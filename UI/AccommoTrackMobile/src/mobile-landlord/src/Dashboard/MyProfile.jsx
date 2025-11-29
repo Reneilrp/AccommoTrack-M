@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/MyProfile';
+import Button from '../components/ui/Button';
 
 export default function MyProfileScreen({ navigation }) {
   // Sample Data, no API yet
@@ -85,13 +86,13 @@ export default function MyProfileScreen({ navigation }) {
         <Text style={styles.headerTitle}>My Profile</Text>
 
         {isEditing ? (
-          <TouchableOpacity onPress={handleSave} style={styles.editButton}>
+          <Button onPress={handleSave} style={styles.editButton}>
             <Text style={styles.editText}>Save</Text>
-          </TouchableOpacity>
+          </Button>
         ) : (
-          <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editButton}>
-            <Ionicons name="create-outline" size={24} color="white" />
-          </TouchableOpacity>
+          <Button onPress={() => setIsEditing(true)} style={styles.editButton}>
+            <Ionicons name="create-outline" size={20} color="#fff" />
+          </Button>
         )}
       </View>
 
@@ -104,9 +105,9 @@ export default function MyProfileScreen({ navigation }) {
           </View>
           <Text style={styles.profileName}>{user.firstName} {user.lastName}</Text>
           {isEditing && (
-            <TouchableOpacity style={styles.changePictureButton}>
+            <Button style={styles.changePictureButton} type="transparent">
               <Text style={styles.changePictureText}>Change Profile Picture</Text>
-            </TouchableOpacity>
+            </Button>
           )}
         </View>
 
@@ -149,9 +150,9 @@ export default function MyProfileScreen({ navigation }) {
         </View>
 
         {isEditing && (
-          <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+          <Button onPress={handleCancel} style={styles.cancelButton} type="transparent">
             <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+          </Button>
         )}
 
       </ScrollView>

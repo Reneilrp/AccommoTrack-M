@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { 
-    View, 
-    ScrollView, 
-    Text, 
-    TouchableOpacity, 
-    StatusBar, 
-    ActivityIndicator, 
-    Alert, 
-    Image } from 'react-native';
-    
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  Image
+} from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -118,7 +119,7 @@ export default function RoomListScreen({ route }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -170,7 +171,11 @@ export default function RoomListScreen({ route }) {
                 <View style={styles.leftSection}>
                   <View style={styles.roomImageContainer}>
                     <Image
-                      source={{ uri: room.images[0] || 'https://via.placeholder.com/100x100?text=Room' }}
+                      source={{
+                        uri: room.images[0]?.startsWith('http')
+                          ? room.images[0]
+                          : `http://192.168.254.106:5174${room.images[0]}`
+                      }}
                       style={styles.roomImage}
                       resizeMode="cover"
                     />

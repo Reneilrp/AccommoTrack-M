@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Models\Room;
+
 
 class PropertyController extends Controller
 {
@@ -25,10 +27,15 @@ class PropertyController extends Controller
         try {
             $properties = Property::where('is_published', true)
                 ->where('is_available', true)
-                ->with(['rooms' => function ($q) {
-                    $q->where('status', 'available')
-                      ->select('id', 'property_id', 'monthly_rate');
-                }, 'images'])
+                ->with([
+                    'rooms' => function ($q) {
+                        $q->where('status', 'available')
+                            ->select('id', 'property_id', 'monthly_rate');
+                    },
+                    'images',
+                    'landlord:id,first_name,last_name'
+                ])
+
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($property) {
@@ -46,6 +53,8 @@ class PropertyController extends Controller
                         'type' => ucwords(str_replace('_', ' ', $property->property_type)),
                         'city' => $property->city,
                         'location' => $property->city,
+                        'latitude' => $property->latitude,
+                        'longitude' => $property->longitude,
                         'availableRooms' => $availableRooms->count(),
                         'available_rooms' => $availableRooms->count(),
                         'minPrice' => $minPrice,
@@ -55,10 +64,14 @@ class PropertyController extends Controller
                                 : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
                             : 'Price on request',
                         'image' => $coverImage
-                            ? (str_starts_with($coverImage->image_url, 'http') 
-                                ? $coverImage->image_url 
+                            ? (str_starts_with($coverImage->image_url, 'http')
+                                ? $coverImage->image_url
                                 : asset('storage/' . ltrim($coverImage->image_url, '/')))
                             : 'https://via.placeholder.com/400x200?text=No+Image',
+                        'landlord_id' => $property->landlord_id,
+                        'landlord_name' => $property->landlord
+                            ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
+                            : 'Landlord',
                         'created_at' => $property->created_at,
                         'updated_at' => $property->updated_at,
                     ];
@@ -76,85 +89,104 @@ class PropertyController extends Controller
     /**
      * Get single property details (Property Detail Page)
      */
-    public function getPropertyDetails($id)
-    {
-        try {
-            $property = Property::where('is_published', true)
-                ->where('is_available', true)
-                ->with(['rooms' => function ($q) {
+   
+public function getPropertyDetails($id)
+{
+    try {
+        $property = Property::where('is_published', true)
+            ->where('is_available', true)
+            ->with([
+                'rooms' => function ($q) {
                     $q->where('status', 'available')
-                      ->with('amenities', 'images');
-                }, 'images'])
-                ->findOrFail($id);
+                        ->with('amenities', 'images');
+                },
+                'images',
+                'landlord:id,first_name,last_name,email,phone' // Added email and phone
+            ])
+            ->findOrFail($id);
 
-            $availableRooms = $property->rooms;
-            $minPrice = $availableRooms->min('monthly_rate');
-            $maxPrice = $availableRooms->max('monthly_rate');
+        $availableRooms = $property->rooms;
+        $minPrice = $availableRooms->min('monthly_rate');
+        $maxPrice = $availableRooms->max('monthly_rate');
 
-            $primaryImage = $property->images->where('is_primary', true)->first();
-            $coverImage = $primaryImage ?? $property->images->first();
+        $primaryImage = $property->images->where('is_primary', true)->first();
+        $coverImage = $primaryImage ?? $property->images->first();
 
-            return response()->json([
-                'id' => $property->id,
-                'title' => $property->title,
-                'description' => $property->description,
-                'property_type' => $property->property_type,
-                'full_address' => $property->full_address,
-                'street_address' => $property->street_address,
-                'city' => $property->city,
-                'province' => $property->province,
-                'barangay' => $property->barangay,
-                'postal_code' => $property->postal_code,
-                'latitude' => $property->latitude,
-                'longitude' => $property->longitude,
-                'nearby_landmarks' => $property->nearby_landmarks,
-                'property_rules' => $property->property_rules ?? [],
-                'number_of_bedrooms' => $property->number_of_bedrooms,
-                'number_of_bathrooms' => $property->number_of_bathrooms,
-                'floor_area' => $property->floor_area,
-                'max_occupants' => $property->max_occupants,
-                'total_rooms' => $property->rooms->count(),
-                'available_rooms' => $availableRooms->count(),
-                'min_price' => $minPrice,
-                'max_price' => $maxPrice,
-                'price_range' => $minPrice && $maxPrice
-                    ? ($minPrice == $maxPrice
-                        ? '₱' . number_format($minPrice, 0)
-                        : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
-                    : 'Contact for price',
-                'image' => $coverImage 
-                    ? (str_starts_with($coverImage->image_url, 'http') 
-                        ? $coverImage->image_url 
-                        : asset('storage/' . ltrim($coverImage->image_url, '/')))
-                    : null,
-                'images' => $property->images->sortBy('display_order')->map(function($img) {
-                    return str_starts_with($img->image_url, 'http') 
-                        ? $img->image_url 
-                        : asset('storage/' . ltrim($img->image_url, '/'));
-                })->toArray(),
-                'rooms' => $availableRooms->map(function ($room) {
-                    return [
-                        'id' => $room->id,
-                        'room_number' => $room->room_number,
-                        'room_type' => $room->room_type,
-                        'type_label' => $this->getRoomTypeLabel($room->room_type),
-                        'floor' => $room->floor,
-                        'floor_label' => $this->formatFloor($room->floor),
-                        'monthly_rate' => (float) $room->monthly_rate,
-                        'capacity' => $room->capacity,
-                        'status' => $room->status,
-                        'description' => $room->description,
-                        'amenities' => $room->amenities?->pluck('name')->toArray() ?? [],
-                        'images' => $room->images?->pluck('image_url')->map(fn($url) => asset('storage/' . $url))->toArray() ?? [],
-                    ];
-                })->values()
-            ], 200);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Property not found or not available'], 404);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'id' => $property->id,
+            'title' => $property->title,
+            'description' => $property->description,
+            'property_type' => $property->property_type,
+            'full_address' => $property->full_address,
+            'street_address' => $property->street_address,
+            'city' => $property->city,
+            'province' => $property->province,
+            'barangay' => $property->barangay,
+            'postal_code' => $property->postal_code,
+            'latitude' => $property->latitude,
+            'longitude' => $property->longitude,
+            'nearby_landmarks' => $property->nearby_landmarks,
+            'property_rules' => $property->property_rules ?? [],
+            'total_rooms' => $property->rooms->count(),
+            'available_rooms' => $availableRooms->count(),
+            'min_price' => $minPrice,
+            'max_price' => $maxPrice,
+            'price_range' => $minPrice && $maxPrice
+                ? ($minPrice == $maxPrice
+                    ? '₱' . number_format($minPrice, 0)
+                    : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
+                : 'Contact for price',
+            'image' => $coverImage
+                ? (str_starts_with($coverImage->image_url, 'http')
+                    ? $coverImage->image_url
+                    : asset('storage/' . ltrim($coverImage->image_url, '/')))
+                : null,
+            'images' => $property->images->sortBy('display_order')->map(function ($img) {
+                return str_starts_with($img->image_url, 'http')
+                    ? $img->image_url
+                    : asset('storage/' . ltrim($img->image_url, '/'));
+            })->toArray(),
+            
+            // IMPORTANT: Add these landlord fields at root level
+            'landlord_id' => $property->landlord_id,
+            'user_id' => $property->landlord_id, // Alias for compatibility
+            'landlord_name' => $property->landlord
+                ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
+                : 'Landlord',
+            'owner_name' => $property->landlord
+                ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
+                : 'Landlord', // Alias for compatibility
+            
+            // Include full landlord object as well
+            'landlord' => $property->landlord ? [
+                'id' => $property->landlord->id,
+                'first_name' => $property->landlord->first_name,
+                'last_name' => $property->landlord->last_name,
+                'email' => $property->landlord->email,
+                'phone' => $property->landlord->phone,
+            ] : null,
+            
+            'rooms' => $availableRooms->map(function ($room) {
+                return [
+                    'id' => $room->id,
+                    'room_number' => $room->room_number,
+                    'room_type' => $room->room_type,
+                    'type_label' => $this->getRoomTypeLabel($room->room_type),
+                    'monthly_rate' => (float) $room->monthly_rate,
+                    'capacity' => $room->capacity,
+                    'status' => $room->status,
+                    'description' => $room->description,
+                    'amenities' => $room->amenities?->pluck('name')->toArray() ?? [],
+                    'images' => $room->images?->pluck('image_url')->map(fn($url) => asset('storage/' . $url))->toArray() ?? [],
+                ];
+            })->values()
+        ], 200);
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json(['message' => 'Property not found or not available'], 404);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
     }
+}
 
     // ====================================================================
     // PROTECTED ROUTES (Landlord only)
@@ -164,9 +196,19 @@ class PropertyController extends Controller
     {
         $properties = Property::where('landlord_id', Auth::id())
             ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
-            ->with('images')
+            ->with(['images', 'amenities'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($property) {
+                // Convert amenities to array of names only
+                $amenityNames = $property->amenities->pluck('name')->toArray();
+                
+                // Convert to array and add amenities as simple array
+                $propertyArray = $property->toArray();
+                $propertyArray['amenities'] = $amenityNames;
+                
+                return $propertyArray;
+            });
 
         return response()->json($properties, 200);
     }
@@ -177,6 +219,7 @@ class PropertyController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'property_type' => 'required|in:apartment,dormitory,boardingHouse,bedSpacer',
+            'current_status' => 'nullable|in:active,inactive,pending,maintenance',
             'street_address' => 'required|string',
             'city' => 'required|string',
             'province' => 'required|string',
@@ -186,11 +229,6 @@ class PropertyController extends Controller
             'longitude' => 'nullable|numeric',
             'nearby_landmarks' => 'nullable|string',
             'property_rules' => 'nullable|string',
-            'number_of_bedrooms' => 'nullable|integer',
-            'number_of_bathrooms' => 'nullable|integer',
-            'floor_area' => 'nullable|numeric',
-            'floor_level' => 'nullable|string',
-            'max_occupants' => 'required|integer|min:1',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
@@ -204,6 +242,7 @@ class PropertyController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'property_type' => $validated['property_type'],
+            'current_status' => $validated['current_status'] ?? 'pending',
             'street_address' => $validated['street_address'],
             'city' => $validated['city'],
             'province' => $validated['province'],
@@ -213,14 +252,10 @@ class PropertyController extends Controller
             'longitude' => $validated['longitude'] ?? null,
             'nearby_landmarks' => $validated['nearby_landmarks'] ?? null,
             'property_rules' => $validated['property_rules'] ?? null,
-            'number_of_bedrooms' => $validated['number_of_bedrooms'] ?? null,
-            'number_of_bathrooms' => $validated['number_of_bathrooms'] ?? null,
-            'floor_area' => $validated['floor_area'] ?? null,
-            'max_occupants' => $validated['max_occupants'],
             'total_rooms' => 0,
             'available_rooms' => 0,
             'is_published' => $validated['is_published'] ?? false,
-            'is_available' => $validated['is_available'] ?? true,
+            'is_available' => $validated['is_available'] ?? false,
         ]);
 
         // Handle image uploads
@@ -228,7 +263,7 @@ class PropertyController extends Controller
             foreach ($request->file('images') as $index => $file) {
                 $path = $file->store('property_images', 'public');
                 $filename = basename($path);
-                
+
                 PropertyImage::create([
                     'property_id' => $property->id,
                     'image_url' => 'property_images/' . $filename,
@@ -261,6 +296,57 @@ class PropertyController extends Controller
         return response()->json($property, 201);
     }
 
+    /**
+     * Show property details for tenants (public view)
+     * This allows tenants to view any property and includes landlord info
+     */
+    public function showForTenant($id)
+    {
+        $property = Property::with([
+            'rooms' => function ($query) {
+                $query->select(
+                    'id',
+                    'property_id',
+                    'room_number',
+                    'room_type',
+                    'capacity',
+                    'monthly_rate',
+                    'status',
+                    'description'
+                )
+                    ->orderBy('room_number');
+            },
+            'images' => function ($query) {
+                $query->select('id', 'property_id', 'image_url');
+            },
+            'amenities' => function ($query) {
+                $query->select('amenities.id', 'amenities.name');
+            },
+            'landlord:id,first_name,last_name,email,phone'
+        ])->findOrFail($id);
+
+        // Format images with proper URLs
+        $property->images->transform(function ($image) {
+            $image->image_url = asset('storage/' . $image->image_url);
+            return $image;
+        });
+
+        // Format amenities
+        $property->amenities_list = $property->amenities->pluck('name')->toArray();
+
+        // Add landlord_id and landlord_name to the root level for easier access
+        $propertyArray = $property->toArray();
+        $propertyArray['landlord_id'] = $property->landlord->id ?? null;
+        $propertyArray['landlord_name'] = $property->landlord
+            ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
+            : 'Unknown';
+
+        return response()->json($propertyArray, 200);
+    }
+
+    /**
+     * Show property details (for landlord - existing method)
+     */
     public function show($id)
     {
         $property = Property::where('landlord_id', Auth::id())
@@ -277,6 +363,36 @@ class PropertyController extends Controller
         $property->amenities_list = $property->amenities->pluck('name')->toArray();
 
         return response()->json($property, 200);
+    }
+
+    /**
+     * Get room details with property and landlord info
+     */
+    public function getRoomDetails($roomId)
+    {
+        $room = Room::with([
+            'property' => function ($query) {
+                $query->select('id', 'landlord_id', 'title', 'name', 'address', 'city')
+                    ->with('landlord:id,first_name,last_name,email,phone');
+            },
+            'images'
+        ])->findOrFail($roomId);
+
+        // Format room images
+        $room->images = $room->images->map(function ($image) {
+            return asset('storage/' . $image);
+        });
+
+        // Add landlord info to root level of property
+        if ($room->property && $room->property->landlord) {
+            $room->property->landlord_id = $room->property->landlord->id;
+            $room->property->landlord_name = trim(
+                $room->property->landlord->first_name . ' ' .
+                    $room->property->landlord->last_name
+            );
+        }
+
+        return response()->json($room, 200);
     }
 
     public function update(Request $request, $id)
@@ -296,11 +412,6 @@ class PropertyController extends Controller
             'longitude' => 'nullable|numeric',
             'nearby_landmarks' => 'nullable|string',
             'property_rules' => 'nullable|string',
-            'number_of_bedrooms' => 'nullable|integer',
-            'number_of_bathrooms' => 'nullable|integer',
-            'floor_area' => 'nullable|numeric',
-            'floor_level' => 'nullable|string',
-            'max_occupants' => 'nullable|integer',
             'total_rooms' => 'nullable|integer',
             'current_status' => 'nullable|string',
             'is_published' => 'sometimes|boolean',
@@ -373,6 +484,33 @@ class PropertyController extends Controller
         ], 200);
     }
 
+    /**
+     * Add a new amenity to a property
+     */
+    public function addAmenity(Request $request, $id)
+    {
+        $request->validate([
+            'amenity' => 'required|string|max:255'
+        ]);
+
+        $property = Property::where('landlord_id', Auth::id())->findOrFail($id);
+
+        // Find or create the amenity
+        $amenity = \App\Models\Amenity::firstOrCreate([
+            'name' => trim($request->amenity)
+        ]);
+
+        // Attach amenity to property if not already attached
+        if (!$property->amenities->contains($amenity->id)) {
+            $property->amenities()->attach($amenity->id);
+        }
+
+        return response()->json([
+            'message' => 'Amenity added successfully',
+            'amenity' => $amenity->name
+        ], 200);
+    }
+
     public function destroy($id, Request $request)
     {
         // Verify password if provided
@@ -387,7 +525,7 @@ class PropertyController extends Controller
         }
 
         DB::beginTransaction();
-        
+
         try {
             $property = Property::where('landlord_id', Auth::id())
                 ->with(['rooms', 'bookings', 'images'])
@@ -458,14 +596,5 @@ class PropertyController extends Controller
             'quad' => 'Quad Room',
             'bedSpacer' => 'Bed Spacer'
         ][$roomType] ?? ucfirst($roomType);
-    }
-
-    private function formatFloor($floor)
-    {
-        if ($floor > 10 && $floor < 20) return $floor . 'th Floor';
-        return $floor . match($floor % 10) {
-            1 => 'st', 2 => 'nd', 3 => 'rd',
-            default => 'th'
-        } . ' Floor';
     }
 }

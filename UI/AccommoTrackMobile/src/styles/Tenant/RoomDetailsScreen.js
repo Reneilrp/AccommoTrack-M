@@ -148,19 +148,23 @@ export const styles = StyleSheet.create({
   
   // Amenities
   amenitiesGrid: {
-    gap: 12,
-  },
-  amenityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 2,
-  },
-  amenityText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '400',
-  },
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 12,
+},
+amenityItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+  paddingVertical: 2,
+  width: '48%',
+},
+amenityText: {
+  fontSize: 14,
+  color: '#374151',
+  fontWeight: '400',
+  flex: 1,
+},
   
   // Property Information
   infoRow: {

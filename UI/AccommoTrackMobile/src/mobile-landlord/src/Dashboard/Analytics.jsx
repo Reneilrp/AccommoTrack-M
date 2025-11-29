@@ -1,22 +1,23 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
+  ScrollView
 } from 'react-native';
 import { styles } from '../../../styles/Landlord/Analytics';
+import Button from '../components/ui/Button';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 
 
 const TimeRangeButton = ({ label, isSelected, onPress }) => (
-  <TouchableOpacity
+  <Button
     onPress={onPress}
     style={[
       styles.timeButton,
       isSelected ? styles.timeButtonActive : styles.timeButtonInactive,
     ]}
+    type="transparent"
   >
     <Text
       style={[
@@ -26,7 +27,7 @@ const TimeRangeButton = ({ label, isSelected, onPress }) => (
     >
       {label}
     </Text>
-  </TouchableOpacity>
+  </Button>
 );
 
 const StatCard = ({ title, value, color, iconPlaceholder, trend }) => (
@@ -87,12 +88,9 @@ export default function Analytics({ navigation }) {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.headerBackButton}
-            >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+            <Button onPress={() => navigation.goBack()} style={styles.headerBackButton} type="transparent">
+              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            </Button>
             <View>
               <Text style={styles.headerTitle}>Analytics</Text>
             </View>

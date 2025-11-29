@@ -37,13 +37,6 @@ return new class extends Migration
             // Property Rules (added here instead of using ->after())
             $table->text('property_rules')->nullable();
             
-            // Property Specifications
-            $table->integer('number_of_bedrooms')->nullable();
-            $table->integer('number_of_bathrooms')->nullable();
-            $table->decimal('floor_area', 8, 2)->nullable();
-            $table->string('floor_level', 50)->nullable();
-            $table->integer('max_occupants')->default(1);
-            
             // Room Management
             $table->integer('total_rooms')->default(0);
             $table->integer('available_rooms')->default(0);

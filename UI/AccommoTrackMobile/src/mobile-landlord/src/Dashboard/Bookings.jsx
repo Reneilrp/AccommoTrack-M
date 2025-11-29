@@ -1,16 +1,14 @@
-// BookingsScreen.jsx
 import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  StyleSheet
+  StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/Bookings.js';
+import Button from '../components/ui/Button';
 
 export default function BookingsScreen({ navigation }) {
   const [filterStatus, setFilterStatus] = useState('all');
@@ -120,13 +118,13 @@ export default function BookingsScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <Button onPress={() => navigation.goBack()} type="transparent" style={{ padding: 6 }}>
+          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+        </Button>
         <Text style={styles.headerTitle}>Bookings</Text>
-        <TouchableOpacity>
-          <Ionicons name="add-circle" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
+        <Button type="primary" style={{ padding: 6 }}>
+          <Ionicons name="add-circle" size={22} color="#fff" />
+        </Button>
       </View>
 
       {/* Stats */}
@@ -152,48 +150,45 @@ export default function BookingsScreen({ navigation }) {
       {/* Filter */}
       <View style={styles.filtersContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
+          <Button
             style={[styles.filterChip, filterStatus === 'all' && styles.filterChipActive]}
             onPress={() => setFilterStatus('all')}
+            type="transparent"
           >
-            <Text style={[styles.filterChipText, filterStatus === 'all' && styles.filterChipTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            <Text style={[styles.filterChipText, filterStatus === 'all' && styles.filterChipTextActive]}>All</Text>
+          </Button>
+          <Button
             style={[styles.filterChip, filterStatus === 'confirmed' && styles.filterChipActive]}
             onPress={() => setFilterStatus('confirmed')}
+            type="transparent"
           >
-            <Text style={[styles.filterChipText, filterStatus === 'confirmed' && styles.filterChipTextActive]}>
-              Confirmed
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            <Text style={[styles.filterChipText, filterStatus === 'confirmed' && styles.filterChipTextActive]}>Confirmed</Text>
+          </Button>
+          <Button
             style={[styles.filterChip, filterStatus === 'pending' && styles.filterChipActive]}
             onPress={() => setFilterStatus('pending')}
+            type="transparent"
           >
-            <Text style={[styles.filterChipText, filterStatus === 'pending' && styles.filterChipTextActive]}>
-              Pending
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            <Text style={[styles.filterChipText, filterStatus === 'pending' && styles.filterChipTextActive]}>Pending</Text>
+          </Button>
+          <Button
             style={[styles.filterChip, filterStatus === 'completed' && styles.filterChipActive]}
             onPress={() => setFilterStatus('completed')}
+            type="transparent"
           >
-            <Text style={[styles.filterChipText, filterStatus === 'completed' && styles.filterChipTextActive]}>
-              Completed
-            </Text>
-          </TouchableOpacity>
+            <Text style={[styles.filterChipText, filterStatus === 'completed' && styles.filterChipTextActive]}>Completed</Text>
+          </Button>
         </ScrollView>
       </View>
 
       {/* Bookings List */}
       <ScrollView style={styles.bookingsList} showsVerticalScrollIndicator={false}>
         {filteredBookings.map((booking) => (
-          <TouchableOpacity
+          <Button
             key={booking.id}
             style={styles.bookingCard}
             onPress={() => navigation.navigate('BookingDetails', { booking })}
+            type="transparent"
           >
             <View style={styles.bookingHeader}>
               <View style={styles.guestInfo}>
@@ -235,15 +230,15 @@ export default function BookingsScreen({ navigation }) {
                 <Text style={styles.amountValue}>₱{booking.amount.toLocaleString()}</Text>
               </View>
               <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#4CAF50" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="close-circle-outline" size={20} color="#F44336" />
-                </TouchableOpacity>
+                <Button style={styles.actionButton} type="transparent">
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
+                </Button>
+                <Button style={styles.actionButton} type="transparent">
+                  <Ionicons name="close-circle-outline" size={18} color="#F44336" />
+                </Button>
               </View>
             </View>
-          </TouchableOpacity>
+          </Button>
         ))}
       </ScrollView>
     </SafeAreaView>

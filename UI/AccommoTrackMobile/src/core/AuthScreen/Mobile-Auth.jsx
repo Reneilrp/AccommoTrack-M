@@ -133,10 +133,14 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       const data = await response.json();
 
       if (response.ok) {
-        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('auth_token', data.token);
+        await AsyncStorage.setItem('user_id', JSON.stringify(data.user));
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
+
         
         console.log('✅ Login successful! Role:', data.user.role);
+        console.log('✅ Token saved as auth_token');
+        console.log('✅ User ID saved:', data.user.id);
         
         if (onLoginSuccess) {
           onLoginSuccess(data.user.role);
@@ -306,6 +310,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!loading}
+                    returnKeyType="next"
+                    onSubmitEditing={() => { /* move focus or let user press Return on password */ }}
                 />
               </View>
 
@@ -320,6 +326,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   onChangeText={(text) => handleInputChange('password', text)}
                   secureTextEntry={!showPassword}
                   editable={!loading}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -412,6 +420,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       onChangeText={(text) => handleInputChange('firstName', text)}
                       autoCapitalize="words"
                       editable={!loading}
+                        returnKeyType="next"
+                        onSubmitEditing={() => { /* proceed to next field */ }}
                     />
                   </View>
 
@@ -426,6 +436,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       onChangeText={(text) => handleInputChange('middleName', text)}
                       autoCapitalize="words"
                       editable={!loading}
+                      returnKeyType="next"
+                      onSubmitEditing={() => { /* proceed to last name */ }}
                     />
                   </View>
 
@@ -440,6 +452,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       onChangeText={(text) => handleInputChange('lastName', text)}
                       autoCapitalize="words"
                       editable={!loading}
+                      returnKeyType="done"
+                      onSubmitEditing={handleNextStep}
                     />
                   </View>
 
@@ -472,6 +486,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       keyboardType="email-address"
                       autoCapitalize="none"
                       editable={!loading}
+                      returnKeyType="next"
+                      onSubmitEditing={() => { /* focus password */ }}
                     />
                   </View>
 
@@ -486,6 +502,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       onChangeText={(text) => handleInputChange('password', text)}
                       secureTextEntry={!showPassword}
                       editable={!loading}
+                      returnKeyType="next"
+                      onSubmitEditing={() => { /* focus confirm password */ }}
                     />
                     <TouchableOpacity
                       onPress={() => setShowPassword(!showPassword)}
@@ -511,6 +529,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       onChangeText={(text) => handleInputChange('confirmPassword', text)}
                       secureTextEntry={!showConfirmPassword}
                       editable={!loading}
+                      returnKeyType="done"
+                      onSubmitEditing={handleSubmit}
                     />
                     <TouchableOpacity
                       onPress={() => setShowConfirmPassword(!showConfirmPassword)}

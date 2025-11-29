@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StatusBar,
-  StyleSheet
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/DashboardPage.js';
+import Button from '../components/ui/Button';
+import PropertyService from '../../../services/PropertyServices';
 
 export default function LandlordDashboard({ navigation, user }) {
   const [stats] = useState({
@@ -18,6 +19,36 @@ export default function LandlordDashboard({ navigation, user }) {
     monthlyRevenue: 42500,
     pendingPayments: 3
   });
+
+  const [firstProperty, setFirstProperty] = useState(null);
+  const [loadingProperty, setLoadingProperty] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProperty = async () => {
+      setLoadingProperty(true);
+      const res = await PropertyService.getMyProperties();
+      if (!mounted) return;
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setFirstProperty(res.data[0]);
+      }
+      setLoadingProperty(false);
+    };
+    loadProperty();
+    return () => { mounted = false; };
+  }, []);
+
+  const getFullAddress = (prop) => {
+    if (!prop) return 'Location not set';
+    const parts = [];
+    if (prop.street_address) parts.push(prop.street_address);
+    if (prop.barangay) parts.push(prop.barangay);
+    if (prop.city) parts.push(prop.city);
+    if (prop.province) parts.push(prop.province);
+    if (prop.postal_code) parts.push(prop.postal_code);
+    if (parts.length > 0) return parts.join(', ');
+    return 'Location not set';
+  };
 
   const [recentActivity] = useState([
     {
@@ -79,15 +110,16 @@ export default function LandlordDashboard({ navigation, user }) {
           <Text style={styles.greeting}>Welcome back,</Text>
           <Text style={styles.userName}>{user?.first_name || 'Landlord'}</Text>
         </View>
-        <TouchableOpacity 
+        <Button
           style={styles.notificationButton}
           onPress={() => navigation.navigate('Notifications')}
+          type="primary"
         >
-          <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+          <Ionicons name="notifications-outline" size={20} color="#fff" />
           <View style={styles.notificationBadge}>
             <Text style={styles.notificationBadgeText}>3</Text>
           </View>
-        </TouchableOpacity>
+        </Button>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -127,16 +159,17 @@ export default function LandlordDashboard({ navigation, user }) {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
             {quickActions.map((action) => (
-              <TouchableOpacity
+              <Button
                 key={action.id}
                 style={styles.actionCard}
                 onPress={() => navigation.navigate(action.screen)}
+                type="transparent"
               >
                 <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
                   <Ionicons name={action.icon} size={28} color={action.color} />
                 </View>
                 <Text style={styles.actionTitle}>{action.title}</Text>
-              </TouchableOpacity>
+              </Button>
             ))}
           </View>
         </View>
@@ -145,9 +178,9 @@ export default function LandlordDashboard({ navigation, user }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity>
+            <Button type="transparent">
               <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+            </Button>
           </View>
 
           <View style={styles.activityContainer}>
@@ -170,31 +203,49 @@ export default function LandlordDashboard({ navigation, user }) {
 
         {/* Property Overview */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Property Overview</Text>
-          <TouchableOpacity 
-            style={styles.propertyCard}
-            onPress={() => navigation.navigate('DormProfile')}
-          >
-            <View style={styles.propertyHeader}>
-              <View>
-                <Text style={styles.propertyName}>Q&M Dormitory</Text>
-                <Text style={styles.propertyAddress}>Zamboanga City</Text>
-              </View>
-              <View style={styles.occupancyBadge}>
-                <Text style={styles.occupancyText}>75% Full</Text>
-              </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.sectionTitle}>Property Overview</Text>
+            <Button onPress={() => navigation.navigate('AddProperty')} type="primary" style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={{ color: '#fff', marginLeft: 8 }}>Add Property</Text>
+            </Button>
+          </View>
+
+          {loadingProperty ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#10b981" />
             </View>
-            <View style={styles.propertyStats}>
-              <View style={styles.propertyStatItem}>
-                <Ionicons name="bed" size={20} color="#4CAF50" />
-                <Text style={styles.propertyStatText}>12 Rooms</Text>
+          ) : firstProperty ? (
+            <Button
+              style={styles.propertyCard}
+              onPress={() => navigation.navigate('MyProperties')}
+              type="transparent"
+            >
+              <View style={styles.propertyHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.propertyName} numberOfLines={1}>{firstProperty.name || firstProperty.title}</Text>
+                  <Text style={styles.propertyAddress} numberOfLines={2}>{getFullAddress(firstProperty)}</Text>
+                </View>
+                <View style={styles.occupancyBadge}>
+                  <Text style={styles.occupancyText}>75% Full</Text>
+                </View>
               </View>
-              <View style={styles.propertyStatItem}>
-                <Ionicons name="people" size={20} color="#4CAF50" />
-                <Text style={styles.propertyStatText}>9 Tenants</Text>
+              <View style={styles.propertyStats}>
+                <View style={styles.propertyStatItem}>
+                  <Ionicons name="bed" size={20} color="#4CAF50" />
+                  <Text style={styles.propertyStatText}>{firstProperty.total_rooms || 0} Rooms</Text>
+                </View>
+                <View style={styles.propertyStatItem}>
+                  <Ionicons name="people" size={20} color="#4CAF50" />
+                  <Text style={styles.propertyStatText}>{(firstProperty.total_rooms || 0) - (firstProperty.available_rooms || 0)} Tenants</Text>
+                </View>
               </View>
+            </Button>
+          ) : (
+            <View style={{ padding: 16 }}>
+              <Text>No properties yet. Create one to get started.</Text>
             </View>
-          </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

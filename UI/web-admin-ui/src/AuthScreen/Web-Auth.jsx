@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
+import api from '../utils/api';
 
 function AuthScreen({ onLogin = () => {} }) {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -18,8 +21,6 @@ function AuthScreen({ onLogin = () => {} }) {
     role: 'landlord',
     phone: '',
   });
-
-  const API_URL = '/api';
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -75,40 +76,40 @@ function AuthScreen({ onLogin = () => {} }) {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
+      const result = await api.post('/login', {
+        email: formData.email,
+        password: formData.password
       });
 
-      const data = await response.json();
+      const data = result.data;
 
-      if (response.ok) {
-        console.log('✅ Login successful! Role:', data.user.role);
+      console.log('✅ Login successful! Role:', data.user.role);
 
-        if (data.user.role !== 'landlord') {
-          setError('Access denied. This portal is for landlords only.');
-          return;
-        }
+      // Allow both landlords and admins to sign in here. Admins will be
+      // redirected to the admin dashboard after successful login.
+      if (data.user.role !== 'landlord' && data.user.role !== 'admin') {
+        setError('Access denied. This portal is for landlords and admins only.');
+        return;
+      }
 
-        localStorage.setItem('auth_token', data.token);
-        console.log('✅ Token saved to localStorage');
+      localStorage.setItem('auth_token', data.token);
+      console.log('✅ Token saved to localStorage');
 
-        onLogin(data.user, data.token);
+      onLogin(data.user, data.token);
 
-        setFormData({ ...formData, email: '', password: '' });
+      // Clear sensitive form fields
+      setFormData({ ...formData, email: '', password: '' });
+
+      // Navigate based on role
+      if (data.user.role === 'admin') {
+        navigate('/admin');
       } else {
-        setError(data.message || 'Login failed. Please check your credentials.');
+        navigate('/dashboard');
       }
     } catch (err) {
       console.error('❌ Login Error:', err);
-      setError('Network error. Please check your connection.');
+      const errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -123,20 +124,8 @@ function AuthScreen({ onLogin = () => {} }) {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
+      const result = await api.post('/register', formData);
+      const data = result.data;
 
       alert('Registration successful! Please login with your credentials.');
       setIsLogin(true);
@@ -177,8 +166,8 @@ function AuthScreen({ onLogin = () => {} }) {
   const iconClasses = "w-5 h-5 text-white/70";
 
   return (
-    <div className="min-h-screen bg-[url(../assets/Bg-Pic-5.jpg)] flex items-center justify-center p-4">
-      <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-[url(../assets/Bg-Pic-5.jpg)] bg-cover bg-center bg-no-repeat bg-fixed flex items-center justify-center p-4">
+      <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden">
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex flex-col items-center justify-center mb-6">
@@ -209,7 +198,7 @@ function AuthScreen({ onLogin = () => {} }) {
 
         {/* LOGIN FORM */}
         {isLogin ? (
-          <div className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-5">
             {/* Email Field */}
             <div>
               <label className={labelClasses}>
@@ -287,7 +276,7 @@ function AuthScreen({ onLogin = () => {} }) {
 
             {/* Submit Button */}
             <button
-              onClick={handleLogin}
+              type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
             >
@@ -303,10 +292,10 @@ function AuthScreen({ onLogin = () => {} }) {
                 'Sign In'
               )}
             </button>
-          </div>
+          </form>
         ) : (
           /* REGISTER FORM */
-          <div className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
             {/* First Name */}
             <div>
               <label className={labelClasses}>
@@ -515,7 +504,7 @@ function AuthScreen({ onLogin = () => {} }) {
 
             {/* Submit Button */}
             <button
-              onClick={handleRegister}
+              type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
             >
@@ -531,7 +520,7 @@ function AuthScreen({ onLogin = () => {} }) {
                 'Create Account'
               )}
             </button>
-          </div>
+          </form>
         )}
 
         {/* Toggle Login/Register */}

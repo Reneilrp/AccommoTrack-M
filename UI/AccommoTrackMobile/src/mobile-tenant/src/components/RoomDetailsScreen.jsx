@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -11,7 +11,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Platform
+  Platform,
+  RefreshControl,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
 
 import BookingService from '../../../services/BookingServices';
+import PropertyService from '../../../services/PropertyServices';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +32,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [propertyData, setPropertyData] = useState(property || null);
+  const [roomData, setRoomData] = useState(room || null);
+
+  useEffect(() => {
+    // keep roomData in sync when navigation param changes
+    setRoomData(room);
+    setPropertyData(property);
+  }, [room, property]);
 
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -164,6 +175,24 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setBookingModalVisible(true);
   };
 
+  const onRefresh = async () => {
+    if (!propertyData?.id) return;
+    setRefreshing(true);
+    try {
+      const res = await PropertyService.getPublicProperty(propertyData.id);
+      if (res.success && res.data) {
+        setPropertyData(res.data);
+        // find the room in returned data
+        const updatedRoom = (res.data.rooms || []).find(r => String(r.id) === String(roomData?.id));
+        if (updatedRoom) setRoomData(updatedRoom);
+      }
+    } catch (err) {
+      console.error('Failed to refresh room/property:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const validateDates = () => {
     if (!bookingData.start_date || !bookingData.end_date) {
       Alert.alert('Missing Information', 'Please select both check-in and check-out dates.');
@@ -196,14 +225,16 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       const data = {
         room_id: room.id,
-        start_date: bookingData.start_date.toISOString().split('T')[0], // YYYY-MM-DD
-        end_date: bookingData.end_date.toISOString().split('T')[0], // YYYY-MM-DD
+        start_date: bookingData.start_date.toISOString().split('T')[0],
+        end_date: bookingData.end_date.toISOString().split('T')[0],
         notes: bookingData.notes || null
       };
 
       console.log('Submitting booking:', data);
 
       const result = await BookingService.createBooking(data);
+
+      console.log('Booking result:', result);
 
       if (result.success) {
         Alert.alert(
@@ -220,6 +251,33 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           ]
         );
       } else {
+        // Check if it's an authentication error
+        if (result.error && (
+          result.error.toLowerCase().includes('authentication') ||
+          result.error.toLowerCase().includes('unauthenticated') ||
+          result.error.toLowerCase().includes('token') ||
+          result.error.toLowerCase().includes('login')
+        )) {
+          Alert.alert(
+            'Session Expired',
+            'Your session has expired. Please log in again.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setBookingModalVisible(false);
+                  if (onAuthRequired) {
+                    onAuthRequired();
+                  } else {
+                    navigation.navigate('Auth');
+                  }
+                }
+              }
+            ]
+          );
+          return;
+        }
+
         // Handle validation errors
         if (result.details) {
           const errorMessages = Object.values(result.details).flat().join('\n');
@@ -258,12 +316,81 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     }
 
     try {
-      // Navigate to Messages with landlord and property info
+      // COMPREHENSIVE DEBUG LOGGING
+      console.log('=== CONTACT LANDLORD DEBUG ===');
+      console.log('Full property object:', JSON.stringify(property, null, 2));
+      console.log('Property keys:', Object.keys(property));
+      console.log('Direct property.landlord_id:', property.landlord_id);
+      console.log('Direct property.user_id:', property.user_id);
+      console.log('Direct property.landlord:', property.landlord);
+      console.log('Direct property.landlord_name:', property.landlord_name);
+      console.log('Direct property.owner_name:', property.owner_name);
+      console.log('==============================');
+
+      // Try EVERY possible way to get landlord_id
+      const landlordId = property.landlord_id ||
+        property.user_id ||
+        property.landlord?.id ||
+        property.owner?.id;
+
+      // Try EVERY possible way to get landlord name
+      const landlordName = property.landlord_name ||
+        property.owner_name ||
+        (property.landlord ?
+          `${property.landlord.first_name || ''} ${property.landlord.last_name || ''}`.trim()
+          : null) ||
+        (property.owner ?
+          `${property.owner.first_name || ''} ${property.owner.last_name || ''}`.trim()
+          : null) ||
+        'Landlord';
+
+      console.log('Extracted landlord info:', JSON.stringify({ landlordId, landlordName }, null, 2));
+
+      // Check if we have the landlord information
+      if (!landlordId) {
+        console.error('LANDLORD ID NOT FOUND!');
+        console.error('Available property data:', Object.keys(property));
+
+        Alert.alert(
+          'Debug Info',
+          `Property ID: ${property.id}\n\nAvailable fields: ${Object.keys(property).join(', ')}\n\nPlease screenshot this and check the backend response.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Show more detailed error
+                Alert.alert(
+                  'Error',
+                  'Landlord information not available. This might be an older property listing. Please try viewing the property again from the home page.',
+                  [
+                    {
+                      text: 'Go Back',
+                      onPress: () => navigation.goBack()
+                    }
+                  ]
+                );
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      console.log('Navigating to Messages with:', {
+        landlordId,
+        landlordName,
+        propertyId: property.id,
+        propertyTitle: property.name || property.title,
+        roomId: room.id,
+        roomNumber: room.room_number
+      });
+
+      // Navigate to Messages with the conversation parameters
       navigation.navigate('Messages', {
         startConversation: true,
         recipient: {
-          id: property.landlord_id,
-          name: property.landlord_name || 'Landlord',
+          id: landlordId,
+          name: landlordName,
         },
         property: {
           id: property.id,
@@ -275,8 +402,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         }
       });
     } catch (error) {
-      console.error('Error starting conversation:', error);
-      Alert.alert('Error', 'Failed to start conversation. Please try again.');
+      console.error('Error navigating to messages:', error);
+      console.error('Error stack:', error.stack);
+      Alert.alert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
     }
   };
 
@@ -296,7 +424,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#10b981"]}
+            tintColor="#10b981"
+          />
+        }
+      >
         {/* Image Gallery */}
         {room.images && room.images.length > 0 ? (
           <View style={styles.imageGalleryContainer}>
@@ -405,46 +543,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               </View>
             </View>
           )}
-
-          {/* Property Information */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Property Information</Text>
-
-            {/* Property Name */}
-            <View style={styles.infoRow}>
-              <Ionicons name="business-outline" size={18} color="#6b7280" />
-              <Text style={styles.infoText}>{property.name || property.title}</Text>
-            </View>
-
-            {/* Address */}
-            {property.address && (
-              <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={18} color="#6b7280" />
-                <Text style={styles.infoText}>{property.address}</Text>
-              </View>
-            )}
-
-            {/* Property Rules */}
-            {property.propertyRules && property.propertyRules.length > 0 && (
-              <View style={styles.rulesContainer}>
-                <Text style={styles.rulesTitle}>Property Rules</Text>
-                {property.propertyRules.slice(0, 3).map((rule, index) => (
-                  <View key={index} style={styles.ruleItem}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#10b981" />
-                    <Text style={styles.ruleText}>{rule}</Text>
-                  </View>
-                ))}
-                {property.propertyRules.length > 3 && (
-                  <TouchableOpacity
-                    style={styles.viewAllButton}
-                    onPress={() => navigation.navigate('AccommodationDetails', { accommodation: property })}
-                  >
-                    <Text style={styles.viewAllText}>View all property details →</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
 
           {/* GUEST USER NOTICE */}
           {isGuest && (

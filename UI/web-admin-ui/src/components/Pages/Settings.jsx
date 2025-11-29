@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DormProfileSettings from './DormProfileSettings';
+import api from '../../utils/api';
 
 export default function Settings({ user }) {
   const [activeTab, setActiveTab] = useState('profile');
@@ -46,29 +47,16 @@ export default function Settings({ user }) {
 
   const handleSaveProfile = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/user/update', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
-          email: profileData.email,
-          phone: profileData.phone
-        })
+      const result = await api.put('/user/update', {
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        email: profileData.email,
+        phone: profileData.phone
       });
 
-      if (response.ok) {
-        const updatedUser = await response.json();
-        // Update localStorage with new user data
-        localStorage.setItem('userData', JSON.stringify(updatedUser.user));
-        alert('Profile updated successfully!');
-      } else {
-        alert('Failed to update profile. Please try again.');
-      }
+      const updatedUser = result.data;
+      localStorage.setItem('userData', JSON.stringify(updatedUser.user));
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('An error occurred. Please try again.');
@@ -92,33 +80,21 @@ export default function Settings({ user }) {
     }
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/user/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          current_password: passwordData.currentPassword,
-          new_password: passwordData.newPassword
-        })
+      const result = await api.post('/user/change-password', {
+        current_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword
       });
 
-      if (response.ok) {
-        alert('Password updated successfully!');
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      } else {
-        const data = await response.json();
-        alert(data.message || 'Failed to update password.');
-      }
+      alert('Password updated successfully!');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
     } catch (error) {
       console.error('Error updating password:', error);
-      alert('An error occurred. Please try again.');
+      const errorMsg = error.response?.data?.message || 'An error occurred. Please try again.';
+      alert(errorMsg);
     }
   };
 

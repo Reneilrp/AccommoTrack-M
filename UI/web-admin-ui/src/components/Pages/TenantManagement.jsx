@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, RefreshCw, X, Loader2 } from 'lucide-react';
+import api from '../../utils/api';
 
 export default function TenantManagement() {
   const [tenants, setTenants] = useState([]);
@@ -35,48 +36,34 @@ export default function TenantManagement() {
   };
 
   useEffect(() => {
-    fetch(`${API}/properties`, { headers })
-      .then(r => r.json())
-      .then(data => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/properties');
+        const data = res.data;
         setProperties(data);
-        if (data.length > 0) setSelectedPropertyId(data[0].id);
-      })
-      .catch(err => console.error('Failed to load properties:', err));
+        if (data.length > 0) {
+          setSelectedPropertyId(data[0].id);
+        } else {
+          // No properties, stop loading
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load properties:', err);
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  useEffect(() => {
-    if (!selectedPropertyId) return;
-    loadTenants();
-  }, [selectedPropertyId]);
-
-  // Auto-refresh when page becomes visible (user switches back to tab)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && selectedPropertyId) {
-        loadTenants();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [selectedPropertyId]);
-
-  const loadTenants = async () => {
+  const loadTenants = useCallback(async () => {
     if (!selectedPropertyId) return;
     
     try {
       setLoading(true);
       setError('');
       
-      // Add timestamp to prevent caching
-      const response = await fetch(`${API}/landlord/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`, { headers });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const res = await api.get(`/landlord/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`);
+      const data = res.data;
       
       if (data.error) {
         throw new Error(data.message || data.error);
@@ -90,7 +77,24 @@ export default function TenantManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPropertyId]);
+
+  useEffect(() => {
+    if (!selectedPropertyId) return;
+    loadTenants();
+  }, [selectedPropertyId, loadTenants]);
+
+  // Auto-refresh when page becomes visible (user switches back to tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && selectedPropertyId) {
+        loadTenants();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedPropertyId, loadTenants]);
 
   useEffect(() => {
     if (editingTenant) {
@@ -127,7 +131,7 @@ export default function TenantManagement() {
     if (!confirm('Are you sure you want to remove this tenant? This will also free up their room.')) return;
     
     try {
-      await fetch(`${API}/landlord/tenants/${id}`, { method: 'DELETE', headers });
+      await api.delete(`/landlord/tenants/${id}`);
       refresh();
     } catch (err) {
       setError('Failed to remove tenant');
@@ -145,24 +149,16 @@ export default function TenantManagement() {
 
   const handleSave = async () => {
     try {
-      const url = editingTenant ? `${API}/landlord/tenants/${editingTenant.id}` : `${API}/landlord/tenants`;
-      const method = editingTenant ? 'PUT' : 'POST';
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: JSON.stringify(form)
-      });
+      const url = editingTenant ? `/landlord/tenants/${editingTenant.id}` : `/landlord/tenants`;
+      const method = editingTenant ? 'put' : 'post';
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save');
-      }
+      await api[method](url, form);
       
       setShowModal(false);
       setEditingTenant(null);
       refresh();
     } catch (err) {
-      setError(err.message || 'Failed to save tenant');
+      setError(err.response?.data?.message || err.message || 'Failed to save tenant');
     }
   };
 
@@ -187,8 +183,8 @@ export default function TenantManagement() {
     overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
   };
 
-  // Show loading state if properties are still loading
-  if (properties.length === 0 && !selectedPropertyId) {
+  // Show initial loading state
+  if (loading && tenants.length === 0 && properties.length === 0) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
@@ -199,7 +195,7 @@ export default function TenantManagement() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="flex flex-col items-center justify-center text-gray-500">
               <Loader2 className="w-8 h-8 animate-spin text-green-600 mb-2" />
-              <p className="text-lg font-medium">Loading properties...</p>
+              <p className="text-lg font-medium">Loading...</p>
             </div>
           </div>
         </div>
@@ -299,16 +295,7 @@ export default function TenantManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-gray-500">
-                      <Loader2 className="w-8 h-8 animate-spin text-green-600 mb-2" />
-                      <p className="text-lg font-medium">Loading tenants...</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredTenants.length === 0 ? (
+              {filteredTenants.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-gray-500">

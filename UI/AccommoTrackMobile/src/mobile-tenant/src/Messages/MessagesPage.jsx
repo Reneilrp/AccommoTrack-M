@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,12 +11,15 @@ import {
     ActivityIndicator,
     FlatList,
     Alert,
+    RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import createEcho from '../../utils/echo';
 import { styles } from '../../../styles/Tenant/MessagesPage';
+import BottomNavigation from '../components/BottomNavigation.jsx';
 
 const API_URL = 'http://192.168.254.106:8000/api';
 
@@ -26,10 +29,13 @@ export default function MessagesPage({ navigation, route }) {
     const [messages, setMessages] = useState([]);
     const [messageText, setMessageText] = useState('');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [initialLoading, setInitialLoading] = useState(false);
     const [sendingMessage, setSendingMessage] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeNavTab, setActiveNavTab] = useState('messages');
+    const [newConversationId, setNewConversationId] = useState(null);
 
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
@@ -46,70 +52,103 @@ export default function MessagesPage({ navigation, route }) {
     // Get current user ID on mount
     useEffect(() => {
         const getUserId = async () => {
-            const userId = await AsyncStorage.getItem('user_id');
-            setCurrentUserId(parseInt(userId));
+            const stored = await AsyncStorage.getItem('user_id');
+            if (!stored) {
+                setCurrentUserId(null);
+                return;
+            }
+            try {
+                const parsed = JSON.parse(stored);
+                // If stored value is the whole user object, use its id
+                if (parsed && typeof parsed === 'object' && parsed.id) {
+                    setCurrentUserId(parsed.id);
+                    return;
+                }
+            } catch (e) {
+                // stored value was not JSON, fall back
+            }
+
+            // Fallback: try to parse as a primitive id
+            const maybeId = parseInt(stored, 10);
+            setCurrentUserId(Number.isNaN(maybeId) ? null : maybeId);
         };
         getUserId();
         fetchConversations();
     }, []);
 
-    // Handle navigation params for starting new conversation
-    useEffect(() => {
-        const handleStartConversation = async () => {
-            if (route?.params?.startConversation && route?.params?.recipient) {
-                setInitialLoading(true);
-                try {
-                    const headers = await getAuthHeaders();
-                    const res = await fetch(`${API_URL}/messages/start`, {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
+    useFocusEffect(
+        React.useCallback(() => {
+            const handleStartConversation = async () => {
+                if (route.params?.startConversation && route.params?.recipient) {
+                    setInitialLoading(true);
+                    try {
+                        const headers = await getAuthHeaders();
+
+                        const requestBody = {
                             recipient_id: route.params.recipient.id,
                             property_id: route.params.property?.id || null,
-                        }),
-                    });
+                        };
 
-                    const conversation = await res.json();
+                        const res = await fetch(`${API_URL}/messages/start`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify(requestBody),
+                        });
 
-                    // Fetch updated conversations list
-                    await fetchConversations();
+                        if (!res.ok) {
+                            const errorText = await res.text();
+                            throw new Error(`Failed to start conversation: ${res.status}`);
+                        }
 
-                    // Determine other user
-                    const otherUser = conversation.user_one_id === currentUserId
-                        ? conversation.user_two
-                        : conversation.user_one;
+                        const conversation = await res.json();
+                        const conv = conversation?.conversation || conversation;
 
-                    // Set the new/existing conversation as selected
-                    setSelectedChat({
-                        id: conversation.id,
-                        other_user: otherUser || {
-                            id: route.params.recipient.id,
-                            first_name: route.params.recipient.name?.split(' ')[0] || 'Landlord',
-                            last_name: route.params.recipient.name?.split(' ')[1] || '',
-                        },
-                        property: conversation.property || route.params.property,
-                    });
+                        // Fetch updated conversations list
+                        await fetchConversations();
 
-                    // Clear the navigation params
-                    navigation.setParams({
-                        startConversation: false,
-                        recipient: null,
-                        property: null,
-                        room: null
-                    });
-                } catch (err) {
-                    console.error('Failed to start conversation:', err);
-                    Alert.alert('Error', 'Failed to start conversation');
-                } finally {
-                    setInitialLoading(false);
+                        // Highlight the new conversation
+                        if (conv?.id) {
+                            setNewConversationId(conv.id);
+
+                            // If messages were returned with the conversation, use them;
+                            // otherwise fetch messages for the conversation id.
+                            if (Array.isArray(conv.messages) && conv.messages.length > 0) {
+                                setMessages(conv.messages);
+                            } else {
+                                await fetchMessages(conv.id);
+                            }
+
+                            // Open the newly created conversation so the chat is visible
+                            setSelectedChat(conv);
+                            scrollToBottom();
+                        }
+
+                        // Clear the navigation params to prevent re-triggering
+                        navigation.setParams({
+                            startConversation: false,
+                            recipient: null,
+                            property: null,
+                            room: null
+                        });
+
+                    } catch (err) {
+                        console.error('Failed to start conversation:', err);
+                        Alert.alert('Error', `Failed to start conversation: ${err.message}`);
+                    } finally {
+                        setInitialLoading(false);
+                    }
                 }
-            }
-        };
+            };
 
-        if (currentUserId) {
+            // Always attempt to start a conversation when the screen focuses.
+            // Previously this ran only if `currentUserId` was already set, which
+            // could cause the initial startConversation param to be ignored if
+            // the user ID wasn't loaded yet. `getAuthHeaders` reads the token
+            // directly from AsyncStorage so this is safe to call regardless.
+            console.log('Messages screen focused. route.params:', route.params);
             handleStartConversation();
-        }
-    }, [route?.params, currentUserId]);
+        }, [route.params, currentUserId])
+    );
 
     // Set up Echo listener when chat is selected
     useEffect(() => {
@@ -124,6 +163,20 @@ export default function MessagesPage({ navigation, route }) {
             };
         }
     }, [selectedChat]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await fetchConversations();
+            if (selectedChat) {
+                await fetchMessages(selectedChat.id);
+            }
+        } catch (err) {
+            console.error('Refresh failed:', err);
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const setupEcho = async () => {
         try {
@@ -263,237 +316,258 @@ export default function MessagesPage({ navigation, route }) {
 
     // Chat List Screen
     const renderChatList = () => (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+        <>
+            <View style={styles.container}>
+                <StatusBar barStyle="light-content" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Messages</Text>
-                <TouchableOpacity style={styles.headerIcon}>
-                    <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-            </View>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Messages</Text>
+                    <TouchableOpacity style={styles.headerIcon}>
+                        <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                </View>
 
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={20} color="#9CA3AF" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search messages..."
-                        placeholderTextColor="#9CA3AF"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchBar}>
+                        <Ionicons name="search" size={20} color="#9CA3AF" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search messages..."
+                            placeholderTextColor="#9CA3AF"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>
+                </View>
+
+                {/* Conversations List */}
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#16a34a" />
+                        <Text style={styles.loadingText}>Loading conversations...</Text>
+                    </View>
+                ) : filteredConversations.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
+                        <Text style={styles.emptyTitle}>No conversations yet</Text>
+                        <Text style={styles.emptySubtitle}>
+                            Contact a landlord from a property listing to start chatting
+                        </Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={filteredConversations}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={({ item: conv }) => {
+                            const isNew = conv.id === newConversationId;
+                            return (
+                                <TouchableOpacity
+                                    style={[styles.conversationItem, isNew && styles.newConversation]}
+                                    onPress={() => {
+                                        setSelectedChat(conv);
+                                        if (isNew) {
+                                            setNewConversationId(null);
+                                        }
+                                    }}
+                                >
+                                    <View style={styles.avatarContainer}>
+                                        <View style={styles.avatar}>
+                                            <Text style={styles.avatarText}>{getInitials(conv.other_user)}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.conversationInfo}>
+                                        <View style={styles.conversationHeader}>
+                                            <Text style={styles.conversationName}>
+                                                {conv.other_user?.first_name} {conv.other_user?.last_name}
+                                            </Text>
+                                            <Text style={styles.conversationTime}>
+                                                {formatTime(conv.last_message_at)}
+                                            </Text>
+                                        </View>
+                                        {conv.property && (
+                                            <Text style={styles.propertyName}>{conv.property.title}</Text>
+                                        )}
+                                        <Text style={styles.lastMessage} numberOfLines={1}>
+                                            {conv.last_message?.message || 'No messages yet'}
+                                        </Text>
+                                    </View>
+
+                                    {conv.unread_count > 0 && (
+                                        <View style={styles.unreadBadge}>
+                                            <Text style={styles.unreadCount}>{conv.unread_count}</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            )
+                        }}
+                        showsVerticalScrollIndicator={false}
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
                     />
-                </View>
+                )}
             </View>
 
-            {/* Conversations List */}
-            {loading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#16a34a" />
-                    <Text style={styles.loadingText}>Loading conversations...</Text>
-                </View>
-            ) : filteredConversations.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                    <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
-                    <Text style={styles.emptyTitle}>No conversations yet</Text>
-                    <Text style={styles.emptySubtitle}>
-                        Contact a landlord from a property listing to start chatting
-                    </Text>
-                </View>
-            ) : (
-                <FlatList
-                    data={filteredConversations}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item: conv }) => (
-                        <TouchableOpacity
-                            style={styles.conversationItem}
-                            onPress={() => setSelectedChat(conv)}
-                        >
-                            <View style={styles.avatarContainer}>
-                                <View style={styles.avatar}>
-                                    <Text style={styles.avatarText}>{getInitials(conv.other_user)}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.conversationInfo}>
-                                <View style={styles.conversationHeader}>
-                                    <Text style={styles.conversationName}>
-                                        {conv.other_user?.first_name} {conv.other_user?.last_name}
-                                    </Text>
-                                    <Text style={styles.conversationTime}>
-                                        {formatTime(conv.last_message_at)}
-                                    </Text>
-                                </View>
-                                {conv.property && (
-                                    <Text style={styles.propertyName}>{conv.property.title}</Text>
-                                )}
-                                <Text style={styles.lastMessage} numberOfLines={1}>
-                                    {conv.last_message?.message || 'No messages yet'}
-                                </Text>
-                            </View>
-
-                            {conv.unread_count > 0 && (
-                                <View style={styles.unreadBadge}>
-                                    <Text style={styles.unreadCount}>{conv.unread_count}</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    )}
-                    showsVerticalScrollIndicator={false}
-                />
-            )}
-        </View>
+            <BottomNavigation
+                activeTab={activeNavTab}
+                onTabPress={setActiveNavTab}
+            />
+        </>
     );
 
     // Chat Screen
     const renderChatScreen = () => (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={0}
-        >
-            <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
-
-            {/* Chat Header */}
-            <View style={styles.chatScreenHeader}>
-                <TouchableOpacity
-                    onPress={() => setSelectedChat(null)}
-                    style={styles.backButton}
-                >
-                    <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <View style={styles.chatHeaderInfo}>
-                    <View style={styles.chatHeaderAvatar}>
-                        <Text style={styles.chatHeaderAvatarText}>
-                            {getInitials(selectedChat.other_user)}
-                        </Text>
-                    </View>
-                    <View style={styles.chatHeaderText}>
-                        <Text style={styles.chatHeaderName}>
-                            {selectedChat.other_user?.first_name} {selectedChat.other_user?.last_name}
-                        </Text>
-                        {selectedChat.property && (
-                            <Text style={styles.chatHeaderProperty}>{selectedChat.property.title}</Text>
-                        )}
-                    </View>
-                </View>
-
-                <TouchableOpacity style={styles.headerIcon}>
-                    <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-            </View>
-
-            {/* Messages */}
-            <ScrollView
-                ref={scrollViewRef}
-                style={styles.messagesContainer}
-                contentContainerStyle={styles.messagesContent}
-                showsVerticalScrollIndicator={false}
-                onContentSizeChange={scrollToBottom}
+        <>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={0}
             >
-                {/* Property Info Card */}
-                {selectedChat.property && (
-                    <View style={styles.propertyCard}>
-                        <Ionicons name="home-outline" size={24} color="#16a34a" />
-                        <View style={styles.propertyCardInfo}>
-                            <Text style={styles.propertyCardTitle}>{selectedChat.property.title}</Text>
-                            <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
-                        </View>
-                    </View>
-                )}
+                <StatusBar barStyle="light-content" />
 
-                {/* Empty Messages State */}
-                {messages.length === 0 && (
-                    <View style={styles.emptyMessagesContainer}>
-                        <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
-                        <Text style={styles.emptyMessagesText}>No messages yet</Text>
-                        <Text style={styles.emptyMessagesSubtext}>
-                            Say hello to start the conversation!
-                        </Text>
-                    </View>
-                )}
-
-                {messages.map((msg) => (
-                    <View
-                        key={msg.id}
-                        style={[
-                            styles.messageWrapper,
-                            msg.sender_id === currentUserId
-                                ? styles.myMessageWrapper
-                                : styles.theirMessageWrapper,
-                        ]}
+                {/* Chat Header */}
+                <View style={styles.chatScreenHeader}>
+                    <TouchableOpacity
+                        onPress={() => setSelectedChat(null)}
+                        style={styles.backButton}
                     >
-                        <View
-                            style={[
-                                styles.messageBubble,
-                                msg.sender_id === currentUserId
-                                    ? styles.myMessageBubble
-                                    : styles.theirMessageBubble,
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.messageText,
-                                    msg.sender_id === currentUserId
-                                        ? styles.myMessageText
-                                        : styles.theirMessageText,
-                                ]}
-                            >
-                                {msg.message}
+                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+
+                    <View style={styles.chatHeaderInfo}>
+                        <View style={styles.chatHeaderAvatar}>
+                            <Text style={styles.chatHeaderAvatarText}>
+                                {getInitials(selectedChat.other_user)}
                             </Text>
                         </View>
-                        <Text
-                            style={[
-                                styles.messageTime,
-                                msg.sender_id === currentUserId
-                                    ? styles.myMessageTime
-                                    : styles.theirMessageTime,
-                            ]}
-                        >
-                            {formatTime(msg.created_at)}
-                        </Text>
+                        <View style={styles.chatHeaderText}>
+                            <Text style={styles.chatHeaderName}>
+                                {selectedChat.other_user?.first_name} {selectedChat.other_user?.last_name}
+                            </Text>
+                            {selectedChat.property && (
+                                <Text style={styles.chatHeaderProperty}>{selectedChat.property.title}</Text>
+                            )}
+                        </View>
                     </View>
-                ))}
-            </ScrollView>
 
-            {/* Input Area */}
-            <View style={styles.inputContainer}>
-                <TouchableOpacity style={styles.attachButton}>
-                    <Ionicons name="add-circle" size={28} color="#16a34a" />
-                </TouchableOpacity>
+                    <TouchableOpacity style={styles.headerIcon}>
+                        <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                </View>
 
-                <TextInput
-                    style={styles.textInput}
-                    placeholder="Type a message..."
-                    placeholderTextColor="#9CA3AF"
-                    value={messageText}
-                    onChangeText={setMessageText}
-                    multiline
-                />
-
-                <TouchableOpacity
-                    style={[
-                        styles.sendButton,
-                        (!messageText.trim() || sendingMessage) && styles.sendButtonDisabled,
-                    ]}
-                    onPress={handleSendMessage}
-                    disabled={!messageText.trim() || sendingMessage}
+                {/* Messages */}
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.messagesContainer}
+                    contentContainerStyle={styles.messagesContent}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={scrollToBottom}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#16a34a']} tintColor="#16a34a" />
+                    }
                 >
-                    {sendingMessage ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                        <Ionicons name="send" size={20} color="#FFFFFF" />
+                    {/* Property Info Card */}
+                    {selectedChat.property && (
+                        <View style={styles.propertyCard}>
+                            <Ionicons name="home-outline" size={24} color="#16a34a" />
+                            <View style={styles.propertyCardInfo}>
+                                <Text style={styles.propertyCardTitle}>{selectedChat.property.title}</Text>
+                                <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
+                            </View>
+                        </View>
                     )}
-                </TouchableOpacity>
-            </View>
-        </KeyboardAvoidingView>
+
+                    {/* Empty Messages State */}
+                    {messages.length === 0 && (
+                        <View style={styles.emptyMessagesContainer}>
+                            <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
+                            <Text style={styles.emptyMessagesText}>No messages yet</Text>
+                            <Text style={styles.emptyMessagesSubtext}>
+                                Say hello to start the conversation!
+                            </Text>
+                        </View>
+                    )}
+
+                    {messages.map((msg) => {
+                        const isMine = String(msg.sender_id) === String(currentUserId);
+                        return (
+                            <View
+                                key={msg.id}
+                                style={[
+                                    styles.messageWrapper,
+                                    isMine ? styles.myMessageWrapper : styles.theirMessageWrapper,
+                                ]}
+                            >
+                                <View style={[
+                                    styles.messageContent,
+                                    isMine ? styles.myMessageContent : styles.theirMessageContent,
+                                ]}>
+                                    <View
+                                        style={[
+                                            styles.messageBubble,
+                                            isMine ? styles.myMessageBubble : styles.theirMessageBubble,
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.messageText,
+                                                isMine ? styles.myMessageText : styles.theirMessageText,
+                                            ]}
+                                        >
+                                            {msg.message}
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.messageTime}>
+                                        {formatTime(msg.created_at)}
+                                    </Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+
+                {/* Input Area */}
+                <View style={styles.inputContainer}>
+                    <TouchableOpacity style={styles.attachButton}>
+                        <Ionicons name="add-circle" size={28} color="#16a34a" />
+                    </TouchableOpacity>
+
+                    <TextInput
+                        style={styles.textInput}
+                        placeholder="Type a message..."
+                        placeholderTextColor="#9CA3AF"
+                        value={messageText}
+                        onChangeText={setMessageText}
+                        multiline
+                    />
+
+                    <TouchableOpacity
+                        style={[
+                            styles.sendButton,
+                            (!messageText.trim() || sendingMessage) && styles.sendButtonDisabled,
+                        ]}
+                        onPress={handleSendMessage}
+                        disabled={!messageText.trim() || sendingMessage}
+                    >
+                        {sendingMessage ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                            <Ionicons name="send" size={20} color="#FFFFFF" />
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
+            <BottomNavigation
+                activeTab={activeNavTab}
+                onTabPress={setActiveNavTab}
+            />
+        </>
     );
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
             {selectedChat ? renderChatScreen() : renderChatList()}
         </SafeAreaView>
     );

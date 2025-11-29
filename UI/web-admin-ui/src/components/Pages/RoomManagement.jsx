@@ -112,6 +112,17 @@ export default function RoomManagement() {
     fetchRooms();
   };
 
+  const handleAmenityAdded = async () => {
+    // Refresh the property data to get updated amenities
+    try {
+      const res = await api.get('/landlord/properties');
+      const data = res.data;
+      setProperties(data);
+    } catch (err) {
+      console.error('Failed to refresh properties:', err);
+    }
+  };
+
   // Edit Room
   const handleEditRoom = (room) => {
     setSelectedRoom({
@@ -602,6 +613,7 @@ export default function RoomManagement() {
         onClose={() => setShowAddModal(false)}
         propertyId={selectedPropertyId}
         onRoomAdded={handleRoomAdded}
+        onAmenityAdded={handleAmenityAdded}
         propertyType={properties.find(p => p.id === selectedPropertyId)?.property_type}
         propertyAmenities={properties.find(p => p.id === selectedPropertyId)?.amenities || properties.find(p => p.id === selectedPropertyId)?.property_rules?.amenities || []}
       />

@@ -1,3 +1,5 @@
+// Replace the entire PropertyDetailsScreen.jsx with this updated version
+
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -9,7 +11,8 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
-  Platform
+  Platform,
+  RefreshControl,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -24,6 +27,7 @@ export default function PropertyDetailsScreen({ route }) {
   const { accommodation } = route.params;
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
@@ -42,12 +46,42 @@ export default function PropertyDetailsScreen({ route }) {
       setRoomsLoading(true);
       const result = await PropertyService.getPublicProperty(accommodation.id);
 
+      console.log('Raw API response:', result); // DEBUG
+
       if (result.success && result.data) {
-        // Use transform helper to build a consistent accommodation object
-        const detailed = PropertyService.transformPropertyToAccommodation(result.data);
+        // Store the raw API data with ALL landlord fields
+        const rawData = result.data;
+        
+        console.log('Landlord data from API:', {
+          landlord_id: rawData.landlord_id,
+          user_id: rawData.user_id,
+          landlord_name: rawData.landlord_name,
+          landlord: rawData.landlord
+        }); // DEBUG
+
+        // Build detailed accommodation with ALL possible landlord fields
+        const detailed = {
+          ...rawData,
+          // Preserve ALL landlord-related fields
+          landlord_id: rawData.landlord_id,
+          user_id: rawData.user_id || rawData.landlord_id,
+          landlord_name: rawData.landlord_name,
+          owner_name: rawData.owner_name || rawData.landlord_name,
+          landlord: rawData.landlord,
+          // Also add common aliases
+          name: rawData.title || rawData.name,
+          title: rawData.title || rawData.name,
+          type: rawData.property_type || rawData.type,
+          availableRooms: rawData.available_rooms,
+          available_rooms: rawData.available_rooms,
+          priceRange: rawData.price_range,
+          amenities: rawData.amenities || []
+        };
+
+        console.log('Detailed accommodation object:', detailed); // DEBUG
         setDetailedAccommodation(detailed);
 
-        const standardizedRooms = (result.data.rooms || []).map((room) => ({
+        const standardizedRooms = (rawData.rooms || []).map((room) => ({
           ...room,
           images: room.images || [],
           monthly_rate: parseFloat(room.monthly_rate) || 0,
@@ -63,6 +97,17 @@ export default function PropertyDetailsScreen({ route }) {
       setRooms([]);
     } finally {
       setRoomsLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadRooms();
+    } catch (err) {
+      console.error('Refresh failed:', err);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -102,8 +147,62 @@ export default function PropertyDetailsScreen({ route }) {
   };
 
   const handleRoomPress = (room) => {
-    const active = detailedAccommodation || accommodation;
-    navigation.navigate('RoomDetails', { room, property: active });
+    // Use detailedAccommodation first (has freshest API data), fallback to accommodation
+    const sourceProperty = detailedAccommodation || accommodation;
+    
+    console.log('Source property for room press:', sourceProperty); // DEBUG
+    
+    // Build comprehensive property data with ALL landlord fields
+    const propertyData = {
+      // Basic property info
+      id: sourceProperty.id,
+      name: sourceProperty.name || sourceProperty.title,
+      title: sourceProperty.title || sourceProperty.name,
+      type: sourceProperty.type || sourceProperty.property_type,
+      
+      // Address fields
+      street_address: sourceProperty.street_address,
+      city: sourceProperty.city,
+      province: sourceProperty.province,
+      barangay: sourceProperty.barangay,
+      postal_code: sourceProperty.postal_code,
+      
+      // Location
+      latitude: sourceProperty.latitude,
+      longitude: sourceProperty.longitude,
+      
+      // ALL possible landlord field variations
+      landlord_id: sourceProperty.landlord_id || sourceProperty.user_id || sourceProperty.landlord?.id,
+      user_id: sourceProperty.user_id || sourceProperty.landlord_id || sourceProperty.landlord?.id,
+      landlord_name: sourceProperty.landlord_name || 
+                     sourceProperty.owner_name || 
+                     (sourceProperty.landlord ? 
+                       `${sourceProperty.landlord.first_name || ''} ${sourceProperty.landlord.last_name || ''}`.trim() 
+                       : 'Landlord'),
+      owner_name: sourceProperty.owner_name || sourceProperty.landlord_name,
+      
+      // Full landlord object
+      landlord: sourceProperty.landlord || null,
+      
+      // Other property data
+      description: sourceProperty.description,
+      amenities: sourceProperty.amenities,
+      property_rules: sourceProperty.property_rules || sourceProperty.propertyRules,
+      nearby_landmarks: sourceProperty.nearby_landmarks,
+    };
+    
+    console.log('Property data being passed to RoomDetails:', {
+      id: propertyData.id,
+      landlord_id: propertyData.landlord_id,
+      user_id: propertyData.user_id,
+      landlord_name: propertyData.landlord_name,
+      landlord: propertyData.landlord
+    }); // DEBUG
+    
+    navigation.navigate('RoomDetails', { 
+      room, 
+      property: propertyData 
+    });
   };
 
   // Parse property rules (could be JSON string or array)
@@ -154,6 +253,73 @@ export default function PropertyDetailsScreen({ route }) {
     });
   };
 
+  // Contact landlord function
+  const handleContactLandlord = async () => {
+    try {
+      const src = detailedAccommodation || accommodation;
+      
+      console.log('=== CONTACT LANDLORD FROM PROPERTY DEBUG ===');
+      console.log('Full property object:', JSON.stringify(src, null, 2));
+      
+      const landlordId = src.landlord_id ||
+        src.user_id ||
+        src.landlord?.id ||
+        src.owner?.id;
+
+      const landlordName = src.landlord_name ||
+        src.owner_name ||
+        (src.landlord ?
+          `${src.landlord.first_name || ''} ${src.landlord.last_name || ''}`.trim()
+          : null) ||
+        (src.owner ?
+          `${src.owner.first_name || ''} ${src.owner.last_name || ''}`.trim()
+          : null) ||
+        'Landlord';
+
+      console.log('Extracted landlord info:', { landlordId, landlordName });
+
+      if (!landlordId) {
+        Alert.alert(
+          'Error',
+          'Landlord information not available. Please try refreshing the property details.',
+          [
+            {
+              text: 'Refresh',
+              onPress: () => onRefresh()
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+        return;
+      }
+
+      console.log('Navigating to Messages with:', {
+        landlordId,
+        landlordName,
+        propertyId: src.id,
+        propertyTitle: src.name || src.title
+      });
+
+      navigation.navigate('Messages', {
+        startConversation: true,
+        recipient: {
+          id: landlordId,
+          name: landlordName,
+        },
+        property: {
+          id: src.id,
+          title: src.name || src.title,
+        }
+      });
+    } catch (error) {
+      console.error('Error navigating to messages:', error);
+      Alert.alert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
+    }
+  };
+
   // Generate Leaflet HTML for WebView
   const getLeafletHTML = () => {
     const src = detailedAccommodation || accommodation;
@@ -189,13 +355,11 @@ export default function PropertyDetailsScreen({ route }) {
           <script>
             var map = L.map('map').setView([${latitude}, ${longitude}], 15);
             
-            // Use OpenStreetMap tiles (free, no API key needed)
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
               maxZoom: 19
             }).addTo(map);
             
-            // Add marker with green icon
             var greenIcon = L.icon({
               iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
               shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
@@ -213,8 +377,6 @@ export default function PropertyDetailsScreen({ route }) {
     `;
   };
 
-  // Tenant-relevant only: No landlord info, focus on vacancy, amenities, rules
-
   const active = detailedAccommodation || accommodation;
 
   return (
@@ -230,7 +392,9 @@ export default function PropertyDetailsScreen({ route }) {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#10b981"]} tintColor="#10b981" />
+      }>
         {/* Info Section */}
         <View style={styles.infoSection}>
           {/* Title and Type */}
@@ -303,7 +467,7 @@ export default function PropertyDetailsScreen({ route }) {
           )}
 
           {/* Map Section */}
-          {accommodation.latitude && accommodation.longitude && (
+          {active.latitude && active.longitude && (
             <View style={styles.section}>
               <View style={styles.mapHeader}>
                 <Text style={styles.sectionTitle}>Location</Text>
@@ -351,6 +515,12 @@ export default function PropertyDetailsScreen({ route }) {
               ))}
             </View>
           )}
+
+          {/* Contact Landlord Button */}
+          <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
+            <Ionicons name="chatbubble-outline" size={18} color="#10b981" />
+            <Text style={styles.contactButtonText}>Contact Landlord</Text>
+          </TouchableOpacity>
 
           {/* Embedded Room List */}
           <View style={styles.roomsSection}>

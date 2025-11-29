@@ -18,7 +18,9 @@ return new class extends Migration
             $table->enum('room_type', ['single', 'double', 'quad', 'bedSpacer']);
             $table->integer('floor');
             $table->decimal('monthly_rate', 10, 2);
+            // capacity first, then pricing_model (avoid using ->after() in CREATE TABLE)
             $table->integer('capacity')->default(1);
+            $table->enum('pricing_model', ['full_room', 'per_bed'])->default('full_room');
             $table->enum('status', ['available', 'occupied', 'maintenance'])
                   ->default('available')
                   ->index('idx_status');

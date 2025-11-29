@@ -1,4 +1,3 @@
-// SettingsScreen.jsx
 import React, { useState } from 'react';
 import {
   View,
@@ -7,13 +6,13 @@ import {
   TouchableOpacity,
   Switch,
   StatusBar,
-  StyleSheet,
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Landlord/Settings';
+import Button from '../components/ui/Button';
 
 export default function SettingsScreen({ navigation, onLogout }) {
   const [user, setUser] = useState({
@@ -69,9 +68,9 @@ export default function SettingsScreen({ navigation, onLogout }) {
         },
         {
           id: 'dorm',
-          title: 'Dorm Profile',
+          title: 'My Properties',
           icon: 'business-outline',
-          screen: 'DormProfile'
+          screen: 'MyProperties'
         }
       ]
     },
@@ -213,10 +212,10 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ))}
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#F44336" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <Button style={styles.logoutButton} onPress={handleLogout} type="primary">
+          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Text style={[styles.logoutText, { color: '#fff', marginLeft: 8 }]}>Logout</Text>
+        </Button>
 
         <View style={{ height: 40 }} />
       </ScrollView>

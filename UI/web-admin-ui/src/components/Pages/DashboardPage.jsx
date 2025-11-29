@@ -10,6 +10,7 @@ import {
   Building2,
   XCircle,
 } from 'lucide-react';
+import api from '../../utils/api';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
@@ -19,17 +20,6 @@ export default function DashboardPage() {
   const [propertyPerformance, setPropertyPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
-  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -41,24 +31,18 @@ export default function DashboardPage() {
       setError('');
 
       const [statsRes, activitiesRes, paymentsRes, chartRes, performanceRes] = await Promise.all([
-        fetch(`${API_URL}/landlord/dashboard/stats`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/landlord/dashboard/recent-activities`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/landlord/dashboard/upcoming-payments`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/landlord/dashboard/revenue-chart`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/landlord/dashboard/property-performance`, { headers: getAuthHeaders() })
+        api.get('/landlord/dashboard/stats'),
+        api.get('/landlord/dashboard/recent-activities'),
+        api.get('/landlord/dashboard/upcoming-payments'),
+        api.get('/landlord/dashboard/revenue-chart'),
+        api.get('/landlord/dashboard/property-performance')
       ]);
 
-      if (!statsRes.ok || !activitiesRes.ok || !paymentsRes.ok || !chartRes.ok || !performanceRes.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-
-      const [statsData, activitiesData, paymentsData, chartData, performanceData] = await Promise.all([
-        statsRes.json(),
-        activitiesRes.json(),
-        paymentsRes.json(),
-        chartRes.json(),
-        performanceRes.json()
-      ]);
+      const statsData = statsRes.data;
+      const activitiesData = activitiesRes.data;
+      const paymentsData = paymentsRes.data;
+      const chartData = chartRes.data;
+      const performanceData = performanceRes.data;
 
       setStats(statsData);
       setActivities(activitiesData);
@@ -222,7 +206,13 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="orange" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-philippine-peso-icon lucide-philippine-peso"><path d="M20 11H4"/><path d="M20 7H4"/><path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                  fill="none" stroke="orange" strokeWidth="2" strokeLinecap="round"
+                  strokeLinejoin="round" className="lucide lucide-philippine-peso-icon lucide-philippine-peso">
+                  <path d="M20 11H4" />
+                  <path d="M20 7H4" />
+                  <path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7" />
+                </svg>
               </div>
               <span className="text-xs text-green-600 font-medium">
                 <TrendingUp className="w-4 h-4 inline" />
@@ -256,13 +246,12 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
                         <p className="text-xs text-gray-400 mt-1">{formatDate(activity.timestamp)}</p>
                       </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                        activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        activity.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        activity.status === 'available' ? 'bg-green-100 text-green-800' :
-                        activity.status === 'occupied' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          activity.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                            activity.status === 'available' ? 'bg-green-100 text-green-800' :
+                              activity.status === 'occupied' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                        }`}>
                         {activity.status}
                       </span>
                     </div>
@@ -332,13 +321,12 @@ export default function DashboardPage() {
                 <div key={property.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-900">{property.title}</h3>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                      property.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${property.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
                       {property.status}
                     </span>
                   </div>
-                  
+
                   {/* Progress Bar */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between text-xs text-gray-600 mb-1">

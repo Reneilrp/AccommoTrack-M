@@ -4,6 +4,7 @@ import {
   X,
   Image,
   Upload,
+  Loader2,
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -14,6 +15,14 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [dormData, setDormData] = useState(null);
   const [newRule, setNewRule] = useState('');
   const [newCustomAmenity, setNewCustomAmenity] = useState('');
+
+  // Delete states
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false });
+  const [passwordModal, setPasswordModal] = useState({ show: false });
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const API_URL = '/api';
 
@@ -38,11 +47,11 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       setError('');
       const res = await api.get(`/landlord/properties/${propertyId}`);
       const data = res.data;
-      
+
       // Parse amenities from relationship or amenities_list
       const amenitiesData = data.amenities_list || data.amenities || [];
       const parsedAmenities = parseAmenities(amenitiesData);
-      
+
       // Parse images - backend returns objects with image_url property that's already a full URL
       const images = (data.images || []).map(img => {
         // If it's already a string URL, use it
@@ -56,7 +65,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         // Fallback
         return img;
       }).filter(Boolean); // Remove any null/undefined values
-      
+
       setDormData({
         id: data.id,
         name: data.title,
@@ -113,7 +122,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     if (!amenitiesData || (Array.isArray(amenitiesData) && amenitiesData.length === 0)) {
       return defaultAmenities;
     }
-    
+
     // If it's an array of strings (amenity names)
     if (Array.isArray(amenitiesData)) {
       const amenitiesObj = { ...defaultAmenities };
@@ -131,7 +140,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       });
       return amenitiesObj;
     }
-    
+
     // If it's a string, try to parse as JSON
     if (typeof amenitiesData === 'string') {
       try {
@@ -141,7 +150,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         return defaultAmenities;
       }
     }
-    
+
     // If it's an object, merge with defaults
     return { ...defaultAmenities, ...amenitiesData };
   };
@@ -191,21 +200,21 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
-    
+
     // Create preview URLs for immediate display
     const previewUrls = files.map(f => URL.createObjectURL(f));
     setDormData(prev => ({
       ...prev,
       images: [...prev.images, ...previewUrls]
     }));
-    
+
     // Upload images to backend
     try {
       const formData = new FormData();
       files.forEach((file, index) => {
         formData.append(`images[${index}]`, file);
       });
-      
+
       const token = localStorage.getItem('auth_token');
       const response = await api.put(`/landlord/properties/${propertyId}`, formData, {
         headers: {
@@ -252,7 +261,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     try {
       setLoading(true);
       setError('');
-      
+
       // Convert amenities object to array of amenity names
       const amenitiesArray = Object.entries(dormData.amenities)
         .filter(([key, value]) => value === true)
@@ -289,8 +298,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         province: dormData.address.province,
         postal_code: dormData.address.zipCode,
         country: dormData.address.country,
-        number_of_bedrooms: parseInt(dormData.specifications.bedrooms) || 1,
-        number_of_bathrooms: parseInt(dormData.specifications.bathrooms) || 1,
         max_occupants: parseInt(dormData.specifications.maxOccupants) || 1,
         total_rooms: parseInt(dormData.specifications.totalRooms) || 1,
         amenities: merged,
@@ -367,7 +374,15 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
               {isEditing && (
                 <>
                   <button
-                    onClick={() => onDeleteRequested && onDeleteRequested(dormData?.id)}
+                    onClick={() => {
+                      // Navigate back first, then trigger delete
+                      if (onDeleteRequested && dormData?.id) {
+                        onBack(); // Go back to properties list first
+                        setTimeout(() => {
+                          onDeleteRequested(dormData.id); // Then trigger delete modal
+                        }, 100);
+                      }
+                    }}
                     disabled={loading}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 mr-2"
                     title="Delete Property"
@@ -417,7 +432,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             {/* Basic Information */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Property Name</label>
@@ -476,7 +491,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             {/* Location */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
@@ -575,7 +590,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             {/* Specifications */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Total Rooms</label>
@@ -596,82 +611,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.bathrooms}
-                    onChange={(e) => handleSpecificationChange('bathrooms', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.bedrooms}
-                    onChange={(e) => handleSpecificationChange('bedrooms', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Max Occupants</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.maxOccupants}
-                    onChange={(e) => handleSpecificationChange('maxOccupants', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
               </div>
-            </div>
-
-            {/* Property Rules */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Property Rules</h2>
-              
-              <div className="space-y-3 mb-4">
-                {dormData.rules.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No rules added yet</p>
-                ) : (
-                  dormData.rules.map((rule, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                      <span className="text-green-600 mt-0.5">•</span>
-                      <span className="flex-1 text-sm text-gray-700">{rule}</span>
-                      {isEditing && (
-                        <button
-                          onClick={() => handleRemoveRule(index)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {isEditing && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newRule}
-                    onChange={(e) => setNewRule(e.target.value)}
-                    placeholder="Add a new rule..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddRule()}
-                  />
-                  <button
-                    onClick={handleAddRule}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Property Images */}
@@ -682,9 +622,9 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 <div className="grid grid-cols-4 gap-3">
                   {dormData.images.map((img, index) => (
                     <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                      <img 
-                        src={img} 
-                        alt={`Property ${index + 1}`} 
+                      <img
+                        src={img}
+                        alt={`Property ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           // Fallback if image fails to load
@@ -739,7 +679,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             {/* Amenities */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Amenities</h2>
-              
+
               <div className="space-y-3">
                 {Object.entries(dormData.amenities).map(([key, value]) => (
                   <label key={key} className="flex items-center justify-between cursor-pointer">
@@ -750,58 +690,81 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       type="button"
                       onClick={() => isEditing && handleAmenityToggle(key)}
                       disabled={!isEditing}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        value ? 'bg-green-600' : 'bg-gray-300'
-                      } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? 'bg-green-600' : 'bg-gray-300'
+                        } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          value ? 'translate-x-5' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value ? 'translate-x-5' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </label>
                 ))}
-                {/* Custom Amenities (editable list) */}
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Custom Amenities</h3>
-                  {(!dormData.customAmenities || dormData.customAmenities.length === 0) ? (
-                    <p className="text-sm text-gray-500">No custom amenities added</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {dormData.customAmenities.map((amenity, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                          <span className="text-sm text-gray-700">{amenity}</span>
-                          {isEditing && (
-                            <button onClick={() => handleRemoveCustomAmenity(idx)} className="text-red-600 hover:text-red-700">
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {isEditing && (
-                    <div className="mt-3 flex gap-2">
-                      <input
-                        type="text"
-                        value={newCustomAmenity}
-                        onChange={(e) => setNewCustomAmenity(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (handleAddCustomAmenity(newCustomAmenity))}
-                        placeholder="Add a custom amenity..."
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      />
-                      <button
-                        onClick={() => handleAddCustomAmenity(newCustomAmenity)}
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-                </div>
               </div>
+
+              {isEditing && (
+                <div className="mt-4 flex gap-2">
+                  <input
+                    type="text"
+                    value={newCustomAmenity}
+                    onChange={(e) => setNewCustomAmenity(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (handleAddCustomAmenity(newCustomAmenity))}
+                    placeholder="Add a new amenity..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    onClick={() => handleAddCustomAmenity(newCustomAmenity)}
+                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Property Rules */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Property Rules</h2>
+
+              <div className="space-y-3 mb-4">
+                {dormData.rules.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No rules added yet</p>
+                ) : (
+                  dormData.rules.map((rule, index) => (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <span className="text-green-600 mt-0.5">•</span>
+                      <span className="flex-1 text-sm text-gray-700">{rule}</span>
+                      {isEditing && (
+                        <button
+                          onClick={() => handleRemoveRule(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newRule}
+                    onChange={(e) => setNewRule(e.target.value)}
+                    placeholder="Add a new rule..."
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddRule()}
+                  />
+                  <button
+                    onClick={handleAddRule}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

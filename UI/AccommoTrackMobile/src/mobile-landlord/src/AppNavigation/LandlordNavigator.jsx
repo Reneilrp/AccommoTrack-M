@@ -8,7 +8,7 @@ import LandlordDashboard from '../Dashboard/DashboardPage.jsx';
 import RoomManagement from '../Dashboard/RoomManagement.jsx';
 import Tenants from '../Dashboard/Tenants.jsx';
 import Messages from '../Dashboard/Messages.jsx';
-import DormProfile from '../Dashboard/DormProfile.jsx';
+import MyProperties from '../Dashboard/MyProperties.jsx';
 import Settings from '../Dashboard/Settings.jsx';
 import Bookings from '../Dashboard/Bookings.jsx';
 import Analytics from '../Dashboard/Analytics.jsx';
@@ -16,6 +16,9 @@ import MyProfile from '../Dashboard/MyProfile.jsx';
 import HelpSupport from '../Dashboard/HelpSupport.jsx';
 import About from '../Dashboard/About.jsx';
 import DevTeam from '../Dashboard/DevTeam/DevTeam.jsx';
+import AddProperty from '../Dashboard/AddProperty.jsx';
+import DormProfile from '../Dashboard/DormProfile.jsx';
+import PropertyDetailsScreen from '../../../mobile-tenant/src/components/PropertyDetailsScreen.jsx';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -114,11 +117,14 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="Bookings" component={Bookings} options={{ animation: 'none' }}/>
       <Stack.Screen name="DashboardPage" component={LandlordDashboard} options={{ animation: 'none' }}/>
       <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
-      <Stack.Screen name="DormProfile" component={DormProfile} options={{ animation: 'none' }}/>
+      <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
       <Stack.Screen name="RoomManagement" component={RoomManagement} options={{ animation: 'none' }}/>
       <Stack.Screen name="Message" component={Messages} options={{ animation: 'none' }}/>
       <Stack.Screen name="Analytics" component={Analytics} options={{ animation: 'none' }}/>
       <Stack.Screen name="MyProfile" component={MyProfile} options={{ animation: 'none' }}/>
+      <Stack.Screen name="AddProperty" component={AddProperty} options={{ animation: 'none' }}/>
+      <Stack.Screen name="DormProfile" component={DormProfile} options={{ animation: 'none' }}/>
+      <Stack.Screen name="PropertyDetails" component={PropertyDetailsScreen} options={{ animation: 'none' }}/>
       <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }}/>
       <Stack.Screen name="About" component={About} options={{ animation: 'none' }}/>
       <Stack.Screen name="DevTeam" component={DevTeam} options={{ animation: 'none', headerShown: false }} />

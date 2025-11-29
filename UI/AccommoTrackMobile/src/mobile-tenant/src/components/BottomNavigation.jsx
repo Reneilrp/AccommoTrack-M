@@ -4,13 +4,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 
-export default function BottomNavigation({ activeTab, onTabPress }) {
+export default function BottomNavigation({ activeTab, onTabPress, isGuest, onAuthRequired }) {
   const navigation = useNavigation();
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleTabPress = (tab) => {
     // Prevent multiple rapid clicks
     if (isNavigating) return;
+
+    if (isGuest && (tab === 'messages' || tab === 'settings')) {
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
+      return;
+    }
     
     onTabPress(tab);
     setIsNavigating(true);

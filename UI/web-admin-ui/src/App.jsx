@@ -8,7 +8,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('userData');
     
     if (token && userData) {
@@ -16,7 +16,7 @@ function App() {
         setUser(JSON.parse(userData));
       } catch (error) {
         console.error('Error parsing user data:', error);
-        localStorage.removeItem('authToken');
+        localStorage.removeItem('auth_token');
         localStorage.removeItem('userData');
       }
     }
@@ -25,13 +25,13 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('userData');
   };
 
   const handleLogin = (userData, token) => {
     setUser(userData);
-    localStorage.setItem('authToken', token);
+    localStorage.setItem('auth_token', token);
     localStorage.setItem('userData', JSON.stringify(userData));
   };
 

@@ -90,6 +90,33 @@ const PropertyService = {
     },
 
     /**
+     * Reverse geocode coordinates using backend relay
+     * Matches: GET /api/reverse-geocode?lat={lat}&lon={lon}
+     * @param {number|string} lat
+     * @param {number|string} lon
+     */
+    async reverseGeocode(lat, lon) {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reverse-geocode`, {
+                params: { lat, lon }
+            });
+
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error reverse geocoding:', error);
+            return {
+                success: false,
+                data: null,
+                error: error.response?.data?.message || error.message || 'Reverse geocode failed'
+            };
+        }
+    },
+
+    /**
      * Transform backend property data to accommodation format for frontend
      * This matches the structure from PropertyController::publicIndex() and publicShow()
      * @param {Object} property - Property from backend
@@ -143,6 +170,12 @@ const PropertyService = {
             latitude: property.latitude ? parseFloat(property.latitude) : null,
             longitude: property.longitude ? parseFloat(property.longitude) : null,
             nearby_landmarks: property.nearby_landmarks,
+
+            landlord_id: property.landlord_id,
+            user_id: property.user_id || property.landlord_id,
+            landlord_name: property.landlord_name,
+            owner_name: property.owner_name || property.landlord_name,
+            landlord: property.landlord || null,
         };
     },
 

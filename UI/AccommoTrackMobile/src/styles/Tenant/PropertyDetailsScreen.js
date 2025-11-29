@@ -380,4 +380,22 @@ export const styles = StyleSheet.create({
     color: '#10b981',
     fontWeight: '600',
   },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#10b981',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  contactButtonText: {
+    color: '#10b981',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

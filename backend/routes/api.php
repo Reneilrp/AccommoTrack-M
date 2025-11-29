@@ -14,6 +14,8 @@ use App\Http\Controllers\TenantSettingsController;
 use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\AdminController;
+use App\Http\Middleware\EnsureUserIsAdmin;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -24,6 +26,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 
+Route::get('/properties/{id}/view', [PropertyController::class, 'showForTenant']);
+Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 // Public reverse geocoding endpoint
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 
@@ -67,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/{id}', [PropertyController::class, 'show']);
         Route::put('/properties/{id}', [PropertyController::class, 'update']);
         Route::delete('/properties/{id}', [PropertyController::class, 'destroy']);
+        Route::post('/properties/{id}/amenities', [PropertyController::class, 'addAmenity']);
         
         Route::get('/properties/{propertyId}/rooms', [RoomController::class, 'index']);
         Route::get('/properties/{propertyId}/rooms/stats', [RoomController::class, 'getStats']);
@@ -102,6 +107,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
+
+        Route::get('/properties/{id}', [PropertyController::class, 'show']);
+
     });
     
 
@@ -115,6 +123,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/bookings/{id}/payment', [BookingController::class, 'updatePaymentStatus']);
 
     // Inside auth:sanctum middleware group
+    // ===== ADMIN ROUTES (Admins only) =====
+    Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function () {
+        // Dashboard
+        Route::get('/dashboard/stats', [AdminController::class, 'getDashboardStats']);
+        Route::get('/dashboard/recent-activities', [AdminController::class, 'getRecentActivities']);
+        
+        // User management
+        Route::get('/users', [AdminController::class, 'getUsers']);
+        Route::post('/users', [AdminController::class, 'createAdmin']);
+        Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);
+        Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
+        Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);
+        
+        // Property approval
+        Route::get('/properties/pending', [AdminController::class, 'getPendingProperties']);
+        Route::get('/properties/approved', [AdminController::class, 'getApprovedProperties']);
+        Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
+        Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
+        Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
+    });
+
     Route::prefix('messages')->group(function () {
         Route::get('/conversations', [MessageController::class, 'getConversations']);
         Route::get('/unread-count', [MessageController::class, 'getUnreadCount']);

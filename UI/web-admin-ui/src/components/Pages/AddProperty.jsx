@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import {
   ArrowLeft,
@@ -13,7 +13,7 @@ import {
   ArrowRight,
   X
 } from 'lucide-react';
-
+import api from '../../utils/api';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -27,6 +27,7 @@ export default function AddProperty({ onBack, onSave }) {
   const [error, setError] = useState('');
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
+  const formContentRef = useRef(null);
 
   // Fix Leaflet marker icon issue
   delete L.Icon.Default.prototype._getIconUrl;
@@ -61,7 +62,8 @@ export default function AddProperty({ onBack, onSave }) {
   const [formData, setFormData] = useState({
     propertyName: '',
     propertyType: '',
-    currentStatus: 'active',
+    otherPropertyType: '',
+    currentStatus: 'pending',
     streetAddress: '',
     city: '',
     provinceRegion: 'Zamboanga Del Sur',
@@ -71,10 +73,6 @@ export default function AddProperty({ onBack, onSave }) {
     latitude: '',
     longitude: '',
     nearbyLandmarks: '',
-    bedrooms: '',
-    bathrooms: '',
-    floorArea: '',
-    floorLevel: '',
     maxTenants: '',
     totalRooms: '',
     amenities: [],
@@ -94,9 +92,8 @@ export default function AddProperty({ onBack, onSave }) {
     if (lat && lng) {
       (async () => {
         try {
-          const nominatimUrl = `/api/reverse-geocode?lat=${lat}&lon=${lng}`;
-          const res = await fetch(nominatimUrl);
-          const data = await res.json();
+          const res = await api.get(`/reverse-geocode?lat=${lat}&lon=${lng}`);
+          const data = res.data;
           if (data && data.address) {
             setFormData((prev) => ({
               ...prev,
@@ -128,17 +125,15 @@ export default function AddProperty({ onBack, onSave }) {
 
   const amenitiesList = [
     'WiFi', 'Air Conditioning', 'Furnished',
-    'Parking', 'Security', 'Generator',
+    'Parking', 'Security',
     'Water Heater', 'Kitchen', 'Balcony',
-    'Elevator', 'Pet Friendly', 'Gym Access'
+    'Pet Friendly'
   ];
 
   const steps = [
-    { number: 1, title: 'Basic Information', description: 'Property details' },
-    { number: 2, title: 'Location', description: 'Address & coordinates' },
-    { number: 3, title: 'Specifications', description: 'Property features' },
-    { number: 4, title: 'Property Rules', description: 'House rules' },
-    { number: 5, title: 'Description & Images', description: 'Details & photos' }
+    { number: 1, title: 'Property Information', description: 'Basic details & photos' },
+    { number: 2, title: 'Location Details', description: 'Address & coordinates' },
+    { number: 3, title: 'Rules & Amenities', description: 'House rules & features' }
   ];
 
   const handleInputChange = (field, value) => {
@@ -231,19 +226,29 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const handleNext = () => {
-    if (currentStep < 5) setCurrentStep(currentStep + 1);
+    if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
+      setTimeout(() => {
+        formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      setTimeout(() => {
+        formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
   };
 
   const mapPropertyToBackend = (isDraft = false) => {
     return {
       title: formData.propertyName,
       description: formData.description || null,
-      property_type: formData.propertyType,
-      current_status: isDraft ? 'inactive' : 'active',
+      property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
+      current_status: 'pending',
       street_address: formData.streetAddress,
       city: formData.city,
       province: formData.provinceRegion,
@@ -253,14 +258,10 @@ export default function AddProperty({ onBack, onSave }) {
       latitude: parseFloat(formData.latitude) || null,
       longitude: parseFloat(formData.longitude) || null,
       nearby_landmarks: formData.nearbyLandmarks || null,
-      number_of_bedrooms: parseInt(formData.bedrooms) || 1,
-      number_of_bathrooms: parseInt(formData.bathrooms) || 1,
-      floor_area: parseFloat(formData.floorArea) || null,
-      floor_level: formData.floorLevel || null,
       max_occupants: parseInt(formData.maxTenants) || 1,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
-      is_published: !isDraft ? true : false,
-      is_available: !isDraft ? true : false,
+      is_published: false,
+      is_available: false,
     };
   };
 
@@ -269,10 +270,10 @@ export default function AddProperty({ onBack, onSave }) {
 
     if (!formData.propertyName) errors.push('Property name is required');
     if (!formData.propertyType) errors.push('Property type is required');
+    if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.push('Please specify the property type');
     if (!formData.streetAddress) errors.push('Street address is required');
     if (!formData.city) errors.push('City is required');
     if (!formData.provinceRegion) errors.push('Province is required');
-    if (!formData.totalRooms) errors.push('Total rooms is required');
 
     if (errors.length > 0) {
       setError(errors.join(', '));
@@ -320,23 +321,15 @@ export default function AddProperty({ onBack, onSave }) {
     });
 
     try {
-      const response = await fetch(`${API_URL}/landlord/properties`, {
-        method: 'POST',
+      const result = await api.post('/landlord/properties', payload, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Accept': 'application/json',
-        },
-        body: payload
+          'Content-Type': 'multipart/form-data'
+        }
       });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || 'Failed to save property');
-      }
-
-      const result = await response.json();
-      alert(isDraft ? 'Draft saved!' : 'Property published successfully!');
-      if (onSave) onSave(result, isDraft ? 'draft' : 'active');
+      const data = result.data;
+      alert(isDraft ? 'Draft saved!' : 'Property submitted for admin approval!');
+      if (onSave) onSave(result, 'pending');
       if (onBack) onBack();
 
     } catch (err) {
@@ -412,65 +405,130 @@ export default function AddProperty({ onBack, onSave }) {
       </div>
 
       {/* Form Content */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Step 1: Basic Information */}
+      <div ref={formContentRef} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Step 1: Property Information */}
         {currentStep === 1 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-1">Basic Information</h2>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Property Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., Sunset Apartments"
-                value={formData.propertyName}
-                onChange={(e) => handleInputChange('propertyName', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Property Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.propertyType}
-                  onChange={(e) => handleInputChange('propertyType', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                >
-                  <option value="">Select type</option>
-                  <option value="dormitory">Dormitory</option>
-                  <option value="apartment">Apartment</option>
-                  <option value="boardingHouse">Boarding House</option>
-                  <option value="bedSpacer">Bed Spacer</option>
-                </select>
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">Basic Information</h2>
+                <p className="text-sm text-gray-600">Property will be pending until approved by admin</p>
+              </div>
+
+              <div className="grid grid-cols-5 gap-4">
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Property Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Sunset Apartments"
+                    value={formData.propertyName}
+                    onChange={(e) => handleInputChange('propertyName', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  />
+                </div>
+
+                <div className={formData.propertyType === 'others' ? 'col-span-1' : 'col-span-2'}>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Property Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.propertyType}
+                    onChange={(e) => handleInputChange('propertyType', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  >
+                    <option value="" disabled hidden>Select type</option>
+                    <option value="dormitory">Dormitory</option>
+                    <option value="apartment">Apartment</option>
+                    <option value="boardingHouse">Boarding House</option>
+                    <option value="bedSpacer">Bed Spacer</option>
+                    <option value="others">Others</option>
+                  </select>
+                </div>
+
+                {formData.propertyType === 'others' && (
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Specify <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Studio"
+                      value={formData.otherPropertyType}
+                      onChange={(e) => handleInputChange('otherPropertyType', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current Status
+                  Description
                 </label>
-                <select
-                  value={formData.currentStatus}
-                  onChange={(e) => handleInputChange('currentStatus', e.target.value)}
+                <textarea
+                  placeholder="Provide a detailed description of the property, including any special features, nearby conveniences, and other relevant info"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  rows={6}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
+                />
+              </div>
+            </div>
+
+            {/* Property Images */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Images</h2>
+
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="image-upload"
+                />
+                
+                {formData.images.length === 0 ? (
+                  <label htmlFor="image-upload" className="cursor-pointer block text-center">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
+                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                  </label>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-4 gap-3">
+                      {formData.images.map((img, index) => (
+                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                          <img
+                            src={typeof img === 'string' ? img : URL.createObjectURL(img)}
+                            alt={`Property ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.images.length < 10 && (
+                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
+                          <Plus className="w-8 h-8 text-gray-400" />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 2: Location Details */}
+        {/* Step 2: Location & Specifications */}
         {currentStep === 2 && (
           <div className="space-y-6">
             {/* Map Section */}
@@ -640,10 +698,10 @@ export default function AddProperty({ onBack, onSave }) {
           </div>
         )}
 
-        {/* Step 3: Property Specifications */}
+        {/* Step 3: Rules & Amenities */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            {/* Amenities */}
+            {/* Amenities & Features */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Amenities & Features</h2>
 
@@ -675,26 +733,29 @@ export default function AddProperty({ onBack, onSave }) {
                 <p className="text-xs text-gray-500 mt-2">Press Enter or click Add to include a custom amenity</p>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                {amenitiesList.map((amenity) => (
-                  <button
-                    key={amenity}
-                    onClick={() => toggleAmenity(amenity)}
-                    className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.amenities.includes(amenity)
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                      }`}
-                  >
-                    {amenity}
-                  </button>
-                ))}
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">Common Amenities:</p>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {amenitiesList.map((amenity) => (
+                    <button
+                      key={amenity}
+                      onClick={() => toggleAmenity(amenity)}
+                      className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.amenities.includes(amenity)
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Current selected amenities (added + selected) */}
               {Array.isArray(formData.amenities) && formData.amenities.length > 0 && (
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-3">Your Amenities:</p>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-3">
                     {formData.amenities.map((amenity, index) => (
                       <div
                         key={index}
@@ -716,16 +777,13 @@ export default function AddProperty({ onBack, onSave }) {
                 </div>
               )}
             </div>
-          </div>
-        )}
 
-        {/* Step 4: Property Rules */}
-        {currentStep === 4 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-1">Property Rules</h2>
-              <p className="text-sm text-gray-600">Add house rules and policies for your property</p>
-            </div>
+            {/* Property Rules */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">Property Rules</h2>
+                <p className="text-sm text-gray-600">Add house rules and policies for your property</p>
+              </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -759,8 +817,8 @@ export default function AddProperty({ onBack, onSave }) {
 
             {/* Common Rules Suggestions */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-3">Common Rules (Click to add):</p>
-              <div className="flex flex-wrap gap-2">
+              <p className="text-sm font-medium text-gray-700 mb-3">Common Rules:</p>
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   'No smoking',
                   'No pets allowed',
@@ -785,13 +843,12 @@ export default function AddProperty({ onBack, onSave }) {
                         };
                       });
                     }}
-                    className={`px-3 py-1.5 text-sm border rounded-full transition-all duration-200 font-medium
-    ${formData.rules.includes(suggestion)
-                        ? 'border-green-500 bg-green-500 bg-opacity-50 text-green-800 shadow-sm'
-                        : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                    className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.rules.includes(suggestion)
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                       }`}
                   >
-                    {formData.rules.includes(suggestion) ? '✓' : '+'} {suggestion}
+                    {suggestion}
                   </button>
                 ))}
               </div>
@@ -801,7 +858,7 @@ export default function AddProperty({ onBack, onSave }) {
             {Array.isArray(formData.rules) && formData.rules.length > 0 && (
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-3">Your Property Rules:</p>
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-3">
                   {formData.rules.map((rule, index) => (
                     <div
                       key={index}
@@ -830,78 +887,6 @@ export default function AddProperty({ onBack, onSave }) {
                 <p className="text-gray-500 text-xs mt-1">Add rules to help tenants understand your property policies</p>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Step 5: Description & Images */}
-        {currentStep === 5 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Property Description</h2>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  placeholder="Provide a detailed description of the property, including any special features, nearby conveniences, and other relevant info"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  rows={6}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-                />
-              </div>
-            </div>
-
-            {/* Property Images */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Images</h2>
-
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/png,image/jpeg"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="image-upload"
-                />
-                
-                {formData.images.length === 0 ? (
-                  <label htmlFor="image-upload" className="cursor-pointer block text-center">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
-                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
-                  </label>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-4 gap-3">
-                      {formData.images.map((img, index) => (
-                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                          <img
-                            src={typeof img === 'string' ? img : URL.createObjectURL(img)}
-                            alt={`Property ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {formData.images.length < 10 && (
-                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
-                          <Plus className="w-8 h-8 text-gray-400" />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}
@@ -921,7 +906,7 @@ export default function AddProperty({ onBack, onSave }) {
           </button>
 
           <div className="flex items-center gap-3">
-            {currentStep === 5 ? (
+            {currentStep === 3 ? (
               <>
                 <button
                   onClick={() => handleSubmit(true)}
@@ -938,12 +923,12 @@ export default function AddProperty({ onBack, onSave }) {
                   {loading ? (
                     <>
                       <Loader2 className="animate-spin h-5 w-5 text-white" />
-                      Publishing...
+                      Submitting...
                     </>
                   ) : (
                     <>
                       <Check className="w-5 h-5" />
-                      Publish Property
+                      Submit for Approval
                     </>
                   )}
                 </button>
