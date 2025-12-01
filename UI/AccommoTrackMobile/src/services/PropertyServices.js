@@ -1,11 +1,73 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://192.168.254.106:8000/api';
+const API_BASE_URL = 'http://192.168.0.105:8000/api';
+const BASE_URL = API_BASE_URL.replace(/\/api$/, '');
+const STORAGE_URL = `${BASE_URL}/storage`;
+const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
+
+const getAuthToken = async () => {
+    const token =
+        (await AsyncStorage.getItem('auth_token')) ||
+        (await AsyncStorage.getItem('token'));
+
+    if (!token) {
+        throw new Error('No authentication token found');
+    }
+
+    return token;
+};
+
+const buildHeaders = (token, options = {}) => {
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+    };
+
+    if (options.contentType) {
+        headers['Content-Type'] = options.contentType;
+    }
+
+    return headers;
+};
+
+const isFormData = (payload) => typeof FormData !== 'undefined' && payload instanceof FormData;
+
+const extractErrorMessage = (error) => {
+    const errors = error.response?.data?.errors;
+    if (errors && typeof errors === 'object') {
+        const joined = Object.values(errors)
+            .flat()
+            .map((msg) => (typeof msg === 'string' ? msg : ''))
+            .filter(Boolean)
+            .join(' ');
+        if (joined) {
+            return joined;
+        }
+    }
+
+    if (error.response?.data?.message) return error.response.data.message;
+    if (error.response?.data?.error) return error.response.data.error;
+    if (typeof error.response?.data === 'string') return error.response.data;
+    return error.message || 'Request failed';
+};
 
 /**
  * Property Service for handling all property-related API calls
  */
+export const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+    }
+
+    const cleanPath = imagePath.replace(/^\/+/, '');
+    if (cleanPath.startsWith('storage/')) {
+        return `${BASE_URL}/${cleanPath}`;
+    }
+    return `${STORAGE_URL}/${cleanPath}`;
+};
+
 const PropertyService = {
     /**
      * Get all public properties (no auth required)
@@ -147,6 +209,8 @@ const PropertyService = {
             name: property.name || property.title,
             title: property.title,
             type: property.type || property.property_type || 'Property',
+            property_type: property.property_type, // Raw property type from backend
+            has_bedspacer_room: property.has_bedspacer_room || false, // Flag for bedspacer filter
             location: property.location || property.city,
             address: property.full_address || property.address,
             street_address: property.street_address,
@@ -221,25 +285,14 @@ const PropertyService = {
 
     /**
      * Get all properties for authenticated landlord
-     * Matches: GET /api/properties
+     * Matches: GET /api/landlord/properties
      * @returns {Promise<Object>} - { success: boolean, data: array, error: string }
      */
     async getMyProperties() {
         try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                return {
-                    success: false,
-                    data: [],
-                    error: 'No authentication token found'
-                };
-            }
-
-            const response = await axios.get(`${API_BASE_URL}/properties`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+            const token = await getAuthToken();
+            const response = await axios.get(`${LANDLORD_PREFIX}/properties`, {
+                headers: buildHeaders(token)
             });
 
             return {
@@ -248,39 +301,56 @@ const PropertyService = {
                 error: null
             };
         } catch (error) {
-            console.error('Error fetching my properties:', error);
+            console.error('Error fetching my properties:', error.response?.data || error.message);
             return {
                 success: false,
                 data: [],
-                error: error.response?.data?.message || error.message || 'Failed to fetch properties'
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Get specific landlord property with relations
+     * Matches: GET /api/landlord/properties/{id}
+     */
+    async getProperty(propertyId) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.get(`${LANDLORD_PREFIX}/properties/${propertyId}`, {
+                headers: buildHeaders(token)
+            });
+
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error fetching property details:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
             };
         }
     },
 
     /**
      * Create a new property
-     * Matches: POST /api/properties
+     * Matches: POST /api/landlord/properties
      * @param {Object} propertyData - Property data
      * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
      */
     async createProperty(propertyData) {
         try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                return {
-                    success: false,
-                    data: null,
-                    error: 'No authentication token found'
-                };
-            }
-
-            const response = await axios.post(`${API_BASE_URL}/properties`, propertyData, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
+            const token = await getAuthToken();
+            const headers = buildHeaders(token, {
+                contentType: isFormData(propertyData)
+                    ? 'multipart/form-data'
+                    : 'application/json'
             });
+            const response = await axios.post(`${LANDLORD_PREFIX}/properties`, propertyData, { headers });
 
             return {
                 success: true,
@@ -288,43 +358,34 @@ const PropertyService = {
                 error: null
             };
         } catch (error) {
-            console.error('Error creating property:', error);
+            console.error('Error creating property:', error.response?.data || error.message);
             return {
                 success: false,
                 data: null,
-                error: error.response?.data?.message || error.response?.data?.errors || error.message || 'Failed to create property'
+                error: extractErrorMessage(error)
             };
         }
     },
 
     /**
      * Update a property
-     * Matches: PUT /api/properties/{id}
+     * Matches: PUT /api/landlord/properties/{id}
      * @param {number} propertyId - Property ID
      * @param {Object} propertyData - Updated property data
      * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
      */
     async updateProperty(propertyId, propertyData) {
         try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                return {
-                    success: false,
-                    data: null,
-                    error: 'No authentication token found'
-                };
-            }
-
-            const response = await axios.put(
-                `${API_BASE_URL}/properties/${propertyId}`,
+            const token = await getAuthToken();
+            const headers = buildHeaders(token, {
+                contentType: isFormData(propertyData)
+                    ? 'multipart/form-data'
+                    : 'application/json'
+            });
+            const response = await axios.post(
+                `${LANDLORD_PREFIX}/properties/${propertyId}?_method=PUT`,
                 propertyData,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
-                }
+                { headers }
             );
 
             return {
@@ -333,36 +394,28 @@ const PropertyService = {
                 error: null
             };
         } catch (error) {
-            console.error('Error updating property:', error);
+            console.error('Error updating property:', error.response?.data || error.message);
             return {
                 success: false,
                 data: null,
-                error: error.response?.data?.message || error.message || 'Failed to update property'
+                error: extractErrorMessage(error)
             };
         }
     },
 
     /**
      * Delete a property
-     * Matches: DELETE /api/properties/{id}
+     * Matches: DELETE /api/landlord/properties/{id}
      * @param {number} propertyId - Property ID
+     * @param {string} password - Landlord password confirmation
      * @returns {Promise<Object>} - { success: boolean, error: string }
      */
-    async deleteProperty(propertyId) {
+    async deleteProperty(propertyId, password) {
         try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                return {
-                    success: false,
-                    error: 'No authentication token found'
-                };
-            }
-
-            await axios.delete(`${API_BASE_URL}/properties/${propertyId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
+            const token = await getAuthToken();
+            await axios.delete(`${LANDLORD_PREFIX}/properties/${propertyId}`, {
+                headers: buildHeaders(token),
+                data: { password }
             });
 
             return {
@@ -370,13 +423,471 @@ const PropertyService = {
                 error: null
             };
         } catch (error) {
-            console.error('Error deleting property:', error);
+            console.error('Error deleting property:', error.response?.data || error.message);
             return {
                 success: false,
-                error: error.response?.data?.message || error.message || 'Failed to delete property'
+                error: extractErrorMessage(error)
             };
         }
     },
+
+    /**
+     * Verify password before destructive action
+     * Matches: POST /api/landlord/properties/verify-password
+     */
+    async verifyPropertyPassword(password) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.post(
+                `${LANDLORD_PREFIX}/properties/verify-password`,
+                { password },
+                { headers: buildHeaders(token) }
+            );
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Password verification failed:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Fetch rooms for a property
+     * Matches: GET /api/landlord/properties/{id}/rooms
+     */
+    async getRooms(propertyId) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.get(`${LANDLORD_PREFIX}/properties/${propertyId}/rooms`, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error fetching rooms:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: [],
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Fetch room statistics for a property
+     * Matches: GET /api/landlord/properties/{id}/rooms/stats
+     */
+    async getRoomStats(propertyId) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.get(`${LANDLORD_PREFIX}/properties/${propertyId}/rooms/stats`, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error fetching room stats:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Create a room for the landlord
+     * Matches: POST /api/landlord/rooms
+     */
+    async createRoom(roomData) {
+        try {
+            const token = await getAuthToken();
+            const headers = buildHeaders(token, {
+                contentType: isFormData(roomData) ? 'multipart/form-data' : 'application/json'
+            });
+            const response = await axios.post(`${LANDLORD_PREFIX}/rooms`, roomData, { headers });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error creating room:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Update a room
+     * Matches: PUT /api/rooms/{id}
+     */
+    async updateRoom(roomId, roomData) {
+        try {
+            const token = await getAuthToken();
+            const headers = buildHeaders(token, {
+                contentType: isFormData(roomData) ? 'multipart/form-data' : 'application/json'
+            });
+            const response = await axios.post(`${API_BASE_URL}/rooms/${roomId}?_method=PUT`, roomData, { headers });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error updating room:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Delete a room
+     * Matches: DELETE /api/rooms/{id}
+     */
+    async deleteRoom(roomId) {
+        try {
+            const token = await getAuthToken();
+            await axios.delete(`${API_BASE_URL}/rooms/${roomId}`, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error deleting room:', error.response?.data || error.message);
+            return {
+                success: false,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Update room status
+     * Matches: PATCH /api/rooms/{id}/status
+     */
+    async updateRoomStatus(roomId, status) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.patch(`${API_BASE_URL}/rooms/${roomId}/status`, { status }, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error updating room status:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Add amenity to property catalog
+     * Matches: POST /api/landlord/properties/{id}/amenities
+     */
+    async addPropertyAmenity(propertyId, amenity) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.post(
+                `${LANDLORD_PREFIX}/properties/${propertyId}/amenities`,
+                { amenity },
+                { headers: buildHeaders(token, { contentType: 'application/json' }) }
+            );
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error adding property amenity:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Fetch tenants for the authenticated landlord
+     * Matches: GET /api/landlord/tenants
+     */
+    async getTenants(params = {}) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.get(`${LANDLORD_PREFIX}/tenants`, {
+                headers: buildHeaders(token),
+                params
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error fetching tenants:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: [],
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Create a tenant on behalf of landlord
+     * Matches: POST /api/landlord/tenants
+     */
+    async createTenant(tenantData) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.post(`${LANDLORD_PREFIX}/tenants`, tenantData, {
+                headers: buildHeaders(token, { contentType: 'application/json' })
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error creating tenant:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Update tenant details
+     * Matches: PUT /api/landlord/tenants/{id}
+     */
+    async updateTenant(tenantId, tenantData) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.put(`${LANDLORD_PREFIX}/tenants/${tenantId}`, tenantData, {
+                headers: buildHeaders(token, { contentType: 'application/json' })
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error updating tenant:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Delete tenant
+     * Matches: DELETE /api/landlord/tenants/{id}
+     */
+    async deleteTenant(tenantId) {
+        try {
+            const token = await getAuthToken();
+            await axios.delete(`${LANDLORD_PREFIX}/tenants/${tenantId}`, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error deleting tenant:', error.response?.data || error.message);
+            return {
+                success: false,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Assign tenant to room
+     * Matches: POST /api/landlord/tenants/{id}/assign-room
+     */
+    async assignTenantToRoom(tenantId, payload) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.post(
+                `${LANDLORD_PREFIX}/tenants/${tenantId}/assign-room`,
+                payload,
+                { headers: buildHeaders(token, { contentType: 'application/json' }) }
+            );
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error assigning tenant to room:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Unassign tenant from room
+     * Matches: DELETE /api/landlord/tenants/{id}/unassign-room
+     */
+    async unassignTenantFromRoom(tenantId) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.delete(`${LANDLORD_PREFIX}/tenants/${tenantId}/unassign-room`, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error unassigning tenant room:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Fetch bookings for landlord
+     * Matches: GET /api/bookings
+     */
+    async getBookings(params = {}) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.get(`${API_BASE_URL}/bookings`, {
+                headers: buildHeaders(token),
+                params
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error fetching bookings:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: [],
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Fetch booking stats
+     * Matches: GET /api/bookings/stats
+     */
+    async getBookingStats() {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.get(`${API_BASE_URL}/bookings/stats`, {
+                headers: buildHeaders(token)
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error fetching booking stats:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Update booking status
+     * Matches: PATCH /api/bookings/{id}/status
+     */
+    async updateBookingStatus(bookingId, payload) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.patch(`${API_BASE_URL}/bookings/${bookingId}/status`, payload, {
+                headers: buildHeaders(token, { contentType: 'application/json' })
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error updating booking status:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Update booking payment status
+     * Matches: PATCH /api/bookings/{id}/payment
+     */
+    async updateBookingPayment(bookingId, payload) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.patch(`${API_BASE_URL}/bookings/${bookingId}/payment`, payload, {
+                headers: buildHeaders(token, { contentType: 'application/json' })
+            });
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error updating booking payment:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    getImageUrl
 };
 
 export default PropertyService;

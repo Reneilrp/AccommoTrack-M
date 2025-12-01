@@ -80,36 +80,46 @@ const UserManagement = () => {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
       {/* Filter Buttons */}
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex gap-2 flex-wrap">
         <button
           onClick={() => setRoleFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
             roleFilter === 'all' 
-              ? 'bg-gray-800 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
           }`}
         >
           All Users
         </button>
         <button
           onClick={() => setRoleFilter('landlord')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
             roleFilter === 'landlord' 
-              ? 'bg-gray-800 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
           }`}
         >
           Landlords
         </button>
         <button
           onClick={() => setRoleFilter('tenant')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
             roleFilter === 'tenant' 
-              ? 'bg-gray-800 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
           }`}
         >
           Tenants
+        </button>
+        <button
+          onClick={() => setRoleFilter('caretaker')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
+            roleFilter === 'caretaker' 
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
+          }`}
+        >
+          Caretakers
         </button>
       </div>
 
@@ -124,20 +134,20 @@ const UserManagement = () => {
             <p className="text-gray-600">No users found.</p>
           </div>
         ) : (
-          <div className="w-full overflow-x-auto shadow-md rounded-lg">
-            <table className="w-full bg-white">
-              <thead className="bg-gray-800 text-white">
+          <div className="w-full overflow-x-auto shadow-sm rounded-2xl border border-gray-100 bg-white">
+            <table className="w-full">
+              <thead className="bg-gray-100 text-gray-600 text-xs uppercase tracking-wide">
                 <tr>
-                  <th className="px-6 py-4 text-left font-semibold">Name</th>
-                  <th className="px-6 py-4 text-left font-semibold">Email</th>
-                  <th className="px-6 py-4 text-left font-semibold">Role</th>
-                  <th className="px-6 py-4 text-left font-semibold">Status</th>
-                  <th className="px-6 py-4 text-center font-semibold">Actions</th>
+                  <th className="px-6 py-3 text-left font-semibold">Name</th>
+                  <th className="px-6 py-3 text-left font-semibold">Email</th>
+                  <th className="px-6 py-3 text-left font-semibold">Role</th>
+                  <th className="px-6 py-3 text-left font-semibold">Status</th>
+                  <th className="px-6 py-3 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 text-sm">
                 {filteredUsers.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={u.id} className="bg-white even:bg-gray-50 hover:bg-emerald-50/40 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900">{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.name || '—'}</td>
                     <td className="px-6 py-4 text-gray-700">{u.email}</td>
                     <td className="px-6 py-4 text-gray-700 capitalize">{u.role}</td>
@@ -232,6 +242,90 @@ const UserManagement = () => {
                     <p className="font-semibold text-gray-900">
                       {new Date(selectedUser.created_at).toLocaleString()}
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Landlord Properties */}
+              {selectedUser.role === 'landlord' && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">Properties ({selectedUser.properties_count || 0})</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    {selectedUser.properties_list && selectedUser.properties_list.length > 0 ? (
+                      <ul className="space-y-2">
+                        {selectedUser.properties_list.map((property, index) => (
+                          <li key={property.id || index} className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span className="font-medium text-gray-900">{property.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-500 italic">No properties listed</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tenant Property/Room */}
+              {selectedUser.role === 'tenant' && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">Current Accommodation</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    {selectedUser.current_property ? (
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-sm text-gray-600">Property</p>
+                          <p className="font-semibold text-gray-900">{selectedUser.current_property.name}</p>
+                        </div>
+                        {selectedUser.current_property.room_number && (
+                          <div>
+                            <p className="text-sm text-gray-600">Room Number</p>
+                            <p className="font-semibold text-gray-900">Room {selectedUser.current_property.room_number}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic">Not currently assigned to any property</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Caretaker Assigned Landlord */}
+              {selectedUser.role === 'caretaker' && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">Assigned Landlord</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    {selectedUser.assigned_landlord ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600">Landlord Name</p>
+                            <p className="font-semibold text-gray-900">{selectedUser.assigned_landlord.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Landlord Email</p>
+                            <p className="font-semibold text-gray-900">{selectedUser.assigned_landlord.email || 'N/A'}</p>
+                          </div>
+                        </div>
+                        {selectedUser.assigned_landlord.properties && selectedUser.assigned_landlord.properties.length > 0 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Managed Properties</p>
+                            <ul className="space-y-1">
+                              {selectedUser.assigned_landlord.properties.map((property, index) => (
+                                <li key={property.id || index} className="flex items-center gap-2">
+                                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                  <span className="text-gray-900">{property.name}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic">Not assigned to any landlord</p>
+                    )}
                   </div>
                 </div>
               )}

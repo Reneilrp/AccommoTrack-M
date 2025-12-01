@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     
     // Header
     header: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#10b981',
         paddingHorizontal: 16,
         paddingVertical: 16,
         flexDirection: 'row',
@@ -29,7 +29,7 @@ export const styles = StyleSheet.create({
 
     // Search
     searchContainer: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#10b981',
         paddingHorizontal: 16,
         paddingBottom: 16,
     },
@@ -99,14 +99,14 @@ export const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: '#DCFCE7',
+        backgroundColor: '#D1FAE5',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#16a34a',
+        color: '#10b981',
     },
     conversationInfo: {
         flex: 1,
@@ -127,7 +127,7 @@ export const styles = StyleSheet.create({
     },
     propertyName: {
         fontSize: 12,
-        color: '#16a34a',
+        color: '#10b981',
         marginTop: 2,
     },
     lastMessage: {
@@ -136,7 +136,7 @@ export const styles = StyleSheet.create({
         marginTop: 4,
     },
     unreadBadge: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#10b981',
         borderRadius: 12,
         minWidth: 24,
         height: 24,
@@ -152,7 +152,7 @@ export const styles = StyleSheet.create({
 
     // Chat Header
     chatScreenHeader: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#10b981',
         paddingHorizontal: 8,
         paddingVertical: 12,
         flexDirection: 'row',
@@ -274,12 +274,12 @@ export const styles = StyleSheet.create({
         borderRadius: 16,
     },
     myMessageBubble: {
-        backgroundColor: '#166534',
+        backgroundColor: '#10b981',
         borderBottomRightRadius: 4,
         alignSelf: 'flex-end',
     },
     theirMessageBubble: {
-        backgroundColor: '#DCFCE7',
+        backgroundColor: '#D1FAE5',
         borderBottomLeftRadius: 4,
         borderWidth: 0,
         alignSelf: 'flex-start',
@@ -331,7 +331,7 @@ export const styles = StyleSheet.create({
         color: '#1F2937',
     },
     sendButton: {
-        backgroundColor: '#16a34a',
+        backgroundColor: '#10b981',
         width: 40,
         height: 40,
         borderRadius: 20,

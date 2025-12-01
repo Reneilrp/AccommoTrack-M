@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import WebNavigator from './WebNavigator/WebNavigator';
 import AuthScreen from './AuthScreen/Web-Auth';
+import { getDefaultLandingRoute } from './utils/userRoutes';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -46,16 +47,27 @@ function App() {
     );
   }
 
-  // Show WebNavigator if logged in
+  const verifiedLanding = user ? getDefaultLandingRoute(user) : '/dashboard';
+
   return (
     <Routes>
-      <Route 
-        path="/login" 
-        element={!user ? <AuthScreen onLogin={handleLogin} /> : <Navigate to="/dashboard" replace />} 
+      <Route
+        path="/login"
+        element={!user ? <AuthScreen onLogin={handleLogin} /> : <Navigate to={verifiedLanding} replace />}
       />
-      <Route 
-        path="/*" 
-        element={user ? <WebNavigator user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      <Route
+        path="/*"
+        element={
+          user ? (
+            <WebNavigator
+              user={user}
+              onLogout={handleLogout}
+              onUserUpdate={setUser}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
       />
     </Routes>
   );

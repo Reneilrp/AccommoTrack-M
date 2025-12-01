@@ -1,86 +1,105 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F3F4F6'
+  },
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+    paddingHorizontal: 18
+  },
+  scrollContent: {
+    paddingBottom: 32
   },
   header: {
-    padding: 16,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-    backgroundColor: '#4CAF50',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: 5,
+    paddingVertical: 16,
+    gap: 6
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    flex: 1, 
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827'
   },
-  content: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280'
   },
 
   // Profile Card Styles
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 18,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 6
   },
   profileAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#4CAF50',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#DCFCE7',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   profileInitials: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: '#047857',
+    fontSize: 22,
+    fontWeight: '700'
   },
   profileInfo: {
     flex: 1,
-    marginLeft: 15,
+    marginLeft: 16
   },
   profileName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: '#111827'
   },
   profileEmail: {
     fontSize: 14,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 4
+  },
+  profileAction: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: '#ECFDF5'
+  },
+  profileActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#047857'
   },
 
   // Section and Card General Styles
   section: {
-    marginBottom: 24,
+    marginBottom: 24
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 10,
-    paddingLeft: 4,
+    color: '#111827',
+    marginBottom: 12,
+    paddingLeft: 4
+  },
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 4,
+    overflow: 'hidden'
   },
   settingsCard: {
     backgroundColor: 'white',
@@ -90,7 +109,7 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 1.41,
     elevation: 2,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
 
   // Notification Item Styles
@@ -99,17 +118,55 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 16
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1
+  },
+  settingIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#F0FDF4',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  settingTextBlock: {
     flex: 1,
+    marginLeft: 14
   },
   settingLabel: {
-    marginLeft: 15,
     fontSize: 15,
-    color: '#374151',
+    color: '#111827',
+    fontWeight: '600'
+  },
+  settingDescription: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#6B7280'
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  settingValue: {
+    fontSize: 13,
+    color: '#6B7280'
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginHorizontal: 18
   },
   
   // Menu Item Styles
@@ -149,13 +206,33 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 1.41,
-    elevation: 2,
+    elevation: 2
   },
   logoutText: {
     marginLeft: 15,
     fontSize: 16,
     fontWeight: '600',
-    color: '#F44336',
+    color: '#F44336'
+  },
+  dangerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 8
+  },
+  dangerButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16
+  },
+  footerNote: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    fontSize: 12,
+    marginBottom: 16
   },
 
   // --- Temporary Screen Styles ---

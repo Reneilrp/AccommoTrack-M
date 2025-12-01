@@ -9,6 +9,8 @@ class Message extends Model
     protected $fillable = [
         'conversation_id',
         'sender_id',
+        'actual_sender_id',
+        'sender_role',
         'receiver_id',
         'room_id',
         'message',
@@ -29,6 +31,14 @@ class Message extends Model
     public function sender()
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /**
+     * The actual person who sent the message (could be caretaker)
+     */
+    public function actualSender()
+    {
+        return $this->belongsTo(User::class, 'actual_sender_id');
     }
 
     public function receiver()

@@ -30,7 +30,7 @@ class PropertyController extends Controller
                 ->with([
                     'rooms' => function ($q) {
                         $q->where('status', 'available')
-                            ->select('id', 'property_id', 'monthly_rate');
+                            ->select('id', 'property_id', 'monthly_rate', 'room_type');
                     },
                     'images',
                     'landlord:id,first_name,last_name'
@@ -46,13 +46,23 @@ class PropertyController extends Controller
                     $primaryImage = $property->images->where('is_primary', true)->first();
                     $coverImage = $primaryImage ?? $property->images->first();
 
+                    // Check if any room has bedSpacer type
+                    $hasBedSpacerRoom = $availableRooms->contains('room_type', 'bedSpacer');
+
                     return [
                         'id' => $property->id,
                         'name' => $property->title,
                         'title' => $property->title,
                         'type' => ucwords(str_replace('_', ' ', $property->property_type)),
+                        'property_type' => $property->property_type, // Raw property type
+                        'has_bedspacer_room' => $hasBedSpacerRoom, // Flag for bedspacer filter
+                        'street_address' => $property->street_address,
+                        'barangay' => $property->barangay,
                         'city' => $property->city,
-                        'location' => $property->city,
+                        'province' => $property->province,
+                        'postal_code' => $property->postal_code,
+                        'full_address' => $property->full_address,
+                        'location' => $property->full_address ?: $property->city,
                         'latitude' => $property->latitude,
                         'longitude' => $property->longitude,
                         'availableRooms' => $availableRooms->count(),
@@ -177,7 +187,14 @@ public function getPropertyDetails($id)
                     'status' => $room->status,
                     'description' => $room->description,
                     'amenities' => $room->amenities?->pluck('name')->toArray() ?? [],
-                    'images' => $room->images?->pluck('image_url')->map(fn($url) => asset('storage/' . $url))->toArray() ?? [],
+                    'images' => $room->images?->pluck('image_url')->map(function($url) {
+                        // If URL already starts with http, return as-is
+                        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+                            return $url;
+                        }
+                        // Otherwise, prepend storage path
+                        return asset('storage/' . ltrim($url, '/'));
+                    })->toArray() ?? [],
                 ];
             })->values()
         ], 200);
@@ -191,6 +208,55 @@ public function getPropertyDetails($id)
     // ====================================================================
     // PROTECTED ROUTES (Landlord only)
     // ====================================================================
+
+    /**
+     * Get accessible properties for the current user
+     * - Landlords get all their properties
+     * - Caretakers get only their assigned properties
+     */
+    public function getAccessibleProperties(Request $request)
+    {
+        $user = $request->user();
+        
+        if ($user->role === 'caretaker') {
+            // Get caretaker's assigned properties
+            $assignment = $user->caretakerAssignment;
+            if (!$assignment) {
+                return response()->json([], 200);
+            }
+            
+            $propertyIds = $assignment->properties()->pluck('properties.id')->toArray();
+            
+            $properties = Property::whereIn('id', $propertyIds)
+                ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
+                ->with(['images', 'amenities'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($property) {
+                    $amenityNames = $property->amenities->pluck('name')->toArray();
+                    $propertyArray = $property->toArray();
+                    $propertyArray['amenities'] = $amenityNames;
+                    return $propertyArray;
+                });
+
+            return response()->json($properties, 200);
+        }
+        
+        // Landlord gets all their properties
+        $properties = Property::where('landlord_id', $user->id)
+            ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
+            ->with(['images', 'amenities'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($property) {
+                $amenityNames = $property->amenities->pluck('name')->toArray();
+                $propertyArray = $property->toArray();
+                $propertyArray['amenities'] = $amenityNames;
+                return $propertyArray;
+            });
+
+        return response()->json($properties, 200);
+    }
 
     public function index(Request $request)
     {

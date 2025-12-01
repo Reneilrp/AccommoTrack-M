@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
 import api from '../utils/api';
+import { getDefaultLandingRoute } from '../utils/userRoutes';
 
 function AuthScreen({ onLogin = () => {} }) {
   const navigate = useNavigate();
@@ -10,6 +11,23 @@ function AuthScreen({ onLogin = () => {} }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPlatformChoice, setShowPlatformChoice] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+  // Detect if user is on mobile device
+  useEffect(() => {
+    const checkMobileDevice = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobileDevice(isMobile || isSmallScreen);
+    };
+    
+    checkMobileDevice();
+    window.addEventListener('resize', checkMobileDevice);
+    return () => window.removeEventListener('resize', checkMobileDevice);
+  }, []);
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -85,10 +103,10 @@ function AuthScreen({ onLogin = () => {} }) {
 
       console.log('✅ Login successful! Role:', data.user.role);
 
-      // Allow both landlords and admins to sign in here. Admins will be
-      // redirected to the admin dashboard after successful login.
-      if (data.user.role !== 'landlord' && data.user.role !== 'admin') {
-        setError('Access denied. This portal is for landlords and admins only.');
+      // Allow landlords, caretakers, and admins
+      const allowedRoles = ['landlord', 'admin', 'caretaker'];
+      if (!allowedRoles.includes(data.user.role)) {
+        setError('Access denied. This portal is for landlords, caretakers, and admins only.');
         return;
       }
 
@@ -100,12 +118,8 @@ function AuthScreen({ onLogin = () => {} }) {
       // Clear sensitive form fields
       setFormData({ ...formData, email: '', password: '' });
 
-      // Navigate based on role
-      if (data.user.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
+      const landingRoute = getDefaultLandingRoute(data.user);
+      navigate(landingRoute);
     } catch (err) {
       console.error('❌ Login Error:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
@@ -127,8 +141,19 @@ function AuthScreen({ onLogin = () => {} }) {
       const result = await api.post('/register', formData);
       const data = result.data;
 
-      alert('Registration successful! Please login with your credentials.');
-      setIsLogin(true);
+      // Store email for platform choice modal
+      setRegisteredEmail(formData.email);
+
+      // Check if user is on mobile device
+      if (isMobileDevice) {
+        // Show platform choice modal for mobile users
+        setShowPlatformChoice(true);
+      } else {
+        // Desktop users get normal flow
+        alert('Registration successful! Please login with your credentials.');
+        setIsLogin(true);
+      }
+      
       setFormData({
         first_name: '',
         middle_name: '',
@@ -144,6 +169,20 @@ function AuthScreen({ onLogin = () => {} }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle platform choice - continue on web
+  const handleContinueOnWeb = () => {
+    setShowPlatformChoice(false);
+    setIsLogin(true);
+  };
+
+  // Handle platform choice - go back to mobile app
+  const handleGoToMobileApp = () => {
+    setShowPlatformChoice(false);
+    // Show instructions to return to mobile app
+    alert('Please return to your AccommoTrack mobile app and login with your new landlord account.');
+    setIsLogin(true);
   };
 
   const toggleScreen = () => {
@@ -174,7 +213,7 @@ function AuthScreen({ onLogin = () => {} }) {
             <img
               src={Logo}
               alt="AccommoTrack Logo"
-              className="flex-col h-16 w-auto"
+              className="h-16 w-auto"
             />
           </div>
 
@@ -537,6 +576,68 @@ function AuthScreen({ onLogin = () => {} }) {
           </button>
         </div>
       </div>
+
+      {/* Platform Choice Modal - Shows for mobile users after registration */}
+      {showPlatformChoice && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-in fade-in zoom-in duration-200">
+            {/* Success Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+              Registration Successful!
+            </h3>
+            
+            {/* Description */}
+            <p className="text-gray-600 text-center mb-6">
+              Your landlord account has been created. How would you like to continue?
+            </p>
+
+            {/* Registered Email Display */}
+            <div className="bg-gray-100 rounded-lg p-3 mb-6">
+              <p className="text-sm text-gray-500 text-center">Registered as:</p>
+              <p className="text-sm font-medium text-gray-800 text-center">{registeredEmail}</p>
+            </div>
+
+            {/* Choice Buttons */}
+            <div className="space-y-3">
+              {/* Continue on Web */}
+              <button
+                onClick={handleContinueOnWeb}
+                className="w-full bg-gradient-to-r from-emerald-500 to-green-500 text-white font-semibold py-3 px-4 rounded-xl hover:from-emerald-600 hover:to-green-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Continue on Web
+              </button>
+
+              {/* Return to Mobile App */}
+              <button
+                onClick={handleGoToMobileApp}
+                className="w-full bg-gray-100 text-gray-700 font-semibold py-3 px-4 rounded-xl hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Go Back to Mobile App
+              </button>
+            </div>
+
+            {/* Note */}
+            <p className="text-xs text-gray-400 text-center mt-4">
+              You can access your landlord account from any device
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

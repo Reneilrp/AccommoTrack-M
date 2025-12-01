@@ -22,6 +22,7 @@ const slides = [
     description: 'Browse through verified accommodations tailored to your needs. From cozy apartments to spacious homes.',
     color: '#8B5CF6',
     gradient: ['#8B5CF6', '#7C3AED'],
+    // Green Teal
   },
   {
     id: '2',
@@ -30,6 +31,7 @@ const slides = [
     description: 'Communicate directly with property owners. Schedule viewings, ask questions, and negotiate terms seamlessly.',
     color: '#EC4899',
     gradient: ['#EC4899', '#DB2777'],
+    // Blue Opacity 60
   },
   {
     id: '3',
@@ -38,6 +40,7 @@ const slides = [
     description: 'Manage your rental journey from search to move-in. Keep track of payments, documents, and important dates all in one place.',
     color: '#3B82F6',
     gradient: ['#3B82F6', '#2563EB'],
+    // Reddish Pink
   },
 ];
 

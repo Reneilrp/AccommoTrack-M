@@ -16,6 +16,25 @@ import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Tenant/RoomListScreen';
 
+const API_BASE_URL = 'http://192.168.0.105:8000';
+
+// Helper function to get proper image URL
+const getRoomImageUrl = (imageUrl) => {
+  if (!imageUrl) return 'https://via.placeholder.com/150x100?text=No+Image';
+  
+  if (typeof imageUrl === 'string') {
+    // Already a full URL
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    // Relative path - construct full URL
+    const cleanPath = imageUrl.replace(/^\/?storage\//, '');
+    return `${API_BASE_URL}/storage/${cleanPath}`;
+  }
+  
+  return 'https://via.placeholder.com/150x100?text=No+Image';
+};
+
 export default function RoomListScreen({ route }) {
   const navigation = useNavigation();
   const { property } = route.params;
@@ -171,11 +190,7 @@ export default function RoomListScreen({ route }) {
                 <View style={styles.leftSection}>
                   <View style={styles.roomImageContainer}>
                     <Image
-                      source={{
-                        uri: room.images[0]?.startsWith('http')
-                          ? room.images[0]
-                          : `http://192.168.254.106:5174${room.images[0]}`
-                      }}
+                      source={{ uri: getRoomImageUrl(room.images?.[0]) }}
                       style={styles.roomImage}
                       resizeMode="cover"
                     />

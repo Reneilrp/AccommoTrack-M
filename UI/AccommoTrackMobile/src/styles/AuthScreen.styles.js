@@ -1,19 +1,25 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform, StatusBar } from 'react-native';
 
 export const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
   container: {
     flex: 1,
     backgroundColor: 'white',
   },
   scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 16 : 16,
+    paddingBottom: 0,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 24,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -22,8 +28,12 @@ export const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 50,
-    marginTop: 20,
+    marginBottom: 40,
+    marginTop: 40,
+  },
+  logoFull: {
+    width: 200,
+    height: 80,
   },
   dismissButton: {
     alignSelf: 'flex-start',
@@ -226,7 +236,7 @@ export const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 12,
   },
   dividerLine: {
     flex: 1,
@@ -259,7 +269,8 @@ export const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 15,
+    marginBottom: 15,
   },
   toggleText: {
     fontSize: 14,
@@ -273,6 +284,7 @@ export const styles = StyleSheet.create({
   guestOptionContainer: {
     marginTop: 8,
     alignItems: 'center',
+    marginBottom: 5,
   },
   guestButton: {
     flexDirection: 'row',
@@ -281,7 +293,7 @@ export const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#07770B',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 24,
     gap: 8,
     backgroundColor: '#F0FDF4',
@@ -294,7 +306,8 @@ export const styles = StyleSheet.create({
   guestHintText: {
     fontSize: 12,
     color: '#6B7280',
-    marginTop: 8,
+    marginTop: 4,
+    marginBottom: 0,
     textAlign: 'center',
   },
 });

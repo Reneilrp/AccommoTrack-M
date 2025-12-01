@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search,
   Phone,
@@ -7,11 +7,15 @@ import {
   Send,
   MessageCircle,
   Loader2,
+  AlertTriangle,
+  Filter,
+  X,
+  ChevronDown,
 } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import api from '../../utils/api';
 
-export default function Messages() {
+export default function Messages({ user, accessRole = 'landlord' }) {
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -19,8 +23,21 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterProperty, setFilterProperty] = useState('');
   const messagesEndRef = useRef(null);
   const echoRef = useRef(null);
+  const normalizedRole = accessRole || user?.role || 'landlord';
+  const isCaretaker = normalizedRole === 'caretaker';
+  const caretakerPermissions = user?.caretaker_permissions || {};
+  const canSendMessages = !isCaretaker || Boolean(caretakerPermissions.messages);
+  const caretakerMessagingRestricted = isCaretaker && !caretakerPermissions.messages;
+
+  const readOnlyGuard = useCallback(() => {
+    if (canSendMessages) return false;
+    alert('Caretaker access for messages is currently view-only.');
+    return true;
+  }, [canSendMessages]);
 
   // Fetch conversations
   useEffect(() => {
@@ -35,13 +52,21 @@ export default function Messages() {
       // Initialize Echo
       echoRef.current = createEcho();
 
-      // Listen for new messages
-      echoRef.current
-        .private(`conversation.${selectedChat.id}`)
-        .listen('.message.sent', (e) => {
-          setMessages((prev) => [...prev, e.message]);
-          scrollToBottom();
-        });
+      // Listen for new messages (only if Echo was created)
+      if (echoRef.current) {
+        try {
+          echoRef.current
+            .private(`conversation.${selectedChat.id}`)
+            .listen('.message.sent', (e) => {
+              setMessages((prev) => [...prev, e.message]);
+              scrollToBottom();
+            });
+        } catch (err) {
+          console.warn('Echo subscription failed:', err);
+        }
+      } else {
+        console.warn('Echo not initialized; skipping real-time subscriptions.');
+      }
 
       // Cleanup on unmount or chat change
       return () => {
@@ -89,6 +114,7 @@ export default function Messages() {
   };
 
   const handleSendMessage = async () => {
+    if (readOnlyGuard()) return;
     if (!messageText.trim() || !selectedChat) return;
 
     setSendingMessage(true);
@@ -138,10 +164,28 @@ export default function Messages() {
     return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
   };
 
+  // Get unique properties from conversations for filter options
+  const propertyOptions = [...new Map(
+    conversations
+      .filter(conv => conv.property)
+      .map(conv => [conv.property.id, conv.property])
+  ).values()];
+
   const filteredConversations = conversations.filter((conv) => {
     const name = `${conv.other_user?.first_name} ${conv.other_user?.last_name}`.toLowerCase();
-    return name.includes(searchQuery.toLowerCase());
+    const matchesSearch = name.includes(searchQuery.toLowerCase());
+    
+    // Apply property filter
+    const matchesProperty = !filterProperty || conv.property?.id === parseInt(filterProperty);
+    
+    return matchesSearch && matchesProperty;
   });
+
+  const activeFiltersCount = filterProperty ? 1 : 0;
+
+  const clearFilters = () => {
+    setFilterProperty('');
+  };
 
   // Read user_id from localStorage. Some clients store whole user object,
   // so parse safely and extract `.id` when present, otherwise fall back to integer.
@@ -201,16 +245,80 @@ export default function Messages() {
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 mb-3">Messages</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
+          
+          {/* Search and Filter Row */}
+          <div className="flex gap-2 mb-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`relative p-2 border rounded-lg transition-colors ${
+                showFilters || activeFiltersCount > 0
+                  ? 'bg-green-50 border-green-500 text-green-600'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Filter className="w-5 h-5" />
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-600 text-white text-xs rounded-full flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
           </div>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Filters</span>
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    Clear all
+                  </button>
+                )}
+              </div>
+              
+              {/* Property Filter */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Property</label>
+                <div className="relative">
+                  <select
+                    value={filterProperty}
+                    onChange={(e) => setFilterProperty(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white text-sm"
+                  >
+                    <option value="">All Properties</option>
+                    {propertyOptions.map((prop) => (
+                      <option key={prop.id} value={prop.id}>
+                        {prop.title || prop.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {caretakerMessagingRestricted && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2 text-amber-800 text-sm">
+              <AlertTriangle className="w-4 h-4 mt-0.5" />
+              <p>Read-only caretaker access. Sending new messages is disabled.</p>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -309,11 +417,36 @@ export default function Messages() {
                 };
 
                 const senderId = getSenderId(msg);
-                const isMine = String(senderId) === String(currentUserId);
-                // Debug first few messages to inspect sender ids and comparison
-                if (idx < 5) {
-                  console.log('Messages debug', { idx, id: msg.id, rawSender: msg.sender_id || msg.sender, senderId, currentUserId, isMine });
+                const actualSenderId = msg.actual_sender_id || msg.actual_sender?.id;
+                
+                // Determine if message is "ours" (on the right side)
+                // - For landlord: sender_id matches currentUserId
+                // - For caretaker: sender_id matches the landlord they work for (all landlord-side messages on right)
+                //   This includes both landlord's own messages AND caretaker messages sent on behalf of landlord
+                const isCurrentUserCaretaker = normalizedRole === 'caretaker';
+                
+                // For caretakers, we check if the message sender is the landlord (sender.role === 'landlord')
+                // OR if the message has sender_role of 'landlord' or 'caretaker' (for messages with new tracking)
+                // The sender_id for all landlord-side messages equals the landlord's user ID
+                const senderRole = msg.sender?.role;
+                const isFromLandlordSide = senderRole === 'landlord' || msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
+                
+                // For caretaker: show landlord-side messages on right
+                // For landlord: show messages they sent (sender_id matches their user id) on right
+                const isMine = isCurrentUserCaretaker
+                  ? isFromLandlordSide  // Caretaker sees all landlord-side messages on right
+                  : String(senderId) === String(currentUserId);  // Landlord sees their own messages on right
+                
+                // Check if this message was sent by a caretaker (for indicator label)
+                const isCaretakerMessage = msg.sender_role === 'caretaker';
+                // Check if sent by the current caretaker user
+                const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);
+                
+                // Debug first few messages
+                if (idx < 3) {
+                  console.log('Messages debug', { idx, senderId, actualSenderId, currentUserId, isMine, isCaretakerMessage, isFromLandlordSide, normalizedRole });
                 }
+                
                 const getTimestamp = (m) => {
                   if (!m) return null;
                   return (
@@ -322,7 +455,6 @@ export default function Messages() {
                 };
 
                 let ts = getTimestamp(msg);
-                // Fallbacks: try message-level fallback or conversation last_message_at, otherwise now
                 if (!ts) ts = msg.last_message_at || msg.lastMessageAt || new Date().toISOString();
 
                 return (
@@ -331,6 +463,15 @@ export default function Messages() {
                     className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-xs lg:max-w-md`}> 
+                      {/* Role indicator for caretaker messages - only show if sent by caretaker */}
+                      {isCaretakerMessage && msg.actual_sender && (
+                        <p className="text-xs mb-1 text-gray-500 font-medium">
+                          {isSentByCurrentCaretaker
+                            ? 'You (Caretaker)'
+                            : `via ${msg.actual_sender.first_name} ${msg.actual_sender.last_name} (Caretaker)`
+                          }
+                        </p>
+                      )}
                       <div
                         className={`w-auto px-4 py-2 rounded-lg ${
                           isMine
@@ -340,7 +481,7 @@ export default function Messages() {
                       >
                         <p className="text-sm">{msg.message}</p>
                       </div>
-                      <p className={`text-xs mt-2 text-gray-500`}>
+                      <p className="text-xs mt-1 text-gray-500">
                         {formatTime(ts)}
                       </p>
                     </div>
@@ -352,21 +493,28 @@ export default function Messages() {
 
             {/* Message Input */}
             <div className="bg-white border-t border-gray-200 p-4">
+              {caretakerMessagingRestricted && (
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2 text-amber-800 text-sm">
+                  <AlertTriangle className="w-4 h-4 mt-0.5" />
+                  <p>Actions disabled because you are viewing as a caretaker.</p>
+                </div>
+              )}
               <div className="flex gap-2">
-                <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" disabled={!canSendMessages}>
                   <Paperclip className="w-6 h-6 text-gray-600" />
                 </button>
                 <input
                   type="text"
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Type a message..."
+                  onKeyPress={(e) => e.key === 'Enter' && canSendMessages && handleSendMessage()}
+                  placeholder={caretakerMessagingRestricted ? 'Caretaker mode: messaging disabled' : 'Type a message...'}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  disabled={!canSendMessages}
                 />
                 <button
                   onClick={handleSendMessage}
-                  disabled={sendingMessage || !messageText.trim()}
+                  disabled={!canSendMessages || sendingMessage || !messageText.trim()}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
                 >
                   {sendingMessage ? (

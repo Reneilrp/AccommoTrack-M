@@ -233,7 +233,7 @@ export const styles = StyleSheet.create({
   // CARD STYLES - Vertical Card with Image on Top
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 12,
     marginBottom: 20,
     overflow: 'hidden',
     borderWidth: 1,
@@ -249,10 +249,15 @@ export const styles = StyleSheet.create({
     height: 200,
     position: 'relative',
     backgroundColor: '#F5F5F5',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   typeBadge: {
     position: 'absolute',
@@ -261,7 +266,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#10b981',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 16,
   },
   typeBadgeText: {
     color: '#FFFFFF',

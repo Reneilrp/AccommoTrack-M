@@ -63,6 +63,18 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
         )}
       </Stack.Screen>
 
+      {/* Settings - Available for both guests and authenticated users */}
+      <Stack.Screen name="Settings" options={{ animation: 'none' }}>
+        {(props) => (
+          <Settings 
+            {...props} 
+            onLogout={onLogout}
+            isGuest={isGuest}
+            onLoginPress={onAuthRequired}
+          />
+        )}
+      </Stack.Screen>
+
       {/* Protected Routes - Only for authenticated users */}
       {!isGuest && (
         <>
@@ -71,9 +83,6 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
           <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
           <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
           <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
-          <Stack.Screen name="Settings">
-            {(props) => <Settings {...props} onLogout={onLogout} />}
-          </Stack.Screen>
         </>
       )}
     </Stack.Navigator>

@@ -7,54 +7,110 @@ import {
   ScrollView,
   Image,
   StatusBar,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { styles } from '../../../styles/Tenant/ProfilePage.js';
-import LeadDev from '../../../mobile-landlord/src/Dashboard/DevTeam/assets/LeadDeveloper.jpeg';
+
+const API_URL = 'http://192.168.0.105:8000/api';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    age: '25',
-    phone: '+63 912 345 6789',
-    bio: 'Looking for a quiet and comfortable place near the university.',
+    name: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    email: '',
+    age: '',
+    phone: '',
+    bio: '',
+    dateOfBirth: '',
     preferences: {
       quiet: true,
       petFriendly: false,
       smoking: false,
       cooking: true,
     },
-    profileImage: LeadDev,
+    profileImage: null,
   });
 
   useEffect(() => {
     loadUserProfile();
   }, []);
 
+  const getAuthHeaders = async () => {
+    let token = await AsyncStorage.getItem('auth_token');
+    if (!token) {
+      token = await AsyncStorage.getItem('token');
+    }
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    };
+  };
+
   const loadUserProfile = async () => {
     try {
-      const userString = await AsyncStorage.getItem('user');
-      if (userString) {
-        const user = JSON.parse(userString);
+      setLoading(true);
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(`${API_URL}/tenant/profile`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        const fullName = [data.first_name, data.middle_name, data.last_name]
+          .filter(Boolean)
+          .join(' ');
+
         setProfileData(prev => ({
           ...prev,
-          name: user.first_name || user.middle_name || user.last_name 
-            ? [user.first_name, user.middle_name, user.last_name]
-            .filter(Boolean)
-            .join(' ') 
-            : prev.name,
-          email: user.email || prev.email,
+          name: fullName || 'User',
+          firstName: data.first_name || '',
+          middleName: data.middle_name || '',
+          lastName: data.last_name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          age: data.age ? String(data.age) : '',
+          dateOfBirth: data.tenant_profile?.date_of_birth || '',
+          bio: data.tenant_profile?.notes || '',
+          profileImage: data.profile_image || null,
+          preferences: data.tenant_profile?.preference 
+            ? JSON.parse(data.tenant_profile.preference) 
+            : prev.preferences,
         }));
+      } else {
+        // Fallback to local storage
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          const user = JSON.parse(userString);
+          setProfileData(prev => ({
+            ...prev,
+            name: [user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' ') || 'User',
+            firstName: user.first_name || '',
+            middleName: user.middle_name || '',
+            lastName: user.last_name || '',
+            email: user.email || '',
+          }));
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
+      Alert.alert('Error', 'Failed to load profile');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,18 +128,216 @@ export default function ProfilePage() {
     }));
   };
 
-  const handleSave = () => {
-    Alert.alert(
-      'Success',
-      'Profile updated successfully!',
-      [{ text: 'OK', onPress: () => setIsEditing(false) }]
-    );
-    console.log('Saving profile:', profileData);
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const headers = await getAuthHeaders();
+      
+      // Create form data for multipart upload
+      const formData = new FormData();
+      
+      // Parse the full name back to parts if user edited name field
+      const nameParts = profileData.name.trim().split(' ');
+      formData.append('first_name', profileData.firstName || nameParts[0] || '');
+      formData.append('middle_name', profileData.middleName || (nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : ''));
+      formData.append('last_name', profileData.lastName || nameParts[nameParts.length - 1] || '');
+      formData.append('phone', profileData.phone || '');
+      formData.append('notes', profileData.bio || '');
+      formData.append('preference', JSON.stringify(profileData.preferences));
+      
+      if (profileData.dateOfBirth) {
+        formData.append('date_of_birth', profileData.dateOfBirth);
+      }
+
+      const response = await fetch(`${API_URL}/tenant/profile`, {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        Alert.alert('Success', 'Profile updated successfully!', [
+          { text: 'OK', onPress: () => setIsEditing(false) }
+        ]);
+        
+        // Update local storage with new user data
+        if (result.user) {
+          await AsyncStorage.setItem('user', JSON.stringify(result.user));
+        }
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleChangePhoto = () => {
-    Alert.alert('Change Photo', 'Photo picker will be implemented here');
+  const handleChangePhoto = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need camera roll permissions to change your photo.');
+        return;
+      }
+
+      // Show options
+      Alert.alert(
+        'Change Profile Photo',
+        'Choose an option',
+        [
+          {
+            text: 'Take Photo',
+            onPress: async () => {
+              const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+              if (cameraStatus !== 'granted') {
+                Alert.alert('Permission Denied', 'We need camera permissions to take a photo.');
+                return;
+              }
+              
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                await uploadProfileImage(result.assets[0]);
+              }
+            },
+          },
+          {
+            text: 'Choose from Library',
+            onPress: async () => {
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                await uploadProfileImage(result.assets[0]);
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
   };
+
+  const uploadProfileImage = async (imageAsset) => {
+    try {
+      setSaving(true);
+      const headers = await getAuthHeaders();
+
+      const formData = new FormData();
+      
+      // Get file extension from URI
+      const uriParts = imageAsset.uri.split('.');
+      const fileType = uriParts[uriParts.length - 1];
+
+      formData.append('profile_image', {
+        uri: imageAsset.uri,
+        name: `profile_${Date.now()}.${fileType}`,
+        type: `image/${fileType}`,
+      });
+
+      // Include current user data to prevent losing other fields
+      formData.append('first_name', profileData.firstName);
+      formData.append('last_name', profileData.lastName);
+
+      const response = await fetch(`${API_URL}/tenant/profile`, {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Update local state with new image URL
+        if (result.user?.profile_image) {
+          setProfileData(prev => ({
+            ...prev,
+            profileImage: result.user.profile_image,
+          }));
+        } else {
+          // Use local URI temporarily
+          setProfileData(prev => ({
+            ...prev,
+            profileImage: imageAsset.uri,
+          }));
+        }
+
+        // Update local storage
+        if (result.user) {
+          await AsyncStorage.setItem('user', JSON.stringify(result.user));
+        }
+
+        Alert.alert('Success', 'Profile photo updated!');
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to upload photo');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      Alert.alert('Error', 'Failed to upload photo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getProfileImageSource = () => {
+    if (profileData.profileImage) {
+      // Check if it's a remote URL or local URI
+      if (profileData.profileImage.startsWith('http') || profileData.profileImage.startsWith('file://')) {
+        return { uri: profileData.profileImage };
+      }
+      return { uri: profileData.profileImage };
+    }
+    // Default placeholder
+    return null;
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <View style={{ width: 50 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -107,10 +361,15 @@ export default function ProfilePage() {
               setIsEditing(true);
             }
           }}
+          disabled={saving}
         >
-          <Text style={styles.editButtonText}>
-            {isEditing ? 'Save' : 'Edit'}
-          </Text>
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.editButtonText}>
+              {isEditing ? 'Save' : 'Edit'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -118,13 +377,24 @@ export default function ProfilePage() {
         {/* Profile Photo Section */}
         <View style={styles.photoSection}>
           <View style={styles.photoContainer}>
-            <Image source={profileData.profileImage} style={styles.profilePhoto} />
+            {getProfileImageSource() ? (
+              <Image source={getProfileImageSource()} style={styles.profilePhoto} />
+            ) : (
+              <View style={[styles.profilePhoto, { backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="person" size={60} color="#10b981" />
+              </View>
+            )}
             {isEditing && (
               <TouchableOpacity 
                 style={styles.changePhotoButton}
                 onPress={handleChangePhoto}
+                disabled={saving}
               >
-                <Ionicons name="camera" size={24} color="#FFFFFF" />
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="camera" size={24} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             )}
           </View>

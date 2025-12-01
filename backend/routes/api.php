@@ -1,21 +1,23 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CaretakerController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GeocodeController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\RoomController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\TenantController;
-use App\Http\Controllers\BookingController;
-use App\Http\Controllers\TenantDashboardController;
 use App\Http\Controllers\TenantBookingController;
+use App\Http\Controllers\TenantController;
+use App\Http\Controllers\TenantDashboardController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantSettingsController;
-use App\Http\Controllers\GeocodeController;
-use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\MessageController;
-use App\Http\Controllers\AdminController;
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsLandlord;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -28,7 +30,6 @@ Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDe
 
 Route::get('/properties/{id}/view', [PropertyController::class, 'showForTenant']);
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
-// Public reverse geocoding endpoint
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 
 // ====================================
@@ -36,35 +37,35 @@ Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 // ====================================
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    
-    // ===== TENANT ROUTES (Public property browsing - already exists) =====
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/me', [AuthController::class, 'updateProfile']);
+    Route::post('/me', [AuthController::class, 'updateProfile']); // For FormData with image upload
+    Route::delete('/me/profile-image', [AuthController::class, 'removeProfileImage']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
+    // ===== TENANT ROUTES (Public property browsing) =====
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);
+    Route::get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
     Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
-    
-    // ===== TENANT-ONLY ENDPOINTS (NEW - Mobile App) =====
+
+    // ===== TENANT-ONLY ENDPOINTS (Mobile App) =====
     Route::prefix('tenant')->group(function () {
-        // HomePage
         Route::get('/dashboard/stats', [TenantDashboardController::class, 'getStats']);
         Route::get('/dashboard/activities', [TenantDashboardController::class, 'getRecentActivities']);
         Route::get('/dashboard/upcoming', [TenantDashboardController::class, 'getUpcomingPayments']);
-
-        // My Bookings
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);
-
-        // Payments
         Route::get('/payments', [TenantPaymentController::class, 'index']);
         Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);
         Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
-
-        // Settings / Profile
         Route::get('/profile', [TenantSettingsController::class, 'getProfile']);
         Route::put('/profile', [TenantSettingsController::class, 'updateProfile']);
         Route::post('/change-password', [TenantSettingsController::class, 'changePassword']);
     });
 
     // ===== LANDLORD ROUTES =====
-    Route::prefix('landlord')->group(function () {
+    Route::get('/landlord/tenants', [TenantController::class, 'index']);
+
+    Route::prefix('landlord')->middleware(EnsureUserIsLandlord::class)->group(function () {
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
         Route::post('/properties/verify-password', [PropertyController::class, 'verifyPassword']);
@@ -72,7 +73,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/properties/{id}', [PropertyController::class, 'update']);
         Route::delete('/properties/{id}', [PropertyController::class, 'destroy']);
         Route::post('/properties/{id}/amenities', [PropertyController::class, 'addAmenity']);
-        
         Route::get('/properties/{propertyId}/rooms', [RoomController::class, 'index']);
         Route::get('/properties/{propertyId}/rooms/stats', [RoomController::class, 'getStats']);
         Route::post('/rooms', [RoomController::class, 'store']);
@@ -80,17 +80,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
         Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
         Route::get('/rooms', [RoomController::class, 'index']);
-        
         Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
         Route::get('/dashboard/recent-activities', [DashboardController::class, 'getRecentActivities']);
         Route::get('/dashboard/upcoming-payments', [DashboardController::class, 'getUpcomingPayments']);
         Route::get('/dashboard/revenue-chart', [DashboardController::class, 'getRevenueChart']);
         Route::get('/dashboard/property-performance', [DashboardController::class, 'getPropertyPerformance']);
-
-        // Main Analytics Dashboard (All-in-one)
         Route::get('/analytics/dashboard', [AnalyticsController::class, 'getDashboardAnalytics']);
-        
-        // Specific Analytics Endpoints (if you need them individually)
         Route::get('/analytics/overview', [AnalyticsController::class, 'getOverviewStats']);
         Route::get('/analytics/revenue', [AnalyticsController::class, 'getRevenueAnalytics']);
         Route::get('/analytics/occupancy', [AnalyticsController::class, 'getOccupancyAnalytics']);
@@ -99,22 +94,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
         Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
         Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
-
-            // Tenants Management (Landlord only)
-        Route::get('/tenants', [TenantController::class, 'index']);
         Route::post('/tenants', [TenantController::class, 'store']);
         Route::put('/tenants/{id}', [TenantController::class, 'update']);
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
-
-        Route::get('/properties/{id}', [PropertyController::class, 'show']);
-
+        Route::get('/caretakers', [CaretakerController::class, 'index']);
+        Route::post('/caretakers', [CaretakerController::class, 'store']);
+        Route::patch('/caretakers/{assignmentId}', [CaretakerController::class, 'update']);
+        Route::delete('/caretakers/{assignmentId}', [CaretakerController::class, 'destroy']);
+        Route::post('/caretakers/{assignmentId}/reset-password', [CaretakerController::class, 'resetPassword']);
     });
-    
 
-
-    // Bookings (Shared - context based on user role)
+    // ===== SHARED BOOKINGS =====
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/stats', [BookingController::class, 'getStats']);
@@ -122,21 +114,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
     Route::patch('/bookings/{id}/payment', [BookingController::class, 'updatePaymentStatus']);
 
-    // Inside auth:sanctum middleware group
+    // ===== SHARED ROOM ROUTES (for landlord and caretaker with rooms permission) =====
+    Route::get('/rooms/property/{propertyId}', [RoomController::class, 'index']);
+    Route::get('/rooms/property/{propertyId}/stats', [RoomController::class, 'getStats']);
+    Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
+
     // ===== ADMIN ROUTES (Admins only) =====
     Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function () {
-        // Dashboard
         Route::get('/dashboard/stats', [AdminController::class, 'getDashboardStats']);
         Route::get('/dashboard/recent-activities', [AdminController::class, 'getRecentActivities']);
-        
-        // User management
         Route::get('/users', [AdminController::class, 'getUsers']);
         Route::post('/users', [AdminController::class, 'createAdmin']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);
-        
-        // Property approval
         Route::get('/properties/pending', [AdminController::class, 'getPendingProperties']);
         Route::get('/properties/approved', [AdminController::class, 'getApprovedProperties']);
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);

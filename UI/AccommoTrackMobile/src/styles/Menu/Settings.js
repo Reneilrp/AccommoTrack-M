@@ -11,14 +11,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#10b981',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -55,6 +53,9 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
+  settingItemHighlight: {
+    backgroundColor: '#F0FDF4',
+  },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -69,10 +70,17 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
+  settingIconHighlight: {
+    backgroundColor: '#10b981',
+  },
   settingLabel: {
     fontSize: 16,
     color: '#111827',
     fontWeight: '500',
+  },
+  settingLabelHighlight: {
+    color: '#10b981',
+    fontWeight: '600',
   },
   settingRight: {
     flexDirection: 'row',

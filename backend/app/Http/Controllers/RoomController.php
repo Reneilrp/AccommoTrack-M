@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
 use Illuminate\Http\Request;
 use App\Models\Room;
 use App\Models\Property;
 use App\Models\Amenity;
 use App\Models\RoomImage;
+use App\Models\Booking;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class RoomController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     /**
      * Get all rooms for a specific property
      */
@@ -28,9 +32,20 @@ class RoomController extends Controller
                 ], 400);
             }
 
-            // Verify property belongs to authenticated landlord
-            $property = Property::where('landlord_id', Auth::id())
-                ->findOrFail($propertyId);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_rooms');
+
+            // Verify property belongs to landlord (or caretaker has access)
+            $propertyQuery = Property::where('landlord_id', $context['landlord_id'])
+                ->where('id', $propertyId);
+
+            // If caretaker, also verify they have access to this property
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $propertyQuery->whereIn('id', $assignedPropertyIds);
+            }
+
+            $property = $propertyQuery->firstOrFail();
 
             $rooms = Room::where('property_id', $propertyId)
                 ->with('currentTenant:id,first_name,last_name', 'amenities', 'images')
@@ -274,11 +289,29 @@ class RoomController extends Controller
                 ], 403);
             }
 
+            // Check if room has any bookings
+            $hasBookings = Booking::where('room_id', $id)->exists();
+            if ($hasBookings) {
+                return response()->json([
+                    'message' => 'Cannot delete room with existing bookings. Please cancel or complete all bookings first.'
+                ], 422);
+            }
+
+            // Check if room has active tenants
+            if ($room->occupied > 0) {
+                return response()->json([
+                    'message' => 'Cannot delete room with active tenants. Please remove all tenants first.'
+                ], 422);
+            }
+
             $property = $room->property;
 
             // Delete related amenities and images
             $room->amenities()->detach();
             RoomImage::where('room_id', $room->id)->delete();
+
+            // Delete tenant assignments
+            DB::table('room_tenant_assignments')->where('room_id', $room->id)->delete();
 
             $room->delete();
 
@@ -296,6 +329,18 @@ class RoomController extends Controller
             return response()->json([
                 'message' => 'Room not found'
             ], 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            // Check for foreign key constraint violation
+            if (str_contains($e->getMessage(), 'foreign key constraint')) {
+                return response()->json([
+                    'message' => 'Cannot delete room. It has related records (bookings, payments, etc.) that must be removed first.'
+                ], 422);
+            }
+            return response()->json([
+                'message' => 'Failed to delete room',
+                'error' => $e->getMessage()
+            ], 500);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -311,13 +356,26 @@ class RoomController extends Controller
     public function updateStatus(Request $request, $id)
     {
         try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_rooms');
+
             $room = Room::findOrFail($id);
 
-            // Verify room's property belongs to authenticated landlord
-            if ($room->property->landlord_id !== Auth::id()) {
+            // Verify room's property belongs to landlord
+            if ($room->property->landlord_id !== $context['landlord_id']) {
                 return response()->json([
                     'message' => 'Unauthorized access'
                 ], 403);
+            }
+
+            // If caretaker, verify they have access to this property
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                if (!in_array($room->property_id, $assignedPropertyIds)) {
+                    return response()->json([
+                        'message' => 'Unauthorized access to this property'
+                    ], 403);
+                }
             }
 
             $validated = $request->validate([
@@ -364,12 +422,23 @@ class RoomController extends Controller
     /**
      * Get room statistics for a property
      */
-    public function getStats($propertyId)
+    public function getStats(Request $request, $propertyId)
     {
         try {
-            // Verify property belongs to authenticated landlord
-            $property = Property::where('landlord_id', Auth::id())
-                ->findOrFail($propertyId);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_rooms');
+
+            // Verify property belongs to landlord (or caretaker has access)
+            $propertyQuery = Property::where('landlord_id', $context['landlord_id'])
+                ->where('id', $propertyId);
+
+            // If caretaker, also verify they have access to this property
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $propertyQuery->whereIn('id', $assignedPropertyIds);
+            }
+
+            $property = $propertyQuery->firstOrFail();
 
             $total = Room::where('property_id', $propertyId)->count();
             $occupied = Room::where('property_id', $propertyId)->where('status', 'occupied')->count();
@@ -418,7 +487,7 @@ class RoomController extends Controller
             'available_slots' => $room->available_slots,
             'description' => $room->description,
             'amenities' => $room->amenities ? $room->amenities->pluck('name')->toArray() : [],
-            'images' => $room->images ? $room->images->pluck('image_url')->map(fn($url) => asset($url))->toArray() : [],
+            'images' => $room->images ? $room->images->pluck('image_url')->toArray() : [],
             'created_at' => $room->created_at,
             'updated_at' => $room->updated_at
         ];

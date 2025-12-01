@@ -1,12 +1,16 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.254.106:8000/api';
+const API_URL = 'http://192.168.0.105:8000/api';
 
 class PaymentService {
   async getAuthToken() {
     try {
-      const token = await AsyncStorage.getItem('token');
+      // Check both possible token keys for compatibility
+      let token = await AsyncStorage.getItem('auth_token');
+      if (!token) {
+        token = await AsyncStorage.getItem('token');
+      }
       return token;
     } catch (error) {
       console.error('Error getting auth token:', error);

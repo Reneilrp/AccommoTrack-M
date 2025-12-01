@@ -40,9 +40,10 @@ export const styles = StyleSheet.create({
   },
   typeBadge: {
     backgroundColor: '#10b981',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   typeText: {
     color: '#fff',
@@ -50,8 +51,8 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mainImage: {
-    width: screenWidth - 32, // Full width minus padding (16px on each side)
-    height: (screenWidth - 32) * 0.75, // Maintain 4:3 aspect ratio
+    width: screenWidth - 32,
+    height: (screenWidth - 32) * 0.75, 
     borderRadius: 12,
     marginBottom: 16,
   },
@@ -385,16 +386,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#10b981',
+    backgroundColor: '#10b981',
+    borderWidth: 0,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
     marginBottom: 20,
   },
   contactButtonText: {
-    color: '#10b981',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

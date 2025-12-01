@@ -65,33 +65,33 @@ const PropertyApproval = () => {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
       {/* Filter Buttons */}
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex gap-2 flex-wrap">
         <button
           onClick={() => setStatusFilter('pending')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
             statusFilter === 'pending' 
-              ? 'bg-gray-800 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
           }`}
         >
           Pending
         </button>
         <button
           onClick={() => setStatusFilter('approved')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
             statusFilter === 'approved' 
-              ? 'bg-gray-800 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
           }`}
         >
           Approved
         </button>
         <button
           onClick={() => setStatusFilter('rejected')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
             statusFilter === 'rejected' 
-              ? 'bg-gray-800 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
           }`}
         >
           Rejected
@@ -113,21 +113,21 @@ const PropertyApproval = () => {
             </p>
           </div>
         ) : (
-          <div className="w-full overflow-x-auto shadow-md rounded-lg">
-            <table className="w-full bg-white">
-              <thead className="bg-gray-800 text-white">
+          <div className="w-full overflow-x-auto shadow-sm rounded-2xl border border-gray-100 bg-white">
+            <table className="w-full">
+              <thead className="bg-gray-100 text-gray-600 text-xs uppercase tracking-wide">
                 <tr>
-                  <th className="px-6 py-4 text-left font-semibold">Title</th>
-                  <th className="px-6 py-4 text-left font-semibold">Property Type</th>
-                  <th className="px-6 py-4 text-left font-semibold">Location</th>
-                  <th className="px-6 py-4 text-left font-semibold">Owner</th>
-                  <th className="px-6 py-4 text-left font-semibold">Submitted</th>
-                  <th className="px-6 py-4 text-center font-semibold">Actions</th>
+                  <th className="px-6 py-3 text-left font-semibold">Title</th>
+                  <th className="px-6 py-3 text-left font-semibold">Property Type</th>
+                  <th className="px-6 py-3 text-left font-semibold">Location</th>
+                  <th className="px-6 py-3 text-left font-semibold">Owner</th>
+                  <th className="px-6 py-3 text-left font-semibold">Submitted</th>
+                  <th className="px-6 py-3 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 text-sm">
                 {properties.map(prop => (
-                  <tr key={prop.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={prop.id} className="bg-white even:bg-gray-50 hover:bg-emerald-50/40 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900">{prop.title || 'Untitled'}</td>
                     <td className="px-6 py-4 text-gray-700 capitalize">{prop.property_type || '—'}</td>
                     <td className="px-6 py-4 text-gray-700">{prop.city || prop.full_address || '—'}</td>

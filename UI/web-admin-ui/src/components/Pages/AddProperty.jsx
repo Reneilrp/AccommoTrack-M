@@ -126,8 +126,7 @@ export default function AddProperty({ onBack, onSave }) {
   const amenitiesList = [
     'WiFi', 'Air Conditioning', 'Furnished',
     'Parking', 'Security',
-    'Water Heater', 'Kitchen', 'Balcony',
-    'Pet Friendly'
+    'Water Heater', 'Kitchen', 'Balcony'
   ];
 
   const steps = [
@@ -701,9 +700,9 @@ export default function AddProperty({ onBack, onSave }) {
         {/* Step 3: Rules & Amenities */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            {/* Amenities & Features */}
+            {/* Amenities */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Amenities & Features</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Amenities</h2>
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Add Amenity</label>

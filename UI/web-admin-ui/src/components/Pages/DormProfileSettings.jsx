@@ -16,25 +16,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [newRule, setNewRule] = useState('');
   const [newCustomAmenity, setNewCustomAmenity] = useState('');
 
-  // Delete states
-  const [deleteConfirm, setDeleteConfirm] = useState({ show: false });
-  const [passwordModal, setPasswordModal] = useState({ show: false });
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
-  };
-
   useEffect(() => {
     if (propertyId) {
       fetchPropertyDetails();
@@ -104,55 +85,40 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   };
 
   const parseAmenities = (amenitiesData) => {
-    const defaultAmenities = {
-      wifi: false,
-      airConditioning: false,
-      furnished: false,
-      security: false,
-      generator: false,
-      waterHeater: false,
-      kitchen: false,
-      balcony: false,
-      elevator: false,
-      petFriendly: false,
-      gymAccess: false,
-      parking: false
-    };
-
+    // Return only the amenities that were actually added to the property
     if (!amenitiesData || (Array.isArray(amenitiesData) && amenitiesData.length === 0)) {
-      return defaultAmenities;
+      return [];
     }
 
-    // If it's an array of strings (amenity names)
+    // If it's an array of strings (amenity names), return as-is
     if (Array.isArray(amenitiesData)) {
-      const amenitiesObj = { ...defaultAmenities };
-      amenitiesData.forEach(amenityName => {
-        const key = amenityName.toLowerCase()
-          .replace(/\s+/g, '')
-          .replace('wifi', 'wifi')
-          .replace('airconditioning', 'airConditioning')
-          .replace('waterheater', 'waterHeater')
-          .replace('gymaccess', 'gymAccess')
-          .replace('petfriendly', 'petFriendly');
-        if (key in amenitiesObj) {
-          amenitiesObj[key] = true;
-        }
-      });
-      return amenitiesObj;
+      return amenitiesData.map(a => (typeof a === 'string' ? a : String(a)).trim()).filter(Boolean);
     }
 
     // If it's a string, try to parse as JSON
     if (typeof amenitiesData === 'string') {
       try {
         const parsed = JSON.parse(amenitiesData);
-        return { ...defaultAmenities, ...parsed };
+        if (Array.isArray(parsed)) {
+          return parsed.map(a => (typeof a === 'string' ? a : String(a)).trim()).filter(Boolean);
+        }
+        // If it's an object with boolean values, extract enabled ones
+        return Object.entries(parsed)
+          .filter(([key, value]) => value === true)
+          .map(([key]) => key.replace(/([A-Z])/g, ' $1').trim());
       } catch {
-        return defaultAmenities;
+        return [];
       }
     }
 
-    // If it's an object, merge with defaults
-    return { ...defaultAmenities, ...amenitiesData };
+    // If it's an object with boolean values, extract enabled ones
+    if (typeof amenitiesData === 'object') {
+      return Object.entries(amenitiesData)
+        .filter(([key, value]) => value === true)
+        .map(([key]) => key.replace(/([A-Z])/g, ' $1').trim());
+    }
+
+    return [];
   };
 
   const handleInputChange = (field, value) => {
@@ -173,10 +139,10 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     }));
   };
 
-  const handleAmenityToggle = (amenity) => {
+  const handleRemoveAmenity = (index) => {
     setDormData(prev => ({
       ...prev,
-      amenities: { ...prev.amenities, [amenity]: !prev.amenities[amenity] }
+      amenities: prev.amenities.filter((_, i) => i !== index)
     }));
   };
 
@@ -236,9 +202,12 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const handleAddCustomAmenity = (amenity) => {
     const value = (amenity || '').trim();
     if (!value) return;
+    // Check if amenity already exists (case-insensitive)
+    const exists = dormData.amenities.some(a => a.toLowerCase() === value.toLowerCase());
+    if (exists) return;
     setDormData(prev => ({
       ...prev,
-      customAmenities: Array.isArray(prev.customAmenities) ? [...prev.customAmenities, value] : [value]
+      amenities: [...(prev.amenities || []), value]
     }));
     setNewCustomAmenity('');
   };
@@ -262,29 +231,10 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       setLoading(true);
       setError('');
 
-      // Convert amenities object to array of amenity names
-      const amenitiesArray = Object.entries(dormData.amenities)
-        .filter(([key, value]) => value === true)
-        .map(([key]) => {
-          // Convert camelCase to proper names
-          const nameMap = {
-            wifi: 'WiFi',
-            airConditioning: 'Air Conditioning',
-            furnished: 'Furnished',
-            security: 'Security',
-            generator: 'Generator',
-            waterHeater: 'Water Heater',
-            kitchen: 'Kitchen',
-            balcony: 'Balcony',
-            elevator: 'Elevator',
-            petFriendly: 'Pet Friendly',
-            gymAccess: 'Gym Access',
-            parking: 'Parking'
-          };
-          return nameMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
-        });
+      // Amenities is now just an array of strings
+      const amenitiesArray = Array.isArray(dormData.amenities) ? dormData.amenities : [];
 
-      // Include custom amenities (if any) and merge with the selected amenity names
+      // Include custom amenities (if any) and merge with the amenities
       const customAmenities = Array.isArray(dormData.customAmenities) ? dormData.customAmenities.map(a => (a || '').trim()).filter(Boolean) : [];
       const merged = Array.from(new Set([...amenitiesArray, ...customAmenities]));
 
@@ -680,36 +630,34 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Amenities</h2>
 
-              <div className="space-y-3">
-                {Object.entries(dormData.amenities).map(([key, value]) => (
-                  <label key={key} className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm text-gray-700 capitalize">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => isEditing && handleAmenityToggle(key)}
-                      disabled={!isEditing}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? 'bg-green-600' : 'bg-gray-300'
-                        } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value ? 'translate-x-5' : 'translate-x-1'
-                          }`}
-                      />
-                    </button>
-                  </label>
-                ))}
+              <div className="space-y-3 mb-4">
+                {(!dormData.amenities || dormData.amenities.length === 0) ? (
+                  <p className="text-gray-500 text-sm">No amenities added yet</p>
+                ) : (
+                  dormData.amenities.map((amenity, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700">{amenity}</span>
+                      {isEditing && (
+                        <button
+                          onClick={() => handleRemoveAmenity(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
 
               {isEditing && (
-                <div className="mt-4 flex gap-2">
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={newCustomAmenity}
                     onChange={(e) => setNewCustomAmenity(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (handleAddCustomAmenity(newCustomAmenity))}
-                    placeholder="Add a new amenity..."
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAmenity(newCustomAmenity)}
+                    placeholder="Add an amenity..."
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                   />
                   <button

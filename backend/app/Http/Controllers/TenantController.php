@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
 use App\Models\User;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class TenantController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     /**
      * Get all tenants (with optional property filter)
      * Shows only tenants who have rooms in landlord's properties
@@ -19,7 +22,12 @@ class TenantController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_tenants');
+
             $propertyId = $request->query('property_id');
+
+            $landlordId = $context['landlord_id'];
 
             // Start with a simpler query to avoid relationship issues
             // Get all tenants who are occupying rooms in landlord's properties (legacy system only for now)
@@ -30,9 +38,9 @@ class TenantController extends Controller
                       ->orWhere('status', 'partial-completed')
                       ->orderBy('created_at', 'desc');
                 }])
-                ->whereHas('room', function ($q) {
-                    $q->whereHas('property', function ($q2) {
-                        $q2->where('landlord_id', Auth::id());
+                ->whereHas('room', function ($q) use ($landlordId) {
+                    $q->whereHas('property', function ($q2) use ($landlordId) {
+                        $q2->where('landlord_id', $landlordId);
                     });
                 });
 
@@ -98,7 +106,7 @@ class TenantController extends Controller
             Log::error('Error in TenantController@index: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'property_id' => $request->query('property_id'),
-                'user_id' => Auth::id()
+                'user_id' => optional($request->user())->id
             ]);
             
             return response()->json([
@@ -113,6 +121,9 @@ class TenantController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
@@ -156,6 +167,9 @@ class TenantController extends Controller
      */
     public function update(Request $request, string $id): JsonResponse
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $user = User::where('role', 'tenant')->findOrFail($id);
 
         $validated = $request->validate([
@@ -199,12 +213,15 @@ class TenantController extends Controller
     /**
      * Delete tenant
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $user = User::where('role', 'tenant')->findOrFail($id);
 
         // Check if tenant is currently assigned to a room in landlord's property
-        if ($user->room && $user->room->property->landlord_id === Auth::id()) {
+        if ($user->room && $user->room->property->landlord_id === $context['landlord_id']) {
             return response()->json([
                 'error' => 'Cannot delete tenant who is currently occupying a room. Please unassign them first.'
             ], 400);
@@ -219,6 +236,9 @@ class TenantController extends Controller
      */
     public function assignRoom(Request $request, string $id): JsonResponse
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $validated = $request->validate([
             'room_id' => 'required|exists:rooms,id',
             'move_in_date' => 'nullable|date',
@@ -228,7 +248,7 @@ class TenantController extends Controller
         $room = Room::with('property')->findOrFail($validated['room_id']);
 
         // Verify room belongs to landlord
-        if ($room->property->landlord_id !== Auth::id()) {
+        if ($room->property->landlord_id !== $context['landlord_id']) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -263,15 +283,18 @@ class TenantController extends Controller
     /**
      * Unassign tenant from room
      */
-    public function unassignRoom(string $id): JsonResponse
+    public function unassignRoom(Request $request, string $id): JsonResponse
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $tenant = User::where('role', 'tenant')->with('room.property')->findOrFail($id);
 
         if (!$tenant->room) {
             return response()->json(['error' => 'Tenant is not assigned to any room'], 400);
         }
 
-        if ($tenant->room->property->landlord_id !== Auth::id()) {
+        if ($tenant->room->property->landlord_id !== $context['landlord_id']) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -293,4 +316,11 @@ class TenantController extends Controller
 
         return response()->json($tenant->load(['tenantProfile', 'room']));
     }
+
+        protected function assertNotCaretaker(array $context): void
+        {
+            if ($context['is_caretaker']) {
+                throw new AccessDeniedHttpException('Caretaker accounts are read-only for tenants.');
+            }
+        }
 }

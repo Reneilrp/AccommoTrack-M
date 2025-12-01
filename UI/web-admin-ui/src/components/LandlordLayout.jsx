@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
+import { getImageUrl } from '../utils/api';
 
-export default function LandlordLayout({ user, onLogout, children }) {
-  
+export default function LandlordLayout({
+  user,
+  onLogout,
+  children,
+  accessRole = 'landlord',
+}) {
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
 
-  const menuItems = [
+  const normalizedRole = accessRole || user?.role || 'landlord';
+  const isCaretaker = normalizedRole === 'caretaker';
+  const caretakerPermissions = user?.caretaker_permissions || {};
+
+  const landlordMenu = [
     { 
-      path: '/Dashboard', 
+      path: '/dashboard', 
       label: 'Dashboard', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,7 +29,7 @@ export default function LandlordLayout({ user, onLogout, children }) {
       )
     },
     { 
-      path: '/Properties', 
+      path: '/properties', 
       label: 'My Properties', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -28,7 +38,7 @@ export default function LandlordLayout({ user, onLogout, children }) {
       )
     },
     { 
-      path: '/Rooms', 
+      path: '/rooms', 
       label: 'Room Management', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +47,7 @@ export default function LandlordLayout({ user, onLogout, children }) {
       )
     },
     { 
-      path: '/Tenants', 
+      path: '/tenants', 
       label: 'Tenants', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,7 +56,7 @@ export default function LandlordLayout({ user, onLogout, children }) {
       )
     },
     { 
-      path: '/Bookings', 
+      path: '/bookings', 
       label: 'Bookings', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +65,7 @@ export default function LandlordLayout({ user, onLogout, children }) {
       )
     },
     { 
-      path: '/Messages', 
+      path: '/messages', 
       label: 'Messages', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +74,7 @@ export default function LandlordLayout({ user, onLogout, children }) {
       ),
     },
     { 
-      path: '/Analytics', 
+      path: '/analytics', 
       label: 'Analytics', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,6 +93,20 @@ export default function LandlordLayout({ user, onLogout, children }) {
       )
     }
   ];
+
+  const caretakerAllowedPaths = new Set([
+    caretakerPermissions.rooms ? '/rooms' : null,
+    caretakerPermissions.bookings ? '/bookings' : null,
+    caretakerPermissions.tenants ? '/tenants' : null,
+    caretakerPermissions.messages ? '/messages' : null,
+    '/settings',
+  ].filter(Boolean));
+
+  const caretakerMenu = caretakerAllowedPaths.size > 0
+    ? landlordMenu.filter((item) => caretakerAllowedPaths.has(item.path))
+    : landlordMenu.filter((item) => item.path === '/settings');
+
+  const menuItems = isCaretaker ? caretakerMenu : landlordMenu;
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
@@ -144,10 +168,18 @@ export default function LandlordLayout({ user, onLogout, children }) {
         {/* User Profile */}
         <div className="p-4 border-b border-gray-200">
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-green-600 font-semibold">
-                {user?.first_name?.[0]}{user?.last_name?.[0]}
-              </span>
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {user?.profile_image ? (
+                <img 
+                  src={getImageUrl(user.profile_image)} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-green-600 font-semibold">
+                  {user?.first_name?.[0]}{user?.last_name?.[0]}
+                </span>
+              )}
             </div>
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
@@ -155,6 +187,9 @@ export default function LandlordLayout({ user, onLogout, children }) {
                   {user?.first_name} {user?.last_name}
                 </p>
                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                {isCaretaker && (
+                  <p className="text-xs text-amber-600 font-semibold mt-1">Caretaker Access</p>
+                )}
               </div>
             )}
           </div>

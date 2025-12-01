@@ -5,14 +5,69 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5'
   },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#4B5563'
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937'
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center'
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#16a34a'
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginLeft: 6
+  },
   header: {
     position: 'relative',
     backgroundColor: '#4CAF50',
-    padding: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 16,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    gap: 12
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center'
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 12
   },
   greeting: {
     fontSize: 14,
@@ -52,36 +107,50 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   statsContainer: {
-    marginTop: 10,
-    paddingHorizontal: 20
+    marginTop: 16,
+    paddingHorizontal: 16
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12
+    flexWrap: 'wrap',
+    gap: 12
   },
   statCard: {
-    flex: 1,
-    padding: 16,
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center'
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8
+    marginBottom: 10
+  },
+  statBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginTop: 8
+  },
+  statBadgeText: {
+    fontSize: 11,
+    fontWeight: '600'
   },
   statValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 8
+    color: '#1F2937'
   },
   statLabel: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    marginTop: 4
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2
   },
   section: {
     padding: 20,
@@ -98,6 +167,10 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937'
   },
+  sectionHelper: {
+    fontSize: 13,
+    color: '#6B7280'
+  },
   seeAllText: {
     fontSize: 14,
     color: '#4CAF50',
@@ -106,33 +179,42 @@ export const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
     marginTop: 16
   },
   actionCard: {
-    width: '48%',
+    width: '31%',
     backgroundColor: '#FFFFFF',
-    padding: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     borderRadius: 16,
     alignItems: 'center',
-    elevation: 2,
+    justifyContent: 'center',
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F3F4F6'
   },
   actionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 8
   },
   actionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#1F2937'
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 4
+  },
+  actionArrow: {
+    marginTop: 2
   },
   activityContainer: {
     backgroundColor: '#FFFFFF',
@@ -166,10 +248,84 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280'
   },
+  activityTimestamp: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2
+  },
   activityAmount: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#4CAF50'
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize'
+  },
+  cardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#9CA3AF'
+  },
+  listItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  listContent: {
+    flex: 1
+  },
+  listTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937'
+  },
+  listSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2
+  },
+  listMeta: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2
+  },
+  listAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#B91C1C'
+  },
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: '600'
   },
   propertyCard: {
     backgroundColor: '#FFFFFF',
@@ -222,5 +378,50 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     fontWeight: '500'
+  },
+  performanceCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12
+  },
+  performanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  performanceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827'
+  },
+  performanceSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    textTransform: 'capitalize'
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 999,
+    overflow: 'hidden'
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#10B981'
+  },
+  performanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  performanceStatLabel: {
+    fontSize: 12,
+    color: '#6B7280'
+  },
+  performanceStatValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827'
   }
 });

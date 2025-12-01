@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL configuration from environment variables
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://192.168.254.106:8000';
+const BASE_URL = import.meta.env.VITE_APP_URL || 'http://192.168.0.105:8000';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 
@@ -74,6 +74,17 @@ export const getImageUrl = (imagePath) => {
     
     // If it's already a full URL, return it
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        try {
+            const url = new URL(imagePath);
+            const storageMarker = '/storage/';
+            const markerIndex = url.pathname.indexOf(storageMarker);
+            if (markerIndex !== -1) {
+                const storagePath = url.pathname.substring(markerIndex + 1); // keep leading 'storage'
+                return `${BASE_URL}/${storagePath}`;
+            }
+        } catch (err) {
+            console.warn('Failed to parse image URL', err);
+        }
         return imagePath;
     }
     

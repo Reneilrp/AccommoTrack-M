@@ -20,8 +20,10 @@ export default function AppNavigator() {
   const handleLogout = async () => {
     try {
       // Remove auth-related data and guest flag, keep hasLaunched
+      await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('user_id');
       await AsyncStorage.removeItem('isGuest');
       setAuthContext('returning');
       setUserRole('auth');
@@ -61,7 +63,8 @@ export default function AppNavigator() {
   const checkAppState = async () => {
     try {
       const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-      const token = await AsyncStorage.getItem('token');
+      // Check both auth_token (new) and token (legacy) for backward compatibility
+      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('token');
       const userString = await AsyncStorage.getItem('user');
       const isGuest = await AsyncStorage.getItem('isGuest');
 
@@ -127,24 +130,36 @@ export default function AppNavigator() {
   if (userRole === 'auth') {
     console.log(' Rendering Auth screen (returning user)');
     return (
-      <AuthScreens
-        onLoginSuccess={handleLoginSuccess}
-        onClose={
-          authContext === 'guest'
-            ? () => {
-                setAuthContext(null);
-                setUserRole('guest');
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'none',
+        }}
+      >
+        <Stack.Screen name="Auth">
+          {(props) => (
+            <AuthScreens
+              {...props}
+              onLoginSuccess={handleLoginSuccess}
+              onClose={
+                authContext === 'guest'
+                  ? () => {
+                      setAuthContext(null);
+                      setUserRole('guest');
+                    }
+                  : undefined
               }
-            : undefined
-        }
-        onContinueAsGuest={
-          authContext === 'returning'
-            ? () => {
-                enterGuestMode();
+              onContinueAsGuest={
+                authContext === 'returning'
+                  ? () => {
+                      enterGuestMode();
+                    }
+                  : undefined
               }
-            : undefined
-        }
-      />
+            />
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
     );
   }
 

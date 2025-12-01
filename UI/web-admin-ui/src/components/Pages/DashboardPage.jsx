@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Home,
   Users,
@@ -9,10 +10,17 @@ import {
   Loader2,
   Building2,
   XCircle,
+  Bell,
+  X,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  LogOut,
 } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
   const [upcomingPayments, setUpcomingPayments] = useState({ upcomingCheckouts: [], unpaidBookings: [] });
@@ -20,6 +28,15 @@ export default function DashboardPage() {
   const [propertyPerformance, setPropertyPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [dismissedNotifications, setDismissedNotifications] = useState([]);
+  const [archivedNotifications, setArchivedNotifications] = useState([]);
+  const [notificationView, setNotificationView] = useState('active'); // 'active' or 'archived'
+  const [seenNotificationIds, setSeenNotificationIds] = useState(() => {
+    const saved = localStorage.getItem('seenNotificationIds');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -49,6 +66,98 @@ export default function DashboardPage() {
       setUpcomingPayments(paymentsData);
       setRevenueChart(chartData);
       setPropertyPerformance(performanceData);
+
+      // Generate notifications from dashboard data
+      const generatedNotifications = [];
+      
+      // Pending bookings notification
+      if (statsData?.bookings?.pending > 0) {
+        generatedNotifications.push({
+          id: 'pending-bookings',
+          type: 'warning',
+          icon: 'calendar',
+          title: 'Pending Bookings',
+          message: `You have ${statsData.bookings.pending} booking${statsData.bookings.pending > 1 ? 's' : ''} waiting for confirmation.`,
+          time: 'Just now',
+          actionLabel: 'Review Bookings',
+          actionPath: '/bookings'
+        });
+      }
+
+      // Unpaid bookings notification
+      if (paymentsData?.unpaidBookings?.length > 0) {
+        const totalUnpaid = paymentsData.unpaidBookings.reduce((sum, b) => sum + (b.amount || 0), 0);
+        generatedNotifications.push({
+          id: 'unpaid-bookings',
+          type: 'error',
+          icon: 'payment',
+          title: 'Unpaid Bookings',
+          message: `${paymentsData.unpaidBookings.length} booking${paymentsData.unpaidBookings.length > 1 ? 's' : ''} with pending payment totaling ₱${totalUnpaid.toLocaleString()}.`,
+          time: 'Today',
+          actionLabel: 'View Payments',
+          actionPath: '/bookings'
+        });
+      }
+
+      // Upcoming checkouts notification
+      const urgentCheckouts = paymentsData?.upcomingCheckouts?.filter(c => c.urgency === 'high') || [];
+      if (urgentCheckouts.length > 0) {
+        generatedNotifications.push({
+          id: 'urgent-checkouts',
+          type: 'warning',
+          icon: 'checkout',
+          title: 'Upcoming Checkouts',
+          message: `${urgentCheckouts.length} tenant${urgentCheckouts.length > 1 ? 's' : ''} checking out within 3 days.`,
+          time: 'Today',
+          actionLabel: 'View Details',
+          actionPath: '/tenants'
+        });
+      }
+
+      // Low occupancy warning
+      const lowOccupancyProperties = performanceData?.filter(p => p.occupancyRate < 50) || [];
+      if (lowOccupancyProperties.length > 0) {
+        generatedNotifications.push({
+          id: 'low-occupancy',
+          type: 'info',
+          icon: 'property',
+          title: 'Low Occupancy Alert',
+          message: `${lowOccupancyProperties.length} propert${lowOccupancyProperties.length > 1 ? 'ies have' : 'y has'} less than 50% occupancy.`,
+          time: 'This week',
+          actionLabel: 'View Properties',
+          actionPath: '/properties'
+        });
+      }
+
+      // New bookings today
+      const todayBookings = activitiesData?.filter(a => a.type === 'booking' && a.status === 'confirmed') || [];
+      if (todayBookings.length > 0) {
+        generatedNotifications.push({
+          id: 'new-bookings',
+          type: 'success',
+          icon: 'calendar',
+          title: 'New Confirmed Bookings',
+          message: `${todayBookings.length} booking${todayBookings.length > 1 ? 's were' : ' was'} confirmed recently.`,
+          time: 'Recently',
+          actionLabel: 'View Bookings',
+          actionPath: '/bookings'
+        });
+      }
+
+      setNotifications(generatedNotifications);
+      
+      // Check for new notifications that haven't been seen
+      const newNotificationIds = generatedNotifications.map(n => n.id);
+      const hasNewNotifications = newNotificationIds.some(id => !seenNotificationIds.includes(id));
+      
+      // Auto-open if there are new notifications
+      if (hasNewNotifications && generatedNotifications.length > 0) {
+        setShowNotifications(true);
+        // Mark all current notifications as seen
+        const updatedSeenIds = [...new Set([...seenNotificationIds, ...newNotificationIds])];
+        setSeenNotificationIds(updatedSeenIds);
+        localStorage.setItem('seenNotificationIds', JSON.stringify(updatedSeenIds));
+      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
@@ -97,6 +206,69 @@ export default function DashboardPage() {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  const getNotificationIcon = (icon) => {
+    switch (icon) {
+      case 'calendar':
+        return <Calendar className="w-5 h-5" />;
+      case 'payment':
+        return <CreditCard className="w-5 h-5" />;
+      case 'checkout':
+        return <LogOut className="w-5 h-5" />;
+      case 'property':
+        return <Building2 className="w-5 h-5" />;
+      default:
+        return <Bell className="w-5 h-5" />;
+    }
+  };
+
+  const getNotificationStyle = (type) => {
+    switch (type) {
+      case 'error':
+        return { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', badge: 'bg-red-500' };
+      case 'warning':
+        return { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: 'bg-yellow-100 text-yellow-600', badge: 'bg-yellow-500' };
+      case 'success':
+        return { bg: 'bg-green-50', border: 'border-green-200', icon: 'bg-green-100 text-green-600', badge: 'bg-green-500' };
+      case 'info':
+      default:
+        return { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', badge: 'bg-blue-500' };
+    }
+  };
+
+  const dismissNotification = (id) => {
+    setDismissedNotifications(prev => [...prev, id]);
+  };
+
+  const archiveNotification = (id) => {
+    const notification = notifications.find(n => n.id === id);
+    if (notification) {
+      setArchivedNotifications(prev => [...prev, { ...notification, archivedAt: new Date().toISOString() }]);
+      setDismissedNotifications(prev => [...prev, id]);
+    }
+  };
+
+  const unarchiveNotification = (id) => {
+    setArchivedNotifications(prev => prev.filter(n => n.id !== id));
+    setDismissedNotifications(prev => prev.filter(nId => nId !== id));
+  };
+
+  const deleteArchivedNotification = (id) => {
+    setArchivedNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const clearAllArchived = () => {
+    setArchivedNotifications([]);
+  };
+
+  const handleNotificationAction = (id, path) => {
+    archiveNotification(id);
+    setShowNotifications(false);
+    navigate(path);
+  };
+
+  const activeNotifications = notifications.filter(n => !dismissedNotifications.includes(n.id));
+  const unreadCount = activeNotifications.length;
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -151,6 +323,214 @@ export default function DashboardPage() {
               <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
               <p className="text-sm text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
             </div>
+            
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <Bell className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notifications Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                    <h3 className="font-semibold text-gray-900">Notifications</h3>
+                    <button
+                      onClick={() => setShowNotifications(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="flex border-b border-gray-200">
+                    <button
+                      onClick={() => setNotificationView('active')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                        notificationView === 'active'
+                          ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Active ({activeNotifications.length})
+                    </button>
+                    <button
+                      onClick={() => setNotificationView('archived')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                        notificationView === 'archived'
+                          ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Archived ({archivedNotifications.length})
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-96 overflow-y-auto">
+                    {notificationView === 'active' ? (
+                      /* Active Notifications */
+                      activeNotifications.length === 0 ? (
+                        <div className="py-8 text-center text-gray-500">
+                          <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-400" />
+                          <p className="font-medium">All caught up!</p>
+                          <p className="text-sm">No new notifications</p>
+                        </div>
+                      ) : (
+                        activeNotifications.map((notification) => {
+                          const style = getNotificationStyle(notification.type);
+                          return (
+                            <div
+                              key={notification.id}
+                              className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${style.bg}`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${style.icon}`}>
+                                  {getNotificationIcon(notification.icon)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-gray-900">{notification.title}</p>
+                                    <div className="flex items-center gap-1 ml-2">
+                                      <button
+                                        onClick={() => archiveNotification(notification.id)}
+                                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
+                                        title="Archive"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => dismissNotification(notification.id)}
+                                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
+                                        title="Dismiss"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {notification.time}
+                                    </span>
+                                    {notification.actionLabel && notification.actionPath && (
+                                      <button 
+                                        onClick={() => handleNotificationAction(notification.id, notification.actionPath)}
+                                        className="text-xs font-medium text-green-600 hover:text-green-700"
+                                      >
+                                        {notification.actionLabel} →
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )
+                    ) : (
+                      /* Archived Notifications */
+                      archivedNotifications.length === 0 ? (
+                        <div className="py-8 text-center text-gray-500">
+                          <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                          </svg>
+                          <p className="font-medium">No archived notifications</p>
+                          <p className="text-sm">Archived notifications will appear here</p>
+                        </div>
+                      ) : (
+                        archivedNotifications.map((notification) => {
+                          const style = getNotificationStyle(notification.type);
+                          return (
+                            <div
+                              key={notification.id}
+                              className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors bg-gray-50"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${style.icon} opacity-60`}>
+                                  {getNotificationIcon(notification.icon)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-gray-700">{notification.title}</p>
+                                    <div className="flex items-center gap-1 ml-2">
+                                      <button
+                                        onClick={() => unarchiveNotification(notification.id)}
+                                        className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-100 rounded"
+                                        title="Restore"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => deleteArchivedNotification(notification.id)}
+                                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded"
+                                        title="Delete permanently"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
+                                  <span className="text-xs text-gray-400 flex items-center gap-1 mt-2">
+                                    <Clock className="w-3 h-3" />
+                                    Archived {notification.archivedAt ? new Date(notification.archivedAt).toLocaleDateString() : 'recently'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )
+                    )}
+                  </div>
+                  
+                  {notificationView === 'active' && activeNotifications.length > 0 && (
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-2">
+                      <button
+                        onClick={() => {
+                          activeNotifications.forEach(n => archiveNotification(n.id));
+                        }}
+                        className="flex-1 text-sm text-center text-gray-600 hover:text-gray-900 font-medium py-1 hover:bg-gray-100 rounded"
+                      >
+                        Archive all
+                      </button>
+                      <button
+                        onClick={() => setDismissedNotifications(notifications.map(n => n.id))}
+                        className="flex-1 text-sm text-center text-gray-600 hover:text-gray-900 font-medium py-1 hover:bg-gray-100 rounded"
+                      >
+                        Dismiss all
+                      </button>
+                    </div>
+                  )}
+                  
+                  {notificationView === 'archived' && archivedNotifications.length > 0 && (
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+                      <button
+                        onClick={clearAllArchived}
+                        className="w-full text-sm text-center text-red-600 hover:text-red-700 font-medium py-1 hover:bg-red-50 rounded"
+                      >
+                        Clear all archived
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -188,18 +568,22 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Active Tenants */}
+          {/* Bookings */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600" />
+                <Calendar className="w-6 h-6 text-purple-600" />
               </div>
-              <span className="text-xs text-yellow-600 font-medium">
-                {stats?.bookings.pending} Pending
-              </span>
+              {stats?.bookings.pending > 0 && (
+                <span className="text-xs text-yellow-600 font-medium">
+                  {stats?.bookings.pending} Pending
+                </span>
+              )}
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.tenants.active}</p>
-            <p className="text-sm text-gray-500">Active Tenants</p>
+            <p className="text-2xl font-bold text-gray-900">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
+            <p className="text-sm text-gray-500">
+              {stats?.bookings.confirmed || 0} Confirmed · {stats?.bookings.pending || 0} Pending
+            </p>
           </div>
 
           {/* Monthly Revenue */}

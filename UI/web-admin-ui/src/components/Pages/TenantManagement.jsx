@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, RefreshCw, X, Loader2 } from 'lucide-react';
+import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle } from 'lucide-react';
 import api from '../../utils/api';
 
-export default function TenantManagement() {
+export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [tenants, setTenants] = useState([]);
   const [properties, setProperties] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
@@ -26,20 +26,21 @@ export default function TenantManagement() {
     preference: '',
   });
 
-  const API = '/api';
-  const token = localStorage.getItem('auth_token');
+  const normalizedRole = accessRole || user?.role || 'landlord';
+  const isCaretaker = normalizedRole === 'caretaker';
 
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  };
+  const readOnlyGuard = useCallback(() => {
+    if (!isCaretaker) return false;
+    alert('Caretaker access is read-only. Please contact the landlord for changes.');
+    return true;
+  }, [isCaretaker]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const res = await api.get('/properties');
+        // Use accessible properties endpoint which handles both landlords and caretakers
+        const res = await api.get('/properties/accessible');
         const data = res.data;
         setProperties(data);
         if (data.length > 0) {
@@ -128,6 +129,7 @@ export default function TenantManagement() {
   }, [editingTenant]);
 
   const handleDelete = async (id) => {
+    if (readOnlyGuard()) return;
     if (!confirm('Are you sure you want to remove this tenant? This will also free up their room.')) return;
     
     try {
@@ -143,11 +145,13 @@ export default function TenantManagement() {
   };
 
   const handleEdit = (tenant) => {
+    if (readOnlyGuard()) return;
     setEditingTenant(tenant);
     setShowModal(true);
   };
 
   const handleSave = async () => {
+    if (readOnlyGuard()) return;
     try {
       const url = editingTenant ? `/landlord/tenants/${editingTenant.id}` : `/landlord/tenants`;
       const method = editingTenant ? 'put' : 'post';
@@ -212,6 +216,16 @@ export default function TenantManagement() {
           <p className="text-gray-600 mt-1">Manage all tenants and their room assignments</p>
         </div>
 
+        {isCaretaker && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800">
+            <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Read-only caretaker access</p>
+              <p className="text-sm">Tenant edits, room assignments, and removals are disabled. Please contact the landlord if you need a change.</p>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
@@ -249,15 +263,21 @@ export default function TenantManagement() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <select
-              value={selectedPropertyId}
-              onChange={e => setSelectedPropertyId(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-            >
-              {properties.map(p => (
-                <option key={p.id} value={p.id}>{p.title}</option>
-              ))}
-            </select>
+            {properties.length > 1 ? (
+              <select
+                value={selectedPropertyId}
+                onChange={e => setSelectedPropertyId(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                {properties.map(p => (
+                  <option key={p.id} value={p.id}>{p.title}</option>
+                ))}
+              </select>
+            ) : properties.length === 1 ? (
+              <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium">
+                {properties[0].title}
+              </div>
+            ) : null}
             <button
               onClick={refresh}
               disabled={loading}
@@ -476,6 +496,7 @@ export default function TenantManagement() {
                 </button>
                 <button 
                   onClick={() => {
+                    if (readOnlyGuard()) return;
                     setEditingTenant(viewingTenant);
                     setViewingTenant(null);
                     setShowModal(true);

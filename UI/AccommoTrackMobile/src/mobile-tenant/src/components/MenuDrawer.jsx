@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/HomePage.js';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
 
 const allMenuItems = [
   { id: 1, title: 'My Bookings', icon: 'calendar-outline', color: '#10b981' },
@@ -13,15 +16,50 @@ const allMenuItems = [
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest }) {
   const [userName, setUserName] = useState("Guest User");
   const [userEmail, setUserEmail] = useState("guest@example.com");
+  const [modalVisible, setModalVisible] = useState(false);
+  
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      setModalVisible(true);
+      // Slide in from left
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
       if (isGuest) {
         setUserName("Guest User");
         setUserEmail("guest@example.com");
       } else {
         loadUserData();
       }
+    } else {
+      // Slide out to left
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -DRAWER_WIDTH,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false);
+      });
     }
   }, [visible, isGuest]);
 
@@ -50,21 +88,51 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
     ? allMenuItems.filter(item => item.title !== 'Logout')
     : allMenuItems;
 
+  const handleClose = () => {
+    onClose();
+  };
+
   return (
     <Modal
-      animationType="slide"
+      animationType="none"
       transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
+      visible={modalVisible}
+      onRequestClose={handleClose}
       statusBarTranslucent={true}
     >
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity
-          style={styles.menuBackdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        <View style={styles.menuDrawer}>
+      <View style={{ flex: 1 }}>
+        {/* Backdrop with fade animation */}
+        <Animated.View 
+          style={[
+            styles.menuBackdrop,
+            { 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              opacity: fadeAnim 
+            }
+          ]}
+        >
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        </Animated.View>
+        
+        {/* Drawer with slide animation */}
+        <Animated.View 
+          style={[
+            styles.menuDrawer,
+            {
+              transform: [{ translateX: slideAnim }],
+              width: DRAWER_WIDTH,
+            }
+          ]}
+        >
           {/* Menu Header */}
           <View style={styles.menuHeader}>
             <View style={styles.menuUserInfo}>
@@ -76,7 +144,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
                 <Text style={styles.menuUserEmail}>{userEmail}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close" size={28} color="#111827" />
             </TouchableOpacity>
           </View>
@@ -95,7 +163,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

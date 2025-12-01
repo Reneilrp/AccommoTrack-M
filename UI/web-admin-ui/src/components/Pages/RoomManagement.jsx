@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import AddRoomModal from './AddRoom';
 import {
   X,
@@ -10,6 +10,8 @@ import {
   CheckCircle,
   Wrench,
   Trash2,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 
 export default function RoomManagement() {
@@ -24,6 +26,8 @@ export default function RoomManagement() {
   const [error, setError] = useState(null);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ show: false, room: null });
+  const [deleting, setDeleting] = useState(false);
 
   const API_URL = '/api';
 
@@ -41,7 +45,7 @@ export default function RoomManagement() {
     const loadInitialData = async () => {
       try {
         setLoadingProperties(true);
-        const res = await api.get('/landlord/properties');
+        const res = await api.get('/properties/accessible');
         const data = res.data;
         setProperties(data);
         if (data.length > 0) {
@@ -67,8 +71,8 @@ export default function RoomManagement() {
         setError(null);
 
         const [roomsRes, statsRes] = await Promise.all([
-          api.get(`/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`),
-          api.get(`/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`)
+          api.get(`/rooms/property/${selectedPropertyId}?t=${Date.now()}`),
+          api.get(`/rooms/property/${selectedPropertyId}/stats?t=${Date.now()}`)
         ]);
 
         const roomsData = roomsRes.data;
@@ -93,8 +97,8 @@ export default function RoomManagement() {
       setError(null);
 
       const [roomsRes, statsRes] = await Promise.all([
-        api.get(`/landlord/properties/${selectedPropertyId}/rooms?t=${Date.now()}`),
-        api.get(`/landlord/properties/${selectedPropertyId}/rooms/stats?t=${Date.now()}`)
+        api.get(`/rooms/property/${selectedPropertyId}?t=${Date.now()}`),
+        api.get(`/rooms/property/${selectedPropertyId}/stats?t=${Date.now()}`)
       ]);
 
       const roomsData = roomsRes.data;
@@ -115,7 +119,7 @@ export default function RoomManagement() {
   const handleAmenityAdded = async () => {
     // Refresh the property data to get updated amenities
     try {
-      const res = await api.get('/landlord/properties');
+      const res = await api.get('/properties/accessible');
       const data = res.data;
       setProperties(data);
     } catch (err) {
@@ -160,7 +164,7 @@ export default function RoomManagement() {
         description: selectedRoom.description || null
       };
 
-      const response = await api.put(`/rooms/${selectedRoom.id}`, updateData);
+      const response = await api.put(`/landlord/rooms/${selectedRoom.id}`, updateData);
       // axios throws on non-2xx so no manual ok check needed
 
       await fetchRooms();
@@ -174,33 +178,38 @@ export default function RoomManagement() {
 
   // Delete Room
   const handleDeleteRoom = async (roomId) => {
-    if (!window.confirm('Are you sure you want to delete this room?')) return false;
     try {
-      const response = await api.delete(`/rooms/${roomId}`);
-
+      setDeleting(true);
+      setError(null);
+      await api.delete(`/landlord/rooms/${roomId}`);
       await fetchRooms();
+      setDeleteConfirmModal({ show: false, room: null });
+      setShowEditModal(false);
+      setSelectedRoom(null);
       return true;
     } catch (error) {
       console.error('Failed to delete room:', error);
-      setError('Failed to delete room. Please try again.');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to delete room. Please try again.';
+      setError(errorMsg);
       return false;
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleDeleteFromModal = async () => {
-    if (!selectedRoom) return;
-    // Prevent deletion when room has occupants
-    if (selectedRoom.occupied && selectedRoom.occupied > 0) {
+  // Open delete confirmation modal
+  const openDeleteConfirm = (room) => {
+    if (room.occupied && room.occupied > 0) {
       setError('Cannot delete room with active tenants. Please evict or reassign occupants first.');
       return;
     }
+    setDeleteConfirmModal({ show: true, room });
+  };
 
-    const success = await handleDeleteRoom(selectedRoom.id);
-    if (success) {
-      setShowEditModal(false);
-      setSelectedRoom(null);
-      setError(null);
-    }
+  const handleDeleteFromModal = () => {
+    if (!selectedRoom) return;
+    // Open confirmation modal instead of directly deleting
+    openDeleteConfirm(selectedRoom);
   };
 
   // Status Room
@@ -442,19 +451,19 @@ export default function RoomManagement() {
               </div>
             ))
           ) : filteredRooms.length > 0 ? (
-            filteredRooms.map((room) => {
-              console.log('Rendering room:', room); // Debug
+              filteredRooms.map((room) => {
+                const imageUrl = room.images && room.images.length > 0 ? getImageUrl(room.images[0]) : null;
 
-              return (
+                return (
                 <div
                   key={room.id}
                   className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
                 >
                   {/* Image + Status Badge */}
                   <div className="relative h-48">
-                    {room.images && room.images.length > 0 ? (
+                    {imageUrl ? (
                       <img
-                        src={room.images[0]}
+                        src={imageUrl}
                         alt={room.room_number}
                         className="w-full h-full object-cover"
                       />
@@ -721,31 +730,92 @@ export default function RoomManagement() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 flex justify-between">
+              <button
+                onClick={handleDeleteFromModal}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={selectedRoom?.occupied > 0 ? 'Cannot delete room with tenants' : 'Delete Room'}
+                disabled={selectedRoom?.occupied > 0}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedRoom(null);
+                    setError(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateRoom}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Update Room
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModal.show && deleteConfirmModal.room && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete Room</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete <span className="font-semibold">Room {deleteConfirmModal.room.room_number || deleteConfirmModal.room.roomNumber}</span>? 
+              All data associated with this room will be permanently removed.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
               <button
                 onClick={() => {
-                  setShowEditModal(false);
-                  setSelectedRoom(null);
+                  setDeleteConfirmModal({ show: false, room: null });
                   setError(null);
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={deleting}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={handleUpdateRoom}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                onClick={() => handleDeleteRoom(deleteConfirmModal.room.id)}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
-                Update Room
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Room
+                  </>
+                )}
               </button>
-                <button
-                  onClick={handleDeleteFromModal}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  title="Delete Room"
-                  disabled={selectedRoom?.occupied > 0}
-                >
-                  Delete Room
-                </button>
             </div>
           </div>
         </div>

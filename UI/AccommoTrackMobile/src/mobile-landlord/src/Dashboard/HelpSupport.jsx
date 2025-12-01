@@ -6,6 +6,7 @@ import {
   StatusBar,
   Alert,
   Linking,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/HelpSupport';

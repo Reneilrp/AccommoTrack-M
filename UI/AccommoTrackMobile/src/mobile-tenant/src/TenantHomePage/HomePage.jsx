@@ -90,10 +90,22 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
         const propType = (prop.type || '').toLowerCase().replace(/\s+/g, '');
         const filterType = selectedFilter.toLowerCase();
 
-        // Match variations
+        // Special case: BedSpacer filter
+        // Show property if it has any room with bedSpacer type OR if property type is bedSpacer
+        if (filterType === 'bedspacer') {
+          // Check for truthy value (handles true, "true", 1, etc.)
+          const hasBedSpacer = prop.has_bedspacer_room === true || 
+                               prop.has_bedspacer_room === 'true' || 
+                               prop.has_bedspacer_room === 1;
+          return hasBedSpacer || 
+                 propType === 'bedspacer' || 
+                 propType.includes('bed') || 
+                 propType.includes('spacer');
+        }
+
+        // Match variations for other types
         const typeMap = {
           'boardinghouse': ['boarding', 'house', 'boardinghouse'],
-          'bedspacer': ['bed', 'spacer', 'bedspacer'],
           'dormitory': ['dorm', 'dormitory'],
           'apartment': ['apartment', 'apt']
         };

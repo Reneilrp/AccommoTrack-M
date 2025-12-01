@@ -26,6 +26,25 @@ import PropertyService from '../../../services/PropertyServices';
 
 const { width } = Dimensions.get('window');
 
+const API_BASE_URL = 'http://192.168.0.105:8000';
+
+// Helper function to get proper image URL
+const getRoomImageUrl = (imageUrl) => {
+  if (!imageUrl) return 'https://via.placeholder.com/400x280?text=No+Image';
+  
+  if (typeof imageUrl === 'string') {
+    // Already a full URL
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    // Relative path - construct full URL
+    const cleanPath = imageUrl.replace(/^\/?storage\//, '');
+    return `${API_BASE_URL}/storage/${cleanPath}`;
+  }
+  
+  return 'https://via.placeholder.com/400x280?text=No+Image';
+};
+
 export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
   const navigation = useNavigation();
   const { room, property } = route.params;
@@ -113,23 +132,31 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     return room.monthly_rate * duration.months;
   };
 
-  // Handle start date change
+  // Handle start date change - auto-fill checkout to 30 days later
   const onStartDateChange = (event, selectedDate) => {
     setShowStartDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
-      setBookingData(prev => ({ ...prev, start_date: selectedDate }));
+      // Calculate default checkout date (30 days / 1 month later)
+      const defaultEndDate = new Date(selectedDate);
+      defaultEndDate.setDate(defaultEndDate.getDate() + 30);
 
-      // Reset end date if it's before the new start date
-      if (prev.end_date && selectedDate >= prev.end_date) {
-        setBookingData(prev => ({ ...prev, end_date: null }));
-      }
+      setBookingData(prev => ({
+        ...prev,
+        start_date: selectedDate,
+        end_date: defaultEndDate, // Auto-fill checkout to 30 days later
+      }));
     }
   };
 
-  // Handle end date change
+  // Handle end date change - tenant can still manually edit
   const onEndDateChange = (event, selectedDate) => {
     setShowEndDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
+      // Ensure end date is after start date
+      if (bookingData.start_date && selectedDate <= bookingData.start_date) {
+        Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
+        return;
+      }
       setBookingData(prev => ({ ...prev, end_date: selectedDate }));
     }
   };
@@ -161,14 +188,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       return;
     }
 
-    // Reset form with today's date and tomorrow as default end date
+    // Reset form with today's date and default end date 30 days later
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const defaultEndDate = new Date(today);
+    defaultEndDate.setDate(defaultEndDate.getDate() + 30);
 
     setBookingData({
       start_date: today,
-      end_date: tomorrow,
+      end_date: defaultEndDate,
       notes: ''
     });
 
@@ -448,7 +475,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               {room.images.map((image, index) => (
                 <Image
                   key={index}
-                  source={{ uri: image }}
+                  source={{ uri: getRoomImageUrl(image) }}
                   style={styles.roomImage}
                   resizeMode="cover"
                 />
@@ -564,7 +591,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           )}
 
           <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
-            <Ionicons name="chatbubble-outline" size={18} color="#10b981" />
+            <Ionicons name="chatbubble-outline" size={18} color="#ffffff" />
             <Text style={styles.contactButtonText}>Contact Landlord</Text>
           </TouchableOpacity>
         </View>
@@ -573,8 +600,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       {/* Booking Modal - UPDATED WITH DATE PICKERS */}
       <Modal
         visible={bookingModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
+        statusBarTranslucent={true}
         onRequestClose={() => !isSubmitting && setBookingModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -583,7 +611,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Check-in Date *</Text>
+              <Text style={styles.inputLabel}>Check-in Date <Text style={{color: '#ef4444'}}>*</Text></Text>
               <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowStartDatePicker(true)}
@@ -606,7 +634,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
             {/* End Date Picker */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Check-out Date *</Text>
+              <Text style={styles.inputLabel}>Check-out Date <Text style={{color: '#ef4444'}}>*</Text></Text>
               <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowEndDatePicker(true)}

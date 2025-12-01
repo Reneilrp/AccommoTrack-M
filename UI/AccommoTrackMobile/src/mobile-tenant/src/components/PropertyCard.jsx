@@ -7,7 +7,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
 
-  const API_BASE_URL = 'http://192.168.254.106:8000';
+  const API_BASE_URL = 'http://192.168.0.105:8000';
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -45,14 +45,20 @@ export default function PropertyCard({ accommodation, property, onPress }) {
   const propertyType = (item.type || 'property').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   const getFullAddress = () => {
+    // Use full_address from backend if available
+    if (item.full_address) return item.full_address;
+    
+    // Build address from parts
     const parts = [];
     if (item.street_address) parts.push(item.street_address);
-    if (item.barangay) parts.push(item.barangay);
+    if (item.barangay) parts.push(`Brgy. ${item.barangay}`);
     if (item.city) parts.push(item.city);
-    if (item.province) parts.push(item.province);
-    if (item.postal_code) parts.push(item.postal_code);
+    if (item.province && item.province !== item.city) parts.push(item.province);
+    
     if (parts.length > 0) return parts.join(', ');
-    return item.address || item.location || item.city || 'Unknown Location';
+    
+    // Fallback to location or city
+    return item.location || item.address || item.city || 'Unknown Location';
   };
 
   return (

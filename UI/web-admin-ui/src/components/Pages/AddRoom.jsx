@@ -6,6 +6,10 @@ import {
   Trash2,
   Plus,
   Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Star,
+  Edit2
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -16,13 +20,15 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     floor: '1',
     monthlyRate: '',
     capacity: '1',
-    pricingModel: 'full_room', // 'full_room' or 'per_bed'
+    pricingModel: 'full_room',
     description: '',
     amenities: [],
     images: []
   });
 
   const [previewImages, setPreviewImages] = useState([]);
+  const [replaceIndex, setReplaceIndex] = useState(null);
+  const replaceInputRef = useState(null)[0];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
@@ -71,6 +77,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       };
       if (capacityMap[value]) {
         updated.capacity = capacityMap[value];
+      }
+      
+      // For bedSpacer, always use per_bed pricing model (no full room option)
+      if (value === 'bedSpacer') {
+        updated.pricingModel = 'per_bed';
       }
     }
     
@@ -135,6 +146,65 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       ...prev,
       images: [...prev.images, ...files]
     }));
+  };
+
+  const moveImage = (index, direction) => {
+    setPreviewImages(prev => {
+      const arr = [...prev];
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= arr.length) return prev;
+      const [item] = arr.splice(index, 1);
+      arr.splice(newIndex, 0, item);
+      return arr;
+    });
+    setFormData(prev => {
+      const arr = [...prev.images];
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= arr.length) return prev;
+      const [item] = arr.splice(index, 1);
+      arr.splice(newIndex, 0, item);
+      return { ...prev, images: arr };
+    });
+  };
+
+  const setCover = (index) => {
+    // move selected image to index 0
+    if (index === 0) return;
+    setPreviewImages(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(index, 1);
+      arr.unshift(item);
+      return arr;
+    });
+    setFormData(prev => {
+      const arr = [...prev.images];
+      const [item] = arr.splice(index, 1);
+      arr.unshift(item);
+      return { ...prev, images: arr };
+    });
+  };
+
+  const handleReplaceClick = (index) => {
+    setReplaceIndex(index);
+    // create and trigger a temporary input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/jpg';
+    input.onchange = (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      setPreviewImages(prev => {
+        const arr = [...prev];
+        arr[index] = URL.createObjectURL(file);
+        return arr;
+      });
+      setFormData(prev => {
+        const arr = [...prev.images];
+        arr[index] = file;
+        return { ...prev, images: arr };
+      });
+    };
+    input.click();
   };
 
   const removeImage = (index) => {
@@ -316,32 +386,41 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Pricing Model</h4>
-            <p className="text-xs text-gray-600 mb-3">How should tenants pay for this room?</p>
+            <p className="text-xs text-gray-600 mb-3">
+              {formData.roomType === 'bedSpacer' 
+                ? 'Bed Spacer rooms use per-bed pricing only'
+                : 'How should tenants pay for this room?'
+              }
+            </p>
             
             <div className="space-y-2">
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
-                style={{ backgroundColor: formData.pricingModel === 'full_room' ? '#dbeafe' : 'transparent' }}
-              >
-                <input
-                  type="radio"
-                  name="pricingModel"
-                  value="full_room"
-                  checked={formData.pricingModel === 'full_room'}
-                  onChange={(e) => handleInputChange('pricingModel', e.target.value)}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Full Room Price</p>
-                  <p className="text-xs text-gray-600">
-                    {formData.capacity > 1 
-                      ? `Tenants divide ₱${formData.monthlyRate || 0} equally (₱${formData.monthlyRate ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)) : 0}/person)`
-                      : 'Single tenant pays full price'
-                    }
-                  </p>
-                </div>
-              </label>
+              {/* Full Room Price - NOT shown for bedSpacer */}
+              {formData.roomType !== 'bedSpacer' && (
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                  style={{ backgroundColor: formData.pricingModel === 'full_room' ? '#dbeafe' : 'transparent' }}
+                >
+                  <input
+                    type="radio"
+                    name="pricingModel"
+                    value="full_room"
+                    checked={formData.pricingModel === 'full_room'}
+                    onChange={(e) => handleInputChange('pricingModel', e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Full Room Price</p>
+                    <p className="text-xs text-gray-600">
+                      {formData.capacity > 1 
+                        ? `Tenants divide ₱${formData.monthlyRate || 0} equally (₱${formData.monthlyRate ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)) : 0}/person)`
+                        : 'Single tenant pays full price'
+                      }
+                    </p>
+                  </div>
+                </label>
+              )}
 
-              {formData.roomType !== 'single' && (
+              {/* Per Bed Price - shown for all non-single rooms OR bedSpacer */}
+              {(formData.roomType !== 'single' || formData.roomType === 'bedSpacer') && (
                 <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                   style={{ backgroundColor: formData.pricingModel === 'per_bed' ? '#dbeafe' : 'transparent' }}
                 >
@@ -366,7 +445,16 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
           {/* Helper text explaining pricing model differences */}
           <div className="mt-3 text-sm text-gray-700">
-            {formData.pricingModel === 'per_bed' ? (
+            {formData.roomType === 'bedSpacer' ? (
+              <p>
+                Bed Spacer — each tenant pays ₱{formData.monthlyRate || 0} for their individual bed. 
+                {formData.capacity && parseInt(formData.capacity) > 1 && (
+                  <span className="text-xs text-gray-500 block mt-1">
+                    This room has {formData.capacity} beds available for rent.
+                  </span>
+                )}
+              </p>
+            ) : formData.pricingModel === 'per_bed' ? (
               <p>
                 Per bed — each tenant pays the listed price for their bed. Use this when beds are rented separately and billed individually.
               </p>
@@ -485,6 +573,48 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   {previewImages.map((img, index) => (
                     <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
                       <img src={img} alt={`Room ${index + 1}`} className="w-full h-full object-cover" />
+
+                      {/* Cover badge for first image */}
+                      {index === 0 && (
+                        <span className="absolute left-2 top-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full">Cover</span>
+                      )}
+
+                      {/* Toolbar */}
+                      <div className="absolute left-2 bottom-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, -1)}
+                          title="Move left"
+                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, 1)}
+                          title="Move right"
+                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
+                        >
+                          <ArrowRight className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReplaceClick(index)}
+                          title="Replace"
+                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
+                        >
+                          <Edit2 className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCover(index)}
+                          title="Set as cover"
+                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
+                        >
+                          <Star className="w-4 h-4 text-yellow-500" />
+                        </button>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => removeImage(index)}

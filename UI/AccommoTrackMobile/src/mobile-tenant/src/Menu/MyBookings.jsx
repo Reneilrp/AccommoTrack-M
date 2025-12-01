@@ -6,7 +6,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../services/BookingServices.js';
 
-const API_BASE_URL = 'http://192.168.254.106:8000';
+const API_BASE_URL = 'http://192.168.0.105:8000';
 
 export default function MyBookings() {
   const navigation = useNavigation();
@@ -125,7 +125,7 @@ export default function MyBookings() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <View style={{ width: 24 }} />
@@ -161,12 +161,14 @@ export default function MyBookings() {
                   <Text style={styles.locationText}>{booking.location}</Text>
                 </View>
                 <View style={styles.dateRow}>
-                  <View style={styles.dateItem}>
+                  <View style={styles.dateItemLeft}>
                     <Text style={styles.dateLabel}>Check-in</Text>
                     <Text style={styles.dateValue}>{booking.checkIn}</Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={16} color="#9CA3AF" />
-                  <View style={styles.dateItem}>
+                  <View style={styles.dateIconContainer}>
+                    <Ionicons name="arrow-forward" size={16} color="#9CA3AF" />
+                  </View>
+                  <View style={styles.dateItemRight}>
                     <Text style={styles.dateLabel}>Check-out</Text>
                     <Text style={styles.dateValue}>{booking.checkOut}</Text>
                   </View>
@@ -179,9 +181,9 @@ export default function MyBookings() {
                   <View style={styles.paymentStatusRow}>
                     <Text style={styles.paymentStatusLabel}>Payment:</Text>
                     <Text style={[styles.paymentStatusText, { 
-                      color: booking.paymentStatus === 'paid' ? '#10B981' : 
+                      color: booking.paymentStatus === 'paid' ? '#10b981' : 
                              booking.paymentStatus === 'partial' ? '#3B82F6' : 
-                             booking.paymentStatus === 'refunded' ? '#8B5CF6' : '#F59E0B'
+                             booking.paymentStatus === 'refunded' ? '#8B5CF6' : '#EF4444'
                     }]}>
                       {booking.paymentStatus === 'paid' ? 'Paid' : 
                        booking.paymentStatus === 'partial' ? 'Partial Paid' : 

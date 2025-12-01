@@ -21,7 +21,7 @@ import createEcho from '../../utils/echo';
 import { styles } from '../../../styles/Tenant/MessagesPage';
 import BottomNavigation from '../components/BottomNavigation.jsx';
 
-const API_URL = 'http://192.168.254.106:8000/api';
+const API_URL = 'http://192.168.0.105:8000/api';
 
 export default function MessagesPage({ navigation, route }) {
     const [conversations, setConversations] = useState([]);
@@ -291,9 +291,40 @@ export default function MessagesPage({ navigation, route }) {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    const getInitials = (user) => {
+    const getInitials = (conv) => {
+        // Prefer property title initials, fallback to user initials
+        if (conv?.property?.title) {
+            const words = conv.property.title.split(' ').filter(w => w.length > 0);
+            if (words.length >= 2) {
+                return `${words[0][0]}${words[1][0]}`.toUpperCase();
+            }
+            return words[0]?.substring(0, 2).toUpperCase() || '??';
+        }
+        const user = conv?.other_user;
         if (!user) return '??';
-        return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
+        return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || '??';
+    };
+
+    const getDisplayName = (conv) => {
+        // Show property title as main name
+        if (conv?.property?.title) {
+            return conv.property.title;
+        }
+        // Fallback to user name
+        const user = conv?.other_user;
+        if (user?.first_name || user?.last_name) {
+            return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+        }
+        return 'Unknown';
+    };
+
+    const getRoleLabel = (conv) => {
+        // Show the role of the other user
+        const user = conv?.other_user;
+        if (user?.role) {
+            return user.role.charAt(0).toUpperCase() + user.role.slice(1);
+        }
+        return 'Landlord'; // Default for tenant view
     };
 
     const filteredConversations = (conversations || []).filter((conv) => {
@@ -307,7 +338,7 @@ export default function MessagesPage({ navigation, route }) {
         return (
             <SafeAreaView style={styles.safeArea} edges={['top']}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#16a34a" />
+                    <ActivityIndicator size="large" color="#10b981" />
                     <Text style={styles.loadingText}>Starting conversation...</Text>
                 </View>
             </SafeAreaView>
@@ -345,7 +376,7 @@ export default function MessagesPage({ navigation, route }) {
                 {/* Conversations List */}
                 {loading ? (
                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#16a34a" />
+                        <ActivityIndicator size="large" color="#10b981" />
                         <Text style={styles.loadingText}>Loading conversations...</Text>
                     </View>
                 ) : filteredConversations.length === 0 ? (
@@ -374,22 +405,20 @@ export default function MessagesPage({ navigation, route }) {
                                 >
                                     <View style={styles.avatarContainer}>
                                         <View style={styles.avatar}>
-                                            <Text style={styles.avatarText}>{getInitials(conv.other_user)}</Text>
+                                            <Text style={styles.avatarText}>{getInitials(conv)}</Text>
                                         </View>
                                     </View>
 
                                     <View style={styles.conversationInfo}>
                                         <View style={styles.conversationHeader}>
                                             <Text style={styles.conversationName}>
-                                                {conv.other_user?.first_name} {conv.other_user?.last_name}
+                                                {getDisplayName(conv)}
                                             </Text>
                                             <Text style={styles.conversationTime}>
                                                 {formatTime(conv.last_message_at)}
                                             </Text>
                                         </View>
-                                        {conv.property && (
-                                            <Text style={styles.propertyName}>{conv.property.title}</Text>
-                                        )}
+                                        <Text style={styles.propertyName}>{getRoleLabel(conv)}</Text>
                                         <Text style={styles.lastMessage} numberOfLines={1}>
                                             {conv.last_message?.message || 'No messages yet'}
                                         </Text>
@@ -439,16 +468,14 @@ export default function MessagesPage({ navigation, route }) {
                     <View style={styles.chatHeaderInfo}>
                         <View style={styles.chatHeaderAvatar}>
                             <Text style={styles.chatHeaderAvatarText}>
-                                {getInitials(selectedChat.other_user)}
+                                {getInitials(selectedChat)}
                             </Text>
                         </View>
                         <View style={styles.chatHeaderText}>
                             <Text style={styles.chatHeaderName}>
-                                {selectedChat.other_user?.first_name} {selectedChat.other_user?.last_name}
+                                {getDisplayName(selectedChat)}
                             </Text>
-                            {selectedChat.property && (
-                                <Text style={styles.chatHeaderProperty}>{selectedChat.property.title}</Text>
-                            )}
+                            <Text style={styles.chatHeaderProperty}>{getRoleLabel(selectedChat)}</Text>
                         </View>
                     </View>
 
@@ -465,13 +492,13 @@ export default function MessagesPage({ navigation, route }) {
                     showsVerticalScrollIndicator={false}
                     onContentSizeChange={scrollToBottom}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#16a34a']} tintColor="#16a34a" />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} tintColor="#10b981" />
                     }
                 >
                     {/* Property Info Card */}
                     {selectedChat.property && (
                         <View style={styles.propertyCard}>
-                            <Ionicons name="home-outline" size={24} color="#16a34a" />
+                            <Ionicons name="home-outline" size={24} color="#10b981" />
                             <View style={styles.propertyCardInfo}>
                                 <Text style={styles.propertyCardTitle}>{selectedChat.property.title}</Text>
                                 <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
@@ -531,7 +558,7 @@ export default function MessagesPage({ navigation, route }) {
                 {/* Input Area */}
                 <View style={styles.inputContainer}>
                     <TouchableOpacity style={styles.attachButton}>
-                        <Ionicons name="add-circle" size={28} color="#16a34a" />
+                        <Ionicons name="add-circle" size={28} color="#10b981" />
                     </TouchableOpacity>
 
                     <TextInput

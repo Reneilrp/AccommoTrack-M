@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LandlordLayout from '../components/LandlordLayout';
 import AdminLayout from '../components/AdminLayout';
-import RequireAdmin from '../components/RequireAdmin';
 
 import DashboardPage from '../components/Pages/DashboardPage';
 import RoomManagement from '../components/Pages/RoomManagement';
@@ -15,8 +14,9 @@ import MyProperties from '../components/Pages/MyProperties';
 import AdminDashboard from '../../admin/AdminDashboard.jsx';
 import UserManagement from '../../admin/UserManagement.jsx';
 import PropertyApproval from '../../admin/PropertyApproval.jsx';
+import { getDefaultLandingRoute } from '../utils/userRoutes';
 
-export default function WebNavigator({ user, onLogout }) {
+export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   // If user is admin, only show admin routes
   if (user?.role === 'admin') {
     return (
@@ -51,19 +51,62 @@ export default function WebNavigator({ user, onLogout }) {
     );
   }
 
+  if (user?.role === 'caretaker') {
+    const caretakerPermissions = user?.caretaker_permissions || {};
+    const caretakerHome = getDefaultLandingRoute(user);
+
+    return (
+      <LandlordLayout user={user} onLogout={onLogout} accessRole="caretaker">
+        <Routes>
+          <Route path="/" element={<Navigate to={caretakerHome} replace />} />
+          {caretakerPermissions.rooms && (
+            <Route path="/rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
+          )}
+          {caretakerPermissions.bookings && (
+            <Route path="/bookings" element={<Bookings user={user} accessRole="caretaker" />} />
+          )}
+          {caretakerPermissions.tenants && (
+            <Route path="/tenants" element={<Tenants user={user} accessRole="caretaker" />} />
+          )}
+          {caretakerPermissions.messages && (
+            <Route path="/messages" element={<Messages user={user} accessRole="caretaker" />} />
+          )}
+          <Route
+            path="/settings"
+            element={<Settings user={user} accessRole="caretaker" onUserUpdate={onUserUpdate} />}
+          />
+          <Route path="*" element={<Navigate to={caretakerHome} replace />} />
+        </Routes>
+      </LandlordLayout>
+    );
+  }
+
   // Landlord routes
   return (
-    <LandlordLayout user={user} onLogout={onLogout}>
+    <LandlordLayout
+      user={user}
+      onLogout={onLogout}
+      accessRole="landlord"
+    >
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
         <Route path="/properties" element={<MyProperties user={user} />} />
         <Route path="/rooms" element={<RoomManagement user={user} />} />
-        <Route path="/tenants" element={<Tenants user={user} />} />
-        <Route path="/bookings" element={<Bookings user={user} />} />
-        <Route path="/messages" element={<Messages user={user} />} />
-        <Route path="/analytics" element={<Analytics user={user} />} />
-        <Route path="/settings" element={<Settings user={user} />} />
+        <Route path="/tenants" element={<Tenants user={user} accessRole="landlord" />} />
+        <Route path="/bookings" element={<Bookings user={user} accessRole="landlord" />} />
+        <Route path="/messages" element={<Messages user={user} accessRole="landlord" />} />
+        <Route path="/analytics" element={<Analytics user={user} accessRole="landlord" />} />
+        <Route
+          path="/settings"
+          element={
+            <Settings
+              user={user}
+              accessRole="landlord"
+              onUserUpdate={onUserUpdate}
+            />
+          }
+        />
       </Routes>
     </LandlordLayout>
   );

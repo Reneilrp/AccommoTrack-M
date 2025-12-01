@@ -2,11 +2,12 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import your screens
 import LandlordDashboard from '../Dashboard/DashboardPage.jsx';
 import RoomManagement from '../Dashboard/RoomManagement.jsx';
-import Tenants from '../Dashboard/Tenants.jsx';
+import Tenants from '../Dashboard/TenantManagement.jsx';
 import Messages from '../Dashboard/Messages.jsx';
 import MyProperties from '../Dashboard/MyProperties.jsx';
 import Settings from '../Dashboard/Settings.jsx';
@@ -18,6 +19,8 @@ import About from '../Dashboard/About.jsx';
 import DevTeam from '../Dashboard/DevTeam/DevTeam.jsx';
 import AddProperty from '../Dashboard/AddProperty.jsx';
 import DormProfile from '../Dashboard/DormProfile.jsx';
+import Notifications from '../Dashboard/Notifications.jsx';
+import AllActivities from '../Dashboard/AllActivities.jsx';
 import PropertyDetailsScreen from '../../../mobile-tenant/src/components/PropertyDetailsScreen.jsx';
 
 const Stack = createNativeStackNavigator();
@@ -25,6 +28,8 @@ const Tab = createBottomTabNavigator();
 
 // Bottom Tab Navigator
 function MainTabs({ onLogout }) {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -34,14 +39,11 @@ function MainTabs({ onLogout }) {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Rooms') {
-            iconName = focused ? 'bed' : 'bed-outline';
-          } else if (route.name === 'Messages') {
+          }  else if (route.name === 'Messages') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
-
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#4CAF50',
@@ -50,9 +52,9 @@ function MainTabs({ onLogout }) {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E5E7EB',
-          paddingBottom: 50,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
-          height: 80,
+          height: 60 + insets.bottom,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
@@ -69,18 +71,12 @@ function MainTabs({ onLogout }) {
     >
       <Tab.Screen 
         name="Home" 
-        component={LandlordDashboard}
+        children={(props) => <LandlordDashboard {...props} onLogout={onLogout} />}
         options={{
           tabBarLabel: 'Home'
         }}
       />
-      <Tab.Screen 
-        name="Rooms" 
-        component={RoomManagement}
-        options={{
-          tabBarLabel: 'Rooms'
-        }}
-      />
+      
       <Tab.Screen 
         name="Messages" 
         component={Messages}
@@ -99,6 +95,9 @@ function MainTabs({ onLogout }) {
       <Tab.Screen 
         name="Settings" 
         children={(props) => <Settings {...props} onLogout={onLogout} />}
+        options={{
+          tabBarLabel: 'Settings'
+        }}
       />
     </Tab.Navigator>
   );
@@ -128,6 +127,11 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }}/>
       <Stack.Screen name="About" component={About} options={{ animation: 'none' }}/>
       <Stack.Screen name="DevTeam" component={DevTeam} options={{ animation: 'none', headerShown: false }} />
+      <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
+      <Stack.Screen name="AllActivities" component={AllActivities} options={{ animation: 'none' }} />
+      <Stack.Screen name="Settings">
+        {(props) => <Settings {...props} onLogout={onLogout} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }

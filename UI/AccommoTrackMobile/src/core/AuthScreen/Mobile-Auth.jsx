@@ -9,14 +9,15 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Image
+  Image,
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 
-const API_URL = 'http://192.168.254.106:8000/api';
+const API_URL = 'http://192.168.0.105:8000/api';
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -33,7 +34,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     email: '',
     password: '',
     confirmPassword: '',
-    role: ''
+    role: 'tenant' // Default to tenant for mobile app
   });
 
   const navigation = useNavigation();
@@ -44,10 +45,6 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   };
 
   const validateStep1 = () => {
-    if (!formData.role) {
-      setError('Please select a role (Tenant or Landlord)');
-      return false;
-    }
     if (!formData.firstName || !formData.lastName) {
       setError('Please enter your first and last name');
       return false;
@@ -133,9 +130,12 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       const data = await response.json();
 
       if (response.ok) {
+        // Save token under both keys for consistency across the app
         await AsyncStorage.setItem('auth_token', data.token);
-        await AsyncStorage.setItem('user_id', JSON.stringify(data.user));
+        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('user_id', String(data.user.id));
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        await AsyncStorage.setItem('hasLaunched', 'true');
 
         
         console.log('✅ Login successful! Role:', data.user.role);
@@ -207,7 +207,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   email: formData.email,
                   password: '',
                   confirmPassword: '',
-                  role: ''
+                  role: 'tenant'
                 });
                 setAgreedToTerms(false);
               }
@@ -237,44 +237,40 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
     setSignupStep(1);
-    setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: '' });
+    setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: 'tenant' });
     setAgreedToTerms(false);
     setError('');
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={{flex: 1, backgroundColor: 'white'}}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        {onClose && (
-          <TouchableOpacity style={styles.dismissButton} onPress={onClose}>
-            <Ionicons name="close" size={18} color="#4B5563" />
-            <Text style={styles.dismissButtonText}>Back to browsing</Text>
-          </TouchableOpacity>
-        )}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoRow}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {onClose && (
+            <TouchableOpacity style={styles.dismissButton} onPress={onClose}>
+              <Ionicons name="close" size={18} color="#4B5563" />
+              <Text style={styles.dismissButtonText}>Back to browsing</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.logoContainer}>
             <Image
-              source={require('../../../assets/AT-Logo.png')}
-              style={styles.logo}
+              source={require('../../../assets/Logo.png')}
+              style={styles.logoFull}
               resizeMode="contain"
             />
-            <View style={styles.logoTextContainer}>
-              <Text style={styles.logoTextGreen}>ccommo</Text>
-              <Text style={styles.logoTextGray}>rack</Text>
-            </View>
           </View>
-        </View>
-        <View style={styles.card}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>
+          <View style={styles.card}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>
               {isLogin ? 'Sign In' : 'Create Account'}
             </Text>
             {!isLogin && (
@@ -369,46 +365,6 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               {signupStep === 1 ? (
                 /* STEP 1: Role, First Name, Last Name */
                 <View style={styles.form}>
-                  {/* Role Selection */}
-                  <View style={styles.roleContainer}>
-                    <View style={styles.roleButtons}>
-                      <TouchableOpacity
-                        style={[
-                          styles.roleButton,
-                          formData.role === 'tenant' && styles.roleButtonActive
-                        ]}
-                        onPress={() => handleInputChange('role', 'tenant')}
-                        disabled={loading}
-                      >
-                        <Text
-                          style={[
-                            styles.roleButtonText,
-                            formData.role === 'tenant' && styles.roleButtonTextActive
-                          ]}
-                        >
-                          Tenant
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.roleButton,
-                          formData.role === 'landlord' && styles.roleButtonActive
-                        ]}
-                        onPress={() => handleInputChange('role', 'landlord')}
-                        disabled={loading}
-                      >
-                        <Text
-                          style={[
-                            styles.roleButtonText,
-                            formData.role === 'landlord' && styles.roleButtonTextActive
-                          ]}
-                        >
-                          Landlord
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
                   {/* First Name */}
                   <View style={styles.inputContainer}>
                     <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
@@ -620,5 +576,6 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </View>
   );
 }

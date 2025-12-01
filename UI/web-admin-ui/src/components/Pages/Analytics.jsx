@@ -282,90 +282,60 @@ export default function Analytics({ user }) {
               </ResponsiveContainer>
             </div>
 
-            {/* Room Type Performance & Payment Status */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* Room Type Performance */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-6">Room Type Performance</h2>
-                <div className="space-y-4">
-                  {analytics.roomTypes.map((room, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{room.type}</h3>
-                          <p className="text-sm text-gray-500">
-                            {room.occupied} of {room.total} occupied
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600">₱{room.revenue.toLocaleString()}</p>
-                          <p className="text-xs text-gray-500">Monthly revenue</p>
-                        </div>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-600 h-2 rounded-full transition-all"
-                          style={{ width: `${room.occupancy_rate}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-600 mt-2">
-                        {room.occupancy_rate}% occupancy rate • {room.available} available
-                      </p>
-                    </div>
-                  ))}
+            {/* Payment Status */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Payment Status</h2>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart 
+                  data={[
+                    { name: 'Paid', value: analytics.payments.paid, fill: COLORS.primary },
+                    { name: 'Pending', value: analytics.payments.unpaid, fill: COLORS.warning },
+                    { name: 'Partial', value: analytics.payments.partial, fill: COLORS.secondary },
+                    { name: 'Overdue', value: analytics.payments.overdue, fill: COLORS.danger }
+                  ]}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" stroke="#6b7280" style={{ fontSize: '12px' }} />
+                  <YAxis type="category" dataKey="name" stroke="#6b7280" style={{ fontSize: '12px' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    formatter={(value) => [value, 'Count']}
+                  />
+                  <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                    {[
+                      { name: 'Paid', fill: COLORS.primary },
+                      { name: 'Pending', fill: COLORS.warning },
+                      { name: 'Partial', fill: COLORS.secondary },
+                      { name: 'Overdue', fill: COLORS.danger }
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-4 gap-4 mt-4">
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">{analytics.payments.paid}</p>
+                  <p className="text-xs text-gray-600">Paid</p>
+                </div>
+                <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-600">{analytics.payments.unpaid}</p>
+                  <p className="text-xs text-gray-600">Pending</p>
+                </div>
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-600">{analytics.payments.partial}</p>
+                  <p className="text-xs text-gray-600">Partial</p>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded-lg">
+                  <p className="text-2xl font-bold text-red-600">{analytics.payments.overdue}</p>
+                  <p className="text-xs text-gray-600">Overdue</p>
                 </div>
               </div>
-
-              {/* Payment Status */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-6">Payment Status</h2>
-                <div className="flex items-center justify-center mb-6">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Paid', value: analytics.payments.paid },
-                          { name: 'Pending', value: analytics.payments.unpaid },
-                          { name: 'Partial', value: analytics.payments.partial },
-                          { name: 'Overdue', value: analytics.payments.overdue }
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {PIE_COLORS.map((color, index) => (
-                          <Cell key={`cell-${index}`} fill={color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">{analytics.payments.paid}</p>
-                    <p className="text-xs text-gray-600">Paid</p>
-                  </div>
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <p className="text-2xl font-bold text-yellow-600">{analytics.payments.unpaid}</p>
-                    <p className="text-xs text-gray-600">Pending</p>
-                  </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-2xl font-bold text-blue-600">{analytics.payments.partial}</p>
-                    <p className="text-xs text-gray-600">Partial</p>
-                  </div>
-                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <p className="text-2xl font-bold text-red-600">{analytics.payments.overdue}</p>
-                    <p className="text-xs text-gray-600">Overdue</p>
-                  </div>
-                </div>
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Payment Collection Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">{analytics.payments.payment_rate}%</p>
-                </div>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Payment Collection Rate</p>
+                <p className="text-2xl font-bold text-gray-900">{analytics.payments.payment_rate}%</p>
               </div>
             </div>
 
@@ -392,16 +362,18 @@ export default function Analytics({ user }) {
             {/* Quick Insights */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-sm p-6 text-white">
-                <h3 className="text-lg font-bold mb-4">Top Performing Room</h3>
+                <h3 className="text-lg font-bold mb-4">Top Performing Property</h3>
                 <div className="space-y-2">
-                  {analytics.roomTypes[0] && (
+                  {analytics.properties && analytics.properties[0] ? (
                     <>
-                      <p className="text-3xl font-bold">{analytics.roomTypes[0].type}</p>
+                      <p className="text-3xl font-bold">{analytics.properties[0].name}</p>
                       <p className="text-green-100">
-                        {analytics.roomTypes[0].occupancy_rate}% occupancy • 
-                        ₱{analytics.roomTypes[0].revenue.toLocaleString()} revenue
+                        {analytics.properties[0].occupancy_rate}% occupancy • 
+                        ₱{analytics.properties[0].monthly_revenue?.toLocaleString() || 0} revenue
                       </p>
                     </>
+                  ) : (
+                    <p className="text-green-100">No property data available</p>
                   )}
                 </div>
               </div>

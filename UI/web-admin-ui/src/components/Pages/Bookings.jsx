@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
 
-export default function Bookings() {
+export default function Bookings({ user, accessRole = 'landlord' }) {
+  const normalizedRole = accessRole || user?.role || 'landlord';
+  const isCaretaker = normalizedRole === 'caretaker';
+  const caretakerPermissions = user?.caretaker_permissions || {};
+  const canManageBookings = !isCaretaker || Boolean(caretakerPermissions.bookings);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [bookings, setBookings] = useState([]);
@@ -16,6 +20,12 @@ export default function Bookings() {
     refundAmount: 0,
     shouldRefund: false
   });
+
+  const readOnlyGuard = () => {
+    if (canManageBookings) return false;
+    alert('Caretaker access for bookings is currently view-only.');
+    return true;
+  };
 
   const API_URL = '/api';
 
@@ -101,6 +111,7 @@ export default function Bookings() {
   };
 
   const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
+    if (readOnlyGuard()) return;
     try {
       const response = await fetch(`${API_URL}/bookings/${bookingId}/status`, {
         method: 'PATCH',
@@ -128,6 +139,7 @@ export default function Bookings() {
   };
 
   const handleUpdatePayment = async (bookingId, paymentStatus) => {
+    if (readOnlyGuard()) return;
     try {
       const response = await fetch(`${API_URL}/bookings/${bookingId}/payment`, {
         method: 'PATCH',
@@ -169,6 +181,7 @@ export default function Bookings() {
   };
 
   const handleOpenCancelModal = (booking) => {
+    if (readOnlyGuard()) return;
     setSelectedBooking(booking);
     setCancellationData({
       reason: '',
@@ -179,6 +192,7 @@ export default function Bookings() {
   };
 
   const handleCancelConfirm = () => {
+    if (readOnlyGuard()) return;
     if (!cancellationData.reason.trim()) {
       alert('Please provide a cancellation reason');
       return;
@@ -283,6 +297,12 @@ export default function Bookings() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {isCaretaker && !canManageBookings && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            You are viewing bookings as a caretaker. Actions such as confirming, cancelling, or updating payments are disabled.
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
@@ -555,11 +575,30 @@ export default function Bookings() {
                 </div>
               </div>
 
-              {/* Smart Action Buttons */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-3">Booking Actions</label>
-                <div className="flex gap-2 flex-wrap">
-                  {(() => {
+              {canManageBookings ? (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Update Payment Status</label>
+                    <select
+                      value={selectedBooking.paymentStatus}
+                      onChange={(e) => handleUpdatePayment(selectedBooking.id, e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      disabled={selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded'}
+                    >
+                      <option value="unpaid">Unpaid</option>
+                      <option value="partial">Partial</option>
+                      <option value="paid">Paid</option>
+                      <option value="refunded">Refunded</option>
+                    </select>
+                    {selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded' && (
+                      <p className="text-xs text-gray-500 mt-1">Payment status locked for refunded cancellations</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Booking Actions</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {(() => {
                     const { status, paymentStatus } = selectedBooking;
 
                     // Cancelled - only show refund option if payment was made
@@ -719,29 +758,16 @@ export default function Bookings() {
                       }
                     }
 
-                    return null;
-                  })()}
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                  Actions are disabled because you are viewing this booking as a caretaker.
                 </div>
-              </div>
-
-              {/* Payment Status Update - Keep separate for manual updates */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Update Payment Status</label>
-                <select
-                  value={selectedBooking.paymentStatus}
-                  onChange={(e) => handleUpdatePayment(selectedBooking.id, e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded'}
-                >
-                  <option value="unpaid">Unpaid</option>
-                  <option value="partial">Partial</option>
-                  <option value="paid">Paid</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-                {selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded' && (
-                  <p className="text-xs text-gray-500 mt-1">Payment status locked for refunded cancellations</p>
-                )}
-              </div>
+              )}
             </div>
 
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
 use Illuminate\Http\Request;
 use App\Models\Booking;
 use App\Models\Room;
@@ -10,17 +11,34 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class BookingController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     /**
      * Get all bookings for the authenticated landlord
      */
     public function index(Request $request)
     {
         try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
             $query = Booking::with(['property', 'tenant', 'landlord', 'room'])
-                ->where('landlord_id', Auth::id());
+                ->where('landlord_id', $context['landlord_id']);
+
+            // If caretaker, filter by assigned properties only
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                Log::info('Caretaker booking filter', [
+                    'caretaker_id' => $context['user']->id,
+                    'assigned_property_ids' => $assignedPropertyIds,
+                    'landlord_id' => $context['landlord_id']
+                ]);
+                $query->whereIn('property_id', $assignedPropertyIds);
+            }
 
             // Filter by status if provided
             if ($request->has('status') && $request->status !== 'all') {
@@ -167,8 +185,11 @@ class BookingController extends Controller
         DB::beginTransaction();
 
         try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
             $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
-                ->where('landlord_id', Auth::id())
+                ->where('landlord_id', $context['landlord_id'])
                 ->findOrFail($id);
 
             $validated = $request->validate([
@@ -313,7 +334,10 @@ class BookingController extends Controller
     public function updatePaymentStatus(Request $request, $id)
     {
         try {
-            $booking = Booking::where('landlord_id', Auth::id())->findOrFail($id);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
             $validated = $request->validate([
                 'payment_status' => 'required|in:unpaid,partial,paid,refunded'
@@ -358,13 +382,24 @@ class BookingController extends Controller
     /**
      * Get booking statistics
      */
-    public function getStats()
+    public function getStats(Request $request)
     {
         try {
-            $total = Booking::where('landlord_id', Auth::id())->count();
-            $confirmed = Booking::where('landlord_id', Auth::id())->where('status', 'confirmed')->count();
-            $pending = Booking::where('landlord_id', Auth::id())->where('status', 'pending')->count();
-            $completed = Booking::where('landlord_id', Auth::id())
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $baseQuery = Booking::where('landlord_id', $context['landlord_id']);
+            
+            // If caretaker, filter by assigned properties only
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $baseQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $total = (clone $baseQuery)->count();
+            $confirmed = (clone $baseQuery)->where('status', 'confirmed')->count();
+            $pending = (clone $baseQuery)->where('status', 'pending')->count();
+            $completed = (clone $baseQuery)
                 ->whereIn('status', ['completed', 'partial-completed'])
                 ->count();
 
@@ -385,12 +420,22 @@ class BookingController extends Controller
     /**
      * Get single booking details
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         try {
-            $booking = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room'])
-                ->where('landlord_id', Auth::id())
-                ->findOrFail($id);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $query = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room'])
+                ->where('landlord_id', $context['landlord_id']);
+
+            // If caretaker, filter by assigned properties only
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $query->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $booking = $query->findOrFail($id);
 
             return response()->json($booking, 200);
         } catch (\Exception $e) {

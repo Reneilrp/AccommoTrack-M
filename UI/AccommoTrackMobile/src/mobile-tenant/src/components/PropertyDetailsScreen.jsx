@@ -392,16 +392,20 @@ export default function PropertyDetailsScreen({ route }) {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#10b981"]} tintColor="#10b981" />
-      }>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#10b981"]} tintColor="#10b981" />
+        }
+        nestedScrollEnabled={true}
+      >
         {/* Info Section */}
         <View style={styles.infoSection}>
           {/* Title and Type */}
           <View style={styles.titleRow}>
             <Text style={styles.title}>{active.name || active.title}</Text>
             <View style={styles.typeBadge}>
-              <Text style={styles.typeText}>{active.type}</Text>
+              <Text style={styles.typeText}>{(active.type || 'property').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
             </View>
           </View>
           
@@ -477,7 +481,7 @@ export default function PropertyDetailsScreen({ route }) {
                 </TouchableOpacity>
               </View>
               <View style={styles.mapContainer}>
-                {getLeafletHTML() ? (
+                  {getLeafletHTML() ? (
                   <WebView
                     originWhitelist={['*']}
                     source={{ html: getLeafletHTML() }}
@@ -486,6 +490,7 @@ export default function PropertyDetailsScreen({ route }) {
                     domStorageEnabled={true}
                     startInLoadingState={true}
                     scalesPageToFit={true}
+                    nestedScrollEnabled={true}
                     renderLoading={() => (
                       <View style={styles.mapLoadingContainer}>
                         <ActivityIndicator size="large" color="#10b981" />
@@ -518,7 +523,7 @@ export default function PropertyDetailsScreen({ route }) {
 
           {/* Contact Landlord Button */}
           <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
-            <Ionicons name="chatbubble-outline" size={18} color="#10b981" />
+            <Ionicons name="chatbubble-outline" size={18} color="#ffffff" />
             <Text style={styles.contactButtonText}>Contact Landlord</Text>
           </TouchableOpacity>
 
