@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   RefreshControl,
@@ -13,7 +12,6 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService from '../../../services/PropertyServices.js';
 import { styles } from '../../../styles/Landlord/Tenants.js';
@@ -45,12 +43,6 @@ const formatCurrency = (value) => {
   return `₱${Number(value).toLocaleString('en-PH')}`;
 };
 
-const buildAssignForm = (tenant) => ({
-  tenantId: tenant?.id || null,
-  roomId: null,
-  moveInDate: tenant?.tenantProfile?.move_in_date || new Date().toISOString().slice(0, 10)
-});
-
 export default function TenantsScreen({ navigation, route }) {
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
 
@@ -66,11 +58,6 @@ export default function TenantsScreen({ navigation, route }) {
 
   const [detailTenant, setDetailTenant] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
-  const [assignModalVisible, setAssignModalVisible] = useState(false);
-  const [assignRooms, setAssignRooms] = useState([]);
-  const [assignLoading, setAssignLoading] = useState(false);
-  const [assignForm, setAssignForm] = useState(buildAssignForm());
-  const [actionLoading, setActionLoading] = useState(false);
 
   const selectedProperty = useMemo(
     () => properties.find((property) => normalizeId(property.id) === normalizeId(selectedPropertyId)) || null,
@@ -171,74 +158,6 @@ export default function TenantsScreen({ navigation, route }) {
     setDetailVisible(false);
   };
 
-  const openAssignModal = async (tenant) => {
-    if (!selectedPropertyId) {
-      Alert.alert('Property Required', 'Select a property first.');
-      return;
-    }
-    setAssignForm(buildAssignForm(tenant));
-    setAssignModalVisible(true);
-    try {
-      setAssignLoading(true);
-      const response = await PropertyService.getRooms(selectedPropertyId);
-      if (!response.success) throw new Error(response.error || 'Failed to load rooms');
-      const rooms = Array.isArray(response.data) ? response.data : response.data?.rooms || [];
-      const available = rooms.filter((room) => (room.available_slots ?? Math.max((room.capacity || 0) - (room.occupied || 0), 0)) > 0);
-      setAssignRooms(available);
-    } catch (err) {
-      Alert.alert('Rooms', err.message || 'Unable to load rooms for assignment');
-      setAssignModalVisible(false);
-    } finally {
-      setAssignLoading(false);
-    }
-  };
-
-  const handleAssignRoom = async () => {
-    if (!assignForm.tenantId || !assignForm.roomId) {
-      Alert.alert('Assignment', 'Select a room before continuing.');
-      return;
-    }
-    try {
-      setActionLoading(true);
-      const response = await PropertyService.assignTenantToRoom(assignForm.tenantId, {
-        room_id: assignForm.roomId,
-        move_in_date: assignForm.moveInDate || new Date().toISOString().slice(0, 10)
-      });
-      if (!response.success) throw new Error(response.error || 'Unable to assign room');
-      setAssignModalVisible(false);
-      loadTenants();
-    } catch (err) {
-      Alert.alert('Assignment', err.message || 'Unable to assign tenant');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const confirmUnassign = (tenant) => {
-    Alert.alert('Unassign Tenant', 'Are you sure you want to free this room?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Unassign',
-        style: 'destructive',
-        onPress: () => handleUnassignRoom(tenant)
-      }
-    ]);
-  };
-
-  const handleUnassignRoom = async (tenant) => {
-    try {
-      setActionLoading(true);
-      const response = await PropertyService.unassignTenantFromRoom(tenant.id);
-      if (!response.success) throw new Error(response.error || 'Unable to unassign tenant');
-      closeDetailModal();
-      loadTenants();
-    } catch (err) {
-      Alert.alert('Unassign', err.message || 'Unable to unassign tenant');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const noProperties = !loadingProperties && properties.length === 0;
 
   const renderTenantCard = ({ item }) => {
@@ -261,9 +180,6 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.tenantName}>{item.full_name || `${item.first_name} ${item.last_name}`}</Text>
               <Text style={styles.tenantEmail}>{item.email}</Text>
             </View>
-            <TouchableOpacity style={styles.iconButton} onPress={() => openDetailModal(item)}>
-              <Ionicons name="ellipsis-horizontal" size={18} color="#0F172A" />
-            </TouchableOpacity>
           </View>
           <View style={styles.roomRow}>
             <Ionicons name="bed-outline" size={16} color="#94A3B8" />
@@ -300,17 +216,10 @@ export default function TenantsScreen({ navigation, route }) {
               <Ionicons name="chatbubble-ellipses-outline" size={16} color="#0369A1" />
               <Text style={styles.secondaryBtnText}>Message</Text>
             </TouchableOpacity>
-            {item.room ? (
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => confirmUnassign(item)}>
-                <Ionicons name="log-out-outline" size={16} color="#B91C1C" />
-                <Text style={[styles.secondaryBtnText, { color: '#B91C1C' }]}>Unassign</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => openAssignModal(item)}>
-                <Ionicons name="bed" size={16} color="#FFFFFF" />
-                <Text style={styles.primaryBtnText}>Assign Room</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => openDetailModal(item)}>
+              <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.primaryBtnText}>View Details</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -496,28 +405,12 @@ export default function TenantsScreen({ navigation, route }) {
                     <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
                     <Text style={styles.assignmentMeta}>{detailTenant.room.type_label || detailTenant.room.room_type}</Text>
                     <Text style={styles.assignmentMeta}>{formatCurrency(detailTenant.room.monthly_rate)} / month</Text>
-                    <View style={styles.assignmentActions}>
-                      <TouchableOpacity style={styles.secondaryBtn} onPress={() => openAssignModal(detailTenant)}>
-                        <Ionicons name="swap-horizontal" size={16} color="#0369A1" />
-                        <Text style={styles.secondaryBtnText}>Change Room</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.dangerBtn} onPress={() => confirmUnassign(detailTenant)} disabled={actionLoading}>
-                        {actionLoading ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <>
-                            <Ionicons name="log-out-outline" size={16} color="#FFFFFF" />
-                            <Text style={styles.dangerBtnText}>Unassign</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </View>
                   </View>
                 ) : (
-                  <TouchableOpacity style={[styles.assignmentCard, styles.assignmentEmpty]} onPress={() => openAssignModal(detailTenant)}>
+                  <View style={[styles.assignmentCard, styles.assignmentEmpty]}>
                     <Ionicons name="bed-outline" size={24} color="#94A3B8" />
-                    <Text style={styles.assignmentEmptyText}>No room assigned. Tap to assign.</Text>
-                  </TouchableOpacity>
+                    <Text style={styles.assignmentEmptyText}>No room assigned.</Text>
+                  </View>
                 )}
               </View>
 
@@ -555,65 +448,6 @@ export default function TenantsScreen({ navigation, route }) {
         </SafeAreaView>
       </Modal>
 
-      {/* Assign Modal */}
-      <Modal visible={assignModalVisible} animationType="slide" onRequestClose={() => setAssignModalVisible(false)}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setAssignModalVisible(false)} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={20} color="#0F172A" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Assign Room</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {assignLoading ? (
-              <View style={styles.centerState}>
-                <ActivityIndicator size="large" color="#16A34A" />
-                <Text style={styles.centerText}>Loading rooms...</Text>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.sectionTitle}>Select Room</Text>
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={assignForm.roomId}
-                    onValueChange={(value) => setAssignForm((prev) => ({ ...prev, roomId: value }))}
-                  >
-                    <Picker.Item label="Choose a room" value={null} />
-                    {assignRooms.map((room) => (
-                      <Picker.Item
-                        key={room.id}
-                        label={`Room ${room.room_number} • ${room.type_label || room.room_type} (${room.available_slots || Math.max((room.capacity || 0) - (room.occupied || 0), 0)} open)`}
-                        value={room.id}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-
-                <Text style={styles.sectionTitle}>Move-in Date</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="YYYY-MM-DD"
-                  value={assignForm.moveInDate}
-                  onChangeText={(text) => setAssignForm((prev) => ({ ...prev, moveInDate: text }))}
-                />
-              </>
-            )}
-          </ScrollView>
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setAssignModalVisible(false)}>
-              <Text style={styles.secondaryBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleAssignRoom} disabled={assignLoading || actionLoading}>
-              {actionLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.primaryBtnText}>Assign Room</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }

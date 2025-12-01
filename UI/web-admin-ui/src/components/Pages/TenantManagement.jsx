@@ -6,34 +6,13 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [tenants, setTenants] = useState([]);
   const [properties, setProperties] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
-  const [showModal, setShowModal] = useState(false);
   const [viewingTenant, setViewingTenant] = useState(null);
-  const [editingTenant, setEditingTenant] = useState(null);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    password: '',
-    date_of_birth: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    emergency_contact_relationship: '',
-    current_address: '',
-    preference: '',
-  });
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
-
-  const readOnlyGuard = useCallback(() => {
-    if (!isCaretaker) return false;
-    alert('Caretaker access is read-only. Please contact the landlord for changes.');
-    return true;
-  }, [isCaretaker]);
 
   useEffect(() => {
     (async () => {
@@ -96,74 +75,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [selectedPropertyId, loadTenants]);
-
-  useEffect(() => {
-    if (editingTenant) {
-      setForm({
-        first_name: editingTenant.first_name || '',
-        last_name: editingTenant.last_name || '',
-        email: editingTenant.email || '',
-        phone: editingTenant.phone || '',
-        date_of_birth: editingTenant.tenantProfile?.date_of_birth || '',
-        emergency_contact_name: editingTenant.tenantProfile?.emergency_contact_name || '',
-        emergency_contact_phone: editingTenant.tenantProfile?.emergency_contact_phone || '',
-        emergency_contact_relationship: editingTenant.tenantProfile?.emergency_contact_relationship || '',
-        current_address: editingTenant.tenantProfile?.current_address || '',
-        preference: editingTenant.tenantProfile?.preference || '',
-      });
-    } else {
-      setForm({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        password: '',
-        date_of_birth: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        emergency_contact_relationship: '',
-        current_address: '',
-        preference: '',
-      });
-    }
-  }, [editingTenant]);
-
-  const handleDelete = async (id) => {
-    if (readOnlyGuard()) return;
-    if (!confirm('Are you sure you want to remove this tenant? This will also free up their room.')) return;
-    
-    try {
-      await api.delete(`/landlord/tenants/${id}`);
-      refresh();
-    } catch (err) {
-      setError('Failed to remove tenant');
-    }
-  };
-
   const handleView = (tenant) => {
     setViewingTenant(tenant);
-  };
-
-  const handleEdit = (tenant) => {
-    if (readOnlyGuard()) return;
-    setEditingTenant(tenant);
-    setShowModal(true);
-  };
-
-  const handleSave = async () => {
-    if (readOnlyGuard()) return;
-    try {
-      const url = editingTenant ? `/landlord/tenants/${editingTenant.id}` : `/landlord/tenants`;
-      const method = editingTenant ? 'put' : 'post';
-      
-      await api[method](url, form);
-      
-      setShowModal(false);
-      setEditingTenant(null);
-      refresh();
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to save tenant');
-    }
   };
 
   const refresh = () => {
@@ -487,126 +400,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                 )}
               </div>
 
-              <div className="flex gap-3 mt-6 pt-4 border-t">
+              <div className="mt-6 pt-4 border-t">
                 <button 
                   onClick={() => setViewingTenant(null)} 
-                  className="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition"
+                  className="w-full py-2 border rounded-lg hover:bg-gray-50 transition"
                 >
                   Close
-                </button>
-                <button 
-                  onClick={() => {
-                    if (readOnlyGuard()) return;
-                    setEditingTenant(viewingTenant);
-                    setViewingTenant(null);
-                    setShowModal(true);
-                  }}
-                  className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  Edit Information
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Tenant Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">{editingTenant ? 'Edit' : 'Add'} Tenant</h2>
-                <button onClick={() => setShowModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input 
-                  placeholder="First Name" 
-                  value={form.first_name} 
-                  onChange={e => setForm({ ...form, first_name: e.target.value })} 
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <input 
-                  placeholder="Last Name" 
-                  value={form.last_name} 
-                  onChange={e => setForm({ ...form, last_name: e.target.value })} 
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <input 
-                  placeholder="Email" 
-                  type="email" 
-                  value={form.email} 
-                  onChange={e => setForm({ ...form, email: e.target.value })} 
-                  className="col-span-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <input 
-                  placeholder="Phone" 
-                  value={form.phone} 
-                  onChange={e => setForm({ ...form, phone: e.target.value })} 
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                {!editingTenant && (
-                  <input 
-                    placeholder="Password" 
-                    type="password" 
-                    value={form.password} 
-                    onChange={e => setForm({ ...form, password: e.target.value })} 
-                    className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                  />
-                )}
-                <input 
-                  placeholder="Date of Birth" 
-                  type="date" 
-                  value={form.date_of_birth} 
-                  onChange={e => setForm({ ...form, date_of_birth: e.target.value })} 
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <input 
-                  placeholder="Emergency Contact Name" 
-                  value={form.emergency_contact_name} 
-                  onChange={e => setForm({ ...form, emergency_contact_name: e.target.value })} 
-                  className="col-span-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <input 
-                  placeholder="Emergency Phone" 
-                  value={form.emergency_contact_phone} 
-                  onChange={e => setForm({ ...form, emergency_contact_phone: e.target.value })} 
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <input 
-                  placeholder="Relationship" 
-                  value={form.emergency_contact_relationship} 
-                  onChange={e => setForm({ ...form, emergency_contact_relationship: e.target.value })} 
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                />
-                <textarea 
-                  placeholder="Current Address" 
-                  value={form.current_address} 
-                  onChange={e => setForm({ ...form, current_address: e.target.value })} 
-                  className="col-span-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                  rows={2} 
-                />
-                <textarea 
-                  placeholder="Preference / Behavior Notes" 
-                  value={form.preference} 
-                  onChange={e => setForm({ ...form, preference: e.target.value })} 
-                  className="col-span-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" 
-                  rows={2} 
-                />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button 
-                  onClick={() => setShowModal(false)} 
-                  className="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleSave} 
-                  className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  {editingTenant ? 'Update' : 'Create'}
                 </button>
               </div>
             </div>

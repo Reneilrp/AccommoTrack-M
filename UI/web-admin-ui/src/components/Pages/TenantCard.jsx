@@ -1,6 +1,6 @@
-import { Home, Mail, Phone, Calendar, Edit2, Trash2, User, FileText } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, User, FileText } from 'lucide-react';
 
-export default function TenantCard({ tenant, onEdit, onDelete, onAssignRoom, availableRooms }) {
+export default function TenantCard({ tenant }) {
   const profile = tenant.tenantProfile;
 
   return (
@@ -77,38 +77,7 @@ export default function TenantCard({ tenant, onEdit, onDelete, onAssignRoom, ava
         </details>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
-        <button
-          onClick={() => onEdit(tenant)}
-          className="flex-1 flex items-center justify-center gap-1 py-2 text-blue-600 hover:bg-blue-50 rounded-lg text-sm font-medium"
-        >
-          <Edit2 className="w-4 h-4" /> Edit
-        </button>
-
-        <button
-          onClick={() => onDelete(tenant.id)}
-          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Assign Room (only if no room) */}
-      {!tenant.room && availableRooms.length > 0 && (
-        <select
-          onChange={(e) => onAssignRoom(tenant.id, e.target.value)}
-          className="mt-3 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-          defaultValue=""
-        >
-          <option value="" disabled>Assign Room...</option>
-          {availableRooms.map(room => (
-            <option key={room.id} value={room.id}>
-              Room {room.room_number} ({room.type_label})
-            </option>
-          ))}
-        </select>
-      )}
+      {/* View-only cards keep tenant data visible but avoid edit actions */}
     </div>
   );
 }
