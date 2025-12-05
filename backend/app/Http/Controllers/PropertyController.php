@@ -99,111 +99,111 @@ class PropertyController extends Controller
     /**
      * Get single property details (Property Detail Page)
      */
-   
-public function getPropertyDetails($id)
-{
-    try {
-        $property = Property::where('is_published', true)
-            ->where('is_available', true)
-            ->with([
-                'rooms' => function ($q) {
-                    $q->where('status', 'available')
-                        ->with('amenities', 'images');
-                },
-                'images',
-                'landlord:id,first_name,last_name,email,phone' // Added email and phone
-            ])
-            ->findOrFail($id);
 
-        $availableRooms = $property->rooms;
-        $minPrice = $availableRooms->min('monthly_rate');
-        $maxPrice = $availableRooms->max('monthly_rate');
+    public function getPropertyDetails($id)
+    {
+        try {
+            $property = Property::where('is_published', true)
+                ->where('is_available', true)
+                ->with([
+                    'rooms' => function ($q) {
+                        $q->where('status', 'available')
+                            ->with('amenities', 'images');
+                    },
+                    'images',
+                    'landlord:id,first_name,last_name,email,phone' // Added email and phone
+                ])
+                ->findOrFail($id);
 
-        $primaryImage = $property->images->where('is_primary', true)->first();
-        $coverImage = $primaryImage ?? $property->images->first();
+            $availableRooms = $property->rooms;
+            $minPrice = $availableRooms->min('monthly_rate');
+            $maxPrice = $availableRooms->max('monthly_rate');
 
-        return response()->json([
-            'id' => $property->id,
-            'title' => $property->title,
-            'description' => $property->description,
-            'property_type' => $property->property_type,
-            'full_address' => $property->full_address,
-            'street_address' => $property->street_address,
-            'city' => $property->city,
-            'province' => $property->province,
-            'barangay' => $property->barangay,
-            'postal_code' => $property->postal_code,
-            'latitude' => $property->latitude,
-            'longitude' => $property->longitude,
-            'nearby_landmarks' => $property->nearby_landmarks,
-            'property_rules' => $property->property_rules ?? [],
-            'total_rooms' => $property->rooms->count(),
-            'available_rooms' => $availableRooms->count(),
-            'min_price' => $minPrice,
-            'max_price' => $maxPrice,
-            'price_range' => $minPrice && $maxPrice
-                ? ($minPrice == $maxPrice
-                    ? '₱' . number_format($minPrice, 0)
-                    : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
-                : 'Contact for price',
-            'image' => $coverImage
-                ? (str_starts_with($coverImage->image_url, 'http')
-                    ? $coverImage->image_url
-                    : asset('storage/' . ltrim($coverImage->image_url, '/')))
-                : null,
-            'images' => $property->images->sortBy('display_order')->map(function ($img) {
-                return str_starts_with($img->image_url, 'http')
-                    ? $img->image_url
-                    : asset('storage/' . ltrim($img->image_url, '/'));
-            })->toArray(),
-            
-            // IMPORTANT: Add these landlord fields at root level
-            'landlord_id' => $property->landlord_id,
-            'user_id' => $property->landlord_id, // Alias for compatibility
-            'landlord_name' => $property->landlord
-                ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
-                : 'Landlord',
-            'owner_name' => $property->landlord
-                ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
-                : 'Landlord', // Alias for compatibility
-            
-            // Include full landlord object as well
-            'landlord' => $property->landlord ? [
-                'id' => $property->landlord->id,
-                'first_name' => $property->landlord->first_name,
-                'last_name' => $property->landlord->last_name,
-                'email' => $property->landlord->email,
-                'phone' => $property->landlord->phone,
-            ] : null,
-            
-            'rooms' => $availableRooms->map(function ($room) {
-                return [
-                    'id' => $room->id,
-                    'room_number' => $room->room_number,
-                    'room_type' => $room->room_type,
-                    'type_label' => $this->getRoomTypeLabel($room->room_type),
-                    'monthly_rate' => (float) $room->monthly_rate,
-                    'capacity' => $room->capacity,
-                    'status' => $room->status,
-                    'description' => $room->description,
-                    'amenities' => $room->amenities?->pluck('name')->toArray() ?? [],
-                    'images' => $room->images?->pluck('image_url')->map(function($url) {
-                        // If URL already starts with http, return as-is
-                        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
-                            return $url;
-                        }
-                        // Otherwise, prepend storage path
-                        return asset('storage/' . ltrim($url, '/'));
-                    })->toArray() ?? [],
-                ];
-            })->values()
-        ], 200);
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json(['message' => 'Property not found or not available'], 404);
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
+            $primaryImage = $property->images->where('is_primary', true)->first();
+            $coverImage = $primaryImage ?? $property->images->first();
+
+            return response()->json([
+                'id' => $property->id,
+                'title' => $property->title,
+                'description' => $property->description,
+                'property_type' => $property->property_type,
+                'full_address' => $property->full_address,
+                'street_address' => $property->street_address,
+                'city' => $property->city,
+                'province' => $property->province,
+                'barangay' => $property->barangay,
+                'postal_code' => $property->postal_code,
+                'latitude' => $property->latitude,
+                'longitude' => $property->longitude,
+                'nearby_landmarks' => $property->nearby_landmarks,
+                'property_rules' => $property->property_rules ?? [],
+                'total_rooms' => $property->rooms->count(),
+                'available_rooms' => $availableRooms->count(),
+                'min_price' => $minPrice,
+                'max_price' => $maxPrice,
+                'price_range' => $minPrice && $maxPrice
+                    ? ($minPrice == $maxPrice
+                        ? '₱' . number_format($minPrice, 0)
+                        : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
+                    : 'Contact for price',
+                'image' => $coverImage
+                    ? (str_starts_with($coverImage->image_url, 'http')
+                        ? $coverImage->image_url
+                        : asset('storage/' . ltrim($coverImage->image_url, '/')))
+                    : null,
+                'images' => $property->images->sortBy('display_order')->map(function ($img) {
+                    return str_starts_with($img->image_url, 'http')
+                        ? $img->image_url
+                        : asset('storage/' . ltrim($img->image_url, '/'));
+                })->toArray(),
+
+                // IMPORTANT: Add these landlord fields at root level
+                'landlord_id' => $property->landlord_id,
+                'user_id' => $property->landlord_id, // Alias for compatibility
+                'landlord_name' => $property->landlord
+                    ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
+                    : 'Landlord',
+                'owner_name' => $property->landlord
+                    ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
+                    : 'Landlord', // Alias for compatibility
+
+                // Include full landlord object as well
+                'landlord' => $property->landlord ? [
+                    'id' => $property->landlord->id,
+                    'first_name' => $property->landlord->first_name,
+                    'last_name' => $property->landlord->last_name,
+                    'email' => $property->landlord->email,
+                    'phone' => $property->landlord->phone,
+                ] : null,
+
+                'rooms' => $availableRooms->map(function ($room) {
+                    return [
+                        'id' => $room->id,
+                        'room_number' => $room->room_number,
+                        'room_type' => $room->room_type,
+                        'type_label' => $this->getRoomTypeLabel($room->room_type),
+                        'monthly_rate' => (float) $room->monthly_rate,
+                        'capacity' => $room->capacity,
+                        'status' => $room->status,
+                        'description' => $room->description,
+                        'amenities' => $room->amenities?->pluck('name')->toArray() ?? [],
+                        'images' => $room->images?->pluck('image_url')->map(function ($url) {
+                            // If URL already starts with http, return as-is
+                            if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+                                return $url;
+                            }
+                            // Otherwise, prepend storage path
+                            return asset('storage/' . ltrim($url, '/'));
+                        })->toArray() ?? [],
+                    ];
+                })->values()
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Property not found or not available'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
+        }
     }
-}
 
     // ====================================================================
     // PROTECTED ROUTES (Landlord only)
@@ -217,16 +217,16 @@ public function getPropertyDetails($id)
     public function getAccessibleProperties(Request $request)
     {
         $user = $request->user();
-        
+
         if ($user->role === 'caretaker') {
             // Get caretaker's assigned properties
             $assignment = $user->caretakerAssignment;
             if (!$assignment) {
                 return response()->json([], 200);
             }
-            
+
             $propertyIds = $assignment->properties()->pluck('properties.id')->toArray();
-            
+
             $properties = Property::whereIn('id', $propertyIds)
                 ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
                 ->with(['images', 'amenities'])
@@ -241,7 +241,7 @@ public function getPropertyDetails($id)
 
             return response()->json($properties, 200);
         }
-        
+
         // Landlord gets all their properties
         $properties = Property::where('landlord_id', $user->id)
             ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
@@ -268,11 +268,11 @@ public function getPropertyDetails($id)
             ->map(function ($property) {
                 // Convert amenities to array of names only
                 $amenityNames = $property->amenities->pluck('name')->toArray();
-                
+
                 // Convert to array and add amenities as simple array
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
-                
+
                 return $propertyArray;
             });
 
@@ -285,7 +285,8 @@ public function getPropertyDetails($id)
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'property_type' => 'required|in:apartment,dormitory,boardingHouse,bedSpacer',
-            'current_status' => 'nullable|in:active,inactive,pending,maintenance',
+            'current_status' => 'nullable|in:active,inactive,pending,maintenance,draft',
+            'is_draft' => 'sometimes|boolean',
             'street_address' => 'required|string',
             'city' => 'required|string',
             'province' => 'required|string',
@@ -308,7 +309,10 @@ public function getPropertyDetails($id)
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'property_type' => $validated['property_type'],
-            'current_status' => $validated['current_status'] ?? 'pending',
+            // Determine current status: explicit is_draft takes precedence
+            'current_status' => ($request->has('is_draft') && $request->boolean('is_draft'))
+                ? 'draft'
+                : ($validated['current_status'] ?? 'pending'),
             'street_address' => $validated['street_address'],
             'city' => $validated['city'],
             'province' => $validated['province'],
@@ -480,6 +484,7 @@ public function getPropertyDetails($id)
             'property_rules' => 'nullable|string',
             'total_rooms' => 'nullable|integer',
             'current_status' => 'nullable|string',
+            'is_draft' => 'sometimes|boolean',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
@@ -487,6 +492,11 @@ public function getPropertyDetails($id)
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'images' => 'nullable|array|max:10',
         ]);
+
+        // If is_draft present, map to current_status to ensure consistent handling
+        if ($request->has('is_draft') && $request->boolean('is_draft')) {
+            $validated['current_status'] = 'draft';
+        }
 
         $property->update($validated);
 

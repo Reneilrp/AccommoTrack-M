@@ -19,39 +19,39 @@ class AdminController extends Controller
                 // For landlords: their properties
                 'properties:id,landlord_id,title',
                 // For tenants: their bookings with property and room info
-                'bookings' => function($query) {
+                'bookings' => function ($query) {
                     $query->where('status', 'confirmed')
                         ->orWhere('status', 'active')
                         ->with(['property:id,title', 'room:id,room_number']);
                 },
                 // For tenants: room assignments as fallback
-                'roomAssignments' => function($query) {
+                'roomAssignments' => function ($query) {
                     $query->with('property:id,title');
                 },
                 // For caretakers: their assignment with landlord info
-                'caretakerAssignment' => function($query) {
+                'caretakerAssignment' => function ($query) {
                     $query->with(['landlord:id,first_name,last_name,email', 'landlord.properties:id,landlord_id,title']);
                 }
             ])
             ->get()
-            ->map(function($user) {
+            ->map(function ($user) {
                 $userData = $user->toArray();
-                
+
                 // Add property info for landlords
                 if ($user->role === 'landlord') {
                     $userData['properties_count'] = $user->properties->count();
-                    $userData['properties_list'] = $user->properties->map(function($p) {
+                    $userData['properties_list'] = $user->properties->map(function ($p) {
                         return [
                             'id' => $p->id,
                             'name' => $p->title
                         ];
                     })->toArray();
                 }
-                
+
                 // Add property/room info for tenants
                 if ($user->role === 'tenant') {
                     $currentProperty = null;
-                    
+
                     // First check bookings (confirmed/active)
                     $activeBooking = $user->bookings->first();
                     if ($activeBooking && $activeBooking->property) {
@@ -61,7 +61,7 @@ class AdminController extends Controller
                             'room_number' => $activeBooking->room->room_number ?? null
                         ];
                     }
-                    
+
                     // Fallback to room assignments if no booking
                     if (!$currentProperty && $user->roomAssignments->count() > 0) {
                         $assignment = $user->roomAssignments->first();
@@ -73,10 +73,10 @@ class AdminController extends Controller
                             ];
                         }
                     }
-                    
+
                     $userData['current_property'] = $currentProperty;
                 }
-                
+
                 // Add landlord info for caretakers
                 if ($user->role === 'caretaker') {
                     if ($user->caretakerAssignment && $user->caretakerAssignment->landlord) {
@@ -85,7 +85,7 @@ class AdminController extends Controller
                             'id' => $landlord->id,
                             'name' => trim($landlord->first_name . ' ' . $landlord->last_name),
                             'email' => $landlord->email,
-                            'properties' => $landlord->properties->map(function($p) {
+                            'properties' => $landlord->properties->map(function ($p) {
                                 return [
                                     'id' => $p->id,
                                     'name' => $p->title
@@ -96,10 +96,10 @@ class AdminController extends Controller
                         $userData['assigned_landlord'] = null;
                     }
                 }
-                
+
                 return $userData;
             });
-            
+
         return response()->json(['data' => $users]);
     }
 
@@ -176,17 +176,24 @@ class AdminController extends Controller
             ->with(['landlord', 'images', 'amenities'])
             ->get()
             ->map(function ($property) {
+                // Transform images with proper URLs
+                $property->images->transform(function ($image) {
+                    $image->image_url = asset('storage/' . $image->image_url);
+                    return $image;
+                });
+
                 // Convert amenities to array of names
                 $amenityNames = $property->amenities->pluck('name')->toArray();
-                
+
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
-                
+
                 return $propertyArray;
             });
 
         return response()->json(['data' => $properties]);
     }
+
 
     /**
      * Get approved properties
@@ -197,17 +204,24 @@ class AdminController extends Controller
             ->with(['landlord', 'images', 'amenities'])
             ->get()
             ->map(function ($property) {
+                // Transform images with proper URLs
+                $property->images->transform(function ($image) {
+                    $image->image_url = asset('storage/' . $image->image_url);
+                    return $image;
+                });
+
                 // Convert amenities to array of names
                 $amenityNames = $property->amenities->pluck('name')->toArray();
-                
+
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
-                
+
                 return $propertyArray;
             });
 
         return response()->json(['data' => $properties]);
     }
+
 
     /**
      * Get rejected properties
@@ -218,12 +232,18 @@ class AdminController extends Controller
             ->with(['landlord', 'images', 'amenities'])
             ->get()
             ->map(function ($property) {
+                // Transform images with proper URLs
+                $property->images->transform(function ($image) {
+                    $image->image_url = asset('storage/' . $image->image_url);
+                    return $image;
+                });
+
                 // Convert amenities to array of names
                 $amenityNames = $property->amenities->pluck('name')->toArray();
-                
+
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
-                
+
                 return $propertyArray;
             });
 
@@ -319,13 +339,11 @@ class AdminController extends Controller
             ->get();
 
         foreach ($recentProperties as $property) {
-            $statusType = $property->current_status === 'active' ? 'approval' : 
-                         ($property->current_status === 'inactive' ? 'rejection' : 'property');
-            
+            $statusType = $property->current_status === 'active' ? 'approval' : ($property->current_status === 'inactive' ? 'rejection' : 'property');
+
             $activities[] = [
                 'type' => $statusType,
-                'title' => $property->current_status === 'pending' ? 'Property Submitted' : 
-                          ($property->current_status === 'active' ? 'Property Approved' : 'Property Rejected'),
+                'title' => $property->current_status === 'pending' ? 'Property Submitted' : ($property->current_status === 'active' ? 'Property Approved' : 'Property Rejected'),
                 'description' => "{$property->title} by {$property->landlord->first_name} {$property->landlord->last_name}",
                 'timestamp' => $property->created_at->toISOString(),
                 'badge' => ucfirst($property->current_status),

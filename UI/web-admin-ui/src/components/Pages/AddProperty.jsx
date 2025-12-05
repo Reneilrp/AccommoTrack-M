@@ -247,7 +247,8 @@ export default function AddProperty({ onBack, onSave }) {
       title: formData.propertyName,
       description: formData.description || null,
       property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
-      current_status: 'pending',
+      // If saving as draft, mark draft; otherwise default to pending
+      current_status: isDraft ? 'draft' : 'pending',
       street_address: formData.streetAddress,
       city: formData.city,
       province: formData.provinceRegion,
@@ -261,6 +262,8 @@ export default function AddProperty({ onBack, onSave }) {
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
       is_available: false,
+      // Explicit flag to indicate draft from frontend
+      is_draft: isDraft ? '1' : '0',
     };
   };
 
@@ -571,7 +574,7 @@ export default function AddProperty({ onBack, onSave }) {
                 </MapContainer>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
                   <input
@@ -592,7 +595,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., 122.0781"
                   />
                 </div>
-              </div>
+              </div> */}
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
               <div>
@@ -907,13 +910,13 @@ export default function AddProperty({ onBack, onSave }) {
           <div className="flex items-center gap-3">
             {currentStep === 3 ? (
               <>
-                <button
-                  onClick={() => handleSubmit(true)}
-                  disabled={loading}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Saving...' : 'Save as Draft'}
-                </button>
+                  <button
+                    onClick={() => handleSubmit(true)}
+                    disabled={loading}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Saving...' : 'Save as Draft'}
+                  </button>
                 <button
                   onClick={() => handleSubmit(false)}
                   disabled={loading}

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   X,
-  AlertCircle,
   Upload,
   Trash2,
   Plus,
@@ -408,7 +407,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                     className="w-4 h-4"
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Full Room Price</p>
+                    <p className="text-sm font-medium text-gray-900">Room Price</p>
                     <p className="text-xs text-gray-600">
                       {formData.capacity > 1 
                         ? `Tenants divide ₱${formData.monthlyRate || 0} equally (₱${formData.monthlyRate ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)) : 0}/person)`

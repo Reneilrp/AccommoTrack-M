@@ -8,10 +8,8 @@ import {
   Filter,
   MapPin,
   Edit,
-  MoreVertical,
   Building2,
-  Loader2,
-  Trash2
+  Loader2
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 

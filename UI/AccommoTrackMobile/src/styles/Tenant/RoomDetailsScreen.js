@@ -273,6 +273,9 @@ amenityText: {
     marginBottom: 24,
     letterSpacing: -0.3,
   },
+  inputContainer: {
+    marginBottom: 16,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#e0e0e0',

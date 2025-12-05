@@ -67,6 +67,8 @@ class Property extends Model
         'property_rules' => 'array',
     ];
 
+    protected $appends = ['image_url'];
+
     /**
      * Relationship: Property belongs to a User (Landlord)
      */
@@ -176,7 +178,11 @@ class Property extends Model
     {
         return $this->hasMany(PropertyImage::class);
     }
-
+    public function getImageUrlAttribute()
+    {
+        $firstImage = $this->images()->first();
+        return $firstImage ? asset('storage/' . $firstImage->image_path) : null;
+    }
     /**
      * Relationship: Property has many amenities (many-to-many)
      */

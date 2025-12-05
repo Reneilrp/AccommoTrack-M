@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 
-const API_URL = 'http://192.168.0.105:8000/api';
+const API_URL = 'http://10.221.1.156:8000/api';
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -101,12 +101,18 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     if (validateStep1()) {
       setSignupStep(2);
       setError('');
+      // Ensure password visibility is off when entering step 2
+      setShowPassword(false);
+      setShowConfirmPassword(false);
     }
   };
 
   const handleBackStep = () => {
     setSignupStep(1);
     setError('');
+    // Reset visibility when going back
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const handleLogin = async () => {
@@ -240,6 +246,9 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: 'tenant' });
     setAgreedToTerms(false);
     setError('');
+    // Ensure password visibility is reset when switching screens
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   return (

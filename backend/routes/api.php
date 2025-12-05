@@ -133,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
+        Route::get('/admin/properties/pending', [PropertyController::class, 'getPendingPropertiesForApproval']);  
     });
 
     Route::prefix('messages')->group(function () {

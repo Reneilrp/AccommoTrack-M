@@ -116,11 +116,13 @@ class BookingController extends Controller
             // Calculate end date and total amount
             $startDate = \Carbon\Carbon::parse($validated['start_date']);
             $endDate = \Carbon\Carbon::parse($validated['end_date']);
-            $totalMonths = $startDate->diffInMonths($endDate);
-
-            // Round up if there are remaining days
-            if ($startDate->copy()->addMonths($totalMonths) < $endDate) {
+            
+            // Calculate total months - count the number of month boundaries crossed
+            $totalMonths = 0;
+            $currentDate = $startDate->copy();
+            while ($currentDate < $endDate) {
                 $totalMonths++;
+                $currentDate->addMonth();
             }
             
             $totalAmount = $room->monthly_rate * $totalMonths;
@@ -274,11 +276,8 @@ class BookingController extends Controller
                     ]);
                 }
 
-                // Make room available again
-                $booking->room->update([
-                    'status' => 'available',
-                    'current_tenant_id' => null
-                ]);
+                // Remove tenant from room using the proper method
+                $booking->room->removeTenant($booking->tenant_id);
 
                 // Update tenant profile if exists
                 $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
@@ -296,6 +295,12 @@ class BookingController extends Controller
                         'booking_id' => $booking->id
                     ]);
                 }
+
+                Log::info('Booking cancelled - Tenant removed from room', [
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'room_id' => $booking->room_id
+                ]);
 
                 $booking->room->property->updateAvailableRooms();
             }

@@ -68,31 +68,28 @@ const PropertyApproval = () => {
       <div className="mb-4 flex gap-2 flex-wrap">
         <button
           onClick={() => setStatusFilter('pending')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
-            statusFilter === 'pending' 
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${statusFilter === 'pending'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
-          }`}
+            }`}
         >
           Pending
         </button>
         <button
           onClick={() => setStatusFilter('approved')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
-            statusFilter === 'approved' 
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${statusFilter === 'approved'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
-          }`}
+            }`}
         >
           Approved
         </button>
         <button
           onClick={() => setStatusFilter('rejected')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
-            statusFilter === 'rejected' 
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${statusFilter === 'rejected'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-700'
-          }`}
+            }`}
         >
           Rejected
         </button>
@@ -132,7 +129,7 @@ const PropertyApproval = () => {
                     <td className="px-6 py-4 text-gray-700 capitalize">{prop.property_type || '—'}</td>
                     <td className="px-6 py-4 text-gray-700">{prop.city || prop.full_address || '—'}</td>
                     <td className="px-6 py-4 text-gray-700">
-                      {prop.landlord?.first_name 
+                      {prop.landlord?.first_name
                         ? `${prop.landlord.first_name} ${prop.landlord.last_name || ''}`
                         : prop.owner_name || '—'}
                     </td>
@@ -191,18 +188,28 @@ const PropertyApproval = () => {
 
             <div className="p-6 space-y-6">
               {/* Property Images */}
-              {selectedProperty.images && selectedProperty.images.length > 0 && (
+              {selectedProperty.image_url && (
                 <div>
                   <h4 className="text-lg font-semibold mb-3 text-gray-800">Property Images</h4>
                   <div className="grid grid-cols-3 gap-3">
-                    {selectedProperty.images.map((img, idx) => (
+                    {selectedProperty.images && selectedProperty.images.length > 0 ? (
+                      selectedProperty.images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img.image_path ? `${window.location.origin}/storage/${img.image_path}` : img.image_url}
+                          alt={`Property ${idx + 1}`}
+                          className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                          onError={(e) => e.target.src = '/placeholder.png'}
+                        />
+                      ))
+                    ) : (
                       <img
-                        key={idx}
-                        src={img.image_url || img}
-                        alt={`Property ${idx + 1}`}
+                        src={selectedProperty.image_url}
+                        alt="Property"
                         className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => e.target.src = '/placeholder.png'}
                       />
-                    ))}
+                    )}
                   </div>
                 </div>
               )}

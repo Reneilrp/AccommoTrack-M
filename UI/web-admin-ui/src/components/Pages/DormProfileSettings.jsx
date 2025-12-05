@@ -8,6 +8,47 @@ import {
 } from 'lucide-react';
 import api from '../../utils/api';
 
+// Editable map (react-leaflet)
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+// Create a specific icon instance to ensure Vite/Bundlers resolve URLs correctly
+const defaultMarkerIcon = new L.Icon({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41]
+});
+
+// Create a green SVG marker icon (data URL) so it's bundled reliably and appears green
+const greenMarkerSvg = encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path fill="#10B981" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+    <circle cx="12" cy="9" r="3" fill="#ffffff" />
+  </svg>
+`);
+const greenMarkerUrl = `data:image/svg+xml;utf8,${greenMarkerSvg}`;
+const greenMarkerIcon = new L.Icon({
+  iconUrl: greenMarkerUrl,
+  iconSize: [28, 42],
+  iconAnchor: [14, 42],
+  popupAnchor: [0, -36]
+});
+
 export default function DormProfileSettings({ propertyId, onBack, onDeleteRequested }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -130,6 +171,11 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       ...prev,
       address: { ...prev.address, [field]: value }
     }));
+  };
+
+  // Update coordinates from the map
+  const handleMapChange = (lat, lng) => {
+    setDormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
   };
 
   const handleSpecificationChange = (field, value) => {
@@ -272,6 +318,31 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     }
   };
 
+  const handleSubmitDraft = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await api.put(`/landlord/properties/${propertyId}`, {
+        current_status: 'pending',
+        is_draft: false
+      });
+
+      if (response.status === 200) {
+        alert('Property submitted for admin approval');
+        fetchPropertyDetails();
+      } else {
+        setError('Failed to submit draft');
+      }
+    } catch (err) {
+      console.error('Error submitting draft:', err);
+      setError(err.message || 'Failed to submit draft');
+      alert('Failed to submit draft: ' + (err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && !dormData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -351,6 +422,16 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     Cancel
                   </button>
                 </>
+              )}
+              {/* Show submit button when property is a draft and not currently editing */}
+              {!isEditing && dormData?.status === 'draft' && (
+                <button
+                  onClick={handleSubmitDraft}
+                  disabled={loading}
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium disabled:opacity-50 mr-2"
+                >
+                  {loading ? 'Submitting...' : 'Submit for Approval'}
+                </button>
               )}
               <button
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -510,6 +591,33 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
                   />
+                </div>
+
+                {/* Editable Map */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Map (drag marker or click map to set location)</label>
+                  <div className="w-full h-72 rounded-lg overflow-hidden border border-gray-200">
+                    <MapContainer
+                      center={[dormData.latitude ?? 14.5995, dormData.longitude ?? 120.9842]}
+                      zoom={13}
+                      style={{ height: '100%', width: '100%' }}
+                      whenCreated={(map) => setTimeout(() => map.invalidateSize(), 200)}
+                    >
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                      <Marker
+                        position={[dormData.latitude ?? 14.5995, dormData.longitude ?? 120.9842]}
+                        draggable={isEditing}
+                        icon={greenMarkerIcon}
+                        eventHandlers={{
+                          dragend: (e) => {
+                            const p = e.target.getLatLng();
+                            handleMapChange(p.lat, p.lng);
+                          }
+                        }}
+                      />
+                      <MapClickHandler onMapClick={handleMapChange} />
+                    </MapContainer>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -719,4 +827,14 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       </div>
     </div>
   );
+}
+
+// Helper component to capture map clicks and forward coordinates
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      if (onMapClick) onMapClick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
 }
