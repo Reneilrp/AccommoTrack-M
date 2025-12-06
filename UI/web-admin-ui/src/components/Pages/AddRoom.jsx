@@ -8,8 +8,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Star,
-  Edit2
+  Edit2,
+  HelpCircle
 } from 'lucide-react';
+import PricingHelp from '../Rooms/PricingHelp';
 import api from '../../utils/api';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {
@@ -18,6 +20,10 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     roomType: 'single',
     floor: '1',
     monthlyRate: '',
+    dailyRate: '',
+    billingPolicy: 'monthly',
+    minStayDays: '',
+    prorateBase: '30',
     capacity: '1',
     pricingModel: 'full_room',
     description: '',
@@ -26,6 +32,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   });
 
   const [previewImages, setPreviewImages] = useState([]);
+  const [showPricingHelp, setShowPricingHelp] = useState(false);
   const [replaceIndex, setReplaceIndex] = useState(null);
   const replaceInputRef = useState(null)[0];
   const [loading, setLoading] = useState(false);
@@ -238,6 +245,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       payload.append('floor', parseInt(formData.floor));
       payload.append('monthly_rate', parseFloat(formData.monthlyRate));
       payload.append('capacity', parseInt(formData.capacity));
+      // Optional short-stay / daily pricing fields
+      if (formData.dailyRate !== '') payload.append('daily_rate', parseFloat(formData.dailyRate));
+      if (formData.billingPolicy) payload.append('billing_policy', formData.billingPolicy);
+      if (formData.minStayDays !== '') payload.append('min_stay_days', parseInt(formData.minStayDays));
+      if (formData.prorateBase) payload.append('prorate_base', parseInt(formData.prorateBase));
       payload.append('pricing_model', formData.pricingModel);
       payload.append('description', formData.description || '');
       payload.append('status', 'available');
@@ -263,6 +275,10 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         roomType: 'single',
         floor: '1',
         monthlyRate: '',
+        dailyRate: '',
+        billingPolicy: 'monthly',
+        minStayDays: '',
+        prorateBase: '30',
         capacity: '1',
         pricingModel: 'full_room',
         description: '',
@@ -441,6 +457,75 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               )}
             </div>
           </div>
+
+          {/* Daily / short-stay pricing */}
+          <div className="mt-4 bg-white rounded-lg border border-gray-100 p-4">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Short-stay / Daily Pricing (optional)</h4>
+            <p className="text-xs text-gray-600 mb-3">If you want to allow day-based stays or prorate beyond 1 month, configure daily pricing and policy below.</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate (₱/day)</label>
+                <input
+                  type="number"
+                  placeholder="e.g., 300"
+                  value={formData.dailyRate}
+                  onChange={(e) => handleInputChange('dailyRate', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={formData.billingPolicy}
+                    onChange={(e) => handleInputChange('billingPolicy', e.target.value)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="monthly">Monthly Rate</option>
+                    <option value="monthly_with_daily">Monthly + Daily</option>
+                    <option value="daily">Daily Rate</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowPricingHelp(true)}
+                    title="Pricing help"
+                    className="p-2 rounded-md hover:bg-gray-100"
+                  >
+                    <HelpCircle className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Min Stay Days (optional)</label>
+                <input
+                  type="number"
+                  value={formData.minStayDays}
+                  onChange={(e) => handleInputChange('minStayDays', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  min="1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Prorate Base (days)</label>
+                <input
+                  type="number"
+                  value={formData.prorateBase}
+                  onChange={(e) => handleInputChange('prorateBase', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  min="1"
+                />
+              </div>
+            </div>
+          </div>
+          <PricingHelp open={showPricingHelp} onClose={() => setShowPricingHelp(false)} />
 
           {/* Helper text explaining pricing model differences */}
           <div className="mt-3 text-sm text-gray-700">

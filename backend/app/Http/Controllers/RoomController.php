@@ -82,6 +82,10 @@ class RoomController extends Controller
                 'room_type' => 'required|in:single,double,quad,bedSpacer',
                 'floor' => 'required|integer|min:1',
                 'monthly_rate' => 'required|numeric|min:0',
+                'daily_rate' => 'nullable|numeric|min:0',
+                'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
+                'min_stay_days' => 'nullable|integer|min:1',
+                'prorate_base' => 'nullable|integer|min:1',
                 'capacity' => 'required|integer|min:1',
                 'pricing_model' => 'sometimes|in:full_room,per_bed',
                 'status' => 'sometimes|in:available,occupied,maintenance',
@@ -115,6 +119,10 @@ class RoomController extends Controller
                 'room_type' => $validated['room_type'],
                 'floor' => $validated['floor'],
                 'monthly_rate' => $validated['monthly_rate'],
+                'daily_rate' => $validated['daily_rate'] ?? null,
+                'billing_policy' => $validated['billing_policy'] ?? 'monthly',
+                'min_stay_days' => $validated['min_stay_days'] ?? null,
+                'prorate_base' => $validated['prorate_base'] ?? 30,
                 'capacity' => $validated['capacity'],
                 'pricing_model' => $validated['pricing_model'] ?? 'full_room',
                 'status' => $validated['status'] ?? 'available',
@@ -192,6 +200,10 @@ class RoomController extends Controller
                 'room_type' => 'sometimes|in:single,double,quad,bedSpacer',
                 'floor' => 'sometimes|integer|min:1',
                 'monthly_rate' => 'sometimes|numeric|min:0',
+                'daily_rate' => 'nullable|numeric|min:0',
+                'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
+                'min_stay_days' => 'nullable|integer|min:1',
+                'prorate_base' => 'nullable|integer|min:1',
                 'capacity' => 'sometimes|integer|min:1',
                 'pricing_model' => 'sometimes|in:full_room,per_bed',
                 'status' => 'sometimes|in:available,occupied,maintenance',
@@ -477,6 +489,10 @@ class RoomController extends Controller
             'floor' => $room->floor,
             'floor_label' => $this->formatFloor($room->floor),
             'monthly_rate' => (float) $room->monthly_rate,
+            'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
+            'billing_policy' => $room->billing_policy ?? 'monthly',
+            'min_stay_days' => $room->min_stay_days,
+            'prorate_base' => $room->prorate_base ?? 30,
             'capacity' => $room->capacity,
                 'pricing_model' => $room->pricing_model ?? 'full_room',
                 'payment' => method_exists($room, 'getPaymentDisplay') ? $room->getPaymentDisplay() : null,
@@ -545,6 +561,10 @@ class RoomController extends Controller
                         'floor' => $room->floor,
                         'floor_label' => $this->formatFloor($room->floor),
                         'monthly_rate' => (float) $room->monthly_rate,
+                        'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
+                        'billing_policy' => $room->billing_policy ?? 'monthly',
+                        'min_stay_days' => $room->min_stay_days,
+                        'prorate_base' => $room->prorate_base ?? 30,
                         'capacity' => $room->capacity,
                         'status' => $room->status,
                         'description' => $room->description,
@@ -563,6 +583,51 @@ class RoomController extends Controller
                 'message' => 'Failed to fetch rooms',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Pricing preview for a room. Accepts either `days=N` or `start`/`end` dates (YYYY-MM-DD).
+     * Public endpoint used for price previews.
+     */
+    public function pricing(Request $request, $id)
+    {
+        try {
+            $room = Room::findOrFail($id);
+
+            // Determine days from query params
+            $days = null;
+            if ($request->has('days')) {
+                $days = (int) $request->query('days');
+            } elseif ($request->has('start') && $request->has('end')) {
+                $start = new \DateTime($request->query('start'));
+                $end = new \DateTime($request->query('end'));
+                // inclusive days
+                $interval = $start->diff($end);
+                $days = (int) $interval->format('%a') + 1;
+            }
+
+            if (!$days || $days < 1) {
+                return response()->json(['message' => 'days parameter or start/end required'], 400);
+            }
+
+            $result = $room->calculatePriceForDays($days);
+
+            return response()->json([
+                'room_id' => $room->id,
+                'days' => $days,
+                'policy' => $room->billing_policy ?? 'monthly',
+                'monthly_rate' => (float) $room->monthly_rate,
+                'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
+                'prorate_base' => $room->prorate_base ?? 30,
+                'breakdown' => $result['breakdown'],
+                'total' => $result['total'],
+                'method' => $result['method']
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Room not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to calculate pricing', 'error' => $e->getMessage()], 500);
         }
     }
 }

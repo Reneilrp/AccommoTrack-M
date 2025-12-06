@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle } from 'lucide-react';
 import api from '../../utils/api';
+import { useLocation } from 'react-router-dom';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [tenants, setTenants] = useState([]);
@@ -34,6 +35,34 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       }
     })();
   }, []);
+  const location = useLocation();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await api.get('/properties/accessible');
+        setProperties(data);
+
+        const params = new URLSearchParams(location.search);
+        const q = params.get('property');
+
+        if (q) {
+          const pid = Number(q);
+          // Only set if property exists in the returned list
+          const exists = data.find((p) => Number(p.id) === pid);
+          if (exists) {
+            setSelectedPropertyId(pid);
+            return;
+          }
+        }
+
+        if (data && data.length) setSelectedPropertyId(data[0].id);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    load();
+  }, [location.search]);
 
   const loadTenants = useCallback(async () => {
     if (!selectedPropertyId) return;

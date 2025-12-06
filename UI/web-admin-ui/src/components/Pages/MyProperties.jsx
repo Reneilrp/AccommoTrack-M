@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSidebar } from '../../contexts/SidebarContext';
 import AddProperty from './AddProperty';
 import DormProfileSettings from './DormProfileSettings';
 import {
@@ -18,6 +20,8 @@ export default function MyProperties({ user }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState('list');
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+  const navigate = useNavigate();
+  const { collapse, setIsSidebarOpen, open } = useSidebar();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -63,9 +67,14 @@ export default function MyProperties({ user }) {
     return matchesTab && matchesSearch;
   });
 
-  const handleViewProperty = (propertyId) => {
-    setSelectedPropertyId(propertyId);
-    setCurrentView('detail');
+  const handleViewProperty = async (propertyId) => {
+    // collapse sidebar (no-op on mobile) and wait for transition to finish
+    try {
+      await collapse();
+    } catch (err) {
+      // ignore
+    }
+    navigate(`/properties/${propertyId}`);
   };
 
   const handleBackToList = () => {
@@ -141,9 +150,7 @@ export default function MyProperties({ user }) {
     }
   };
 
-  if (currentView === 'detail' && selectedPropertyId) {
-    return <DormProfileSettings propertyId={selectedPropertyId} onBack={handleBackToList} onDeleteRequested={handleDeleteProperty} />;
-  }
+  // detail view is now route-based; keep add view fallback
 
   if (currentView === 'add') {
     return <AddProperty onBack={handleBackToList} onSave={handleBackToList} />;
@@ -297,7 +304,14 @@ export default function MyProperties({ user }) {
                 }
 
                 return (
-                  <div key={property.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div
+                    key={property.id}
+                    className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleViewProperty(property.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewProperty(property.id); } }}
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
                         {/* Property Image */}
@@ -366,9 +380,9 @@ export default function MyProperties({ user }) {
                       {/* Actions */}
                       <div className="flex items-center gap-2 ml-4">
                         <button
-                          onClick={() => handleViewProperty(property.id)}
+                          onClick={(e) => { e.stopPropagation(); handleViewProperty(property.id); }}
                           className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Edit"
+                          title="Open"
                         >
                           <Edit className="w-5 h-5" />
                         </button>

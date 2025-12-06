@@ -15,6 +15,10 @@ class Room extends Model
         'room_type',
         'floor',
         'monthly_rate',
+        'daily_rate',
+        'billing_policy',
+        'min_stay_days',
+        'prorate_base',
         'capacity',
         'pricing_model',
         'status',
@@ -26,6 +30,9 @@ class Room extends Model
         'property_id' => 'integer',
         'floor' => 'integer',
         'monthly_rate' => 'decimal:2',
+        'daily_rate' => 'decimal:2',
+        'prorate_base' => 'integer',
+        'min_stay_days' => 'integer',
         'capacity' => 'integer',
         'current_tenant_id' => 'integer'
     ];
@@ -419,6 +426,61 @@ class Room extends Model
         
         // If no tenants yet, show full price
         return $monthlyRateFloat;
+    }
+
+    /**
+     * Calculate price for an arbitrary number of days using room billing settings.
+     * Returns array with total and breakdown.
+     */
+    public function calculatePriceForDays(int $days)
+    {
+        $days = max(1, $days);
+        $monthly = (float) $this->monthly_rate;
+        $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
+        $policy = $this->billing_policy ?? 'monthly';
+        $prorateBase = $this->prorate_base ?? 30;
+
+        $months = intdiv($days, $prorateBase);
+        $remaining = $days % $prorateBase;
+
+        $monthCharge = $months * $monthly;
+        $daysCharge = 0.0;
+        $method = $policy;
+
+        if ($policy === 'daily') {
+            $ratePerDay = $daily ?? ($monthly / $prorateBase);
+            $daysCharge = $days * $ratePerDay;
+            $total = $daysCharge;
+            $method = 'daily';
+        } elseif ($policy === 'monthly_with_daily') {
+            $total = $monthCharge;
+            if ($remaining > 0) {
+                $ratePerDay = $daily ?? ($monthly / $prorateBase);
+                $daysCharge = $remaining * $ratePerDay;
+                $total += $daysCharge;
+            }
+            $method = 'monthly_with_daily';
+        } else { // monthly (prorate leftover)
+            $total = $monthCharge;
+            if ($remaining > 0) {
+                $daysCharge = ($monthly * $remaining) / $prorateBase;
+                $total += $daysCharge;
+            }
+            $method = 'monthly';
+        }
+
+        $total = round($total, 2);
+
+        return [
+            'total' => $total,
+            'breakdown' => [
+                'months' => $months,
+                'remaining_days' => $remaining,
+                'month_charge' => round($monthCharge, 2),
+                'days_charge' => round($daysCharge, 2),
+            ],
+            'method' => $method,
+        ];
     }
 
     /**

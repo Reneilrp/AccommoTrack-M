@@ -346,16 +346,23 @@ export default function AddProperty({ onBack, onSave }) {
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Properties
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Add New Property</h1>
-            <p className="text-gray-600 mt-1">List your property to reach potential tenants</p>
+          <div className="grid grid-cols-3 items-center">
+            <div className="flex items-center">
+              <button
+                onClick={onBack}
+                className="flex items-center gap-2 text-green-600 hover:text-green-800"
+                aria-label="Back to Properties"
+              >
+                <ArrowLeft className="w-5 h-5 text-green-600" />
+                <span className="sr-only">Back to Properties</span>
+              </button>
+            </div>
+
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-gray-900">Add New Property</h1>
+            </div>
+
+            <div />
           </div>
         </div>
       </header>
@@ -826,7 +833,6 @@ export default function AddProperty({ onBack, onSave }) {
                   'No pets allowed',
                   'No visitors after 10 PM',
                   'Quiet hours: 10 PM - 6 AM',
-                  'No illegal activities',
                   'Keep common areas clean',
                   'Respect other tenants',
                   'No cooking in rooms'

@@ -5,6 +5,8 @@ import {
   Image,
   Upload,
   Loader2,
+  Edit,
+  Plus,
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -213,36 +215,11 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    // Create preview URLs for immediate display
-    const previewUrls = files.map(f => URL.createObjectURL(f));
+    // Store File objects so they can be uploaded when user saves
     setDormData(prev => ({
       ...prev,
-      images: [...prev.images, ...previewUrls]
+      images: [...(prev.images || []), ...files]
     }));
-
-    // Upload images to backend
-    try {
-      const formData = new FormData();
-      files.forEach((file, index) => {
-        formData.append(`images[${index}]`, file);
-      });
-
-      const token = localStorage.getItem('auth_token');
-      const response = await api.put(`/landlord/properties/${propertyId}`, formData, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        // Refresh property data to get updated image URLs
-        fetchPropertyDetails();
-      }
-    } catch (err) {
-      console.error('Error uploading images:', err);
-      setError('Failed to upload images');
-    }
   };
 
   const handleAddCustomAmenity = (amenity) => {
@@ -304,15 +281,77 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         current_status: dormData.status
       };
 
-      const response = await api.put(`/landlord/properties/${propertyId}`, updateData);
+      // If there are any new File objects in images, send multipart/form-data
+      const imageFiles = (dormData.images || []).filter((i) => i instanceof File);
+
+      let response;
+      if (imageFiles.length > 0) {
+        const fd = new FormData();
+
+        // Append updateData fields. Arrays should be appended as indexed entries.
+        Object.entries(updateData).forEach(([key, value]) => {
+          if (value === null || value === undefined) return;
+          if (Array.isArray(value)) {
+            value.forEach((v, idx) => {
+              fd.append(`${key}[${idx}]`, v);
+            });
+          } else {
+            fd.append(key, String(value));
+          }
+        });
+
+        // Append image files (only File instances). Use `images[]` keys so PHP
+        // receives them as an array of uploaded files. This avoids potential
+        // interpretation differences with indexed bracket keys.
+        imageFiles.forEach((file) => {
+          fd.append('images[]', file);
+        });
+
+        // Log form data entries for debugging (will print File objects too)
+        for (const entry of fd.entries()) {
+          console.log('FormData entry:', entry[0], entry[1]);
+        }
+
+        // Use POST with method override when sending multipart FormData because
+        // PHP (and therefore Laravel) doesn't populate $_FILES for PUT requests
+        // reliably. Append _method=PUT so Laravel treats this as an update.
+        fd.append('_method', 'PUT');
+        response = await api.post(`/landlord/properties/${propertyId}`, fd, {
+          headers: {
+            'Accept': 'application/json',
+            // Ensure we don't send an explicit Content-Type from our axios
+            // defaults. Setting it to `undefined` lets the browser add the
+            // proper multipart/form-data boundary so PHP can parse the files.
+            'Content-Type': undefined
+          }
+        });
+      } else {
+        response = await api.put(`/landlord/properties/${propertyId}`, updateData);
+      }
 
       alert('Property updated successfully!');
       setIsEditing(false);
       fetchPropertyDetails();
     } catch (err) {
       console.error('Error updating property:', err);
-      setError(err.message);
-      alert('Failed to update property: ' + err.message);
+      // If server responded with validation errors (Laravel returns 422),
+      // surface the messages to the user and log the full response for debugging.
+      if (err.response) {
+        const data = err.response.data || {};
+        console.error('Server response:', data);
+        let msg = data.message || 'Validation error';
+        if (data.errors && typeof data.errors === 'object') {
+          const fieldMsgs = Object.values(data.errors).flat().filter(Boolean);
+          if (fieldMsgs.length) {
+            msg = `${msg}: ${fieldMsgs.join(' ; ')}`;
+          }
+        }
+        setError(msg);
+        alert('Failed to update property: ' + msg);
+      } else {
+        setError(err.message || 'Failed to update property');
+        alert('Failed to update property: ' + (err.message || 'Unknown error'));
+      }
     } finally {
       setLoading(false);
     }
@@ -379,28 +418,35 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Properties
-          </button>
-          <div className="flex justify-between items-center">
-            <div>
+          <div className="grid grid-cols-3 items-center">
+            {/* Left: Back button */}
+            <div className="flex items-center">
+              <button
+                onClick={onBack}
+                className="flex items-center gap-2 text-green-600 hover:text-green-800"
+                aria-label="Back to Properties"
+              >
+                <ArrowLeft className="w-5 h-5 text-green-600" />
+                <span className="sr-only">Back to Properties</span>
+              </button>
+            </div>
+
+            {/* Center: Title */}
+            <div className="text-center">
               <h1 className="text-2xl font-bold text-gray-900">Property Profile & Settings</h1>
               <p className="text-sm text-gray-500 mt-1">Manage your property information</p>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Right: Actions */}
+            <div className="flex items-center justify-end gap-3">
               {isEditing && (
                 <>
                   <button
                     onClick={() => {
-                      // Navigate back first, then trigger delete
                       if (onDeleteRequested && dormData?.id) {
-                        onBack(); // Go back to properties list first
+                        onBack();
                         setTimeout(() => {
-                          onDeleteRequested(dormData.id); // Then trigger delete modal
+                          onDeleteRequested(dormData.id);
                         }, 100);
                       }
                     }}
@@ -423,7 +469,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   </button>
                 </>
               )}
-              {/* Show submit button when property is a draft and not currently editing */}
+
               {!isEditing && dormData?.status === 'draft' && (
                 <button
                   onClick={handleSubmitDraft}
@@ -433,13 +479,25 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   {loading ? 'Submitting...' : 'Submit for Approval'}
                 </button>
               )}
-              <button
-                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                disabled={loading}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Edit Profile'}
-              </button>
+
+              {isEditing ? (
+                <button
+                  onClick={() => handleSave()}
+                  disabled={loading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  disabled={loading}
+                  aria-label="Edit Property"
+                  className="w-10 h-10 bg-white text-green-600 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <Edit className="w-5 h-5 text-green-600" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -681,18 +739,12 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   {dormData.images.map((img, index) => (
                     <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
                       <img
-                        src={img}
+                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
                         alt={`Property ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           // Fallback if image fails to load
                           e.target.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
-                        }}
-                        onLoad={(e) => {
-                          // Revoke object URL if it's a preview
-                          if (img.startsWith('blob:')) {
-                            // Keep the preview until replaced by server URL
-                          }
                         }}
                       />
                       {isEditing && (
@@ -705,6 +757,11 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       )}
                     </div>
                   ))}
+                  {isEditing && dormData.images.length < 10 && (
+                    <label htmlFor="image-upload-edit" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
+                      <Plus className="w-8 h-8 text-gray-400" />
+                    </label>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">

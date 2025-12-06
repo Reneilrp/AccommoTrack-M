@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
 import { getImageUrl } from '../utils/api';
+import { useSidebar } from '../contexts/SidebarContext';
+import { useState } from 'react';
 
 export default function LandlordLayout({
   user,
@@ -10,7 +12,7 @@ export default function LandlordLayout({
   accessRole = 'landlord',
 }) {
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
 
@@ -120,9 +122,9 @@ export default function LandlordLayout({
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className={`bg-white border-r border-gray-200 transition-all duration-300 ${
+      <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white border-r border-gray-200 transition-all duration-300 ${
         isSidebarOpen ? 'w-64' : 'w-20'
-      } flex flex-col`}>
+      } flex flex-col min-h-0`}>
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
           {isSidebarOpen ? (
@@ -196,7 +198,7 @@ export default function LandlordLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 py-4">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
@@ -228,7 +230,7 @@ export default function LandlordLayout({
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 mt-auto">
           <button
             onClick={handleLogoutClick}
             className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors ${
@@ -244,7 +246,7 @@ export default function LandlordLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={`flex-1 overflow-y-auto transition-all ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
         {children}
       </main>
 

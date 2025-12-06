@@ -30,6 +30,7 @@ Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDe
 
 Route::get('/properties/{id}/view', [PropertyController::class, 'showForTenant']);
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
+Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 
 // ====================================

@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { SidebarProvider } from '../contexts/SidebarContext';
 import LandlordLayout from '../components/LandlordLayout';
 import AdminLayout from '../components/AdminLayout';
 
@@ -10,6 +11,8 @@ import Messages from '../components/Pages/Messages';
 import Analytics from '../components/Pages/Analytics';
 import Settings from '../components/Pages/Settings';
 import MyProperties from '../components/Pages/MyProperties';
+import PropertyDetailRoute from './PropertyDetailRoute';
+import PropertySummary from '../components/Pages/PropertySummary';
 
 import AdminDashboard from '../../admin/AdminDashboard.jsx';
 import UserManagement from '../../admin/UserManagement.jsx';
@@ -20,6 +23,7 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   // If user is admin, only show admin routes
   if (user?.role === 'admin') {
     return (
+      <SidebarProvider>
       <Routes>
         <Route
           path="/admin"
@@ -48,6 +52,7 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
         {/* Redirect any other route to admin dashboard */}
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
+      </SidebarProvider>
     );
   }
 
@@ -56,6 +61,7 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
     const caretakerHome = getDefaultLandingRoute(user);
 
     return (
+      <SidebarProvider>
       <LandlordLayout user={user} onLogout={onLogout} accessRole="caretaker">
         <Routes>
           <Route path="/" element={<Navigate to={caretakerHome} replace />} />
@@ -78,11 +84,13 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="*" element={<Navigate to={caretakerHome} replace />} />
         </Routes>
       </LandlordLayout>
+      </SidebarProvider>
     );
   }
 
   // Landlord routes
   return (
+    <SidebarProvider>
     <LandlordLayout
       user={user}
       onLogout={onLogout}
@@ -92,6 +100,8 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
         <Route path="/properties" element={<MyProperties user={user} />} />
+        <Route path="/properties/:id" element={<PropertySummary />} />
+        <Route path="/properties/:id/edit" element={<PropertyDetailRoute />} />
         <Route path="/rooms" element={<RoomManagement user={user} />} />
         <Route path="/tenants" element={<Tenants user={user} accessRole="landlord" />} />
         <Route path="/bookings" element={<Bookings user={user} accessRole="landlord" />} />
@@ -109,5 +119,6 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
         />
       </Routes>
     </LandlordLayout>
+    </SidebarProvider>
   );
 }

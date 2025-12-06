@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import api, { getImageUrl } from '../../utils/api';
 import AddRoomModal from './AddRoom';
+import RoomCard from '../Rooms/RoomCard';
+import RoomDetails from '../Rooms/RoomDetails';
 import {
   X,
   Plus,
@@ -18,6 +20,8 @@ export default function RoomManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
+  const [showRoomDetails, setShowRoomDetails] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [rooms, setRooms] = useState([]);
   const [stats, setStats] = useState({ total: 0, occupied: 0, available: 0, maintenance: 0 });
@@ -135,6 +139,11 @@ export default function RoomManagement() {
       roomNumber: room.room_number,
       price: room.monthly_rate,
       floor: room.floor_label
+      ,
+      dailyRate: room.daily_rate || '',
+      billingPolicy: room.billing_policy || 'monthly',
+      minStayDays: room.min_stay_days || '',
+      prorateBase: room.prorate_base || '30'
     });
     setShowEditModal(true);
     setError(null);
@@ -159,6 +168,11 @@ export default function RoomManagement() {
         room_type: roomTypeMap[selectedRoom.type] || 'single',
         floor: floorNumber,
         monthly_rate: parseFloat(selectedRoom.price),
+        // include optional short-stay pricing fields
+        daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
+        billing_policy: selectedRoom.billingPolicy || null,
+        min_stay_days: selectedRoom.minStayDays !== undefined && selectedRoom.minStayDays !== '' ? parseInt(selectedRoom.minStayDays) : null,
+        prorate_base: selectedRoom.prorateBase ? parseInt(selectedRoom.prorateBase) : null,
         capacity: parseInt(selectedRoom.capacity),
         status: selectedRoom.status,
         description: selectedRoom.description || null
@@ -419,197 +433,67 @@ export default function RoomManagement() {
           </div>
         </div>
 
-        {/* Rooms Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Rooms Grid (flex-wrap for 3-per-row) */}
+        <div className="flex flex-wrap -mx-2 gap-6">
           {loadingRooms ? (
             // SKELETON CARDS
             [...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse flex flex-col">
-                <div className="relative h-48 bg-gray-200"></div>
-                <div className="p-4 flex flex-col h-full">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+              <div key={i} className="w-full md:w-1/2 lg:w-1/3 px-2 mb-4">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse flex flex-col">
+                  <div className="relative h-48 bg-gray-200"></div>
+                  <div className="p-4 flex flex-col h-full">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-24"></div>
+                      </div>
+                      <div className="h-8 bg-gray-200 rounded w-20"></div>
                     </div>
-                    <div className="h-8 bg-gray-200 rounded w-20"></div>
-                  </div>
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="h-5 bg-gray-200 rounded w-16"></div>
-                  </div>
-                  <div className="flex gap-1 mb-3">
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
-                  </div>
-                  <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
-                    <div className="flex-1 h-10 bg-gray-200 rounded-lg"></div>
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="h-5 bg-gray-200 rounded w-16"></div>
+                    </div>
+                    <div className="flex gap-1 mb-3">
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                    </div>
+                    <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
+                      <div className="flex-1 h-10 bg-gray-200 rounded-lg"></div>
+                      <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                      <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                    </div>
                   </div>
                 </div>
               </div>
             ))
           ) : filteredRooms.length > 0 ? (
-              filteredRooms.map((room) => {
-                const imageUrl = room.images && room.images.length > 0 ? getImageUrl(room.images[0]) : null;
-
-                return (
-                <div
-                  key={room.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
-                >
-                  {/* Image + Status Badge */}
-                  <div className="relative h-48">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={room.room_number}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <Home className="w-16 h-16 text-gray-400" />
-                      </div>
-                    )}
-
-                    {/* Status Badge */}
-                    <span
-                      className={`absolute top-3 right-3 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider ${
-                        room.status === 'maintenance'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : room.occupied >= room.capacity
-                            ? 'bg-red-100 text-red-700'
-                            : room.occupied > 0
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-green-100 text-green-700'
-                      }`}
-                    >
-                      {room.status === 'maintenance' 
-                        ? 'Maintenance'
-                        : room.occupied >= room.capacity
-                          ? 'Full'
-                          : room.occupied > 0
-                            ? 'Partial'
-                            : 'Available'
-                      }
-                    </span>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-5 flex flex-col flex-1">
-                    {/* Room Info */}
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900">Room {room.room_number}</h3>
-                        <p className="text-sm text-gray-500">
-                          {room.type_label} • {room.floor_label}
-                        </p>
-                        <div className="mt-2">
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                            {room.pricing_model === 'per_bed' ? 'Per Bed' : (room.capacity > 1 ? 'Full Room (split)' : 'Full Room')}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xl font-bold text-green-600">
-                        ₱{room.monthly_rate.toLocaleString()}
-                        <span className="text-xs block text-gray-500">per month</span>
-                      </p>
-                    </div>
-
-                    {/* Capacity */}
-                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-3">
-                      <Users className="w-4 h-4" />
-                      <span>
-                        {room.occupied}/{room.capacity} {room.occupied === 1 ? 'Tenant' : 'Tenants'}
-                        {room.available_slots > 0 && (
-                          <span className="text-green-600 ml-1">
-                            ({room.available_slots} slot{room.available_slots === 1 ? '' : 's'} available)
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Current Tenant */}
-                    {room.tenant ? (
-                      <div className="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-200">
-                        <p className="text-xs text-gray-500">Current Tenant(s):</p>
-                        <p className="font-semibold text-gray-800">{room.tenant}</p>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 rounded-lg p-3 mb-3 border border-dashed border-gray-300 text-center">
-                        <p className="text-xs text-gray-500">No tenant assigned</p>
-                      </div>
-                    )}
-
-                    {/* Amenities */}
-                    {room.amenities && room.amenities.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {room.amenities.slice(0, 3).map((amenity, i) => (
-                          <span
-                            key={i}
-                            className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-200"
-                          >
-                            {amenity}
-                          </span>
-                        ))}
-                        {room.amenities.length > 3 && (
-                          <span className="text-xs text-gray-500 self-center">
-                            +{room.amenities.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
-                      {/* Status Dropdown */}
-                      <select
-                        value={room.status}
-                        onChange={(e) => handleStatusChange(room.id, e.target.value)}
-                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${room.status === 'occupied'
-                          ? 'bg-red-50 text-red-700 border-red-200'
-                          : room.status === 'available'
-                            ? 'bg-green-50 text-green-700 border-green-200'
-                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                          }`}
-                      >
-                        <option value="available">Available</option>
-                        <option value="occupied">Occupied</option>
-                        <option value="maintenance">Maintenance</option>
-                      </select>
-
-                      {/* Edit Button */}
-                      <button
-                        onClick={() => handleEditRoom(room)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit Room"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-
-                      {/* Delete Button */}
-                      {/* Delete intentionally moved to Edit modal for safer UX */}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredRooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    className="h-full"
+                    room={room}
+                    onEdit={handleEditRoom}
+                    onClick={() => { setSelectedRoomDetails(room); setShowRoomDetails(true); }}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
           ) : (
-            <div className="col-span-full text-center py-12">
-              <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by adding a new room.</p>
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                >
-                  <Plus className="-ml-1 mr-2 h-5 w-5" />
-                  Add Room
-                </button>
+            <div className="w-full px-2">
+              <div className="text-center py-12">
+                <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
+                <p className="mt-1 text-sm text-gray-500">Get started by adding a new room.</p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus className="-ml-1 mr-2 h-5 w-5" />
+                    Add Room
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -631,8 +515,17 @@ export default function RoomManagement() {
       {showEditModal && selectedRoom && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 flex items-start justify-between">
               <h2 className="text-xl font-bold text-gray-900">Edit Room {selectedRoom.roomNumber}</h2>
+              <button
+                onClick={() => { setShowEditModal(false); setSelectedRoom(null); setError(null); }}
+                className="p-2 rounded-md hover:bg-gray-100"
+                aria-label="Close edit"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
 
             {error && (
@@ -705,6 +598,58 @@ export default function RoomManagement() {
                 />
               </div>
 
+              {/* Short-stay / Daily pricing for edit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate (₱/day)</label>
+                  <input
+                    type="number"
+                    value={selectedRoom.dailyRate || ''}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
+                  <select
+                    value={selectedRoom.billingPolicy || 'monthly'}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, billingPolicy: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="monthly">Monthly Rate</option>
+                    <option value="monthly_with_daily">Monthly + Daily</option>
+                    <option value="daily">Daily Rate</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Min Stay Days (optional)</label>
+                  <input
+                    type="number"
+                    value={selectedRoom.minStayDays || ''}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, minStayDays: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prorate Base (days)</label>
+                  <input
+                    type="number"
+                    value={selectedRoom.prorateBase || '30'}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, prorateBase: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    min="1"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select
@@ -762,6 +707,13 @@ export default function RoomManagement() {
           </div>
         </div>
       )}
+
+      {/* Room Details Modal */}
+      <RoomDetails
+        room={selectedRoomDetails}
+        isOpen={showRoomDetails}
+        onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
+      />
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmModal.show && deleteConfirmModal.room && (

@@ -6,7 +6,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../services/BookingServices.js';
 
-const API_BASE_URL = 'http://10.221.1.156:8000';
+const API_BASE_URL = 'http://192.168.254.106:8000';
 
 export default function MyBookings() {
   const navigation = useNavigation();
