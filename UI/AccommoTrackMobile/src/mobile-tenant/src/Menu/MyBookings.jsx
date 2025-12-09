@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../services/BookingServices.js';
+import { Alert } from 'react-native';
 
 const API_BASE_URL = 'http://192.168.254.106:8000';
 
@@ -46,6 +47,18 @@ export default function MyBookings() {
           }
           const location = locationParts.length > 0 ? locationParts.join(', ') : 'Location not available';
 
+          // Derive room label from common shapes/relations
+          const roomCandidates = [
+            booking.room && (booking.room.number || booking.room.name),
+            booking.room_number,
+            booking.roomName,
+            booking.room_no,
+            booking.room_label,
+            // fallback to first room in rooms array
+            booking.rooms && booking.rooms[0] && (booking.rooms[0].number || booking.rooms[0].name)
+          ];
+          const roomLabel = roomCandidates.find(r => r !== undefined && r !== null && r !== '') || null;
+
           // Format dates
           const checkIn = booking.checkIn ? new Date(booking.checkIn).toLocaleDateString('en-US', { 
             year: 'numeric', 
@@ -73,6 +86,7 @@ export default function MyBookings() {
             name: booking.propertyTitle || 'Unknown Property',
             image: imageUri,
             location: location,
+            roomLabel,
             checkIn: checkIn,
             checkOut: checkOut,
             price: booking.monthlyRent || booking.amount || 0,
@@ -106,6 +120,31 @@ export default function MyBookings() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchBookings();
+  };
+
+  const handleCancel = (bookingId) => {
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking?',
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes, Cancel', onPress: async () => {
+            try {
+              const res = await BookingService.cancelBooking(bookingId);
+              if (res.success) {
+                // refresh list
+                fetchBookings();
+              } else {
+                Alert.alert('Failed', res.error || 'Failed to cancel booking');
+              }
+            } catch (err) {
+              console.error('Cancel error', err);
+              Alert.alert('Error', 'Failed to cancel booking');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const getStatusColor = (status) => {
@@ -160,6 +199,12 @@ export default function MyBookings() {
                   <Ionicons name="location-outline" size={16} color="#6B7280" />
                   <Text style={styles.locationText}>{booking.location}</Text>
                 </View>
+                {booking.roomLabel ? (
+                  <View style={styles.locationRow}>
+                    <Ionicons name="bed-outline" size={16} color="#6B7280" />
+                    <Text style={styles.locationText}>Room {booking.roomLabel}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.dateRow}>
                   <View style={styles.dateItemLeft}>
                     <Text style={styles.dateLabel}>Check-in</Text>
@@ -189,6 +234,17 @@ export default function MyBookings() {
                        booking.paymentStatus === 'partial' ? 'Partial Paid' : 
                        booking.paymentStatus === 'refunded' ? 'Refunded' : 'Unpaid'}
                     </Text>
+                  </View>
+                )}
+                {/* Cancel button for pending or confirmed bookings */}
+                {(booking.statusRaw === 'pending' || booking.statusRaw === 'confirmed') && (
+                  <View style={styles.cancelContainer}>
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={() => handleCancel(booking.id)}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>

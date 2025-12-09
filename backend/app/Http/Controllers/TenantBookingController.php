@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Booking;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Models\TenantProfile;
+use App\Models\Room;
 
 class TenantBookingController extends Controller
 {
@@ -78,6 +82,62 @@ class TenantBookingController extends Controller
     }
 
     /**
+     * Allow tenant to cancel their own booking.
+     * PATCH /api/tenant/bookings/{id}/cancel
+     * Body: { cancellation_reason?: string }
+     */
+    public function cancel(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            $booking = Booking::with(['room', 'tenant.tenantProfile'])
+                ->where('tenant_id', Auth::id())
+                ->findOrFail($id);
+
+            // Only allow cancellation for non-completed bookings
+            if (in_array($booking->status, ['completed', 'partial-completed', 'cancelled'])) {
+                return response()->json(['message' => 'Cannot cancel this booking'], 422);
+            }
+
+            $booking->status = 'cancelled';
+            $booking->cancelled_at = now();
+            $booking->cancellation_reason = $request->input('cancellation_reason');
+
+            // If tenant was already assigned to room, remove them
+            if ($booking->room) {
+                try {
+                    $booking->room->removeTenant($booking->tenant_id);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to remove tenant from room during tenant cancellation', ['err' => $e->getMessage()]);
+                }
+                // update property availability
+                try { $booking->room->property->updateAvailableRooms(); } catch (\Exception $e) {}
+            }
+
+            // Update tenant profile if exists
+            $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                ->where('booking_id', $booking->id)
+                ->first();
+
+            if ($tenantProfile) {
+                $tenantProfile->update([
+                    'status' => 'inactive',
+                    'move_out_date' => now()->format('Y-m-d')
+                ]);
+            }
+
+            $booking->save();
+            DB::commit();
+
+            return response()->json(['message' => 'Booking cancelled', 'booking' => $booking], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Tenant cancel booking failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'Failed to cancel booking', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Get single booking details
      */
     public function show($id)
@@ -93,6 +153,54 @@ class TenantBookingController extends Controller
                 'message' => 'Booking not found',
                 'error' => $e->getMessage()
             ], 404);
+        }
+    }
+
+    /**
+     * Tenant: create an invoice for this booking (on-demand)
+     * POST /api/tenant/bookings/{id}/invoice
+     */
+    public function createInvoice(Request $request, $id)
+    {
+        try {
+            $booking = Booking::with(['room', 'property'])
+                ->where('tenant_id', Auth::id())
+                ->findOrFail($id);
+
+            // Only allow invoice creation for confirmed bookings
+            if ($booking->status !== 'confirmed') {
+                return response()->json(['message' => 'Invoice can only be created for confirmed bookings'], 422);
+            }
+
+            // If an invoice already exists for this booking, return it
+            $existing = \App\Models\Invoice::where('booking_id', $booking->id)->first();
+            if ($existing) {
+                return response()->json(['success' => true, 'data' => $existing], 200);
+            }
+
+            // Create a basic invoice using booking total_amount
+            $amountCents = (int) round(($booking->total_amount ?? ($booking->monthly_rent * $booking->total_months)) * 100);
+
+            $reference = 'INV-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)),0,6));
+
+            $invoice = \App\Models\Invoice::create([
+                'reference' => $reference,
+                'landlord_id' => $booking->landlord_id,
+                'property_id' => $booking->property_id,
+                'booking_id' => $booking->id,
+                'tenant_id' => $booking->tenant_id,
+                'description' => 'Invoice for booking ' . $booking->booking_reference,
+                'amount_cents' => $amountCents,
+                'currency' => 'PHP',
+                'status' => 'pending',
+                'issued_at' => now(),
+            ]);
+
+            return response()->json(['success' => true, 'data' => $invoice], 201);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Booking not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to create invoice', 'error' => $e->getMessage()], 500);
         }
     }
 }

@@ -129,6 +129,123 @@ class PaymentService {
       };
     }
   }
+
+  /**
+   * Create a PayMongo source (redirect/QR) for an invoice
+   */
+  async createPaymongoSource(invoiceId, method = 'gcash', returnUrl = null) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const payload = { method };
+      if (returnUrl) payload.return_url = returnUrl;
+
+      const response = await axios.post(
+        `${API_URL}/tenant/invoices/${invoiceId}/paymongo-source`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      // Provide more diagnostic details so mobile UI can display the server response
+      console.error('Error creating paymongo source:', error.response?.data || error.message);
+      const serverBody = error.response?.data;
+      let errMsg = 'Failed to create source';
+      if (serverBody) {
+        // try to extract useful fields
+        errMsg = serverBody.message || serverBody.error || JSON.stringify(serverBody);
+      } else if (error.message) {
+        errMsg = error.message;
+      }
+      return { success: false, error: errMsg, raw: serverBody || null };
+    }
+  }
+
+  /**
+   * Create a PayMongo payment (using client-side payment_method_id or source_id)
+   */
+  async createPaymongoPayment(invoiceId, data = {}) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.post(
+        `${API_URL}/tenant/invoices/${invoiceId}/paymongo-pay`,
+        data,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error creating paymongo payment:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to create payment' };
+    }
+  }
+
+  /**
+   * Record an offline payment request (tenant -> landlord) for an invoice
+   */
+  async createOfflineRecord(invoiceId, data = {}) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.post(
+        `${API_URL}/tenant/invoices/${invoiceId}/record-offline`,
+        data,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error recording offline payment:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to record offline payment' };
+    }
+  }
+
+  /**
+   * Ask the backend to query PayMongo for the invoice's gateway reference and update status.
+   * Useful when testing locally without a public webhook.
+   */
+  async refreshInvoice(invoiceId) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.post(
+        `${API_URL}/tenant/invoices/${invoiceId}/paymongo-refresh`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error refreshing invoice status:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to refresh invoice status' };
+    }
+  }
 }
 
 export default new PaymentService();

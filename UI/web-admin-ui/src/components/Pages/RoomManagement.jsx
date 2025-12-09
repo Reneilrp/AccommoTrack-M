@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import AddRoomModal from './AddRoom';
 import RoomCard from '../Rooms/RoomCard';
@@ -6,6 +7,7 @@ import RoomDetails from '../Rooms/RoomDetails';
 import {
   X,
   Plus,
+  ArrowLeft,
   Building2,
   Home,
   Users,
@@ -27,6 +29,17 @@ export default function RoomManagement() {
   const [stats, setStats] = useState({ total: 0, occupied: 0, available: 0, maintenance: 0 });
   const [properties, setProperties] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+  const [isFromProperty, setIsFromProperty] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleBackClick = () => {
+    if (isFromProperty && selectedPropertyId) {
+      navigate(`/properties/${selectedPropertyId}`);
+    } else {
+      navigate(-1);
+    }
+  };
   const [error, setError] = useState(null);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -47,13 +60,28 @@ export default function RoomManagement() {
   // Load properties (once)
   useEffect(() => {
     const loadInitialData = async () => {
+      // parse query param first so we can hide the dropdown immediately when present
+      const params = new URLSearchParams(location.search || '');
+      const incomingPropertyId = params.get('property') ? Number(params.get('property')) : null;
+
+      if (incomingPropertyId) {
+        setSelectedPropertyId(incomingPropertyId);
+        setIsFromProperty(true);
+      }
+
       try {
         setLoadingProperties(true);
         const res = await api.get('/properties/accessible');
         const data = res.data;
         setProperties(data);
-        if (data.length > 0) {
-          setSelectedPropertyId(data[0].id);
+
+        // If we didn't have an incoming param, pick the first accessible property
+        if (!incomingPropertyId) {
+          if (data.length > 0) setSelectedPropertyId(data[0].id);
+        } else {
+          // If incoming param exists but is not in accessible list, keep it as selectedPropertyId
+          // (we already set it above) — this allows the page to remain property-scoped even if
+          // the accessible list doesn't include it immediately.
         }
       } catch (err) {
         setError('Failed to load properties');
@@ -63,7 +91,7 @@ export default function RoomManagement() {
     };
 
     loadInitialData();
-  }, []);
+  }, [location.search]);
 
   // Load rooms and stats when property changes
   useEffect(() => {
@@ -138,12 +166,9 @@ export default function RoomManagement() {
       type: room.type_label,
       roomNumber: room.room_number,
       price: room.monthly_rate,
-      floor: room.floor_label
-      ,
+      floor: room.floor_label,
       dailyRate: room.daily_rate || '',
-      billingPolicy: room.billing_policy || 'monthly',
-      minStayDays: room.min_stay_days || '',
-      prorateBase: room.prorate_base || '30'
+      billingPolicy: room.billing_policy || 'monthly'
     });
     setShowEditModal(true);
     setError(null);
@@ -171,8 +196,7 @@ export default function RoomManagement() {
         // include optional short-stay pricing fields
         daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
         billing_policy: selectedRoom.billingPolicy || null,
-        min_stay_days: selectedRoom.minStayDays !== undefined && selectedRoom.minStayDays !== '' ? parseInt(selectedRoom.minStayDays) : null,
-        prorate_base: selectedRoom.prorateBase ? parseInt(selectedRoom.prorateBase) : null,
+        // min_stay_days and prorate_base removed from frontend per UX decision
         capacity: parseInt(selectedRoom.capacity),
         status: selectedRoom.status,
         description: selectedRoom.description || null
@@ -286,14 +310,27 @@ export default function RoomManagement() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage all rooms in your properties</p>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
+          {/* absolute back arrow - upper-left */}
+          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+            <button
+              onClick={handleBackClick}
+              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              aria-label="Back to property"
+            >
+              <ArrowLeft className="w-5 h-5 text-green-600" />
+            </button>
+          </div>
 
-            <div className="flex items-center gap-4">
+          {/* centered title and subtitle */}
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
+            <h3 className="text-sm text-gray-600 mt-1">Manage all rooms in your properties</h3>
+          </div>
+
+          {/* right-side actions */}
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
+            {!isFromProperty && (
               <select
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 value={selectedPropertyId || ''}
@@ -310,15 +347,15 @@ export default function RoomManagement() {
                   ))
                 )}
               </select>
+            )}
 
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Add Room
-              </button>
-            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Add Room</span>
+            </button>
           </div>
         </div>
       </header>
@@ -433,14 +470,14 @@ export default function RoomManagement() {
           </div>
         </div>
 
-        {/* Rooms Grid (flex-wrap for 3-per-row) */}
-        <div className="flex flex-wrap -mx-2 gap-6">
+        {/* Rooms Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loadingRooms ? (
-            // SKELETON CARDS
+            // SKELETON CARDS (same size as RoomCard)
             [...Array(3)].map((_, i) => (
-              <div key={i} className="w-full md:w-1/2 lg:w-1/3 px-2 mb-4">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse flex flex-col">
-                  <div className="relative h-48 bg-gray-200"></div>
+              <div key={i} className="h-full">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse flex flex-col h-full">
+                  <div className="relative h-48 bg-gray-200" />
                   <div className="p-4 flex flex-col h-full">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -467,21 +504,19 @@ export default function RoomManagement() {
               </div>
             ))
           ) : filteredRooms.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRooms.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    className="h-full"
-                    room={room}
-                    onEdit={handleEditRoom}
-                    onClick={() => { setSelectedRoomDetails(room); setShowRoomDetails(true); }}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
+            filteredRooms.map((room) => (
+              <RoomCard
+                key={room.id}
+                className="h-full"
+                room={room}
+                onEdit={handleEditRoom}
+                onClick={() => { setSelectedRoomDetails(room); setShowRoomDetails(true); }}
+                onStatusChange={handleStatusChange}
+              />
+            ))
           ) : (
-            <div className="w-full px-2">
-              <div className="text-center py-12">
+            <div className="col-span-full px-2">
+              <div className="text-center py-12 mx-auto max-w-xl">
                 <Building2 className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
                 <p className="mt-1 text-sm text-gray-500">Get started by adding a new room.</p>
@@ -626,29 +661,7 @@ export default function RoomManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Min Stay Days (optional)</label>
-                  <input
-                    type="number"
-                    value={selectedRoom.minStayDays || ''}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, minStayDays: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    min="1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prorate Base (days)</label>
-                  <input
-                    type="number"
-                    value={selectedRoom.prorateBase || '30'}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, prorateBase: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    min="1"
-                  />
-                </div>
-              </div>
+              {/* Short-stay options simplified: billing policy and daily rate are handled above. */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
@@ -713,6 +726,35 @@ export default function RoomManagement() {
         room={selectedRoomDetails}
         isOpen={showRoomDetails}
         onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
+        onExtend={async ({ roomId, days, months, tenantId }) => {
+          if (!roomId) return;
+          try {
+            // prefer days if provided, otherwise months
+            const payload = {};
+            if (days) payload.days = days;
+            if (months) payload.months = months;
+            if (tenantId) payload.tenant_id = tenantId;
+            // call backend API - endpoint should be implemented server-side
+            await api.post(`/rooms/${roomId}/extend`, payload);
+
+            // refresh rooms list
+            await fetchRooms();
+
+            // fetch the updated room details so the modal reflects new stays immediately
+            try {
+              const res = await api.get(`/rooms/${roomId}`);
+              setSelectedRoomDetails(res.data);
+            } catch (fetchErr) {
+              // Non-fatal: if fetching details fails, we still refreshed rooms above
+              console.warn('Failed to fetch updated room details', fetchErr);
+            }
+
+          } catch (err) {
+            console.error('Failed to extend stay', err);
+            setError(err.response?.data?.message || err.message || 'Failed to extend stay');
+            throw err;
+          }
+        }}
       />
 
       {/* Delete Confirmation Modal */}

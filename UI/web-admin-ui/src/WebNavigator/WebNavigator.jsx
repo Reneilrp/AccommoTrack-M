@@ -6,7 +6,9 @@ import AdminLayout from '../components/AdminLayout';
 import DashboardPage from '../components/Pages/DashboardPage';
 import RoomManagement from '../components/Pages/RoomManagement';
 import Tenants from '../components/Pages/TenantManagement';
+import TenantLogs from '../components/Pages/TenantLogs';
 import Bookings from '../components/Pages/Bookings';
+import Payments from '../components/Pages/Payments';
 import Messages from '../components/Pages/Messages';
 import Analytics from '../components/Pages/Analytics';
 import Settings from '../components/Pages/Settings';
@@ -103,6 +105,9 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
         <Route path="/properties/:id" element={<PropertySummary />} />
         <Route path="/properties/:id/edit" element={<PropertyDetailRoute />} />
         <Route path="/rooms" element={<RoomManagement user={user} />} />
+        <Route path="/tenants/:id" element={<TenantLogs user={user} />} />
+        <Route path="/tenants/logs" element={<TenantLogs user={user} />} />
+        <Route path="/payments" element={<Payments user={user} />} />
         <Route path="/tenants" element={<Tenants user={user} accessRole="landlord" />} />
         <Route path="/bookings" element={<Bookings user={user} accessRole="landlord" />} />
         <Route path="/messages" element={<Messages user={user} accessRole="landlord" />} />

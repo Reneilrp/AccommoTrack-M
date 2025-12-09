@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import api from '../../utils/api';
+import toast from 'react-hot-toast';
 
 export default function Messages({ user, accessRole = 'landlord' }) {
   const [conversations, setConversations] = useState([]);
@@ -35,7 +36,7 @@ export default function Messages({ user, accessRole = 'landlord' }) {
 
   const readOnlyGuard = useCallback(() => {
     if (canSendMessages) return false;
-    alert('Caretaker access for messages is currently view-only.');
+    toast.error('Caretaker access for messages is currently view-only.');
     return true;
   }, [canSendMessages]);
 

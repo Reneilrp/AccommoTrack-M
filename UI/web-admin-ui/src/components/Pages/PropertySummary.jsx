@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
-import { Building2, MapPin, ArrowLeft, ArrowRight, Edit, Users } from 'lucide-react';
+import { Building2, List, ArrowLeft, ArrowRight, Edit, Users, MapPin, Loader2 } from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
+import PropertyActivityLogs from './PropertyActivityLogs';
 import { useSidebar } from '../../contexts/SidebarContext';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -93,7 +94,8 @@ export default function PropertySummary() {
   const prev = () => setIdx((s) => (s - 1 + images.length) % images.length);
   const next = () => setIdx((s) => (s + 1) % images.length);
   const goToEdit = () => navigate(`/properties/${id}/edit`);
-  const { open, setIsSidebarOpen } = useSidebar();
+  const { open, setIsSidebarOpen, collapse } = useSidebar();
+  const [showActivityLogs, setShowActivityLogs] = useState(false);
 
   // Swiper's autoplay handles automatic advancement and pause-on-hover.
 
@@ -107,11 +109,16 @@ export default function PropertySummary() {
     navigate('/properties');
   };
 
+  // Ensure sidebar is collapsed when landing on a property detail page (including on refresh)
+  useEffect(() => {
+    if (collapse) collapse().catch(() => {});
+  }, [collapse]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Building2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading property...</p>
         </div>
       </div>
@@ -178,9 +185,28 @@ export default function PropertySummary() {
           {/* right: tenants icon (edit moved into details card) */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             <button
+              onClick={() => setShowActivityLogs(true)}
+              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              title="Activity logs"
+              aria-label="Activity logs"
+            >
+              <List className="w-5 h-5 text-green-600" />
+            </button>
+
+            <button
+              onClick={() => navigate(`/rooms?property=${id}`)}
+              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              title="Room management"
+              aria-label="Room management"
+            >
+              <Building2 className="w-5 h-5 text-green-600" />
+            </button>
+
+            <button
               onClick={() => navigate(`/tenants?property=${id}`)}
               className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
               title="View tenants"
+              aria-label="View tenants"
             >
               <Users className="w-5 h-5 text-green-600" />
             </button>
@@ -190,8 +216,8 @@ export default function PropertySummary() {
       {/* Two-column layout: gallery left (50%), details right (50%) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 relative">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 text-center">Property Details & Information</h2>
+          <div className="mb-4 text-center">
+            <h2 className="text-lg font-semibold text-gray-900">Property Details & Information</h2>
           </div>
 
           {/* Edit button moved here (upper-right of the details card) */}
@@ -203,9 +229,9 @@ export default function PropertySummary() {
           >
             <Edit className="w-5 h-5 text-green-600" />
           </button>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 m-2">
           {/* Left: Gallery */}
-          <div className="w-full">
+          <div className="w-full p-8">
             <div className="relative w-full">
               <div ref={galleryRef} className="relative bg-gray-100 rounded-xl overflow-hidden">
                 <div className="w-full relative">
@@ -364,18 +390,16 @@ export default function PropertySummary() {
 
         {/* Room Management section below spanning both columns */}
         <div className="mt-8">
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 text-center">Room Management</h2>
-              <div>
-                <button
-                  onClick={() => navigate('/rooms')}
-                  className="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
-                >
-                  View more Rooms
-                </button>
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 relative">
+              <div className="mb-4 text-center">
+                <h2 className="text-xl font-semibold text-gray-900">Room Management</h2>
               </div>
-            </div>
+              <button
+                onClick={() => navigate(`/rooms?property=${id}`)}
+                className="absolute top-4 right-4 px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
+              >
+                View more Rooms
+              </button>
 
             {roomsLoading ? (
               <p className="text-sm text-gray-500">Loading rooms...</p>
@@ -400,7 +424,24 @@ export default function PropertySummary() {
           room={selectedRoomDetails}
           isOpen={showRoomDetails}
           onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
+          onExtend={async ({ roomId, days, months }) => {
+            if (!roomId) return;
+            try {
+              const payload = {};
+              if (days) payload.days = days;
+              if (months) payload.months = months;
+              await api.post(`/rooms/${roomId}/extend`, payload);
+              // refresh rooms list on this property summary
+              const res = await api.get(`/rooms/property/${id}`);
+              setRooms(res.data || []);
+            } catch (err) {
+              console.error('Failed to extend stay', err);
+              setError(err.response?.data?.message || err.message || 'Failed to extend stay');
+              throw err;
+            }
+          }}
         />
+        <PropertyActivityLogs propertyId={id} propertyTitle={property?.title} isOpen={showActivityLogs} onClose={() => setShowActivityLogs(false)} />
       </div>
     </div>
   );

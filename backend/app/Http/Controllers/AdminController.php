@@ -326,7 +326,7 @@ class AdminController extends Controller
             $activities[] = [
                 'type' => 'user',
                 'title' => 'New User Registration',
-                'description' => "{$user->first_name} {$user->last_name} registered as {$user->role}",
+                'description' => $user->first_name . ' ' . $user->last_name . ' registered as ' . $user->role,
                 'timestamp' => $user->created_at->toISOString(),
                 'badge' => ucfirst($user->role),
             ];
@@ -344,7 +344,7 @@ class AdminController extends Controller
             $activities[] = [
                 'type' => $statusType,
                 'title' => $property->current_status === 'pending' ? 'Property Submitted' : ($property->current_status === 'active' ? 'Property Approved' : 'Property Rejected'),
-                'description' => "{$property->title} by {$property->landlord->first_name} {$property->landlord->last_name}",
+                'description' => $property->title . ' by ' . $property->landlord->first_name . ' ' . $property->landlord->last_name,
                 'timestamp' => $property->created_at->toISOString(),
                 'badge' => ucfirst($property->current_status),
             ];

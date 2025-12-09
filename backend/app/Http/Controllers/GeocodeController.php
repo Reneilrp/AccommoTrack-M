@@ -18,7 +18,7 @@ class GeocodeController extends Controller
         }
 
         try {
-            $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat={$lat}&lon={$lon}&addressdetails=1";
+            $url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' . urlencode($lat) . '&lon=' . urlencode($lon) . '&addressdetails=1';
             
             // Disable SSL verification only in local development
             $httpOptions = app()->environment('local') 

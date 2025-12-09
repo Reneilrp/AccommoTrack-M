@@ -135,9 +135,10 @@ class DashboardController extends Controller
                 ->map(function ($booking) {
                     return [
                         'id' => $booking->id,
+                        'property_id' => $booking->property->id,
                         'type' => 'booking',
                         'action' => 'New booking request',
-                        'description' => "{$booking->tenant->first_name} {$booking->tenant->last_name} requested to book {$booking->property->title} - Room {$booking->room->room_number}",
+                        'description' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name . ' requested to book ' . $booking->property->title . ' - Room ' . $booking->room->room_number,
                         'status' => $booking->status,
                         'timestamp' => $booking->created_at,
                         'icon' => 'calendar',
@@ -155,15 +156,16 @@ class DashboardController extends Controller
             ->limit(5)
             ->get()
             ->map(function ($room) {
-                $description = "Room {$room->room_number} in {$room->property->title} ";
+                $description = 'Room ' . $room->room_number . ' in ' . $room->property->title . ' ';
                 if ($room->status === 'occupied' && $room->currentTenant) {
-                    $description .= "occupied by {$room->currentTenant->first_name} {$room->currentTenant->last_name}";
+                    $description .= 'occupied by ' . $room->currentTenant->first_name . ' ' . $room->currentTenant->last_name;
                 } else {
-                    $description .= "marked as {$room->status}";
+                    $description .= 'marked as ' . $room->status;
                 }
 
                 return [
                     'id' => $room->id,
+                    'property_id' => $room->property->id,
                     'type' => 'room',
                     'action' => 'Room status updated',
                     'description' => $description,
@@ -174,11 +176,121 @@ class DashboardController extends Controller
                 ];
             });
 
-            // Merge and sort activities
+            // Recent Room Creations (Last 5 days) - show when a new room was added
+            $recentRoomCreates = Room::whereHas('property', function ($query) use ($landlordId) {
+                $query->where('landlord_id', $landlordId);
+            })
+            ->where('created_at', '>=', now()->subDays(5))
+            ->with(['property'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($room) {
+                $actor = auth()->user();
+                $actorName = $actor ? trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')) : 'System';
+                return [
+                    'id' => $room->id,
+                    'property_id' => $room->property->id,
+                    'type' => 'room',
+                    'action' => 'Room created',
+                    'description' => 'Room ' . $room->room_number . ' added to ' . $room->property->title,
+                    'status' => $room->status,
+                    'timestamp' => $room->created_at,
+                    'icon' => 'plus',
+                    'color' => 'green',
+                    'by' => $actorName,
+                ];
+            });
+
+            // Recent Property Updates (Dorm profile settings changed)
+            $recentPropertyUpdates = Property::where('landlord_id', $landlordId)
+                ->where('updated_at', '>=', now()->subDays(5))
+                ->orderBy('updated_at', 'desc')
+                ->limit(5)
+                ->get()
+                ->map(function ($property) {
+                    $actor = auth()->user();
+                    $actorName = $actor ? trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')) : 'System';
+                    return [
+                        'id' => 'property-' . $property->id . '-' . strtotime($property->updated_at),
+                        'property_id' => $property->id,
+                        'type' => 'property',
+                        'action' => 'Dorm profile updated',
+                        'description' => 'Profile settings updated for ' . $property->title,
+                        'status' => null,
+                        'timestamp' => $property->updated_at,
+                        'icon' => 'settings',
+                        'color' => 'blue',
+                        'by' => $actorName,
+                    ];
+                });
+
+            // Recent Invoice updates (e.g., due date changed)
+            $recentInvoiceUpdates = \App\Models\Invoice::where('landlord_id', $landlordId)
+                ->where('updated_at', '>=', now()->subDays(5))
+                ->with('property')
+                ->orderBy('updated_at', 'desc')
+                ->limit(8)
+                ->get()
+                ->map(function ($invoice) {
+                    $actor = auth()->user();
+                    $actorName = $actor ? trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')) : 'System';
+                    $desc = 'Invoice ' . ($invoice->reference ?? $invoice->id) . ' updated for ' . ($invoice->property?->title ?? 'property');
+                    if ($invoice->due_date) {
+                        $desc .= ' — due ' . $invoice->due_date->format('Y-m-d');
+                    }
+                    return [
+                        'id' => 'invoice-' . $invoice->id,
+                        'property_id' => $invoice->property?->id ?? null,
+                        'type' => 'invoice',
+                        'action' => 'Invoice updated',
+                        'description' => $desc,
+                        'status' => $invoice->status ?? null,
+                        'timestamp' => $invoice->updated_at,
+                        'icon' => 'file-text',
+                        'color' => 'purple',
+                        'by' => $actorName,
+                    ];
+                });
+
+            // Recent Payment Transactions (payments recorded/received)
+            $recentPayments = \App\Models\PaymentTransaction::whereHas('invoice', function ($q) use ($landlordId) {
+                    $q->where('landlord_id', $landlordId);
+                })
+                ->with(['invoice','tenant'])
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+                ->map(function ($tx) {
+                    $invoice = $tx->invoice;
+                    $propertyId = $invoice->property_id ?? null;
+                    $actorName = $tx->tenant ? trim(($tx->tenant->first_name ?? '') . ' ' . ($tx->tenant->last_name ?? '')) : 'Tenant';
+                    $action = in_array($tx->status, ['succeeded', 'completed']) ? 'Payment received' : 'Payment recorded';
+                    $color = $tx->status === 'succeeded' ? 'green' : ($tx->status === 'pending_offline' ? 'yellow' : 'gray');
+                    return [
+                        'id' => 'tx-' . $tx->id,
+                        'property_id' => $propertyId,
+                        'type' => 'payment',
+                        'action' => $action,
+                        'description' => ($actorName) . ' paid ' . number_format(($tx->amount_cents / 100), 2) . ' ' . ($tx->currency ?? 'PHP') . ' for ' . ($invoice->reference ?? 'invoice'),
+                        'status' => $tx->status,
+                        'timestamp' => $tx->created_at,
+                        'icon' => 'credit-card',
+                        'color' => $color,
+                        'by' => $actorName,
+                    ];
+                });
+
+            // Merge recent collections: bookings, room changes, room creations,
+            // property updates, invoice updates, and payments; sort by timestamp
             $activities = collect($recentBookings)
                 ->merge($recentRoomChanges)
+                ->merge($recentRoomCreates)
+                ->merge($recentPropertyUpdates)
+                ->merge($recentInvoiceUpdates)
+                ->merge($recentPayments)
                 ->sortByDesc('timestamp')
-                ->take(10)
+                ->take(20)
                 ->values();
 
             return response()->json($activities, 200);
@@ -210,7 +322,7 @@ class DashboardController extends Controller
                     
                     return [
                         'id' => $booking->id,
-                        'tenantName' => "{$booking->tenant->first_name} {$booking->tenant->last_name}",
+                        'tenantName' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name,
                         'propertyTitle' => $booking->property->title,
                         'roomNumber' => $booking->room->room_number,
                         'endDate' => $booking->end_date->format('Y-m-d'),
@@ -231,7 +343,7 @@ class DashboardController extends Controller
                 ->map(function ($booking) {
                     return [
                         'id' => $booking->id,
-                        'tenantName' => "{$booking->tenant->first_name} {$booking->tenant->last_name}",
+                        'tenantName' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name,
                         'propertyTitle' => $booking->property->title,
                         'roomNumber' => $booking->room->room_number,
                         'dueDate' => $booking->start_date->format('Y-m-d'),

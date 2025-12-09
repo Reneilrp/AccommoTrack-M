@@ -2,34 +2,39 @@ import { useState } from 'react';
 import {
   X,
   Upload,
-  Trash2,
   Plus,
   Loader2,
-  ArrowLeft,
-  ArrowRight,
-  Star,
-  Edit2,
   HelpCircle
 } from 'lucide-react';
 import PricingHelp from '../Rooms/PricingHelp';
 import api from '../../utils/api';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {
+  const normalizedType = propertyType ? propertyType.toLowerCase() : '';
+  const isApartment = normalizedType.includes('apartment');
+  const isDormitory = normalizedType.includes('dormitory');
+  const isBoarding = normalizedType.includes('boarding');
+  const isBedSpacerProperty = normalizedType.includes('bedspacer') || normalizedType.includes('bed spacer');
+
+  const initialRoomType = isBedSpacerProperty ? 'bedSpacer' : 'single';
+  const initialPricingModel = isBedSpacerProperty ? 'per_bed' : 'full_room';
+
   const [formData, setFormData] = useState({
     roomNumber: '',
-    roomType: 'single',
+    roomType: initialRoomType,
     floor: '1',
     monthlyRate: '',
     dailyRate: '',
     billingPolicy: 'monthly',
-    minStayDays: '',
-    prorateBase: '30',
-    capacity: '1',
-    pricingModel: 'full_room',
+    capacity: isBedSpacerProperty ? '1' : '1',
+    pricingModel: initialPricingModel,
     description: '',
     amenities: [],
     images: []
   });
+
+  // Bed spacer is controlled per-room via `formData.roomType`.
+  // Property-wide bed-spacer properties are detected with `isBedSpacerProperty`.
 
   const [previewImages, setPreviewImages] = useState([]);
   const [showPricingHelp, setShowPricingHelp] = useState(false);
@@ -37,6 +42,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   const replaceInputRef = useState(null)[0];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
 
   // Use property amenities directly
@@ -50,11 +56,16 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     { value: 'quad', label: 'Quad Room' },
     { value: 'bedSpacer', label: 'Bed Spacer' }
   ];
-
-  // Filter room types: exclude Bed Spacer for apartments
-  const roomTypes = propertyType?.toLowerCase() === 'apartment'
-    ? allRoomTypes.filter(rt => rt.value !== 'bedSpacer')
-    : allRoomTypes;
+  // Determine available room types per property type:
+  // - Apartments: single/double/quad (no bed spacer option)
+  // - Dormitory/Boarding: single (and bedSpacer as an option via toggle)
+  // - Properties explicitly marked as bed-spacer: bedSpacer only
+  const roomTypes = (() => {
+    if (isApartment) return allRoomTypes.filter(rt => rt.value !== 'bedSpacer');
+    if (isBedSpacerProperty) return allRoomTypes.filter(rt => rt.value === 'bedSpacer');
+    if (isDormitory || isBoarding) return allRoomTypes.filter(rt => rt.value === 'single' || rt.value === 'bedSpacer');
+    return allRoomTypes.filter(rt => rt.value !== 'bedSpacer');
+  })();
 
   const floors = Array.from({ length: 10 }, (_, i) => ({
     value: i + 1,
@@ -90,10 +101,23 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         updated.pricingModel = 'per_bed';
       }
     }
+    // When billing policy changes, clear/hide irrelevant fields
+    if (field === 'billingPolicy') {
+      const bp = value;
+      if (bp !== 'monthly' && bp !== 'monthly_with_daily') {
+        updated.monthlyRate = '';
+      }
+      if (bp !== 'daily' && bp !== 'monthly_with_daily') {
+        updated.dailyRate = '';
+      }
+    }
     
     setFormData(updated);
     if (error) setError('');
   };
+
+  // Note: removed the toggle handler — dormitory/boarding properties will
+  // show a Room Type select with `Single` and `Bed Spacer` options instead.
 
   const toggleAmenity = (amenity) => {
     setFormData(prev => ({
@@ -152,6 +176,12 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       ...prev,
       images: [...prev.images, ...files]
     }));
+    // Clear the input so selecting the same file again will trigger change
+    try {
+      e.target.value = '';
+    } catch (err) {
+      // ignore - some browsers may not allow setting value in certain contexts
+    }
   };
 
   const moveImage = (index, direction) => {
@@ -214,7 +244,17 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   };
 
   const removeImage = (index) => {
-    setPreviewImages(prev => prev.filter((_, i) => i !== index));
+    setPreviewImages(prev => {
+      const url = prev[index];
+      try {
+        if (typeof url === 'string' && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      } catch (e) {
+        // ignore revoke errors
+      }
+      return prev.filter((_, i) => i !== index);
+    });
     setFormData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
@@ -226,8 +266,14 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       setError('Room number is required');
       return;
     }
-    if (!formData.monthlyRate || parseFloat(formData.monthlyRate) <= 0) {
-      setError('Valid monthly rate is required');
+    // Validate rates based on billing policy
+    const bp = formData.billingPolicy || 'monthly';
+    if ((bp === 'monthly' || bp === 'monthly_with_daily') && (!formData.monthlyRate || parseFloat(formData.monthlyRate) <= 0)) {
+      setError('Valid monthly rate is required for the selected billing policy');
+      return;
+    }
+    if ((bp === 'daily' || bp === 'monthly_with_daily') && (!formData.dailyRate || parseFloat(formData.dailyRate) <= 0)) {
+      setError('Valid daily rate is required for the selected billing policy');
       return;
     }
 
@@ -243,13 +289,12 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       payload.append('room_number', formData.roomNumber);
       payload.append('room_type', formData.roomType);
       payload.append('floor', parseInt(formData.floor));
-      payload.append('monthly_rate', parseFloat(formData.monthlyRate));
-      payload.append('capacity', parseInt(formData.capacity));
-      // Optional short-stay / daily pricing fields
-      if (formData.dailyRate !== '') payload.append('daily_rate', parseFloat(formData.dailyRate));
+      if (bp === 'monthly' || bp === 'monthly_with_daily') payload.append('monthly_rate', parseFloat(formData.monthlyRate));
+      // Apartments don't use capacity; send 1 for consistency.
+      payload.append('capacity', isApartment ? 1 : parseInt(formData.capacity || 1));
+      if (bp === 'daily' || bp === 'monthly_with_daily') payload.append('daily_rate', parseFloat(formData.dailyRate));
       if (formData.billingPolicy) payload.append('billing_policy', formData.billingPolicy);
-      if (formData.minStayDays !== '') payload.append('min_stay_days', parseInt(formData.minStayDays));
-      if (formData.prorateBase) payload.append('prorate_base', parseInt(formData.prorateBase));
+      // min_stay_days and prorate_base removed per UX decision; billing handled by billing policy and daily rate
       payload.append('pricing_model', formData.pricingModel);
       payload.append('description', formData.description || '');
       payload.append('status', 'available');
@@ -277,8 +322,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         monthlyRate: '',
         dailyRate: '',
         billingPolicy: 'monthly',
-        minStayDays: '',
-        prorateBase: '30',
         capacity: '1',
         pricingModel: 'full_room',
         description: '',
@@ -287,8 +330,13 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       });
       setPreviewImages([]);
 
+      // show success message briefly, notify parent, then close modal
+      setSuccessMessage('Room added successfully');
       if (onRoomAdded) onRoomAdded(newRoom);
-      onClose();
+      setTimeout(() => {
+        setSuccessMessage('');
+        onClose();
+      }, 1200);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -303,11 +351,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Add New Room</h2>
+        <div className="flex items-center justify-center relative">
+          <h2 className="text-xl font-semibold text-gray-900 text-center">Add New Room</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors absolute right-0"
           >
             <X className="w-6 h-6" />
           </button>
@@ -316,11 +364,21 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        {successMessage && (
+          <div className="px-4 py-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
+            {successMessage}
+          </div>
+        )}
         {/* Basic Information */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
-          
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+            {/* For dormitory/boarding properties the Room Type select will include
+                both Single and Bed Spacer options. No separate toggle is needed. */}
+          </div>
+
+          {/* Row 2: Room Number | Floor | Room Type */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Room Number <span className="text-red-500">*</span>
@@ -331,38 +389,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 value={formData.roomNumber}
                 onChange={(e) => handleInputChange('roomNumber', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Room Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.roomType}
-                onChange={(e) => handleInputChange('roomType', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                {roomTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price (₱/month) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                placeholder="5000"
-                value={formData.monthlyRate}
-                onChange={(e) => handleInputChange('monthlyRate', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                min="0"
-                step="0.01"
               />
             </div>
 
@@ -383,20 +409,104 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Capacity <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 font-normal ml-1">
-                  {formData.roomType === 'bedSpacer' ? '(manual set for bed spacer)' : '(auto-set by room type)'}
-                </span>
+                Room Type {!isApartment && <span className="text-xs text-gray-500">(auto capacity unless Bed Spacer)</span>}
+              </label>
+              <select
+                value={formData.roomType}
+                onChange={(e) => handleInputChange('roomType', e.target.value)}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-green-500 ${isBedSpacerProperty ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                disabled={isBedSpacerProperty}
+              >
+                {roomTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Billing Policy | Monthly Rate | Daily Rate | Capacity (responsive widths) */}
+          <div className="grid grid-cols-12 gap-4 mt-2 items-end min-w-0">
+            <div className="col-span-3 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
+              <select
+                value={formData.billingPolicy}
+                onChange={(e) => handleInputChange('billingPolicy', e.target.value)}
+                className="w-full pr-4 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="monthly">Monthly Rate</option>
+                <option value="monthly_with_daily">Monthly + Daily</option>
+                <option value="daily">Daily Rate</option>
+              </select>
+            </div>
+
+            <div className="col-span-3 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Monthly Rate (₱/month)
+                {formData.billingPolicy === 'monthly' || formData.billingPolicy === 'monthly_with_daily' ? (
+                  <span className="text-red-500 ml-1">*</span>
+                ) : null}
               </label>
               <input
                 type="number"
-                value={formData.capacity}
-                onChange={(e) => handleInputChange('capacity', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                min="1"
-                max="10"
+                placeholder="e.g., 5000"
+                value={formData.monthlyRate}
+                onChange={(e) => handleInputChange('monthlyRate', e.target.value)}
+                className={`w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${formData.billingPolicy === 'daily' ? 'bg-gray-50' : ''}`}
+                min="0"
+                step="0.01"
+                disabled={formData.billingPolicy === 'daily'}
               />
             </div>
+
+            <div className="col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Daily Rate (₱/day)
+                {(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? (
+                  <span className="text-red-500 ml-1">*</span>
+                ) : null}
+              </label>
+              <input
+                type="number"
+                placeholder="e.g., 300"
+                value={formData.dailyRate}
+                onChange={(e) => handleInputChange('dailyRate', e.target.value)}
+                className={`w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50' : ''}`}
+                min="0"
+                step="0.01"
+                disabled={!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily')}
+              />
+            </div>
+            {!isApartment ? (
+              <div className="col-span-3">
+                <div className="flex items-baseline justify-between">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Capacity</label>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-xs text-gray-500">
+                      {formData.roomType === 'bedSpacer' ? '(manually if bed spacer)' : '(auto-set by room type)'}
+                    </span>
+                  </div>
+                </div>
+
+                {(() => {
+                  const capacityDisabled = (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && !isBedSpacerProperty;
+                  const displayValue = capacityDisabled ? '1' : formData.capacity;
+                  return (
+                    <input
+                      type="number"
+                      value={displayValue}
+                      onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
+                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${capacityDisabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                      min="1"
+                      max="10"
+                      disabled={capacityDisabled}
+                    />
+                  );
+                })()}
+              </div>
+            ) : (
+              <div />
+            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -458,103 +568,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
           </div>
 
-          {/* Daily / short-stay pricing */}
-          <div className="mt-4 bg-white rounded-lg border border-gray-100 p-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Short-stay / Daily Pricing (optional)</h4>
-            <p className="text-xs text-gray-600 mb-3">If you want to allow day-based stays or prorate beyond 1 month, configure daily pricing and policy below.</p>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate (₱/day)</label>
-                <input
-                  type="number"
-                  placeholder="e.g., 300"
-                  value={formData.dailyRate}
-                  onChange={(e) => handleInputChange('dailyRate', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={formData.billingPolicy}
-                    onChange={(e) => handleInputChange('billingPolicy', e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="monthly">Monthly Rate</option>
-                    <option value="monthly_with_daily">Monthly + Daily</option>
-                    <option value="daily">Daily Rate</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setShowPricingHelp(true)}
-                    title="Pricing help"
-                    className="p-2 rounded-md hover:bg-gray-100"
-                  >
-                    <HelpCircle className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Min Stay Days (optional)</label>
-                <input
-                  type="number"
-                  value={formData.minStayDays}
-                  onChange={(e) => handleInputChange('minStayDays', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Prorate Base (days)</label>
-                <input
-                  type="number"
-                  value={formData.prorateBase}
-                  onChange={(e) => handleInputChange('prorateBase', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="1"
-                />
-              </div>
-            </div>
-          </div>
           <PricingHelp open={showPricingHelp} onClose={() => setShowPricingHelp(false)} />
-
-          {/* Helper text explaining pricing model differences */}
-          <div className="mt-3 text-sm text-gray-700">
-            {formData.roomType === 'bedSpacer' ? (
-              <p>
-                Bed Spacer — each tenant pays ₱{formData.monthlyRate || 0} for their individual bed. 
-                {formData.capacity && parseInt(formData.capacity) > 1 && (
-                  <span className="text-xs text-gray-500 block mt-1">
-                    This room has {formData.capacity} beds available for rent.
-                  </span>
-                )}
-              </p>
-            ) : formData.pricingModel === 'per_bed' ? (
-              <p>
-                Per bed — each tenant pays the listed price for their bed. Use this when beds are rented separately and billed individually.
-              </p>
-            ) : (
-              <>
-                <p>
-                  Full room — tenants share the listed monthly rent; when multiple tenants occupy the room the amount is split among them.
-                </p>
-                {formData.capacity && parseInt(formData.capacity) > 1 && formData.monthlyRate && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Example: ₱{parseFloat(formData.monthlyRate).toLocaleString()} ÷ {formData.capacity} = ₱{Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)).toLocaleString()} each
-                  </p>
-                )}
-              </>
-            )}
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -663,48 +677,13 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                         <span className="absolute left-2 top-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full">Cover</span>
                       )}
 
-                      {/* Toolbar */}
-                      <div className="absolute left-2 bottom-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={() => moveImage(index, -1)}
-                          title="Move left"
-                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
-                        >
-                          <ArrowLeft className="w-4 h-4 text-gray-700" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveImage(index, 1)}
-                          title="Move right"
-                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
-                        >
-                          <ArrowRight className="w-4 h-4 text-gray-700" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReplaceClick(index)}
-                          title="Replace"
-                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
-                        >
-                          <Edit2 className="w-4 h-4 text-gray-700" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCover(index)}
-                          title="Set as cover"
-                          className="p-1 bg-white bg-opacity-80 rounded-md shadow-sm hover:bg-opacity-100"
-                        >
-                          <Star className="w-4 h-4 text-yellow-500" />
-                        </button>
-                      </div>
-
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove image"
+                        className="absolute top-2 right-2 p-1 bg-white bg-opacity-90 text-gray-700 rounded-full shadow-sm hover:bg-opacity-100 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))}

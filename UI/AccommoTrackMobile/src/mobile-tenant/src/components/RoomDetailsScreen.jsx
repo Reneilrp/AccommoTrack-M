@@ -20,7 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
-
 import BookingService from '../../../services/BookingServices';
 import PropertyService from '../../../services/PropertyServices';
 
@@ -60,6 +59,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setRoomData(room);
     setPropertyData(property);
   }, [room, property]);
+
+  // Prefer the freshest room object (roomData updated on refresh), fallback to route param
+  const activeRoom = roomData || room;
 
   // Date picker states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -109,6 +111,26 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     });
   };
 
+  // Booking window helpers:
+  // - check-in must be within current month (from today through end of this month)
+  // - check-out can be any future date after check-in
+  const getEndOfCurrentMonth = (fromDate = new Date()) => {
+    const year = fromDate.getFullYear();
+    const month = fromDate.getMonth(); // 0-indexed
+    const lastDay = new Date(year, month + 1, 0);
+    lastDay.setHours(23, 59, 59, 999);
+    return lastDay;
+  };
+
+  const isStartWithinCurrentMonth = (date) => {
+    if (!date) return false;
+    const dt = new Date(date);
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = getEndOfCurrentMonth();
+    return dt >= start && dt <= end;
+  };
+
   // Calculate duration between dates
   const calculateDuration = () => {
     if (!bookingData.start_date || !bookingData.end_date) return null;
@@ -120,30 +142,63 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const months = Math.ceil(diffDays / 30); // Approximate months
+    const months = Math.floor(diffDays / 30); // full 30-day months
+    const extraDays = diffDays % 30;
 
-    return { days: diffDays, months };
+    return { days: diffDays, months, extraDays };
   };
 
   // Calculate total cost
   const calculateTotal = () => {
     const duration = calculateDuration();
     if (!duration) return 0;
-    return room.monthly_rate * duration.months;
+    // Normalize billing policy keys to be robust against underscores/spaces/casing
+    const billing = String(activeRoom.billing_policy || 'monthly')
+      .toLowerCase()
+      .trim()
+      .replace(/[\s-]+/g, '_');
+    const monthly = Number(activeRoom.monthly_rate) || 0;
+    const daily = Number(activeRoom.daily_rate) || Math.round(monthly / 30) || 0;
+
+    // Conservative fallback: if policy is monthly but a daily rate exists and there are extra days,
+    // treat as monthly_with_daily to avoid over-charging by rounding up full months.
+    let effectiveBilling = billing;
+    if (effectiveBilling === 'monthly' && daily > 0 && duration.extraDays > 0) {
+      effectiveBilling = 'monthly_with_daily';
+    }
+
+    if (effectiveBilling === 'monthly_with_daily' || effectiveBilling === 'monthly+daily' || effectiveBilling === 'monthly_and_daily') {
+      // charge full months + remaining days at daily rate
+      return (duration.months * monthly) + (duration.extraDays * daily);
+    }
+
+    if (effectiveBilling === 'daily') {
+      return duration.days * daily;
+    }
+
+    // default: monthly billing (round up to nearest month)
+    const monthsCeil = Math.ceil(duration.days / 30);
+    return monthsCeil * monthly;
   };
 
   // Handle start date change - auto-fill checkout to 30 days later
   const onStartDateChange = (event, selectedDate) => {
     setShowStartDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
-      // Calculate default checkout date (30 days / 1 month later)
+      // Ensure selected start date is within current month
+      if (!isStartWithinCurrentMonth(selectedDate)) {
+        Alert.alert('Invalid Check-in', 'Check-in must be within the current month.');
+        return;
+      }
+
+      // Calculate default checkout date (30 days / 1 month later) - allow it to extend beyond current month
       const defaultEndDate = new Date(selectedDate);
       defaultEndDate.setDate(defaultEndDate.getDate() + 30);
 
       setBookingData(prev => ({
         ...prev,
         start_date: selectedDate,
-        end_date: defaultEndDate, // Auto-fill checkout to 30 days later
+        end_date: defaultEndDate,
       }));
     }
   };
@@ -163,7 +218,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   // AUTH GATE: Check if user is authenticated before booking
   const handleBook = () => {
-    if (room.status !== 'available') {
+    if (activeRoom.status !== 'available') {
       Alert.alert('Unavailable', 'This room is not available for booking.');
       return;
     }
@@ -235,11 +290,18 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       Alert.alert('Invalid Date', 'Check-in date cannot be in the past.');
       return false;
     }
-
     if (end <= start) {
       Alert.alert('Invalid Date', 'Check-out date must be after check-in date.');
       return false;
     }
+
+    // Ensure start is within current month
+    if (!isStartWithinCurrentMonth(start)) {
+      Alert.alert('Invalid Date', 'Check-in must be within the current month.');
+      return false;
+    }
+
+    // End date may be any future date after start (no max)
 
     return true;
   };
@@ -251,7 +313,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       setIsSubmitting(true);
 
       const data = {
-        room_id: room.id,
+        room_id: activeRoom.id,
         start_date: bookingData.start_date.toISOString().split('T')[0],
         end_date: bookingData.end_date.toISOString().split('T')[0],
         notes: bookingData.notes || null
@@ -408,8 +470,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         landlordName,
         propertyId: property.id,
         propertyTitle: property.name || property.title,
-        roomId: room.id,
-        roomNumber: room.room_number
+        roomId: activeRoom.id,
+        roomNumber: activeRoom.room_number
       });
 
       // Navigate to Messages with the conversation parameters
@@ -424,8 +486,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           title: property.name || property.title,
         },
         room: {
-          id: room.id,
-          room_number: room.room_number,
+          id: activeRoom.id,
+          room_number: activeRoom.room_number,
         }
       });
     } catch (error) {
@@ -437,6 +499,39 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const duration = calculateDuration();
   const total = calculateTotal();
+
+  // Prepare readable duration and breakdown lines for the summary
+  let durationLabel = '';
+  let breakdownLine = '';
+  if (duration) {
+    // Normalize billing policy keys to be robust against underscores/spaces/casing
+    const billing = String(activeRoom.billing_policy || 'monthly')
+      .toLowerCase()
+      .trim()
+      .replace(/[\s-]+/g, '_');
+    const monthly = Number(activeRoom.monthly_rate) || 0;
+    const daily = Number(activeRoom.daily_rate) || Math.round(monthly / 30) || 0;
+
+    // Apply the same conservative fallback used in calculation
+    let effectiveBilling = billing;
+    if (effectiveBilling === 'monthly' && daily > 0 && duration.extraDays > 0) {
+      effectiveBilling = 'monthly_with_daily';
+    }
+
+    // debug strings removed in production
+
+    if (effectiveBilling === 'monthly_with_daily' || effectiveBilling === 'monthly+daily' || effectiveBilling === 'monthly_and_daily') {
+      durationLabel = `${duration.days} days (${duration.months} ${duration.months === 1 ? 'month' : 'months'}${duration.extraDays > 0 ? ` + ${duration.extraDays} ${duration.extraDays === 1 ? 'day' : 'days'}` : ''})`;
+      breakdownLine = `₱${monthly.toLocaleString()}/month × ${duration.months} ${duration.months === 1 ? 'month' : 'months'}${duration.extraDays > 0 ? ` + ₱${daily.toLocaleString()}/day × ${duration.extraDays} ${duration.extraDays === 1 ? 'day' : 'days'}` : ''}`;
+    } else if (effectiveBilling === 'daily') {
+      durationLabel = `${duration.days} days`;
+      breakdownLine = `₱${daily.toLocaleString()}/day × ${duration.days} ${duration.days === 1 ? 'day' : 'days'}`;
+    } else {
+      const monthsCeil = Math.ceil(duration.days / 30);
+      durationLabel = `${duration.days} days (${monthsCeil} ${monthsCeil === 1 ? 'month' : 'months'})`;
+      breakdownLine = `₱${monthly.toLocaleString()}/month × ${monthsCeil} ${monthsCeil === 1 ? 'month' : 'months'}`;
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -463,7 +558,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         }
       >
         {/* Image Gallery */}
-        {room.images && room.images.length > 0 ? (
+        {activeRoom.images && activeRoom.images.length > 0 ? (
           <View style={styles.imageGalleryContainer}>
             <ScrollView
               horizontal
@@ -472,7 +567,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               onScroll={handleImageScroll}
               scrollEventThrottle={16}
             >
-              {room.images.map((image, index) => (
+              {activeRoom.images.map((image, index) => (
                 <Image
                   key={index}
                   source={{ uri: getRoomImageUrl(image) }}
@@ -483,9 +578,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </ScrollView>
 
             {/* Image Indicators */}
-            {room.images.length > 1 && (
+            {activeRoom.images.length > 1 && (
               <View style={styles.imageIndicator}>
-                {room.images.map((_, index) => (
+                {activeRoom.images.map((_, index) => (
                   <View
                     key={index}
                     style={[
@@ -511,21 +606,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         <View style={styles.contentContainer}>
           {/* Room Header */}
           <View style={styles.roomHeader}>
-            <Text style={styles.roomNumber}>Room {room.room_number}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(room.status) + '20' }]}>
-              <Ionicons name={getStatusIcon(room.status)} size={14} color={getStatusColor(room.status)} />
-              <Text style={[styles.statusText, { color: getStatusColor(room.status) }]}>
-                {capitalizeStatus(room.status)}
+            <Text style={styles.roomNumber}>Room {activeRoom.room_number}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(activeRoom.status) + '20' }]}>
+              <Ionicons name={getStatusIcon(activeRoom.status)} size={14} color={getStatusColor(activeRoom.status)} />
+              <Text style={[styles.statusText, { color: getStatusColor(activeRoom.status) }]}>
+                {capitalizeStatus(activeRoom.status)}
               </Text>
             </View>
           </View>
 
           {/* Room Type */}
-          <Text style={styles.roomType}>{room.type_label || room.room_type}</Text>
+          <Text style={styles.roomType}>{activeRoom.type_label || activeRoom.room_type}</Text>
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>₱{room.monthly_rate.toLocaleString()}</Text>
+            <Text style={styles.price}>₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}</Text>
             <Text style={styles.priceLabel}>/month</Text>
           </View>
 
@@ -534,34 +629,34 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             <View style={styles.amenitiesGrid}>
               <View style={styles.amenityItem}>
                 <Ionicons name="layers-outline" size={18} color="#6b7280" />
-                <Text style={styles.amenityText}>{room.floor_label || `Floor ${room.floor}`}</Text>
+                <Text style={styles.amenityText}>{activeRoom.floor_label || `Floor ${activeRoom.floor}`}</Text>
               </View>
               <View style={styles.amenityItem}>
                 <Ionicons name="people-outline" size={18} color="#6b7280" />
-                <Text style={styles.amenityText}>Capacity: {room.capacity} {room.capacity === 1 ? 'person' : 'people'}</Text>
+                <Text style={styles.amenityText}>Capacity: {activeRoom.capacity} {activeRoom.capacity === 1 ? 'person' : 'people'}</Text>
               </View>
             </View>
-            {room.capacity && parseInt(room.capacity, 10) > 1 && (
+            {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
               <Text style={{ marginTop: 6, fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
-                PS: This room has a capacity of {room.capacity}. The monthly rent can be divided if you find another tenant (or wait for one); otherwise you'll pay the full room rent.
+                PS: This room has a capacity of {activeRoom.capacity}. The monthly rent can be divided if you find another tenant (or wait for one); otherwise you'll pay the full room rent.
               </Text>
             )}
           </View>
 
           {/* Description */}
-          {room.description && (
+          {activeRoom.description && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Description</Text>
-              <Text style={styles.description}>{room.description}</Text>
+              <Text style={styles.description}>{activeRoom.description}</Text>
             </View>
           )}
 
           {/* Amenities */}
-          {room.amenities && room.amenities.length > 0 && (
+          {activeRoom.amenities && activeRoom.amenities.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Room Amenities</Text>
               <View style={styles.amenitiesGrid}>
-                {room.amenities.map((amenity, index) => (
+                {activeRoom.amenities.map((amenity, index) => (
                   <View key={index} style={styles.amenityItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#10b981" />
                     <Text style={styles.amenityText}>{amenity}</Text>
@@ -582,7 +677,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           )}
 
           {/* Action Buttons */}
-          {room.status === 'available' && (
+          {activeRoom.status === 'available' && (
             <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
               <Text style={styles.bookButtonText}>
                 {isGuest ? 'Sign In to Book' : 'Book This Room'}
@@ -607,7 +702,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Book Room {room.room_number}</Text>
+            <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
 
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
@@ -628,6 +723,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onStartDateChange}
                   minimumDate={new Date()}
+                  maximumDate={getEndOfCurrentMonth()}
                 />
               )}
             </View>
@@ -651,6 +747,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onEndDateChange}
                   minimumDate={bookingData.start_date || new Date()}
+                  // No maximumDate: checkout may be any future date
                 />
               )}
             </View>
@@ -661,7 +758,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Duration</Text>
                   <Text style={styles.summaryValue}>
-                    {duration.days} days ({duration.months} {duration.months === 1 ? 'month' : 'months'})
+                    {durationLabel}
                   </Text>
                 </View>
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
@@ -669,8 +766,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <Text style={styles.summaryValueBold}>₱{total.toLocaleString()}</Text>
                 </View>
                 <Text style={styles.summaryNote}>
-                  ₱{room.monthly_rate.toLocaleString()}/month × {duration.months} months
+                  {breakdownLine}
                 </Text>
+
+                {/* debug badge removed */}
               </View>
             )}
 

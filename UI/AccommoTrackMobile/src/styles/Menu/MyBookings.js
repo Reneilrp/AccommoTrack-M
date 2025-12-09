@@ -172,4 +172,21 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  cancelContainer: {
+    marginTop: 18,
+    flexDirection: 'row',
+    justifyContent: 'flex-end'
+  },
+  cancelButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 72,
+    alignItems: 'center'
+  },
+  cancelButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600'
+  }
 });

@@ -7,7 +7,10 @@ import {
   Loader2,
   Edit,
   Plus,
+  Trash,
+  Save,
 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 import api from '../../utils/api';
 
 // Editable map (react-leaflet)
@@ -52,12 +55,18 @@ const greenMarkerIcon = new L.Icon({
 });
 
 export default function DormProfileSettings({ propertyId, onBack, onDeleteRequested }) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dormData, setDormData] = useState(null);
   const [newRule, setNewRule] = useState('');
   const [newCustomAmenity, setNewCustomAmenity] = useState('');
+  // Deletion flow state (copied from MyProperties for local handling)
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, property: null });
+  const [passwordModal, setPasswordModal] = useState({ show: false, property: null });
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     if (propertyId) {
@@ -124,6 +133,79 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Deletion handlers (copied/adapted from MyProperties.jsx)
+  const handleDeleteProperty = async (propertyId) => {
+    // When invoked from this page, we already have dormData available
+    const property = dormData && dormData.id === propertyId ? dormData : { id: propertyId, title: dormData?.name };
+    setPasswordModal({ show: true, property });
+    setPassword('');
+    setPasswordError('');
+  };
+
+  const verifyPassword = async () => {
+    if (!password) {
+      setPasswordError('Please enter your password');
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      setPasswordError('');
+
+      const response = await api.post('/landlord/properties/verify-password', {
+        password: password
+      });
+
+      if (response.data.verified) {
+        // Password verified, show confirmation modal (keep password for final deletion)
+        setPasswordModal({ show: false, property: passwordModal.property });
+        setDeleteConfirm({ show: true, property: passwordModal.property });
+        setPasswordError('');
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Incorrect password';
+      setPasswordError(errorMessage);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.property) return;
+    try {
+      setLoading(true);
+      // Show a persistent loading toast and navigate immediately
+      const toastId = toast.loading('Deleting property...');
+      if (onBack) onBack();
+
+      // Send password in request body for DELETE request
+      const response = await api.delete(`/landlord/properties/${deleteConfirm.property.id}`, {
+        data: { password: password }
+      });
+
+      if (response.status === 200) {
+        toast.success(response.data.message || 'Property deleted successfully', { id: toastId });
+      } else {
+        toast.error('Failed to delete property', { id: toastId });
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to delete property';
+      // update the loading toast if it exists
+      toast.error(errorMessage);
+      // If password is wrong, re-open the password modal so user can retry
+      if (err.response?.data?.error === 'password_incorrect') {
+        setDeleteConfirm({ show: false, property: null });
+        setPasswordModal({ show: true, property: deleteConfirm.property });
+        setPassword('');
+        setPasswordError(err.response?.data?.message || 'Incorrect password');
+      }
+    } finally {
+      setLoading(false);
+      setDeleteConfirm({ show: false, property: null });
+      setPassword('');
     }
   };
 
@@ -329,7 +411,8 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         response = await api.put(`/landlord/properties/${propertyId}`, updateData);
       }
 
-      alert('Property updated successfully!');
+      toast.success('Property updated successfully!');
+      // alert('Property updated successfully!');
       setIsEditing(false);
       fetchPropertyDetails();
     } catch (err) {
@@ -347,10 +430,10 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           }
         }
         setError(msg);
-        alert('Failed to update property: ' + msg);
+        toast.error('Failed to update property: ' + msg);
       } else {
         setError(err.message || 'Failed to update property');
-        alert('Failed to update property: ' + (err.message || 'Unknown error'));
+        toast.error('Failed to update property: ' + (err.message || 'Unknown error'));
       }
     } finally {
       setLoading(false);
@@ -368,7 +451,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       });
 
       if (response.status === 200) {
-        alert('Property submitted for admin approval');
+        toast.success('Property submitted for admin approval');
         fetchPropertyDetails();
       } else {
         setError('Failed to submit draft');
@@ -376,7 +459,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     } catch (err) {
       console.error('Error submitting draft:', err);
       setError(err.message || 'Failed to submit draft');
-      alert('Failed to submit draft: ' + (err.message || 'Unknown error'));
+      toast.error('Failed to submit draft: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -439,22 +522,18 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
             {/* Right: Actions */}
             <div className="flex items-center justify-end gap-3">
+              <Toaster/>
               {isEditing && (
                 <>
                   <button
-                    onClick={() => {
-                      if (onDeleteRequested && dormData?.id) {
-                        onBack();
-                        setTimeout(() => {
-                          onDeleteRequested(dormData.id);
-                        }, 100);
-                      }
-                    }}
+                    onClick={() => handleDeleteProperty(dormData?.id)}
                     disabled={loading}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 mr-2"
+                    className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors disabled:opacity-50 mr-2"
                     title="Delete Property"
+                    aria-label="Delete Property"
                   >
-                    Delete
+                    <Trash className="w-4 h-4" />
+                    <span className="sr-only">Delete property</span>
                   </button>
 
                   <button
@@ -463,9 +542,12 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       fetchPropertyDetails();
                     }}
                     disabled={loading}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                    className="w-10 h-10 bg-white border border-gray-300 text-gray-700 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    title="Cancel"
+                    aria-label="Cancel"
                   >
-                    Cancel
+                    <X className="w-4 h-4" />
+                    <span className="sr-only">Cancel</span>
                   </button>
                 </>
               )}
@@ -484,9 +566,16 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 <button
                   onClick={() => handleSave()}
                   disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                  className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                  title="Save Changes"
+                  aria-label="Save Changes"
                 >
-                  {loading ? 'Saving...' : 'Save Changes'}
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span className="sr-only">Save changes</span>
                 </button>
               ) : (
                 <button
@@ -882,6 +971,98 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           </div>
         </div>
       </div>
+      {/* Password Verification Modal */}
+      {passwordModal.show && passwordModal.property && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Verify Password</h3>
+            <p className="text-gray-600 mb-4">
+              Please enter your password to confirm deletion of "{passwordModal.property.title || passwordModal.property.name}".
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !verifying) {
+                    verifyPassword();
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                  passwordError ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter your password"
+                autoFocus
+              />
+              {passwordError && (
+                <p className="mt-2 text-sm text-red-600">{passwordError}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setPasswordModal({ show: false, property: null });
+                  setPassword('');
+                  setPasswordError('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                disabled={verifying}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={verifyPassword}
+                disabled={verifying || !password}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show && deleteConfirm.property && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete "{deleteConfirm.property.title || deleteConfirm.property.name}"?
+              {deleteConfirm.property.total_rooms > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  This will also delete all {deleteConfirm.property.total_rooms} associated room(s).
+                </span>
+              )}
+              <span className="block mt-2">This action cannot be undone.</span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setDeleteConfirm({ show: false, property: null });
+                  setPassword('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete Property
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

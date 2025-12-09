@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { X, Users, List, CreditCard, CalendarDays } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-export default function RoomDetails({ room, isOpen, onClose }) {
+export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
   const [showActivity, setShowActivity] = useState(false);
+  const [extensionValues, setExtensionValues] = useState({});
+  const [extending, setExtending] = useState(false);
+  const navigate = useNavigate();
 
   if (!isOpen || !room) return null;
 
@@ -40,34 +44,130 @@ export default function RoomDetails({ room, isOpen, onClose }) {
           </div>
         </div>
         <div className="p-4">
-          {/* Single info row: Tenant Name, Age, Contact No., Payments, Due Day */}
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-4">
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <div className="text-xs text-gray-500">Tenant Name</div>
-              <div className="font-medium text-gray-800">{tenant?.name || tenant || '—'}</div>
+          {/* Tenant info presented as a responsive table-like grid. On small screens
+              this falls back to stacked cards for readability. Columns: Tenant Name,
+              Age, Contact No., Payments, Due Day, Extension */}
+          <div className="mb-4">
+            {/* Header row for md+ */}
+            <div className="hidden md:grid grid-cols-4 gap-3 text-xs text-gray-500 mb-2 px-1">
+              <div>Tenant Name</div>
+              <div>Contact No.</div>
+              <div>Payments</div>
+              <div>Extension</div>
             </div>
 
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <div className="text-xs text-gray-500">Age</div>
-              <div className="font-medium text-gray-800">{tenant?.age || (tenant && tenant.age) || '—'}</div>
-            </div>
+            {tenants.length === 0 ? (
+              <div className="text-sm text-gray-500">No tenant assigned.</div>
+            ) : (
+              <div className="space-y-2">
+                {tenants.map((t, i) => (
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center bg-gray-50 p-3 rounded-md border border-gray-100">
+                    <div>
+                      <div className="text-xs text-gray-500 md:hidden">Tenant Name</div>
+                      <button
+                        onClick={() => {
+                          const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
+                          const displayName = t?.name || (t?.first_name ? `${t.first_name} ${t.last_name}` : String(t));
+                          if (tenantId) {
+                            navigate(`/tenants/${tenantId}`);
+                          } else {
+                            // fallback to tenant logs search which will try to resolve the tenant
+                            navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
+                          }
+                        }}
+                        className="font-medium text-gray-800 text-left hover:underline"
+                      >
+                        {t.name || `${t.first_name ? `${t.first_name} ${t.last_name}` : t}`}
+                      </button>
+                      {t.email && <div className="text-sm text-gray-500 hidden md:block">{t.email}</div>}
+                    </div>
 
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <div className="text-xs text-gray-500">Contact No.</div>
-              <div className="font-medium text-gray-800">{tenant?.phone || tenant?.contact || '—'}</div>
-            </div>
+                    <div>
+                      <div className="text-xs text-gray-500 md:hidden">Contact No.</div>
+                      <div className="font-medium text-gray-800">{t.phone || t.contact || '—'}</div>
+                    </div>
 
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <div className="text-xs text-gray-500">Payments</div>
-              <div className="font-medium text-gray-800">
-                {room.monthly_rate ? `₱${Number(room.monthly_rate).toLocaleString()}` : (room.daily_rate ? `₱${Number(room.daily_rate).toLocaleString()}` : '—')}
+                    <div>
+                      <div className="text-xs text-gray-500 md:hidden">Payments</div>
+                      <button
+                        onClick={() => {
+                          const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
+                          const displayName = t?.name || (t?.first_name ? `${t.first_name} ${t.last_name}` : String(t));
+                          if (tenantId) {
+                            navigate(`/tenants/${tenantId}`);
+                          } else {
+                            navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
+                          }
+                        }}
+                        className="font-medium text-gray-800 hover:underline text-left"
+                      >
+                        {room.monthly_rate ? `₱${Number(room.monthly_rate).toLocaleString()}` : (room.daily_rate ? `₱${Number(room.daily_rate).toLocaleString()}` : '—')}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs text-gray-500 md:hidden">Extension</div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={(() => {
+                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                            return extensionValues[idKey] ?? 1;
+                          })()}
+                          onChange={(e) => {
+                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                            setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
+                          }}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded-md"
+                          aria-label="Extension days"
+                        />
+                          <button
+                            disabled={extending}
+                            onClick={async () => {
+                              if (!onExtend) return;
+                              setExtending(true);
+                              try {
+                                const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
+                                const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                                const days = extensionValues[idKey] ?? 1;
+                                await onExtend({ roomId: room.id, days: Number(days), tenantId });
+                              } catch (e) {
+                                // parent handles error
+                              } finally {
+                                setExtending(false);
+                              }
+                            }}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-sm"
+                        >
+                          Days
+                        </button>
+                        <button
+                          disabled={extending}
+                          onClick={async () => {
+                            if (!onExtend) return;
+                            setExtending(true);
+                            try {
+                                const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
+                                const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                                const days = extensionValues[idKey] ?? 1;
+                                await onExtend({ roomId: room.id, months: 1, tenantId });
+                            } catch (e) {
+                              // parent handles error
+                            } finally {
+                              setExtending(false);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-sm"
+                        >
+                          Month
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <div className="text-xs text-gray-500">Due Day</div>
-              <div className="font-medium text-gray-800">{room.due_day ? `Day ${room.due_day}` : '—'}</div>
-            </div>
+            )}
           </div>
 
           {/* Pricing removed from details view; pricing is editable in the Edit modal only */}
@@ -92,23 +192,7 @@ export default function RoomDetails({ room, isOpen, onClose }) {
             </div>
           )}
 
-          {/* If there are tenants, show a small tenants panel */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-800 mb-2">Tenant Details</h4>
-            {tenants.length === 0 ? (
-              <p className="text-sm text-gray-500">No tenant assigned.</p>
-            ) : (
-              <ul className="space-y-2">
-                {tenants.map((t, i) => (
-                  <li key={i} className="p-3 bg-gray-50 rounded-md border border-gray-100">
-                    <div className="font-medium text-gray-800">{t.name || t}</div>
-                    {t.email && <div className="text-sm text-gray-500">{t.email}</div>}
-                    {t.phone && <div className="text-sm text-gray-500">{t.phone}</div>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {/* Extension controls have been moved into the Extension column above. */}
         </div>
       </div>
     </div>

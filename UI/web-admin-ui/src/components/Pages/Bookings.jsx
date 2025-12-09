@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -23,7 +24,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const readOnlyGuard = () => {
     if (canManageBookings) return false;
-    alert('Caretaker access for bookings is currently view-only.');
+    toast.error('Caretaker access for bookings is currently view-only.');
     return true;
   };
 
@@ -131,10 +132,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       setShowDetailModal(false);
       setShowCancelModal(false);
 
-      alert(`Booking ${newStatus} successfully!`);
+      toast.success(`Booking ${newStatus} successfully!`);
     } catch (err) {
       console.error('Error updating status:', err);
-      alert('Failed to update booking status');
+      toast.error('Failed to update booking status');
     }
   };
 
@@ -165,13 +166,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
       // Show appropriate message
       if (result.status_upgraded) {
-        alert('Payment updated! Booking automatically upgraded to Completed.');
+        toast.success('Payment updated! Booking automatically upgraded to Completed.');
       } else {
-        alert('Payment status updated!');
+        toast.success('Payment status updated!');
       }
     } catch (err) {
       console.error('Error updating payment:', err);
-      alert('Failed to update payment status');
+      toast.error('Failed to update payment status');
     }
   };
 
@@ -194,12 +195,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleCancelConfirm = () => {
     if (readOnlyGuard()) return;
     if (!cancellationData.reason.trim()) {
-      alert('Please provide a cancellation reason');
+      toast.error('Please provide a cancellation reason');
       return;
     }
 
     if (cancellationData.shouldRefund && cancellationData.refundAmount <= 0) {
-      alert('Please enter a valid refund amount');
+      toast.error('Please enter a valid refund amount');
       return;
     }
 
@@ -286,12 +287,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage all room bookings and reservations</p>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center w-full">
+            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage all room bookings and reservations</p>
           </div>
         </div>
       </header>
@@ -577,25 +576,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
               {canManageBookings ? (
                 <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Update Payment Status</label>
-                    <select
-                      value={selectedBooking.paymentStatus}
-                      onChange={(e) => handleUpdatePayment(selectedBooking.id, e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      disabled={selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded'}
-                    >
-                      <option value="unpaid">Unpaid</option>
-                      <option value="partial">Partial</option>
-                      <option value="paid">Paid</option>
-                      <option value="refunded">Refunded</option>
-                    </select>
-                    {selectedBooking.status === 'cancelled' && selectedBooking.paymentStatus === 'refunded' && (
-                      <p className="text-xs text-gray-500 mt-1">Payment status locked for refunded cancellations</p>
-                    )}
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">Booking Actions</label>
                     <div className="flex gap-2 flex-wrap">
                       {(() => {
@@ -760,9 +740,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
                         return null;
                       })()}
-                    </div>
-                  </div>
-                </>
+                      </div>
+                  </>
               ) : (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                   Actions are disabled because you are viewing this booking as a caretaker.
@@ -787,7 +766,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Cancel Booking</h3>
+              <h3 className="text-lg font-bold text-gray-900 text-center">Cancel Booking</h3>
               <button onClick={() => setShowCancelModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>

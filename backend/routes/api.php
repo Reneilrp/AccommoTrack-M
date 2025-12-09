@@ -16,6 +16,10 @@ use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantDashboardController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantSettingsController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\PaymongoController;
+use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 
@@ -55,12 +59,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/upcoming', [TenantDashboardController::class, 'getUpcomingPayments']);
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);
+        Route::post('/bookings/{id}/invoice', [TenantBookingController::class, 'createInvoice']);
         Route::get('/payments', [TenantPaymentController::class, 'index']);
         Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);
         Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
+        Route::post('/invoices/{id}/record-offline', [InvoiceController::class, 'recordOfflineForTenant']);
+        // Tenant PayMongo endpoints (allow tenants to create sources/payments for their invoices)
+        Route::post('/invoices/{id}/paymongo-source', [PaymongoController::class, 'createSourceForTenant']);
+        Route::post('/invoices/{id}/paymongo-pay', [PaymongoController::class, 'createPaymentForTenant']);
+        // Tenant: trigger a refresh that queries PayMongo for the invoice's gateway_reference
+        Route::post('/invoices/{id}/paymongo-refresh', [PaymongoController::class, 'refreshInvoiceForTenant']);
         Route::get('/profile', [TenantSettingsController::class, 'getProfile']);
         Route::put('/profile', [TenantSettingsController::class, 'updateProfile']);
         Route::post('/change-password', [TenantSettingsController::class, 'changePassword']);
+        // Tenant: cancel own booking
+        Route::patch('/bookings/{id}/cancel', [TenantBookingController::class, 'cancel']);
     });
 
     // ===== LANDLORD ROUTES =====
@@ -115,10 +128,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
     Route::patch('/bookings/{id}/payment', [BookingController::class, 'updatePaymentStatus']);
 
+    // ===== PAYMENTS / INVOICES =====
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::post('/invoices', [InvoiceController::class, 'store']);
+    Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
+    Route::post('/invoices/{id}/charge', [InvoiceController::class, 'charge']);
+    Route::post('/invoices/{id}/record', [InvoiceController::class, 'recordOffline']);
+    Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+    Route::post('/transactions/{id}/refund', [TransactionController::class, 'refund']);
+    // Stripe webhook (public endpoint - ensure secret verification)
+    // Stripe webhook removed - using PayMongo instead
+    Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
+
+    // PayMongo create source for invoice
+    Route::post('/invoices/{id}/paymongo-source', [PaymongoController::class, 'createSource']);
+    // PayMongo create payment (accepts client-side token/payment_method_id or source_id)
+    Route::post('/invoices/{id}/paymongo-pay', [PaymongoController::class, 'createPayment']);
+
     // ===== SHARED ROOM ROUTES (for landlord and caretaker with rooms permission) =====
     Route::get('/rooms/property/{propertyId}', [RoomController::class, 'index']);
     Route::get('/rooms/property/{propertyId}/stats', [RoomController::class, 'getStats']);
     Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
+    // extend stay - extend active tenant assignment by days or months
+    Route::post('/rooms/{id}/extend', [RoomController::class, 'extendStay']);
 
     // ===== ADMIN ROUTES (Admins only) =====
     Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function () {

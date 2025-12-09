@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
 import api from '../utils/api';
 import { getDefaultLandingRoute } from '../utils/userRoutes';
+import toast, { Toaster } from 'react-hot-toast';
 
 function AuthScreen({ onLogin = () => {} }) {
   const navigate = useNavigate();
@@ -150,7 +151,8 @@ function AuthScreen({ onLogin = () => {} }) {
         setShowPlatformChoice(true);
       } else {
         // Desktop users get normal flow
-        alert('Registration successful! Please login with your credentials.');
+        toast.success('Registration successful! Please login with your credentials.');
+        // alert('Registration successful! Please login with your credentials.');
         setIsLogin(true);
       }
       
@@ -181,7 +183,7 @@ function AuthScreen({ onLogin = () => {} }) {
   const handleGoToMobileApp = () => {
     setShowPlatformChoice(false);
     // Show instructions to return to mobile app
-    alert('Please return to your AccommoTrack mobile app and login with your new landlord account.');
+    toast.success('Please return to your AccommoTrack mobile app and login with your new landlord account.');
     setIsLogin(true);
   };
 
@@ -207,6 +209,7 @@ function AuthScreen({ onLogin = () => {} }) {
   return (
     <div className="min-h-screen bg-[url(../assets/Bg-Pic-5.jpg)] bg-cover bg-center bg-no-repeat bg-fixed flex items-center justify-center p-4">
       <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden">
+        <Toaster />
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex flex-col items-center justify-center mb-6">
@@ -608,6 +611,7 @@ function AuthScreen({ onLogin = () => {} }) {
 
             {/* Choice Buttons */}
             <div className="space-y-3">
+              <Toaster />
               {/* Continue on Web */}
               <button
                 onClick={handleContinueOnWeb}

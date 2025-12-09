@@ -14,6 +14,7 @@ import {
   Loader2
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
+import toast from 'react-hot-toast';
 
 export default function MyProperties({ user }) {
   const [activeTab, setActiveTab] = useState('all');
@@ -130,12 +131,12 @@ export default function MyProperties({ user }) {
       });
       
       if (response.status === 200) {
-        alert(response.data.message || 'Property deleted successfully');
+        toast.success(response.data.message || 'Property deleted successfully');
         fetchProperties();
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to delete property';
-      alert(errorMessage);
+      toast.error(errorMessage);
       // If password is wrong, go back to password modal
       if (err.response?.data?.error === 'password_incorrect') {
         setDeleteConfirm({ show: false, property: null });
@@ -171,19 +172,21 @@ export default function MyProperties({ user }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center">
+            <div className="w-full text-center">
               <h1 className="text-2xl font-bold text-gray-900">My Properties</h1>
               <p className="text-sm text-gray-500 mt-1">Manage and track all your property listings</p>
             </div>
-            <button
-              onClick={() => setCurrentView('add')}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              Add Property
-            </button>
+            <div className="mt-4 lg:mt-0">
+              <button
+                onClick={() => setCurrentView('add')}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium w-40 justify-center whitespace-nowrap"
+              >
+                <Plus className="w-5 h-5" />
+                Add Property
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -315,7 +318,7 @@ export default function MyProperties({ user }) {
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
                         {/* Property Image */}
-                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
+                        <div className="w-18 h-22 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
                           {imageUrl ? (
                             <img
                               src={imageUrl}
@@ -336,9 +339,9 @@ export default function MyProperties({ user }) {
                         </div>
 
                         {/* Property Details */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-lg font-semibold text-gray-900">{property.title}</h3>
+                        <div className="flex-1 flex-row-3">
+                          <div className="flex items-center gap-3 mb-1">
+                                            <h3 className="text-xl font-semibold text-gray-900 text-center">{property.title}</h3>
                             <span
                               className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
                                 property.current_status === 'active'
@@ -376,18 +379,6 @@ export default function MyProperties({ user }) {
                           </div>
                         </div>
                       </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleViewProperty(property.id); }}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Open"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        {/* Delete moved to property Edit screen (safer UX) */}
-                      </div>
                     </div>
                   </div>
                 );
@@ -401,7 +392,7 @@ export default function MyProperties({ user }) {
       {passwordModal.show && passwordModal.property && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Verify Password</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Verify Password</h3>
             <p className="text-gray-600 mb-4">
               Please enter your password to confirm deletion of "{passwordModal.property.title}".
             </p>
@@ -459,7 +450,7 @@ export default function MyProperties({ user }) {
       {deleteConfirm.show && deleteConfirm.property && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Confirm Deletion</h3>
             <p className="text-gray-600 mb-4">
               Are you sure you want to delete "{deleteConfirm.property.title}"?
               {deleteConfirm.property.total_rooms > 0 && (

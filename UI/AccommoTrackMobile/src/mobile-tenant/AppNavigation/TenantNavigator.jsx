@@ -7,6 +7,10 @@ import AccommodationDetails from '../src/components/PropertyDetailsScreen.jsx';
 import ProfilePage from '../src/Profile/ProfilePage.jsx';
 import MyBookings from '../src/Menu/MyBookings.jsx';
 import Payments from '../src/Menu/Payments.jsx';
+import PaymentDetail from '../src/Menu/PaymentDetail.jsx';
+import PaymentCardWebview from '../src/Menu/PaymentCardWebview.jsx';
+import PaymentRedirectWebview from '../src/Menu/PaymentRedirectWebview.jsx';
+import PaymentHistory from '../src/Menu/PaymentHistory.jsx';
 import Settings from '../src/Menu/Settings.jsx';
 import HelpSupport from '../src/Menu/HelpSupport.jsx';
 import RoomListScreen from '../src/components/RoomListScreen.jsx';
@@ -82,6 +86,10 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
           <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
           <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
           <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+          <Stack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
+          <Stack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
+          <Stack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />
+          <Stack.Screen name="PaymentRedirectWebview" component={PaymentRedirectWebview} options={{ animation: 'none' }} />
           <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
         </>
       )}

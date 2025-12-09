@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import api from '../../utils/api';
+import toast from 'react-hot-toast';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -330,7 +331,7 @@ export default function AddProperty({ onBack, onSave }) {
         }
       });
       const data = result.data;
-      alert(isDraft ? 'Draft saved!' : 'Property submitted for admin approval!');
+      toast.success(isDraft ? 'Draft saved!' : 'Property submitted for admin approval!');
       if (onSave) onSave(result, 'pending');
       if (onBack) onBack();
 

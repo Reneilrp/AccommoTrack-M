@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
@@ -225,16 +226,16 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       const updatedUser = result.data.user;
       localStorage.setItem('userData', JSON.stringify(updatedUser));
       onUserUpdate?.(updatedUser);
-      alert('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('An error occurred. Please try again.');
+      toast.error('An error occurred. Please try again.');
     }
   };
 
   const handleSaveNotifications = () => {
     console.log('Saving notifications:', notifications);
-    alert('Notification preferences updated!');
+    toast.success('Notification preferences updated!');
   };
 
   // Handle photo file selection
@@ -243,12 +244,12 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        toast.error('Please select an image file');
         return;
       }
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+        toast.error('Image size should be less than 5MB');
         return;
       }
       // Create preview
@@ -263,7 +264,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   // Handle photo upload
   const handlePhotoUpload = async () => {
     if (!fileInputRef.current?.files[0]) {
-      alert('Please select a photo first');
+      toast.error('Please select a photo first');
       return;
     }
 
@@ -283,10 +284,10 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       setPhotoPreview(null);
       localStorage.setItem('userData', JSON.stringify(updatedUser));
       onUserUpdate?.(updatedUser);
-      alert('Profile photo updated successfully!');
+      toast.success('Profile photo updated successfully!');
     } catch (error) {
       console.error('Error uploading photo:', error);
-      alert('Failed to upload photo. Please try again.');
+      toast.error('Failed to upload photo. Please try again.');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -311,21 +312,21 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       setProfilePhoto(null);
       localStorage.setItem('userData', JSON.stringify(updatedUser));
       onUserUpdate?.(updatedUser);
-      alert('Profile photo removed successfully!');
+      toast.success('Profile photo removed successfully!');
     } catch (error) {
       console.error('Error removing photo:', error);
-      alert('Failed to remove photo. Please try again.');
+      toast.error('Failed to remove photo. Please try again.');
     }
   };
 
   const handleUpdatePassword = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match!');
+      toast.error('New passwords do not match!');
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      alert('Password must be at least 8 characters long!');
+      toast.error('Password must be at least 8 characters long!');
       return;
     }
 
@@ -336,7 +337,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         new_password_confirmation: passwordData.confirmPassword
       });
 
-      alert('Password updated successfully!');
+      toast.success('Password updated successfully!');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
@@ -345,7 +346,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     } catch (error) {
       console.error('Error updating password:', error);
       const errorMsg = error.response?.data?.message || 'An error occurred. Please try again.';
-      alert(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
@@ -1563,7 +1564,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                                 </button>
                                 {/* TODO: Implement after defense - Activity Log feature */}
                                 <button
-                                  onClick={() => alert('Activity History - Coming soon! This feature will be implemented after defense.')}
+                                  onClick={() => toast('Activity History - Coming soon! This feature will be implemented after defense.')}
                                   className="px-3 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50"
                                   disabled={caretakerState.loading}
                                 >

@@ -183,6 +183,8 @@ class PropertyController extends Controller
                         'room_type' => $room->room_type,
                         'type_label' => $this->getRoomTypeLabel($room->room_type),
                         'monthly_rate' => (float) $room->monthly_rate,
+                        'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
+                        'billing_policy' => $room->billing_policy ?? 'monthly',
                         'capacity' => $room->capacity,
                         'status' => $room->status,
                         'description' => $room->description,

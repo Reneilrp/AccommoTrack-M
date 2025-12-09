@@ -158,6 +158,29 @@ class BookingService {
       };
     }
   }
+
+  async cancelBooking(bookingId, data = {}) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.patch(
+        `${API_URL}/tenant/bookings/${bookingId}/cancel`,
+        data,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error cancelling booking:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to cancel booking' };
+    }
+  }
 }
 
 export default new BookingService();

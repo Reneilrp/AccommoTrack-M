@@ -81,12 +81,12 @@ class RoomController extends Controller
                 'room_number' => 'required|string|max:50',
                 'room_type' => 'required|in:single,double,quad,bedSpacer',
                 'floor' => 'required|integer|min:1',
-                'monthly_rate' => 'required|numeric|min:0',
-                'daily_rate' => 'nullable|numeric|min:0',
+                'monthly_rate' => 'required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
+                'daily_rate' => 'required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
                 'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
-                'min_stay_days' => 'nullable|integer|min:1',
-                'prorate_base' => 'nullable|integer|min:1',
-                'capacity' => 'required|integer|min:1',
+                // min_stay_days and prorate_base handled server-side via model defaults; frontend no longer supplies them
+                // Capacity is required only for bedSpacer rooms
+                'capacity' => 'required_if:room_type,bedSpacer|integer|min:1',
                 'pricing_model' => 'sometimes|in:full_room,per_bed',
                 'status' => 'sometimes|in:available,occupied,maintenance',
                 'current_tenant_id' => 'nullable|exists:users,id',
@@ -97,10 +97,22 @@ class RoomController extends Controller
                 'images.*' => 'image|mimes:jpeg,png,jpg|max:10240'
             ]);
 
-            // Verify property belongs to authenticated landlord
+            // Verify property belongs to authenticated landlord and fetch property
             $property = Property::where('id', $validated['property_id'])
                 ->where('landlord_id', Auth::id())
                 ->firstOrFail();
+
+            $ptype = strtolower($property->property_type ?? '');
+
+            // Apartments must not use bedSpacer room type
+            if (str_contains($ptype, 'apartment') && isset($validated['room_type']) && $validated['room_type'] === 'bedSpacer') {
+                return response()->json([
+                    'message' => 'Invalid room type for apartment properties',
+                    'errors' => ['room_type' => ['Apartment properties cannot have Bed Spacer room type']]
+                ], 422);
+            }
+
+            // property already fetched above
 
             // Check if room number already exists for this property
             $existingRoom = Room::where('property_id', $validated['property_id'])
@@ -113,18 +125,22 @@ class RoomController extends Controller
                 ], 422);
             }
 
+            // Ensure capacity has a sensible default when not provided (e.g., apartments)
+            $capacityValue = $validated['capacity'] ?? 1;
+            // Enforce per_bed pricing model for bedSpacer rooms
+            $pricingModelValue = $validated['pricing_model'] ?? (($validated['room_type'] === 'bedSpacer') ? 'per_bed' : 'full_room');
+
             $room = Room::create([
                 'property_id' => $validated['property_id'],
                 'room_number' => $validated['room_number'],
                 'room_type' => $validated['room_type'],
                 'floor' => $validated['floor'],
-                'monthly_rate' => $validated['monthly_rate'],
+                'monthly_rate' => $validated['monthly_rate'] ?? null,
                 'daily_rate' => $validated['daily_rate'] ?? null,
                 'billing_policy' => $validated['billing_policy'] ?? 'monthly',
-                'min_stay_days' => $validated['min_stay_days'] ?? null,
-                'prorate_base' => $validated['prorate_base'] ?? 30,
-                'capacity' => $validated['capacity'],
-                'pricing_model' => $validated['pricing_model'] ?? 'full_room',
+                // min_stay_days and prorate_base intentionally not set here (frontend no longer sends them)
+                'capacity' => $capacityValue,
+                'pricing_model' => $pricingModelValue,
                 'status' => $validated['status'] ?? 'available',
                 'current_tenant_id' => $validated['current_tenant_id'] ?? null,
                 'description' => $validated['description'] ?? null
@@ -199,11 +215,10 @@ class RoomController extends Controller
                 'room_number' => 'sometimes|string|max:50',
                 'room_type' => 'sometimes|in:single,double,quad,bedSpacer',
                 'floor' => 'sometimes|integer|min:1',
-                'monthly_rate' => 'sometimes|numeric|min:0',
-                'daily_rate' => 'nullable|numeric|min:0',
+                'monthly_rate' => 'sometimes|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
+                'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
                 'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
-                'min_stay_days' => 'nullable|integer|min:1',
-                'prorate_base' => 'nullable|integer|min:1',
+                // min_stay_days and prorate_base removed from incoming validation
                 'capacity' => 'sometimes|integer|min:1',
                 'pricing_model' => 'sometimes|in:full_room,per_bed',
                 'status' => 'sometimes|in:available,occupied,maintenance',
@@ -230,6 +245,24 @@ class RoomController extends Controller
             }
 
             $oldStatus = $room->status;
+            // Additional checks based on property type and room_type changes
+            $ptype = strtolower($room->property->property_type ?? '');
+            if (isset($validated['room_type']) && $validated['room_type'] === 'bedSpacer') {
+                // Ensure property is allowed to have bedSpacer
+                if (str_contains($ptype, 'apartment')) {
+                    return response()->json([
+                        'message' => 'Invalid room type for apartment properties'
+                    ], 422);
+                }
+                // Ensure capacity is provided either in update payload or existing room has capacity
+                if (!isset($validated['capacity']) && (!$room->capacity || $room->capacity < 1)) {
+                    return response()->json([
+                        'message' => 'Validation failed',
+                        'errors' => ['capacity' => ['Capacity is required when room_type is bedSpacer']]
+                    ], 422);
+                }
+            }
+
             $room->update($validated);
 
             // Handle amenities if provided
@@ -491,8 +524,8 @@ class RoomController extends Controller
             'monthly_rate' => (float) $room->monthly_rate,
             'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
             'billing_policy' => $room->billing_policy ?? 'monthly',
-            'min_stay_days' => $room->min_stay_days,
-            'prorate_base' => $room->prorate_base ?? 30,
+                // 'min_stay_days' => $room->min_stay_days,
+                // 'prorate_base' => $room->prorate_base ?? 30,
             'capacity' => $room->capacity,
                 'pricing_model' => $room->pricing_model ?? 'full_room',
                 'payment' => method_exists($room, 'getPaymentDisplay') ? $room->getPaymentDisplay() : null,
@@ -563,8 +596,8 @@ class RoomController extends Controller
                         'monthly_rate' => (float) $room->monthly_rate,
                         'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
                         'billing_policy' => $room->billing_policy ?? 'monthly',
-                        'min_stay_days' => $room->min_stay_days,
-                        'prorate_base' => $room->prorate_base ?? 30,
+                            // 'min_stay_days' => $room->min_stay_days,
+                            // 'prorate_base' => $room->prorate_base ?? 30,
                         'capacity' => $room->capacity,
                         'status' => $room->status,
                         'description' => $room->description,
@@ -619,7 +652,6 @@ class RoomController extends Controller
                 'policy' => $room->billing_policy ?? 'monthly',
                 'monthly_rate' => (float) $room->monthly_rate,
                 'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
-                'prorate_base' => $room->prorate_base ?? 30,
                 'breakdown' => $result['breakdown'],
                 'total' => $result['total'],
                 'method' => $result['method']
@@ -628,6 +660,95 @@ class RoomController extends Controller
             return response()->json(['message' => 'Room not found'], 404);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to calculate pricing', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Extend active tenant assignment(s) for a room by days or months.
+     * Expects either `days` (integer) or `months` (integer) in the request body.
+     */
+    public function extendStay(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_rooms');
+
+            $validated = $request->validate([
+                'days' => 'nullable|integer|min:1',
+                'months' => 'nullable|integer|min:1',
+            ]);
+
+            if (empty($validated['days']) && empty($validated['months'])) {
+                return response()->json(['message' => 'Either days or months is required'], 422);
+            }
+
+            $room = Room::findOrFail($id);
+
+            // Verify room's property belongs to landlord
+            if ($room->property->landlord_id !== $context['landlord_id']) {
+                return response()->json(['message' => 'Unauthorized access'], 403);
+            }
+
+            // If caretaker, verify they have access to this property
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                if (!in_array($room->property_id, $assignedPropertyIds)) {
+                    return response()->json(['message' => 'Unauthorized access to this property'], 403);
+                }
+            }
+
+            // Fetch active tenant assignments for this room
+            $assignments = DB::table('room_tenant_assignments')
+                ->where('room_id', $room->id)
+                ->where('status', 'active')
+                ->get();
+
+            if ($assignments->isEmpty()) {
+                return response()->json(['message' => 'No active tenant assignment found for this room'], 404);
+            }
+
+            $updated = [];
+            foreach ($assignments as $a) {
+                // determine base date (existing end_date or today)
+                if ($a->end_date) {
+                    $base = new \DateTime($a->end_date);
+                } else {
+                    // if no end_date, use today
+                    $base = new \DateTime();
+                }
+
+                if (!empty($validated['days'])) {
+                    $base->modify('+' . intval($validated['days']) . ' days');
+                }
+                if (!empty($validated['months'])) {
+                    $base->modify('+' . intval($validated['months']) . ' months');
+                }
+
+                $newEnd = $base->format('Y-m-d');
+
+                DB::table('room_tenant_assignments')
+                    ->where('id', $a->id)
+                    ->update(['end_date' => $newEnd, 'updated_at' => now()]);
+
+                $updated[] = ['assignment_id' => $a->id, 'tenant_id' => $a->tenant_id, 'end_date' => $newEnd];
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Successfully extended tenant assignment(s)',
+                'updated' => $updated
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Room not found'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to extend stay', 'error' => $e->getMessage()], 500);
         }
     }
 }

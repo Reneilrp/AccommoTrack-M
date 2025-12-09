@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import api from '../../utils/api';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [tenants, setTenants] = useState([]);
@@ -14,28 +14,22 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
+  const [isFromProperty, setIsFromProperty] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        // Use accessible properties endpoint which handles both landlords and caretakers
-        const res = await api.get('/properties/accessible');
-        const data = res.data;
-        setProperties(data);
-        if (data.length > 0) {
-          setSelectedPropertyId(data[0].id);
-        } else {
-          // No properties, stop loading
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load properties:', err);
-        setLoading(false);
-      }
-    })();
+    // Property loading is handled by the effect below that reads location.search
   }, []);
   const location = useLocation();
+  const navigate = useNavigate();
+  const selectedProperty = properties.find(p => String(p.id) === String(selectedPropertyId)) || null;
+  
+  const handleBackClick = () => {
+    if (isFromProperty && selectedPropertyId) {
+      navigate(`/properties/${selectedPropertyId}`);
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -45,6 +39,11 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
         const params = new URLSearchParams(location.search);
         const q = params.get('property');
+        const searchQ = params.get('search');
+
+        if (searchQ) {
+          setSearchQuery(searchQ);
+        }
 
         if (q) {
           const pid = Number(q);
@@ -52,6 +51,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           const exists = data.find((p) => Number(p.id) === pid);
           if (exists) {
             setSelectedPropertyId(pid);
+            setIsFromProperty(true);
             return;
           }
         }
@@ -63,6 +63,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     };
     load();
   }, [location.search]);
+
+  // Navigation on search is handled explicitly by the Search button (see `handleSearch`).
 
   const loadTenants = useCallback(async () => {
     if (!selectedPropertyId) return;
@@ -78,11 +80,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         throw new Error(data.message || data.error);
       }
       
-      setTenants(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setTenants(list);
+      return list;
     } catch (err) {
       console.error('Failed to load tenants:', err);
       setTenants([]);
       setError('Failed to load tenants: ' + err.message);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -112,13 +117,37 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     loadTenants();
   };
 
+  const handleSearch = async () => {
+    // Ensure we're working with the latest tenant list for the selected property
+    let list = tenants || [];
+    if (selectedPropertyId) {
+      list = await loadTenants();
+    }
+
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return;
+
+    const matches = (list || []).filter(tenant => {
+      const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
+      const email = (tenant.email || '').toLowerCase();
+      const roomNumber = tenant.room?.room_number || '';
+      return fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
+    });
+
+    if (matches.length === 1) {
+      const m = matches[0];
+      const id = m.id || m.tenant_id || m.tenantId || m.user_id || (m.user && m.user.id);
+      if (id) navigate(`/tenants/${id}`);
+    }
+  };
+
   const filteredTenants = tenants.filter(tenant => {
     const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
-    const email = tenant.email.toLowerCase();
+    const email = (tenant.email || '').toLowerCase();
     const roomNumber = tenant.room?.room_number || '';
-    return fullName.includes(searchQuery.toLowerCase()) || 
-           email.includes(searchQuery.toLowerCase()) ||
-           roomNumber.includes(searchQuery);
+    const q = (searchQuery || '').toLowerCase();
+    if (!q) return true; // no query => show all
+    return fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
   });
 
   const stats = {
@@ -132,12 +161,27 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   // Show initial loading state
   if (loading && tenants.length === 0 && properties.length === 0) {
     return (
-      <div className="p-6 bg-gray-50 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Tenant Management</h1>
-            <p className="text-gray-600 mt-1">Manage all tenants and their room assignments</p>
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2">
+              <button
+                onClick={handleBackClick}
+                className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-5 h-5 text-green-600" />
+              </button>
+            </div>
+
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900">Tenant Management</h1>
+              <h3 className="text-sm text-gray-600 mt-1">Manage all tenants and their room assignments</h3>
+            </div>
           </div>
+        </header>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="flex flex-col items-center justify-center text-gray-500">
               <Loader2 className="w-8 h-8 animate-spin text-green-600 mb-2" />
@@ -150,13 +194,32 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Tenant Management</h1>
-          <p className="text-gray-600 mt-1">Manage all tenants and their room assignments</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+            <button
+              onClick={handleBackClick}
+              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              aria-label="Back to property"
+            >
+              <ArrowLeft className="w-5 h-5 text-green-600" />
+            </button>
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Tenant Management</h1>
+            <h3 className="text-sm text-gray-600 mt-1">Manage all tenants and their room assignments</h3>
+          </div>
+
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
+            {/* intentionally empty: Tenant Management should not show a property selector here (auto-detected) */}
+          </div>
         </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {isCaretaker && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800">
@@ -195,41 +258,40 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         {/* Search and Filter Bar */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex justify-between items-center gap-4">
-            <div className="flex-1 relative">
+            <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search by name, room number or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            {properties.length > 1 ? (
-              <select
-                value={selectedPropertyId}
-                onChange={e => setSelectedPropertyId(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSearch}
+                disabled={loading}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Search tenants"
               >
-                {properties.map(p => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
-            ) : properties.length === 1 ? (
-              <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium">
-                {properties[0].title}
-              </div>
-            ) : null}
-            <button
-              onClick={refresh}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Refresh tenant list"
-            >
-              <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : 'hidden'}`} />
-              <RefreshCw className={`w-4 h-4 ${loading ? 'hidden' : ''}`} />
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
+                <Search className="w-4 h-4" />
+                Search
+              </button>
+
+              <button
+                onClick={refresh}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh tenant list"
+              >
+                <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : 'hidden'}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'hidden' : ''}`} />
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
           </div>
         </div>
 
