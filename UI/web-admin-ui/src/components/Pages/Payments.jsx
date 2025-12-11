@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { Loader2, Search, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PriceRow from '../Shared/PriceRow';
 
 export default function Payments() {
   const [loading, setLoading] = useState(true);
@@ -168,7 +169,7 @@ export default function Payments() {
     ];
     const room = roomCandidates.find(r => r !== undefined && r !== null && r !== '') || '—';
     const issued = inv.issued_at || inv.created_at || '';
-    const price = inv.amount_cents ? (inv.amount_cents/100).toFixed(2) : (inv.amount || '—');
+    const price = inv.amount_cents ? (inv.amount_cents/100) : (inv.amount ? Number(inv.amount) : 0);
     const status = (inv.status || inv.booking?.payment_status || inv.payment_status || 'unpaid');
 
     // Determine display values, but show a Loading placeholder when booking is referenced but not yet fetched
@@ -188,7 +189,7 @@ export default function Payments() {
             <span>{issued ? formatDate(issued) : '—'}</span>
           </div>
         </td>
-        <td className="px-6 py-4 text-sm font-semibold text-gray-900">₱{price}</td>
+        <td className="px-6 py-4 text-sm font-semibold text-gray-900"><PriceRow amount={price} /></td>
         <td className="px-6 py-4">
           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(status)}`}>
             {status ? (status.charAt(0).toUpperCase() + status.slice(1)) : '—'}

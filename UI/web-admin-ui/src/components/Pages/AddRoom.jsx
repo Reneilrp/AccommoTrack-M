@@ -6,7 +6,9 @@ import {
   Loader2,
   HelpCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import PricingHelp from '../Rooms/PricingHelp';
+import PriceRow from '../Shared/PriceRow';
 import api from '../../utils/api';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {
@@ -24,8 +26,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     roomType: initialRoomType,
     floor: '1',
     monthlyRate: '',
+    // new billing related fields
     dailyRate: '',
     billingPolicy: 'monthly',
+    minStayDays: '1',
+    prorateBase: '30',
     capacity: isBedSpacerProperty ? '1' : '1',
     pricingModel: initialPricingModel,
     description: '',
@@ -289,11 +294,26 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       payload.append('room_number', formData.roomNumber);
       payload.append('room_type', formData.roomType);
       payload.append('floor', parseInt(formData.floor));
-      if (bp === 'monthly' || bp === 'monthly_with_daily') payload.append('monthly_rate', parseFloat(formData.monthlyRate));
+      if (bp === 'monthly' || bp === 'monthly_with_daily') {
+        const monthlyVal = parseFloat(formData.monthlyRate);
+        if (Number.isFinite(monthlyVal)) payload.append('monthly_rate', monthlyVal);
+      }
       // Apartments don't use capacity; send 1 for consistency.
       payload.append('capacity', isApartment ? 1 : parseInt(formData.capacity || 1));
-      if (bp === 'daily' || bp === 'monthly_with_daily') payload.append('daily_rate', parseFloat(formData.dailyRate));
+      if (bp === 'daily' || bp === 'monthly_with_daily') {
+        const dailyVal = parseFloat(formData.dailyRate);
+        if (Number.isFinite(dailyVal)) payload.append('daily_rate', dailyVal);
+      }
       if (formData.billingPolicy) payload.append('billing_policy', formData.billingPolicy);
+      // Append new billing-related fields if provided
+      if (formData.minStayDays) {
+        const v = parseInt(formData.minStayDays);
+        if (Number.isFinite(v)) payload.append('min_stay_days', v);
+      }
+      if (formData.prorateBase) {
+        const p = parseInt(formData.prorateBase);
+        if (Number.isFinite(p)) payload.append('prorate_base', p);
+      }
       // min_stay_days and prorate_base removed per UX decision; billing handled by billing policy and daily rate
       payload.append('pricing_model', formData.pricingModel);
       payload.append('description', formData.description || '');
@@ -307,12 +327,12 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         payload.append(`images[${idx}]`, file);
       });
 
-      const result = await api.post('/landlord/rooms', payload, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const headers = {
+        'Accept': 'application/json'
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const result = await api.post('/landlord/rooms', payload, { headers });
       const newRoom = result.data;
       
       setFormData({
@@ -320,8 +340,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         roomType: 'single',
         floor: '1',
         monthlyRate: '',
+        // billing fields
         dailyRate: '',
         billingPolicy: 'monthly',
+        minStayDays: '1',
+        prorateBase: '30',
         capacity: '1',
         pricingModel: 'full_room',
         description: '',
@@ -332,13 +355,16 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
       // show success message briefly, notify parent, then close modal
       setSuccessMessage('Room added successfully');
+      toast.success('Room added successfully');
       if (onRoomAdded) onRoomAdded(newRoom);
       setTimeout(() => {
         setSuccessMessage('');
         onClose();
       }, 1200);
     } catch (err) {
-      setError(err.message);
+      const msg = err.response?.data?.message || err.message || 'Failed to add room';
+      setError(msg);
+      try { toast.error(msg); } catch (e) { /* ignore toast errors */ }
     } finally {
       setLoading(false);
     }
@@ -424,9 +450,9 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
           </div>
 
-          {/* Row 3: Billing Policy | Monthly Rate | Daily Rate | Capacity (responsive widths) */}
-          <div className="grid grid-cols-12 gap-4 mt-2 items-end min-w-0">
-            <div className="col-span-3 min-w-0">
+          {/* Row 2: Billing Policy | Monthly Rate | Daily Rate */}
+          <div className="grid grid-cols-3 gap-4 mt-2 items-end min-w-0">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
               <select
                 value={formData.billingPolicy}
@@ -439,7 +465,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               </select>
             </div>
 
-            <div className="col-span-3 min-w-0">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Monthly Rate (₱/month)
                 {formData.billingPolicy === 'monthly' || formData.billingPolicy === 'monthly_with_daily' ? (
@@ -458,7 +484,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               />
             </div>
 
-            <div className="col-span-3">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Daily Rate (₱/day)
                 {(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? (
@@ -476,41 +502,78 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 disabled={!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily')}
               />
             </div>
-            {!isApartment ? (
-              <div className="col-span-3">
-                <div className="flex items-baseline justify-between">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Capacity</label>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-red-500 ml-1">*</span>
-                    <span className="text-xs text-gray-500">
-                      {formData.roomType === 'bedSpacer' ? '(manually if bed spacer)' : '(auto-set by room type)'}
-                    </span>
-                  </div>
-                </div>
+          </div>
 
-                {(() => {
-                  const capacityDisabled = (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && !isBedSpacerProperty;
-                  const displayValue = capacityDisabled ? '1' : formData.capacity;
-                  return (
-                    <input
-                      type="number"
-                      value={displayValue}
-                      onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
-                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${capacityDisabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
-                      min="1"
-                      max="10"
-                      disabled={capacityDisabled}
-                    />
-                  );
-                })()}
+          {/* Row 3: Prorate Base | Minimum Stay | Capacity */}
+          <div className="grid grid-cols-3 gap-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Prorate Base (days)</label>
+              <input
+                type="number"
+                placeholder="e.g., 30"
+                value={formData.prorateBase}
+                onChange={(e) => handleInputChange('prorateBase', e.target.value)}
+                className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                min="1"
+                step="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Stay (days)</label>
+              <input
+                type="number"
+                placeholder="e.g., 30"
+                value={formData.minStayDays}
+                onChange={(e) => handleInputChange('minStayDays', e.target.value)}
+                className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                min="1"
+                step="1"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Capacity</label>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-red-500 ml-1">*</span>
+                  <span className="text-xs text-gray-500">
+                    {formData.roomType === 'bedSpacer' ? '(manually if bed spacer)' : '(auto-set by room type)'}
+                  </span>
+                </div>
               </div>
-            ) : (
-              <div />
-            )}
+
+              {(() => {
+                const capacityDisabled = (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && !isBedSpacerProperty;
+                const displayValue = capacityDisabled ? '1' : formData.capacity;
+                return (
+                  <input
+                    type="number"
+                    value={displayValue}
+                    onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${capacityDisabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                    min="1"
+                    max="10"
+                    disabled={capacityDisabled}
+                  />
+                );
+              })()}
+            </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Pricing Model</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-gray-900">Pricing Model</h4>
+              <button
+                type="button"
+                onClick={() => setShowPricingHelp(true)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded focus:outline-none"
+                title="Pricing help"
+                aria-label="Open pricing help"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
+            </div>
             <p className="text-xs text-gray-600 mb-3">
               {formData.roomType === 'bedSpacer' 
                 ? 'Bed Spacer rooms use per-bed pricing only'
@@ -535,10 +598,13 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   <div>
                     <p className="text-sm font-medium text-gray-900">Room Price</p>
                     <p className="text-xs text-gray-600">
-                      {formData.capacity > 1 
-                        ? `Tenants divide ₱${formData.monthlyRate || 0} equally (₱${formData.monthlyRate ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)) : 0}/person)`
-                        : 'Single tenant pays full price'
-                      }
+                      {formData.capacity > 1 ? (
+                        <span>ic
+                          Tenants divide <PriceRow amount={parseFloat(formData.monthlyRate) || 0} /> equally (
+                          <PriceRow amount={((parseFloat(formData.monthlyRate) || 0) / (parseInt(formData.capacity) || 1))} small={true} />
+                          /person)
+                        </span>
+                      ) : 'Single tenant pays full price'}
                     </p>
                   </div>
                 </label>
@@ -560,7 +626,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   <div>
                     <p className="text-sm font-medium text-gray-900">Per Bed/Tenant Price</p>
                     <p className="text-xs text-gray-600">
-                      Each tenant pays ₱{formData.monthlyRate || 0} for their bed (independent billing)
+                      Each tenant pays <PriceRow amount={parseFloat(formData.monthlyRate) || 0} small={true} /> for their bed (independent billing)
                     </p>
                   </div>
                 </label>

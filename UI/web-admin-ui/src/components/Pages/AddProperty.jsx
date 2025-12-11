@@ -78,6 +78,9 @@ export default function AddProperty({ onBack, onSave }) {
     totalRooms: '',
     amenities: [],
     rules: [],
+    // New: eligibility flag and credential files for admin approval
+    isEligible: false,
+    credentials: [],
     monthlyPrice: '',
     securityDeposit: '',
     utilitiesIncluded: 'none',
@@ -133,7 +136,8 @@ export default function AddProperty({ onBack, onSave }) {
   const steps = [
     { number: 1, title: 'Property Information', description: 'Basic details & photos' },
     { number: 2, title: 'Location Details', description: 'Address & coordinates' },
-    { number: 3, title: 'Rules & Amenities', description: 'House rules & features' }
+    { number: 3, title: 'Rules & Amenities', description: 'House rules & features' },
+    { number: 4, title: 'Credentials', description: 'Submit documents for approval' }
   ];
 
   const handleInputChange = (field, value) => {
@@ -226,7 +230,7 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
       setTimeout(() => {
         formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -241,6 +245,22 @@ export default function AddProperty({ onBack, onSave }) {
         formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     }
+  };
+
+  // Credential handlers
+  const handleCredentialUpload = (e) => {
+    const files = Array.from(e.target.files);
+    setFormData(prev => ({
+      ...prev,
+      credentials: [...prev.credentials, ...files]
+    }));
+  };
+
+  const removeCredential = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      credentials: prev.credentials.filter((_, i) => i !== index)
+    }));
   };
 
   const mapPropertyToBackend = (isDraft = false) => {
@@ -263,12 +283,14 @@ export default function AddProperty({ onBack, onSave }) {
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
       is_available: false,
+      // Indicate whether landlord marked property eligible for approval
+      is_eligible: formData.isEligible ? '1' : '0',
       // Explicit flag to indicate draft from frontend
       is_draft: isDraft ? '1' : '0',
     };
   };
 
-  const validateForm = () => {
+  const validateForm = (isDraft = false) => {
     const errors = [];
 
     if (!formData.propertyName) errors.push('Property name is required');
@@ -277,6 +299,11 @@ export default function AddProperty({ onBack, onSave }) {
     if (!formData.streetAddress) errors.push('Street address is required');
     if (!formData.city) errors.push('City is required');
     if (!formData.provinceRegion) errors.push('Province is required');
+
+    // If property is marked eligible and we're submitting (not saving draft), credentials are required
+    if (!isDraft && formData.isEligible && (!Array.isArray(formData.credentials) || formData.credentials.length === 0)) {
+      errors.push('Credentials are required for eligible properties');
+    }
 
     if (errors.length > 0) {
       setError(errors.join(', '));
@@ -287,7 +314,7 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const handleSubmit = async (isDraft = false) => {
-    if (!isDraft && !validateForm()) return;
+    if (!isDraft && !validateForm(isDraft)) return;
 
     setLoading(true);
     setError('');
@@ -320,6 +347,13 @@ export default function AddProperty({ onBack, onSave }) {
     formData.images.forEach((file, index) => {
       if (file instanceof File) {
         payload.append(`images[${index}]`, file);
+      }
+    });
+
+    // Append credential documents if any
+    formData.credentials.forEach((file, index) => {
+      if (file instanceof File) {
+        payload.append(`credentials[${index}]`, file);
       }
     });
 
@@ -900,6 +934,66 @@ export default function AddProperty({ onBack, onSave }) {
           </div>
         )}
 
+        {/* Step 4: Credentials (Eligibility + Documents) */}
+        {currentStep === 4 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Credentials for Approval</h2>
+              <p className="text-sm text-gray-600 mb-4">If your property is eligible for direct admin approval, upload supporting documents (e.g., proof of ownership, permits).</p>
+
+              <div className="flex items-center gap-3 mb-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.isEligible}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isEligible: e.target.checked }))}
+                    className="form-checkbox h-4 w-4 text-green-600"
+                  />
+                  <span className="text-sm text-gray-700">Mark property as eligible for admin approval</span>
+                </label>
+              </div>
+
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <input
+                  type="file"
+                  multiple
+                  accept="application/pdf,image/png,image/jpeg"
+                  onChange={handleCredentialUpload}
+                  className="hidden"
+                  id="credential-upload"
+                />
+
+                {formData.credentials.length === 0 ? (
+                  <label htmlFor="credential-upload" className="cursor-pointer block text-center">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 mb-1">Click to upload credential documents</p>
+                    <p className="text-sm text-gray-500">PDF, PNG, JPG</p>
+                  </label>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
+                      {formData.credentials.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-gray-500" />
+                            <p className="text-sm text-gray-700">{file.name}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label htmlFor="credential-upload" className="text-sm text-gray-500 cursor-pointer mr-2">Add more</label>
+                            <button onClick={() => removeCredential(index)} className="text-red-500 hover:text-red-700">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Buttons */}
         <div className="flex items-center justify-between pt-6">
           <button
@@ -915,7 +1009,7 @@ export default function AddProperty({ onBack, onSave }) {
           </button>
 
           <div className="flex items-center gap-3">
-            {currentStep === 3 ? (
+            {currentStep === steps.length ? (
               <>
                   <button
                     onClick={() => handleSubmit(true)}

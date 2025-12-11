@@ -232,7 +232,7 @@ export default function TenantLogs() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg p-4 border">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 text-center w-full">Profile</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2 text-center w-full">User Profile</h3>
             <p className="text-sm text-gray-800 font-medium">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
             <p className="text-sm text-gray-500">{tenant?.email || tenant?.contact || 'No contact'}</p>
             <p className="text-sm text-gray-500 mt-2">Status: <span className="font-medium">{tenant?.tenantProfile?.status || '—'}</span></p>

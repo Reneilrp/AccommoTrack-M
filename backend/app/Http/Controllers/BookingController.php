@@ -113,19 +113,27 @@ class BookingController extends Controller
                 ], 422);
             }
 
-            // Calculate end date and total amount
+            // Calculate end date and total amount (use days and prorate logic)
             $startDate = \Carbon\Carbon::parse($validated['start_date']);
             $endDate = \Carbon\Carbon::parse($validated['end_date']);
-            
-            // Calculate total months - count the number of month boundaries crossed
-            $totalMonths = 0;
-            $currentDate = $startDate->copy();
-            while ($currentDate < $endDate) {
-                $totalMonths++;
-                $currentDate->addMonth();
+
+            // Inclusive days count
+            $days = $startDate->diffInDays($endDate) + 1;
+
+            // Enforce minimum stay if configured on the room
+            $minStay = isset($room->min_stay_days) ? (int) $room->min_stay_days : null;
+            if ($minStay && $days < $minStay) {
+                return response()->json([
+                    'message' => 'Minimum stay requirement not met',
+                    'errors' => ['min_stay_days' => ["Minimum stay is {$minStay} days"]]
+                ], 422);
             }
-            
-            $totalAmount = $room->monthly_rate * $totalMonths;
+
+            // Use room pricing logic to calculate prorated amounts and breakdown
+            $priceResult = $room->calculatePriceForDays($days);
+            $totalAmount = $priceResult['total'];
+            // derive total months from breakdown if available
+            $totalMonths = isset($priceResult['breakdown']['months']) ? (int) $priceResult['breakdown']['months'] : intdiv($days, ($room->prorate_base ?? 30));
 
             // Generate unique booking reference
             $bookingReference = 'BK-' . strtoupper(Str::random(8));

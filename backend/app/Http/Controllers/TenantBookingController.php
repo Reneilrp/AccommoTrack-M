@@ -178,8 +178,41 @@ class TenantBookingController extends Controller
                 return response()->json(['success' => true, 'data' => $existing], 200);
             }
 
-            // Create a basic invoice using booking total_amount
-            $amountCents = (int) round(($booking->total_amount ?? ($booking->monthly_rent * $booking->total_months)) * 100);
+            // Create an invoice for the current billing cycle.
+            // Calculate month start for current billing cycle based on booking start_date.
+            $startDate = new \Carbon\Carbon($booking->start_date);
+            $today = \Carbon\Carbon::today();
+
+            // Determine how many full months have passed since start_date up to today
+            $months = 0;
+            $cursor = $startDate->copy();
+            while ($cursor->copy()->addMonth()->lessThanOrEqualTo($today)) {
+                $months++;
+                $cursor->addMonth();
+            }
+
+            // cycleStart is the start date for the current billing cycle
+            $cycleStart = $startDate->copy()->addMonths($months);
+
+            // Base monthly amount (use booking.monthly_rent for tenant-specific rent)
+            $monthlyDue = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
+
+            // Prorate: if tenant has exceeded the cycle start (i.e., today is after cycle start), charge prorated extra days
+            $prorateBase = isset($booking->room->prorate_base) ? (int) $booking->room->prorate_base : 30;
+            $daysOverdue = 0;
+            if ($today->greaterThan($cycleStart)) {
+                $daysOverdue = $cycleStart->diffInDays($today);
+            }
+
+            $prorateCharge = 0.0;
+            if ($daysOverdue > 0) {
+                $ratePerDay = $booking->room->daily_rate !== null ? (float)$booking->room->daily_rate : ($monthlyDue / max(1, $prorateBase));
+                $prorateCharge = round($daysOverdue * $ratePerDay, 2);
+            }
+
+            $totalAmount = round($monthlyDue + $prorateCharge, 2);
+
+            $amountCents = (int) round($totalAmount * 100);
 
             $reference = 'INV-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)),0,6));
 
@@ -194,6 +227,13 @@ class TenantBookingController extends Controller
                 'currency' => 'PHP',
                 'status' => 'pending',
                 'issued_at' => now(),
+                'metadata' => [
+                    'monthly_due' => $monthlyDue,
+                    'prorate_days' => $daysOverdue,
+                    'prorate_charge' => $prorateCharge,
+                    'prorate_base' => $prorateBase,
+                    'cycle_start' => $cycleStart->format('Y-m-d')
+                ]
             ]);
 
             return response()->json(['success' => true, 'data' => $invoice], 201);

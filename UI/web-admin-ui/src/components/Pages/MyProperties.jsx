@@ -316,9 +316,9 @@ export default function MyProperties({ user }) {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewProperty(property.id); } }}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4 flex-1">
+                      <div className="flex items-start gap-6 flex-1">
                         {/* Property Image */}
-                        <div className="w-18 h-22 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
+                        <div className="w-60 h-48 min-w-60 min-h-48 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
                           {imageUrl ? (
                             <img
                               src={imageUrl}
@@ -340,7 +340,7 @@ export default function MyProperties({ user }) {
 
                         {/* Property Details */}
                         <div className="flex-1 flex-row-3">
-                          <div className="flex items-center gap-3 mb-1">
+                          <div className="flex items-center gap-3 mb-1 pt-5">
                                             <h3 className="text-xl font-semibold text-gray-900 text-center">{property.title}</h3>
                             <span
                               className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${

@@ -77,7 +77,7 @@ export default function Payments() {
             return;
           }
 
-          const resp = await fetch(`${PaymentService.API_URL || 'http://192.168.254.106:8000/api'}/tenant/bookings/${bookingId}/invoice`, {
+          const resp = await fetch(`${PaymentService.API_URL || 'http://10.221.1.156:8000/api'}/tenant/bookings/${bookingId}/invoice`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,

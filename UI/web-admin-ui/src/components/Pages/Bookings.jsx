@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PriceRow from '../Shared/PriceRow';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -432,10 +433,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                            ₱{booking.amount.toLocaleString()}
+                            <PriceRow amount={booking.amount} />
                           </div>
                           <div className="text-xs text-gray-500 whitespace-nowrap">
-                            ₱{booking.monthlyRent.toLocaleString()}/m
+                            <PriceRow amount={booking.monthlyRent} small={true} />/m
                           </div>
                         </td>
                         <td className="pr-9 py-4 whitespace-nowrap">
@@ -503,7 +504,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               {/* Guest Info */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Guest Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-gray-500">Name</p>
                     <p className="font-medium">{selectedBooking.guestName}</p>
@@ -541,11 +542,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Monthly Rent</p>
-                    <p className="font-medium">₱{selectedBooking.monthlyRent.toLocaleString()}</p>
+                    <p className="font-medium"><PriceRow amount={selectedBooking.monthlyRent} /></p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-xs text-gray-500 mb-1">Total Amount</p>
-                    <p className="text-2xl font-bold text-gray-900">₱{selectedBooking.amount.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900"><PriceRow amount={selectedBooking.amount} /></p>
                   </div>
                 </div>
               </div>

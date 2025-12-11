@@ -173,7 +173,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
     // Guest users can't access these features
     if (isGuest) {
-      const protectedItems = ['My Bookings', 'Favorites', 'Payments', 'Settings'];
+      const protectedItems = ['My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
       
       if (protectedItems.includes(itemTitle)) {
         Alert.alert(
@@ -196,6 +196,9 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     }
 
     switch (itemTitle) {
+      case 'Notifications':
+        navigation.navigate('Notifications');
+        break;
       case 'My Bookings':
         navigation.navigate('MyBookings');
         break;

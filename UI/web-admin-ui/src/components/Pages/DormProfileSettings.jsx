@@ -4,6 +4,7 @@ import {
   X,
   Image,
   Upload,
+  FileText,
   Loader2,
   Edit,
   Plus,
@@ -67,6 +68,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
 
   useEffect(() => {
     if (propertyId) {
@@ -121,6 +123,13 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         },
         amenities: parsedAmenities,
         customAmenities: data.customAmenities || data.additional_amenities || [],
+        credentials: (data.credentials || []).map(c => ({
+          id: c.id ?? null,
+          original_name: c.original_name ?? (c.originalName ?? (c.name ?? 'Document')),
+          file_url: c.file_url ?? c.file_path ?? c.url ?? null,
+          mime: c.mime ?? null,
+          created_at: c.created_at ?? null,
+        })),
         rules: data.property_rules ? (typeof data.property_rules === 'string' ? JSON.parse(data.property_rules) : data.property_rules) : [],
         status: data.current_status,
         nearbyLandmarks: data.nearby_landmarks || '',
@@ -128,6 +137,8 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         longitude: data.longitude,
         images: images
       });
+      // Reset any staged deletions when reloading from server
+      setDeletedCredentialIds([]);
     } catch (err) {
       console.error('Error fetching property:', err);
       setError(err.message);
@@ -304,6 +315,36 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     }));
   };
 
+  const handleCredentialUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Store File objects as credential entries so they can be uploaded on save
+    const newCreds = files.map(f => ({ file: f, original_name: f.name }));
+    setDormData(prev => ({
+      ...prev,
+      credentials: [...(prev.credentials || []), ...newCreds]
+    }));
+  };
+
+  const handleRemoveCredential = (index) => {
+    setDormData(prev => {
+      const creds = Array.isArray(prev.credentials) ? [...prev.credentials] : [];
+      if (index < 0 || index >= creds.length) return prev;
+      const removed = creds[index];
+      const newCreds = creds.filter((_, i) => i !== index);
+      // If it was an existing credential with an id, mark it for deletion
+      if (removed && removed.id) {
+        setDeletedCredentialIds(prevIds => {
+          // avoid duplicates
+          if (prevIds.includes(removed.id)) return prevIds;
+          return [...prevIds, removed.id];
+        });
+      }
+      return { ...prev, credentials: newCreds };
+    });
+  };
+
   const handleAddCustomAmenity = (amenity) => {
     const value = (amenity || '').trim();
     if (!value) return;
@@ -365,9 +406,11 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
       // If there are any new File objects in images, send multipart/form-data
       const imageFiles = (dormData.images || []).filter((i) => i instanceof File);
+      const credentialFiles = (dormData.credentials || []).filter((c) => c && c.file instanceof File).map(c => c.file);
 
       let response;
-      if (imageFiles.length > 0) {
+      // Use multipart if we have any new images or credential files to upload
+      if (imageFiles.length > 0 || credentialFiles.length > 0) {
         const fd = new FormData();
 
         // Append updateData fields. Arrays should be appended as indexed entries.
@@ -389,6 +432,17 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           fd.append('images[]', file);
         });
 
+        // Append credential files (only new File instances). Use `credentials[]` keys
+        // so Laravel receives them as an array of uploaded files.
+        credentialFiles.forEach((file) => {
+          fd.append('credentials[]', file);
+        });
+
+        // Append ids of credentials the user removed so backend can delete them
+        if (deletedCredentialIds.length > 0) {
+          deletedCredentialIds.forEach((id) => fd.append('deleted_credentials[]', String(id)));
+        }
+
         // Log form data entries for debugging (will print File objects too)
         for (const entry of fd.entries()) {
           console.log('FormData entry:', entry[0], entry[1]);
@@ -408,12 +462,19 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           }
         });
       } else {
-        response = await api.put(`/landlord/properties/${propertyId}`, updateData);
+        // If there are deleted credential IDs but no file uploads, include them
+        const payload = { ...updateData };
+        if (deletedCredentialIds.length > 0) {
+          payload.deleted_credentials = deletedCredentialIds;
+        }
+        response = await api.put(`/landlord/properties/${propertyId}`, payload);
       }
 
       toast.success('Property updated successfully!');
       // alert('Property updated successfully!');
       setIsEditing(false);
+      // Clear staged deletions after successful save
+      setDeletedCredentialIds([]);
       fetchPropertyDetails();
     } catch (err) {
       console.error('Error updating property:', err);
@@ -556,7 +617,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 <button
                   onClick={handleSubmitDraft}
                   disabled={loading}
-                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium disabled:opacity-50 mr-2"
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 mr-2"
                 >
                   {loading ? 'Submitting...' : 'Submit for Approval'}
                 </button>
@@ -965,6 +1026,58 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   >
                     Add
                   </button>
+                </div>
+              )}
+            </div>
+
+            {/* Credentials (Read-only view) */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Credentials</h2>
+              {(!dormData.credentials || dormData.credentials.length === 0) ? (
+                <p className="text-gray-500 text-sm">No credential documents uploaded</p>
+              ) : (
+                <div className="space-y-3">
+                  {dormData.credentials.map((cred, idx) => {
+                    const name = cred.original_name || cred.originalName || cred.file?.name || `Document ${idx + 1}`;
+                    const url = cred.file_url || cred.file_path || (cred.file ? URL.createObjectURL(cred.file) : null);
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-gray-600" />
+                          <div className="text-sm text-gray-700">{name}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {url ? (
+                            <a href={url} target="_blank" rel="noreferrer" className="text-sm text-green-600 hover:underline">View</a>
+                          ) : (
+                            <span className="text-sm text-gray-400">Unavailable</span>
+                          )}
+                          {isEditing && (
+                            <button onClick={() => handleRemoveCredential(idx)} title="Remove" className="p-1 text-red-600 hover:text-red-800">
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isEditing && (
+                <div className="mt-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="application/pdf,image/*"
+                    onChange={handleCredentialUpload}
+                    className="hidden"
+                    id="credential-upload-edit"
+                  />
+                  <label htmlFor="credential-upload-edit" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                    <Upload className="w-4 h-4" />
+                    Upload Documents
+                  </label>
                 </div>
               )}
             </div>

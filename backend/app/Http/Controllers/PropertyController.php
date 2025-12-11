@@ -247,13 +247,18 @@ class PropertyController extends Controller
         // Landlord gets all their properties
         $properties = Property::where('landlord_id', $user->id)
             ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
-            ->with(['images', 'amenities'])
+            ->with(['images', 'amenities', 'credentials'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($property) {
                 $amenityNames = $property->amenities->pluck('name')->toArray();
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
+                        if (isset($propertyArray['credentials']) && is_array($propertyArray['credentials'])) {
+                            $propertyArray['credentials'] = array_map(function ($c) {
+                                return array_merge($c, ['file_url' => asset('storage/' . ($c['file_path'] ?? ''))]);
+                            }, $propertyArray['credentials']);
+                        }
                 return $propertyArray;
             });
 
@@ -264,7 +269,7 @@ class PropertyController extends Controller
     {
         $properties = Property::where('landlord_id', Auth::id())
             ->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
-            ->with(['images', 'amenities'])
+            ->with(['images', 'amenities', 'credentials'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($property) {
@@ -275,7 +280,12 @@ class PropertyController extends Controller
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
 
-                return $propertyArray;
+                        if (isset($propertyArray['credentials']) && is_array($propertyArray['credentials'])) {
+                            $propertyArray['credentials'] = array_map(function ($c) {
+                                return array_merge($c, ['file_url' => asset('storage/' . ($c['file_path'] ?? ''))]);
+                            }, $propertyArray['credentials']);
+                        }
+                        return $propertyArray;
             });
 
         return response()->json($properties, 200);
@@ -304,6 +314,8 @@ class PropertyController extends Controller
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'images' => 'nullable|array|max:10',
+            'credentials' => 'nullable|array',
+            'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
         ]);
 
         $property = Property::create([
@@ -328,6 +340,7 @@ class PropertyController extends Controller
             'available_rooms' => 0,
             'is_published' => $validated['is_published'] ?? false,
             'is_available' => $validated['is_available'] ?? false,
+            'is_eligible' => $request->has('is_eligible') ? (bool)$request->input('is_eligible') : false,
         ]);
 
         // Handle image uploads
@@ -359,10 +372,30 @@ class PropertyController extends Controller
 
         // Format images with proper URLs
         $property->load(['images', 'amenities']);
+        // Handle credentials uploads (if any)
+        if ($request->hasFile('credentials')) {
+            foreach ($request->file('credentials') as $file) {
+                $path = $file->store('property_credentials', 'public');
+                \App\Models\PropertyCredential::create([
+                    'property_id' => $property->id,
+                    'file_path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime' => $file->getClientMimeType(),
+                ]);
+            }
+        }
+        $property->load(['credentials']);
         $property->images->transform(function ($image) {
             $image->image_url = asset('storage/' . $image->image_url);
             return $image;
         });
+        // Expose credential URLs for landlord
+        if ($property->relationLoaded('credentials')) {
+            $property->credentials->transform(function ($c) {
+                $c->file_url = asset('storage/' . $c->file_path);
+                return $c;
+            });
+        }
         $property->amenities_list = $property->amenities->pluck('name')->toArray();
 
         return response()->json($property, 201);
@@ -422,7 +455,7 @@ class PropertyController extends Controller
     public function show($id)
     {
         $property = Property::where('landlord_id', Auth::id())
-            ->with(['rooms', 'images', 'amenities'])
+            ->with(['rooms', 'images', 'amenities', 'credentials'])
             ->findOrFail($id);
 
         // Format images with proper URLs
@@ -430,6 +463,13 @@ class PropertyController extends Controller
             $image->image_url = asset('storage/' . $image->image_url);
             return $image;
         });
+
+        if ($property->relationLoaded('credentials')) {
+            $property->credentials->transform(function ($c) {
+                $c->file_url = asset('storage/' . $c->file_path);
+                return $c;
+            });
+        }
 
         // Format amenities
         $property->amenities_list = $property->amenities->pluck('name')->toArray();
@@ -493,6 +533,8 @@ class PropertyController extends Controller
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'images' => 'nullable|array|max:10',
+            'credentials' => 'nullable|array',
+            'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
         ]);
 
         // If is_draft present, map to current_status to ensure consistent handling
@@ -501,6 +543,12 @@ class PropertyController extends Controller
         }
 
         $property->update($validated);
+
+        // Update eligibility flag if present
+        if ($request->has('is_eligible')) {
+            $property->is_eligible = (bool)$request->input('is_eligible');
+            $property->save();
+        }
 
         // Handle amenities sync
         if ($request->has('amenities') && is_array($request->amenities)) {
@@ -527,12 +575,59 @@ class PropertyController extends Controller
             }
         }
 
+        // Handle credential uploads for updates
+        if ($request->hasFile('credentials')) {
+            foreach ($request->file('credentials') as $file) {
+                $path = $file->store('property_credentials', 'public');
+                \App\Models\PropertyCredential::create([
+                    'property_id' => $property->id,
+                    'file_path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime' => $file->getClientMimeType(),
+                ]);
+            }
+        }
+
+        // Handle deletion of credentials requested by client
+        if ($request->has('deleted_credentials')) {
+            $deleted = $request->input('deleted_credentials');
+            if (!is_array($deleted)) {
+                $deleted = [$deleted];
+            }
+            foreach ($deleted as $credId) {
+                try {
+                    $cred = \App\Models\PropertyCredential::where('property_id', $property->id)
+                        ->where('id', $credId)
+                        ->first();
+                    if ($cred) {
+                        // Remove file from storage if exists
+                        $filePath = storage_path('app/public/' . $cred->file_path);
+                        if (file_exists($filePath)) {
+                            @unlink($filePath);
+                        }
+                        $cred->delete();
+                    }
+                } catch (\Exception $e) {
+                    // Log and continue; do not fail the whole update for a file deletion error
+                    // You can replace with logger()->error(...) if needed
+                }
+            }
+        }
+
+        $property->load(['images', 'amenities', 'credentials']);
+
         // Format images with proper URLs
         $property->load(['images', 'amenities']);
         $property->images->transform(function ($image) {
             $image->image_url = asset('storage/' . $image->image_url);
             return $image;
         });
+        if ($property->relationLoaded('credentials')) {
+            $property->credentials->transform(function ($c) {
+                $c->file_url = asset('storage/' . $c->file_path);
+                return $c;
+            });
+        }
         $property->amenities_list = $property->amenities->pluck('name')->toArray();
 
         return response()->json($property, 200);

@@ -3,14 +3,16 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Dimensions }
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/HomePage.js';
+import NotificationBadge from './NotificationBadge.jsx';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
 
 const allMenuItems = [
-  { id: 1, title: 'My Bookings', icon: 'calendar-outline', color: '#10b981' },
-  { id: 2, title: 'Payments', icon: 'card-outline', color: '#10B981' },
-  { id: 3, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
+  { id: 1, title: 'Notifications', icon: 'notifications-outline', color: '#F59E0B' },
+  { id: 2, title: 'My Bookings', icon: 'calendar-outline', color: '#10b981' },
+  { id: 3, title: 'Payments', icon: 'card-outline', color: '#10B981' },
+  { id: 4, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
 ];
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest }) {
@@ -144,9 +146,11 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
                 <Text style={styles.menuUserEmail}>{userEmail}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={28} color="#111827" />
-            </TouchableOpacity>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <TouchableOpacity onPress={handleClose} style={{marginLeft: 8}}>
+                <Ionicons name="close" size={28} color="#111827" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Menu Items */}
@@ -159,6 +163,10 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
               >
                 <Ionicons name={item.icon} size={24} color={item.color} />
                 <Text style={styles.menuItemText}>{item.title}</Text>
+                {/* Render compact badge for specific menu items */}
+                {item.title === 'Payments' && <NotificationBadge type="payments" compact={true} />}
+                {item.title ==='Notifications'}
+                {item.title === 'My Bookings' && <NotificationBadge type="bookings" compact={true} />}
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             ))}

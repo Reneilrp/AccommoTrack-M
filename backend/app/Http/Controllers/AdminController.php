@@ -173,7 +173,7 @@ class AdminController extends Controller
     public function getPendingProperties(Request $request)
     {
         $properties = Property::where('current_status', 'pending')
-            ->with(['landlord', 'images', 'amenities'])
+            ->with(['landlord', 'images', 'amenities', 'credentials'])
             ->get()
             ->map(function ($property) {
                 // Transform images with proper URLs
@@ -182,11 +182,26 @@ class AdminController extends Controller
                     return $image;
                 });
 
+                // Transform credentials to include file_url
+                if ($property->relationLoaded('credentials')) {
+                    $property->credentials->transform(function ($c) {
+                        $c->file_url = asset('storage/' . $c->file_path);
+                        return $c;
+                    });
+                }
+
                 // Convert amenities to array of names
                 $amenityNames = $property->amenities->pluck('name')->toArray();
 
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
+
+                // Map credentials to include file_url in array form
+                if (isset($propertyArray['credentials']) && is_array($propertyArray['credentials'])) {
+                    $propertyArray['credentials'] = array_map(function ($c) {
+                        return array_merge($c, ['file_url' => isset($c['file_path']) ? asset('storage/' . $c['file_path']) : ($c['file_url'] ?? null)]);
+                    }, $propertyArray['credentials']);
+                }
 
                 return $propertyArray;
             });
@@ -201,7 +216,7 @@ class AdminController extends Controller
     public function getApprovedProperties(Request $request)
     {
         $properties = Property::where('current_status', 'active')
-            ->with(['landlord', 'images', 'amenities'])
+            ->with(['landlord', 'images', 'amenities', 'credentials'])
             ->get()
             ->map(function ($property) {
                 // Transform images with proper URLs
@@ -210,11 +225,24 @@ class AdminController extends Controller
                     return $image;
                 });
 
+                if ($property->relationLoaded('credentials')) {
+                    $property->credentials->transform(function ($c) {
+                        $c->file_url = asset('storage/' . $c->file_path);
+                        return $c;
+                    });
+                }
+
                 // Convert amenities to array of names
                 $amenityNames = $property->amenities->pluck('name')->toArray();
 
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
+
+                if (isset($propertyArray['credentials']) && is_array($propertyArray['credentials'])) {
+                    $propertyArray['credentials'] = array_map(function ($c) {
+                        return array_merge($c, ['file_url' => isset($c['file_path']) ? asset('storage/' . $c['file_path']) : ($c['file_url'] ?? null)]);
+                    }, $propertyArray['credentials']);
+                }
 
                 return $propertyArray;
             });
@@ -229,7 +257,7 @@ class AdminController extends Controller
     public function getRejectedProperties(Request $request)
     {
         $properties = Property::where('current_status', 'inactive')
-            ->with(['landlord', 'images', 'amenities'])
+            ->with(['landlord', 'images', 'amenities', 'credentials'])
             ->get()
             ->map(function ($property) {
                 // Transform images with proper URLs
@@ -238,11 +266,24 @@ class AdminController extends Controller
                     return $image;
                 });
 
+                if ($property->relationLoaded('credentials')) {
+                    $property->credentials->transform(function ($c) {
+                        $c->file_url = asset('storage/' . $c->file_path);
+                        return $c;
+                    });
+                }
+
                 // Convert amenities to array of names
                 $amenityNames = $property->amenities->pluck('name')->toArray();
 
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
+
+                if (isset($propertyArray['credentials']) && is_array($propertyArray['credentials'])) {
+                    $propertyArray['credentials'] = array_map(function ($c) {
+                        return array_merge($c, ['file_url' => isset($c['file_path']) ? asset('storage/' . $c['file_path']) : ($c['file_url'] ?? null)]);
+                    }, $propertyArray['credentials']);
+                }
 
                 return $propertyArray;
             });

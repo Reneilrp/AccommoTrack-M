@@ -303,6 +303,31 @@ const PropertyApproval = () => {
                   )}
                 </div>
               </div>
+
+              {/* Credentials (Read-only for admin review) */}
+              {selectedProperty.credentials && selectedProperty.credentials.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">Credentials</h4>
+                  <div className="space-y-3">
+                    {selectedProperty.credentials.map((cred, idx) => {
+                      const url = cred.file_url || (cred.file_path ? `${window.location.origin}/storage/${cred.file_path}` : null) || cred.url || null;
+                      const name = cred.original_name || cred.name || `Document ${idx + 1}`;
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="text-sm text-gray-700">{name}</div>
+                          <div>
+                            {url ? (
+                              <a href={url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">View</a>
+                            ) : (
+                              <span className="text-sm text-gray-400">Unavailable</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Actions */}

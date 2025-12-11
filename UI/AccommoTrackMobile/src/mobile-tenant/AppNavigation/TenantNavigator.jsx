@@ -7,6 +7,7 @@ import AccommodationDetails from '../src/components/PropertyDetailsScreen.jsx';
 import ProfilePage from '../src/Profile/ProfilePage.jsx';
 import MyBookings from '../src/Menu/MyBookings.jsx';
 import Payments from '../src/Menu/Payments.jsx';
+import Notifications from '../src/Menu/Notifications.jsx';
 import PaymentDetail from '../src/Menu/PaymentDetail.jsx';
 import PaymentCardWebview from '../src/Menu/PaymentCardWebview.jsx';
 import PaymentRedirectWebview from '../src/Menu/PaymentRedirectWebview.jsx';
@@ -82,6 +83,7 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
       {/* Protected Routes - Only for authenticated users */}
       {!isGuest && (
         <>
+          <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
           <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
           <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
           <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />

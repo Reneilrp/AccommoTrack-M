@@ -318,6 +318,7 @@ class AnalyticsController extends Controller
             });
 
         // Expected vs Actual
+        // Expected revenue should respect billing policy: for `daily` policy, use daily_rate * prorate_base
         $expectedRevenue = Room::whereHas('property', function($q) use ($landlordId, $propertyId) {
                 $q->where('landlord_id', $landlordId);
                 if ($propertyId) {
@@ -325,7 +326,11 @@ class AnalyticsController extends Controller
                 }
             })
             ->where('status', 'occupied')
-            ->sum('monthly_rate');
+            ->select(DB::raw('SUM(CASE
+                    WHEN billing_policy = "daily" THEN COALESCE(daily_rate, monthly_rate / NULLIF(COALESCE(prorate_base,30),0)) * COALESCE(prorate_base,30)
+                    ELSE monthly_rate
+                END) as revenue'))
+            ->value('revenue') ?? 0;
 
         $actualRevenue = $query->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
@@ -382,7 +387,7 @@ class AnalyticsController extends Controller
                 DB::raw('COUNT(*) as total'),
                 DB::raw('SUM(CASE WHEN status = "occupied" THEN 1 ELSE 0 END) as occupied'),
                 DB::raw('SUM(CASE WHEN status = "available" THEN 1 ELSE 0 END) as available'),
-                DB::raw('SUM(CASE WHEN status = "occupied" THEN monthly_rate ELSE 0 END) as revenue')
+                DB::raw('SUM(CASE WHEN status = "occupied" THEN (CASE WHEN billing_policy = "daily" THEN COALESCE(daily_rate, monthly_rate / NULLIF(COALESCE(prorate_base,30),0)) * COALESCE(prorate_base,30) ELSE monthly_rate END) ELSE 0 END) as revenue')
             )
             ->groupBy('room_type')
             ->get()
@@ -412,7 +417,15 @@ class AnalyticsController extends Controller
             ->map(function($property) {
                 $totalRooms = $property->rooms->count();
                 $occupiedRooms = $property->rooms->where('status', 'occupied')->count();
-                $revenue = $property->rooms->where('status', 'occupied')->sum('monthly_rate');
+                // Calculate revenue per-room respecting billing_policy
+                $revenue = $property->rooms->where('status', 'occupied')->sum(function($r) {
+                    if (($r->billing_policy ?? 'monthly') === 'daily') {
+                        $prorate = $r->prorate_base ?? 30;
+                        $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null && $prorate) ? ((float)$r->monthly_rate / $prorate) : 0);
+                        return $daily * $prorate;
+                    }
+                    return (float)$r->monthly_rate;
+                });
 
                 return [
                     'id' => $property->id,

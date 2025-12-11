@@ -419,9 +419,23 @@ class DashboardController extends Controller
                     $occupiedRooms = $property->rooms->where('status', 'occupied')->count();
                     $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0;
 
-                    // Calculate total potential revenue
-                    $potentialRevenue = $property->rooms->sum('monthly_rate');
-                    $actualRevenue = $property->rooms->where('status', 'occupied')->sum('monthly_rate');
+                    // Calculate total potential revenue and actual revenue respecting billing_policy
+                    $potentialRevenue = $property->rooms->sum(function($r) {
+                        if (($r->billing_policy ?? 'monthly') === 'daily') {
+                            $prorate = $r->prorate_base ?? 30;
+                            $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null && $prorate) ? ((float)$r->monthly_rate / $prorate) : 0);
+                            return $daily * $prorate;
+                        }
+                        return (float)$r->monthly_rate;
+                    });
+                    $actualRevenue = $property->rooms->where('status', 'occupied')->sum(function($r) {
+                        if (($r->billing_policy ?? 'monthly') === 'daily') {
+                            $prorate = $r->prorate_base ?? 30;
+                            $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null && $prorate) ? ((float)$r->monthly_rate / $prorate) : 0);
+                            return $daily * $prorate;
+                        }
+                        return (float)$r->monthly_rate;
+                    });
 
                     return [
                         'id' => $property->id,

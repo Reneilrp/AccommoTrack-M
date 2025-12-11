@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import api from '../../utils/api';
+import PriceRow from '../Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
@@ -358,7 +359,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm font-medium text-gray-900">
-                        {tenant.room ? `₱${tenant.room.monthly_rate}` : 'N/A'}
+                        {tenant.room ? <PriceRow amount={tenant.room.monthly_rate} /> : 'N/A'}
                       </p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -456,7 +457,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <p><span className="text-gray-600">Room:</span> {viewingTenant.room.room_number}</p>
                       <p><span className="text-gray-600">Type:</span> {viewingTenant.room.type_label}</p>
-                      <p><span className="text-gray-600">Monthly Rate:</span> ₱{viewingTenant.room.monthly_rate}</p>
+                      <p><span className="text-gray-600">Monthly Rate:</span> <PriceRow amount={viewingTenant.room.monthly_rate} /></p>
                     </div>
                   ) : (
                     <p className="text-amber-600 italic">No room assigned</p>

@@ -489,7 +489,18 @@ class Room extends Model
     public function getPaymentDisplay()
     {
         $monthlyRateFloat = (float) $this->monthly_rate;
-        
+        $billingPolicy = $this->billing_policy ?? 'monthly';
+
+        // If billing is daily, show daily display
+        if ($billingPolicy === 'daily') {
+            $daily = $this->daily_rate !== null ? (float)$this->daily_rate : ($monthlyRateFloat / ($this->prorate_base ?? 30));
+            return [
+                'pricing_model' => $this->pricing_model ?? 'full_room',
+                'display' => '₱' . number_format($daily, 2) . ' per day',
+                'amount_per_tenant' => $daily
+            ];
+        }
+
         if ($this->pricing_model === 'per_bed') {
             return [
                 'pricing_model' => 'per_bed',
@@ -497,10 +508,10 @@ class Room extends Model
                 'amount_per_tenant' => $monthlyRateFloat
             ];
         }
-        
+
         $occupants = $this->tenants()->count();
         $perTenant = $occupants > 0 ? round($monthlyRateFloat / $occupants, 2) : $monthlyRateFloat;
-        
+
         return [
             'pricing_model' => 'full_room',
             'display' => '₱' . number_format($monthlyRateFloat, 2) . ' (÷' . ($occupants > 0 ? $occupants : 'capacity') . ')',

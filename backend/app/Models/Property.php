@@ -48,6 +48,7 @@ class Property extends Model
         // Status
         'is_published',
         'is_available'
+        ,'is_eligible'
     ];
 
     protected $casts = [
@@ -64,6 +65,7 @@ class Property extends Model
         'longitude' => 'decimal:7',
         'is_published' => 'boolean',
         'is_available' => 'boolean',
+        'is_eligible' => 'boolean',
         'property_rules' => 'array',
     ];
 
@@ -177,6 +179,10 @@ class Property extends Model
     public function images()
     {
         return $this->hasMany(PropertyImage::class);
+    }
+    public function credentials()
+    {
+        return $this->hasMany(PropertyCredential::class);
     }
     public function getImageUrlAttribute()
     {
