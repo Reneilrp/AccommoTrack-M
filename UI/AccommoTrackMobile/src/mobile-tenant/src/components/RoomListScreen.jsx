@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Tenant/RoomListScreen';
 
-const API_BASE_URL = 'http://10.221.1.156:8000';
+const API_BASE_URL = 'http://10.20.74.141:8000';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {

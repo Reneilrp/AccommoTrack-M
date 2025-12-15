@@ -7,7 +7,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
 
-  const API_BASE_URL = 'http://10.221.1.156:8000';
+  const API_BASE_URL = 'http://10.20.74.141:8000';
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 

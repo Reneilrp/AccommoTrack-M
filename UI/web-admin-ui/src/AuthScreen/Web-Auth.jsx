@@ -208,8 +208,8 @@ function AuthScreen({ onLogin = () => {} }) {
 
   return (
     <div className="min-h-screen bg-[url(../assets/Bg-Pic-5.jpg)] bg-cover bg-center bg-no-repeat bg-fixed flex items-center justify-center p-4">
+      <Toaster />
       <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden">
-        <Toaster />
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex flex-col items-center justify-center mb-6">

@@ -128,7 +128,7 @@ export default function MyProfileScreen({ navigation }) {
   };
 
   // Base URL for images
-  const BASE_URL = 'http://10.221.1.156:8000';
+  const BASE_URL = 'http://10.20.74.141:8000';
 
   // Get profile image URL
   const getProfileImage = () => {

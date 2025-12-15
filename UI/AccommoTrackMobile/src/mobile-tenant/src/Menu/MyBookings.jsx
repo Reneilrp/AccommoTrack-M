@@ -7,7 +7,7 @@ import { styles } from '../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../services/BookingServices.js';
 import { Alert } from 'react-native';
 
-const API_BASE_URL = 'http://10.221.1.156:8000';
+const API_BASE_URL = 'http://10.20.74.141:8000';
 
 export default function MyBookings() {
   const navigation = useNavigation();

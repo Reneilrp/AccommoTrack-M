@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 
-const API_URL = 'http://10.221.1.156:8000/api';
+const API_URL = 'http://10.20.74.141:8000/api';
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);
