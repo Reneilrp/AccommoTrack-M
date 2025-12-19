@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { styles } from '../../../styles/Tenant/ProfilePage.js';
 
-const API_URL = 'http://10.20.74.141:8000/api';
+const API_URL = 'http://192.168.254.184:8000/api';
 
 export default function ProfilePage() {
   const navigation = useNavigation();

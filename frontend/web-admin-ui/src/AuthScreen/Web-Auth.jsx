@@ -224,7 +224,7 @@ function AuthScreen({ onLogin = () => {} }) {
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
           <p className="text-white/90 drop-shadow-md">
-            {isLogin ? 'Landlord Admin Portal' : 'Sign up to get started'}
+            {isLogin ? 'Landlord Portal' : 'Sign up to get started'}
           </p>
         </div>
 

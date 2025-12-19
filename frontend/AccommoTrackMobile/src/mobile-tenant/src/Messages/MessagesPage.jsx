@@ -21,7 +21,7 @@ import createEcho from '../../utils/echo';
 import { styles } from '../../../styles/Tenant/MessagesPage';
 import BottomNavigation from '../components/BottomNavigation.jsx';
 
-const API_URL = 'http://10.20.74.141:8000/api';
+const API_URL = 'http://192.168.254.184:8000/api';
 
 export default function MessagesPage({ navigation, route }) {
     const [conversations, setConversations] = useState([]);

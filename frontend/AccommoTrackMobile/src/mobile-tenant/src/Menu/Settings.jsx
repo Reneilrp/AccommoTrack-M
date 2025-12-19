@@ -98,7 +98,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           text: 'Open Web Portal', 
           onPress: () => {
             // Open web admin portal for landlord registration
-            Linking.openURL('http://10.20.74.141:5174/login');
+            Linking.openURL('http://192.168.254.184:5174/login');
             
             // Show follow-up after a delay
             setTimeout(() => {

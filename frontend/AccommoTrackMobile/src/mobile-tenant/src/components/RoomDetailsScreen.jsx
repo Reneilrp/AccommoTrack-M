@@ -25,7 +25,7 @@ import PropertyService from '../../../services/PropertyServices';
 
 const { width } = Dimensions.get('window');
 
-const API_BASE_URL = 'http://10.20.74.141:8000';
+const API_BASE_URL = 'http://192.168.254.184:8000';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {

@@ -10,11 +10,11 @@ const createEcho = async () => {
     return new Echo({
         broadcaster: 'reverb',
         key: 'w4k7x9m2p5n8v3b6',
-        wsHost: '10.20.74.141',
+        wsHost: '192.168.254.184',
         wsPort: 8080,
         forceTLS: false,
         disableStats: true,
-        authEndpoint: 'http://10.20.74.141:8000/api/broadcasting/auth',
+        authEndpoint: 'http://192.168.254.184:8000/api/broadcasting/auth',
         auth: {
             headers: {
                 Authorization: `Bearer ${token}`,
