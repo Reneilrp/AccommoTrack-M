@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL configuration from environment variables
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://192.168.254.184:8000';
+const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:3005';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 

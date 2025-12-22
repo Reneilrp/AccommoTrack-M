@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
+import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../Shared/PriceRow';
 
@@ -22,6 +23,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     refundAmount: 0,
     shouldRefund: false
   });
+  // Add Booking Modal state
+  const [showAddBookingModal, setShowAddBookingModal] = useState(false);
 
   const readOnlyGuard = () => {
     if (canManageBookings) return false;
@@ -288,11 +291,29 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
             <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
             <p className="text-sm text-gray-500 mt-1">Manage all room bookings and reservations</p>
           </div>
+          <div className="mt-4 sm:mt-0">
+            <button
+              onClick={() => setShowAddBookingModal(true)}
+              className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
+            >
+              <Calendar className="w-5 h-5 mr-2" />
+              Add Booking
+            </button>
+          </div>
+              {/* Add Booking Modal */}
+              <AddBookingModal
+                isOpen={showAddBookingModal}
+                onClose={() => setShowAddBookingModal(false)}
+                onBookingAdded={() => {
+                  setShowAddBookingModal(false);
+                  fetchBookings();
+                }}
+              />
         </div>
       </header>
 

@@ -285,36 +285,70 @@ export default function Analytics({ user }) {
             {/* Payment Status */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
               <h2 className="text-lg font-bold text-gray-900 mb-6">Payment Status</h2>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart 
-                  data={[
-                    { name: 'Paid', value: analytics.payments.paid, fill: COLORS.primary },
-                    { name: 'Pending', value: analytics.payments.unpaid, fill: COLORS.warning },
-                    { name: 'Partial', value: analytics.payments.partial, fill: COLORS.secondary },
-                    { name: 'Overdue', value: analytics.payments.overdue, fill: COLORS.danger }
-                  ]}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" stroke="#6b7280" style={{ fontSize: '12px' }} />
-                  <YAxis type="category" dataKey="name" stroke="#6b7280" style={{ fontSize: '12px' }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    formatter={(value) => [value, 'Count']}
-                  />
-                  <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                    {[
-                      { name: 'Paid', fill: COLORS.primary },
-                      { name: 'Pending', fill: COLORS.warning },
-                      { name: 'Partial', fill: COLORS.secondary },
-                      { name: 'Overdue', fill: COLORS.danger }
-                    ].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {analytics.payments.payment_rate === 0 ? (
+                // Ghost Chart: faint, grayed-out healthy chart as a preview
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart 
+                    data={[ 
+                      { name: 'Paid', value: 20, fill: '#d1d5db' },
+                      { name: 'Pending', value: 10, fill: '#e5e7eb' },
+                      { name: 'Partial', value: 5, fill: '#c7d2fe' },
+                      { name: 'Overdue', value: 2, fill: '#fca5a5' }
+                    ]}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis type="number" stroke="#d1d5db" style={{ fontSize: '12px' }} />
+                    <YAxis type="category" dataKey="name" stroke="#d1d5db" style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#6b7280' }}
+                      formatter={(value) => [value, 'Count']}
+                    />
+                    <Bar dataKey="value" radius={[0, 8, 8, 0]} opacity={0.4}>
+                      {[
+                        { name: 'Paid', fill: '#d1d5db' },
+                        { name: 'Pending', fill: '#e5e7eb' },
+                        { name: 'Partial', fill: '#c7d2fe' },
+                        { name: 'Overdue', fill: '#fca5a5' }
+                      ].map((entry, index) => (
+                        <Cell key={`ghost-cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart 
+                    data={[ 
+                      { name: 'Paid', value: analytics.payments.paid, fill: COLORS.primary },
+                      { name: 'Pending', value: analytics.payments.unpaid, fill: COLORS.warning },
+                      { name: 'Partial', value: analytics.payments.partial, fill: COLORS.secondary },
+                      { name: 'Overdue', value: analytics.payments.overdue, fill: COLORS.danger }
+                    ]}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" stroke="#6b7280" style={{ fontSize: '12px' }} />
+                    <YAxis type="category" dataKey="name" stroke="#6b7280" style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      formatter={(value) => [value, 'Count']}
+                    />
+                    <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                      {[
+                        { name: 'Paid', fill: COLORS.primary },
+                        { name: 'Pending', fill: COLORS.warning },
+                        { name: 'Partial', fill: COLORS.secondary },
+                        { name: 'Overdue', fill: COLORS.danger }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
               <div className="grid grid-cols-4 gap-4 mt-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <p className="text-2xl font-bold text-green-600">{analytics.payments.paid}</p>
