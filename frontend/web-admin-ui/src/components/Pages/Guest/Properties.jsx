@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Check, Wifi, MapPin, Star, Shield } from 'lucide-react'; 
+import { X, Check, MapPin, Star, Shield } from 'lucide-react'; 
 
 // --- 1. EXPANDED MOCK DATA ---
 export const mockProperties = [
@@ -93,7 +93,7 @@ export const mockProperties = [
   },
 ];
 
-// --- 2. ROOM DETAILS MODAL COMPONENT ---
+// --- 2. ROOM DETAILS MODAL COMPONENT (Kept for Room Preview) ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
   if (!room) return null;
 
@@ -105,10 +105,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
         onClick={onClose}
       ></div>
 
-      {/* Modal Container 
-          - max-h-[90vh]: Limits overall height
-          - flex flex-col: Stacks Image + Details on mobile
-      */}
+      {/* Modal Container */}
       <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in duration-200">
         
         {/* Mobile Close Button */}
@@ -119,9 +116,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
           <X className="w-5 h-5" />
         </button>
 
-        {/* LEFT SIDE: Hero Image 
-            - flex-shrink-0: Ensures image doesn't get crushed when space is tight
-        */}
+        {/* LEFT SIDE: Hero Image */}
         <div className="w-full md:w-5/12 h-64 md:h-auto relative bg-gray-100 group flex-shrink-0">
           <img 
             src={room.image} 
@@ -149,10 +144,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
           </div>
         </div>
 
-        {/* RIGHT SIDE: Details & Content 
-            - flex-1: Takes ONLY the remaining space (Fixes scroll issue on mobile)
-            - min-h-0: Essential for nested scrolling in flex items
-        */}
+        {/* RIGHT SIDE: Details & Content */}
         <div className="w-full md:w-7/12 flex flex-col flex-1 min-h-0 bg-white">
           
           {/* Desktop Header Actions */}
@@ -165,9 +157,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
             </button>
           </div>
 
-          {/* Scrollable Body 
-              - overflow-y-auto: Enables scrolling within this specific area
-          */}
+          {/* Scrollable Body */}
           <div className="flex-1 overflow-y-auto p-6 md:p-8 pt-4">
             
             {/* Price & Key Specs */}
@@ -232,9 +222,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
             )}
           </div>
 
-          {/* Fixed Footer with CTA 
-              - flex-shrink-0: Ensures footer stays fixed at the bottom
-          */}
+          {/* Fixed Footer with CTA */}
           <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
             <button 
               className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
@@ -254,11 +242,11 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
 };
 
 
-// --- 3. MAIN PROPERTIES COMPONENT ---
+// --- 3. MAIN COMPONENT ---
 const Properties = ({ properties = mockProperties }) => {
   const [selectedRoomData, setSelectedRoomData] = useState(null);
 
-  // Disable body scroll when modal is open
+  // Disable body scroll when room modal is open
   useEffect(() => {
     if (selectedRoomData) {
       document.body.style.overflow = 'hidden';
@@ -268,12 +256,19 @@ const Properties = ({ properties = mockProperties }) => {
     return () => { document.body.style.overflow = 'unset'; };
   }, [selectedRoomData]);
 
-  const handleOpenDetails = (room, property) => {
+  const handleOpenRoomDetails = (room, property) => {
     setSelectedRoomData({ room, property });
   };
 
-  const handleCloseDetails = () => {
+  const handleCloseRoomDetails = () => {
     setSelectedRoomData(null);
+  };
+
+  // NEW: Navigation handler for Property Click
+  const handlePropertyClick = (propertyId) => {
+    // Redirect to the property details page
+    // Note: Ensure your Router is set up to handle '/property/:id'
+    window.location.href = `/property/${propertyId}`; 
   };
 
   return (
@@ -324,17 +319,25 @@ const Properties = ({ properties = mockProperties }) => {
 
           return (
             <div key={property.id} className="mb-16 last:mb-0">
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-6">
-                <div className="hidden md:block h-8 w-1 bg-green-600 rounded-full"></div>
-                <h3 className="text-2xl font-bold text-gray-900">
+              {/* PROPERTY HEADER: Now Clickable (Redirects to Details Page) */}
+              <div 
+                className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-6 group/header cursor-pointer w-fit"
+                onClick={() => handlePropertyClick(property.id)}
+              >
+                <div className="hidden md:block h-8 w-1 bg-green-600 rounded-full group-hover/header:scale-y-125 transition-transform"></div>
+                <h3 className="text-2xl font-bold text-gray-900 group-hover/header:text-green-600 transition-colors">
                   {property.name}
                 </h3>
                 {property.location && (
-                  <span className="text-sm font-medium text-gray-500 flex items-center gap-1 md:ml-2">
+                  <span className="text-sm font-medium text-gray-500 flex items-center gap-1 md:ml-2 group-hover/header:text-green-500 transition-colors">
                     <MapPin className="w-4 h-4" />
                     {property.location}
                   </span>
                 )}
+                {/* Subtle visual cue to click */}
+                <div className="hidden md:flex opacity-0 group-hover/header:opacity-100 transition-opacity ml-2 items-center text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded-md">
+                  View Profile &rarr;
+                </div>
               </div>
               
               <div className="relative group/section">
@@ -358,7 +361,8 @@ const Properties = ({ properties = mockProperties }) => {
                       key={room.id}
                       className="flex-none w-[280px] md:w-[320px] bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-200 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
                     >
-                      <div className="relative h-48 overflow-hidden bg-gray-200 cursor-pointer" onClick={() => handleOpenDetails(room, property)}>
+                      {/* Room Image (Opens Room Modal) */}
+                      <div className="relative h-48 overflow-hidden bg-gray-200 cursor-pointer" onClick={() => handleOpenRoomDetails(room, property)}>
                         <img
                           src={room.image}
                           alt={room.name}
@@ -381,7 +385,7 @@ const Properties = ({ properties = mockProperties }) => {
                           <h4 
                             className="text-lg font-bold text-gray-900 line-clamp-1 cursor-pointer hover:text-green-600 transition-colors" 
                             title={room.name}
-                            onClick={() => handleOpenDetails(room, property)}
+                            onClick={() => handleOpenRoomDetails(room, property)}
                           >
                             {room.name}
                           </h4>
@@ -393,7 +397,7 @@ const Properties = ({ properties = mockProperties }) => {
                              <span className="text-lg font-extrabold text-green-600">₱{room.price.toLocaleString()}</span>
                            </div>
                            <button 
-                              onClick={() => handleOpenDetails(room, property)}
+                              onClick={() => handleOpenRoomDetails(room, property)}
                               className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm"
                            >
                               View Details
@@ -419,12 +423,12 @@ const Properties = ({ properties = mockProperties }) => {
         })}
       </section>
 
-      {/* Render Modal if a room is selected */}
+      {/* Render Room Details Modal Only */}
       {selectedRoomData && (
         <RoomDetailsModal 
           room={selectedRoomData.room} 
           property={selectedRoomData.property} 
-          onClose={handleCloseDetails} 
+          onClose={handleCloseRoomDetails} 
         />
       )}
     </>
