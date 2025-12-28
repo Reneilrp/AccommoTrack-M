@@ -10,7 +10,7 @@ const About = () => (
         About AccommoTrack
       </h2>
       <p className="text-lg md:text-xl text-gray-600 max-w-[800px] mx-auto mb-16 leading-relaxed">
-        AccommoTrack is your trusted platform for finding, comparing, and booking the best properties in your city. We make property management and searching simple, secure, and efficient for both tenants and landlords.
+        AccommoTrack is your trusted platform for finding, comparing, and booking the best properties in our city. We make property management and searching simple, secure, and efficient for both tenants and landlords.
       </p>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -23,7 +23,7 @@ const About = () => (
         <div className="text-center p-6 rounded-3xl hover:bg-[#FDF8F0] transition-colors duration-300">
           <div className="text-5xl mb-6">🤝</div>
           <h3 className="text-xl font-bold text-gray-900 mb-3">Our Team</h3>
-          <p className="text-gray-600">A passionate group of real estate, tech, and customer service professionals dedicated to success.</p>
+          <p className="text-gray-600">A passionate group of students from WMSU dedicated to creating innovative property solutions.</p>
         </div>
 
         <div className="text-center p-6 rounded-3xl hover:bg-[#FDF8F0] transition-colors duration-300">

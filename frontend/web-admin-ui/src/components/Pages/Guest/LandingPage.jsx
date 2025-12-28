@@ -33,33 +33,34 @@ const LandingPage = () => {
   };
 
   return (
-    <div id="top" className="min-h-screen font-sans bg-[#fafafa]">
+    <div id="top" className="min-h-screen font-sans bg-gray-50">
       
-      {/* --- HEADER (Sticky) --- */}
-      <header className="sticky top-0 z-50 w-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-        <div className="w-[90%] mx-auto h-[70px] flex items-center justify-between">
+      {/* --- HEADER (Sticky + Glassmorphism) --- */}
+      <header className="sticky top-0 z-50 w-full transition-all duration-300 border-b border-gray-200 bg-white/95 backdrop-blur-md shadow-sm">
+        <div className="w-[90%] max-w-7xl mx-auto h-[72px] flex items-center justify-between">
           
           {/* Left: Logo */}
           <div className="flex items-center flex-none">
             <a 
               href="#top" 
-              className="flex items-center no-underline"
+              className="flex items-center gap-2 no-underline group"
               onClick={e => { e.preventDefault(); document.getElementById('top').scrollIntoView({ behavior: 'smooth' }); }}
             >
-              <img src={logo} alt="AccommoTrack Logo" className="h-11 w-11 mr-1" />
-              <span className="font-bold text-2xl md:text-[28px] text-[#2d2d2d] tracking-wide">
+              {/* Added a subtle hover rotation to logo for playfulness */}
+              <img src={logo} alt="AccommoTrack Logo" className="h-10 w-10 transition-transform group-hover:rotate-12" />
+              <span className="font-extrabold text-2xl tracking-tight text-gray-900 group-hover:text-green-700 transition-colors">
                 AccommoTrack
               </span>
             </a>
           </div>
 
-          {/* Center: Navigation (Hidden on small mobile screens usually, but kept flex for now) */}
-          <nav className="hidden md:flex items-center gap-9 flex-1 justify-center">
+          {/* Center: Navigation */}
+          <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
             {['Home', 'Properties', 'Service', 'About'].map((item) => (
               <a 
                 key={item}
                 href={`#${item.toLowerCase()}`}
-                className="text-[#222] font-medium text-lg hover:text-green-600 transition-colors"
+                className="px-5 py-2 rounded-full text-sm font-semibold text-gray-600 hover:text-green-700 hover:bg-green-50 transition-all duration-200"
                 onClick={e => { 
                   e.preventDefault(); 
                   document.getElementById(item.toLowerCase()).scrollIntoView({ behavior: 'smooth' }); 
@@ -74,7 +75,7 @@ const LandingPage = () => {
           <div className="flex-none">
             <a 
               href="/login" 
-              className="text-indigo-500 font-semibold text-lg px-6 py-2 border-2 border-indigo-500 rounded-lg transition-colors hover:bg-indigo-50"
+              className="flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
             >
               Login
             </a>
@@ -84,10 +85,12 @@ const LandingPage = () => {
       </header>
 
       {/* --- SECTIONS --- */}
+      {/* Added ID wrapper for scroll targeting */}
       <div id="home">
         <HomePage onGetStarted={handleGetStarted} />
       </div>
       
+      {/* Note: Ensure these components accept className or style props if you need further spacing adjustments */}
       <Properties properties={mockProperties} />
       <Service onGetStarted={handleGetStarted} />
       <About />
