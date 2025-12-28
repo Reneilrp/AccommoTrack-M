@@ -17,7 +17,7 @@ import {
   CreditCard,
   LogOut,
 } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../../utils/api';
 
 export default function DashboardPage() {
   const navigate = useNavigate();

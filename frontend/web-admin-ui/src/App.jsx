@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import WebNavigator from './WebNavigator/WebNavigator';
+import WebNavigator from './Navigation/WebNavigator';
+import LandingPage from './components/Pages/Guest/LandingPage.jsx';
 import AuthScreen from './AuthScreen/Web-Auth';
 import { getDefaultLandingRoute } from './utils/userRoutes';
 
@@ -51,6 +52,10 @@ function App() {
 
   return (
     <Routes>
+      <Route
+        path="/"
+        element={<LandingPage />}
+      />
       <Route
         path="/login"
         element={!user ? <AuthScreen onLogin={handleLogin} /> : <Navigate to={verifiedLanding} replace />}

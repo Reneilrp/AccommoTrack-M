@@ -7,9 +7,9 @@ import {
   HelpCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import PricingHelp from '../Rooms/PricingHelp';
-import PriceRow from '../Shared/PriceRow';
-import api from '../../utils/api';
+import PricingHelp from '../../Rooms/PricingHelp';
+import PriceRow from '../../Shared/PriceRow';
+import api from '../../../utils/api';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {
   const normalizedType = propertyType ? propertyType.toLowerCase() : '';

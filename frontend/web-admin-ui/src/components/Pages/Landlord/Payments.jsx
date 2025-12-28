@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../utils/api';
+import api from '../../../utils/api';
 import { Loader2, Search, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
-import PriceRow from '../Shared/PriceRow';
+import PriceRow from '../../Shared/PriceRow';
 
 export default function Payments() {
   const [loading, setLoading] = useState(true);
@@ -36,8 +36,14 @@ export default function Payments() {
       setInvoices(list);
     } catch (e) {
       console.error('Failed to load invoices', e);
-      setError(e.response?.data?.message || e.message || 'Failed to load invoices');
-      setInvoices([]);
+      // If error is 404 or network, treat as no invoices yet
+      if (e?.response?.status === 404 || e?.message?.toLowerCase().includes('network')) {
+        setInvoices([]);
+        setError(null);
+      } else {
+        setError(e.response?.data?.message || e.message || 'Failed to load invoices');
+        setInvoices([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -282,7 +288,15 @@ export default function Payments() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">No invoices found.</td>
+                    <td colSpan="8" className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <Calendar className="w-12 h-12 text-gray-300 mb-2" />
+                        <h2 className="text-lg font-semibold text-gray-700 mb-1">No payments yet</h2>
+                        <p className="text-gray-500 text-sm max-w-md mx-auto">
+                          You have no payment records or invoices yet. Payments will appear here once bookings are made and invoices are generated.
+                        </p>
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   rows

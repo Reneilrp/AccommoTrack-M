@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import DormProfileSettings from '../components/Pages/DormProfileSettings';
+import DormProfileSettings from '../components/Pages/Landlord/DormProfileSettings.jsx';
 import { useSidebar } from '../contexts/SidebarContext';
 
 export default function PropertyDetailRoute() {

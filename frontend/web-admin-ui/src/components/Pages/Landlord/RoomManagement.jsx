@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import api, { getImageUrl } from '../../utils/api';
+import api, { getImageUrl } from '../../../utils/api';
 import AddRoomModal from './AddRoom';
-import RoomCard from '../Rooms/RoomCard';
-import RoomDetails from '../Rooms/RoomDetails';
+import RoomCard from '../../Rooms/RoomCard';
+import RoomDetails from '../../Rooms/RoomDetails';
 import {
   X,
   Plus,

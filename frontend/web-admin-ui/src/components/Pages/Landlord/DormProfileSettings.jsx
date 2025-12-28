@@ -12,7 +12,7 @@ import {
   Save,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import api from '../../utils/api';
+import api from '../../../utils/api';
 
 // Editable map (react-leaflet)
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';

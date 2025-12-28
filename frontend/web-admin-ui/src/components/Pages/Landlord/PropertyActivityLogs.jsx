@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../../utils/api';
 
 export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen, onClose }) {
   const [logs, setLogs] = useState([]);

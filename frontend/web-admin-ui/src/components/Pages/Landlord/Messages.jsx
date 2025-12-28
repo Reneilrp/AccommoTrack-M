@@ -12,8 +12,8 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import createEcho from '../../utils/echo';
-import api from '../../utils/api';
+import createEcho from '../../../utils/echo';
+import api from '../../../utils/api';
 import toast from 'react-hot-toast';
 
 export default function Messages({ user, accessRole = 'landlord' }) {

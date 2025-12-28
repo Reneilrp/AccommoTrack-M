@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 import { Clock } from 'lucide-react';
-import api, { getImageUrl } from '../../utils/api';
-import MyProfile from '../settings/MyProfile';
-import Notifications from '../settings/Notifications';
-import Security from '../settings/Security';
-import CareTakerAccess from '../settings/CareTakerAccess';
-import Billing from '../settings/Billing';
+import api, { getImageUrl } from '../../../utils/api';
+import MyProfile from '../../settings/MyProfile';
+import Notifications from '../../settings/Notifications';
+import Security from '../../settings/Security';
+import CareTakerAccess from '../../settings/CareTakerAccess';
+import Billing from '../../settings/Billing';
 
 const CARETAKER_PERMISSION_FIELDS = [
   {

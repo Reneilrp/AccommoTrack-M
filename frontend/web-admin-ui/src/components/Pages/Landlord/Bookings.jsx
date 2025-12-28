@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
-import PriceRow from '../Shared/PriceRow';
+import PriceRow from '../../Shared/PriceRow';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -87,13 +87,28 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         headers: getAuthHeaders()
       });
 
-      if (!response.ok) throw new Error('Failed to fetch bookings');
+      if (!response.ok) {
+        // If 404 or 204, treat as no bookings yet (new account, no property, etc.)
+        if (response.status === 404 || response.status === 204) {
+          setBookings([]);
+          setError('');
+          return;
+        }
+        throw new Error('Failed to fetch bookings');
+      }
 
       const data = await response.json();
       setBookings(data);
+      setError('');
     } catch (err) {
       console.error('Error fetching bookings:', err);
-      setError(err.message);
+      // If error is network or 404, treat as no bookings yet
+      if (err.message === 'Failed to fetch' || err.message === 'Failed to fetch bookings') {
+        setBookings([]);
+        setError('');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -324,7 +339,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           </div>
         )}
 
-        {/* Error Message */}
+        {/* Error or Empty State Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -337,7 +352,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             </button>
           </div>
         )}
-
+        
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
@@ -420,8 +435,18 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredBookings.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                      {searchQuery ? `No bookings found matching "${searchQuery}"` : 'No bookings found'}
+                    <td colSpan="8" className="px-6 py-12 text-center">
+                      {searchQuery ? (
+                        <span className="text-gray-500">No bookings found matching "{searchQuery}"</span>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center">
+                          <Calendar className="w-12 h-12 text-gray-300 mb-2" />
+                          <h2 className="text-lg font-semibold text-gray-700 mb-1">No bookings yet</h2>
+                          <p className="text-gray-500 text-sm max-w-md mx-auto">
+                            You have no bookings yet. {isCaretaker ? 'Bookings will appear here once a property is assigned to you.' : 'Start by adding a property and accepting bookings.'}
+                          </p>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ) : (
