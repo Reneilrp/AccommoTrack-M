@@ -48,6 +48,7 @@ class Property extends Model
         // Status
         'is_published',
         'is_available'
+        ,'is_eligible'
     ];
 
     protected $casts = [
@@ -64,8 +65,11 @@ class Property extends Model
         'longitude' => 'decimal:7',
         'is_published' => 'boolean',
         'is_available' => 'boolean',
+        'is_eligible' => 'boolean',
         'property_rules' => 'array',
     ];
+
+    protected $appends = ['image_url'];
 
     /**
      * Relationship: Property belongs to a User (Landlord)
@@ -81,6 +85,14 @@ class Property extends Model
     public function rooms()
     {
         return $this->hasMany(Room::class);
+    }
+
+    /**
+     * Relationship: Property has many Bookings
+     */
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class);
     }
 
     /**
@@ -167,6 +179,23 @@ class Property extends Model
     public function images()
     {
         return $this->hasMany(PropertyImage::class);
+    }
+    public function credentials()
+    {
+        return $this->hasMany(PropertyCredential::class);
+    }
+    public function getImageUrlAttribute()
+    {
+        $firstImage = $this->images()->first();
+        return $firstImage ? asset('storage/' . $firstImage->image_path) : null;
+    }
+    /**
+     * Relationship: Property has many amenities (many-to-many)
+     */
+    public function amenities()
+    {
+        return $this->belongsToMany(Amenity::class, 'property_amenities', 'property_id', 'amenity_id')
+                    ->withTimestamps();
     }
 
     /**

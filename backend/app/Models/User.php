@@ -31,7 +31,10 @@ class User extends Authenticatable
     protected $casts = [
         'is_verified' => 'boolean',
         'is_active' => 'boolean',
-        'email_verified_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'caretaker_permissions',
     ];
 
     /**
@@ -49,6 +52,24 @@ class User extends Authenticatable
     public function room()
     {
         return $this->hasOne(Room::class, 'current_tenant_id');
+    }
+
+    /**
+     * Room assignments relationship (many-to-many through room_tenant_assignments)
+     */
+    public function roomAssignments()
+    {
+        return $this->belongsToMany(Room::class, 'room_tenant_assignments', 'tenant_id', 'room_id')
+                    ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
+                    ->wherePivot('status', 'active');
+    }
+
+    /**
+     * Get current active room assignment
+     */
+    public function getCurrentRoomAttribute()
+    {
+        return $this->roomAssignments()->first();
     }
 
     /**
@@ -76,6 +97,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Caretakers that belong to this landlord
+     */
+    public function caretakers()
+    {
+        return $this->hasMany(CaretakerAssignment::class, 'landlord_id');
+    }
+
+    /**
+     * Landlord assignment for caretaker user
+     */
+    public function caretakerAssignment()
+    {
+        return $this->hasOne(CaretakerAssignment::class, 'caretaker_id');
+    }
+
+    /**
      * Scope: Get only landlords
      */
     public function scopeLandlords($query)
@@ -92,10 +129,64 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine landlord context for landlord/caretaker
+     */
+    public function effectiveLandlordId(): ?int
+    {
+        if ($this->role === 'landlord') {
+            return $this->id;
+        }
+
+        if ($this->role === 'caretaker' && $this->caretakerAssignment) {
+            return $this->caretakerAssignment->landlord_id;
+        }
+
+        return null;
+    }
+
+    public function managesLandlordData(): bool
+    {
+        return $this->role === 'landlord' || ($this->role === 'caretaker' && (bool) $this->caretakerAssignment);
+    }
+
+    public function isCaretaker(): bool
+    {
+        return $this->role === 'caretaker';
+    }
+
+    /**
      * Get full name attribute
      */
     public function getFullNameAttribute()
     {
         return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+    }
+
+    public function getCaretakerPermissionsAttribute(): array
+    {
+        if (!$this->isCaretaker()) {
+            return [
+                'bookings' => true,
+                'messages' => true,
+                'tenants' => true,
+                'rooms' => true,
+                'properties' => true,
+            ];
+        }
+
+        // Load the assignment if not already loaded
+        if (!$this->relationLoaded('caretakerAssignment')) {
+            $this->load('caretakerAssignment');
+        }
+
+        $assignment = $this->caretakerAssignment;
+
+        return [
+            'bookings' => (bool) optional($assignment)->can_view_bookings,
+            'messages' => (bool) optional($assignment)->can_view_messages,
+            'tenants' => (bool) optional($assignment)->can_view_tenants,
+            'rooms' => (bool) optional($assignment)->can_view_rooms,
+            'properties' => (bool) optional($assignment)->can_view_properties,
+        ];
     }
 }

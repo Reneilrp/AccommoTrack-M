@@ -1,0 +1,37 @@
+import React from 'react';
+import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { COLORS, SPACING, TYPO } from '../../../../styles/Landlord/theme';
+
+export default function Button({ children, onPress, style, disabled, loading, type = 'primary' }) {
+  const bg = type === 'primary' ? COLORS.primary : 'transparent';
+  const color = type === 'primary' ? '#fff' : COLORS.primary;
+
+  // Check if children is a string or needs to be wrapped in Text
+  const isTextChild = typeof children === 'string';
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={[
+        {
+          backgroundColor: bg,
+          paddingVertical: SPACING.sm,
+          paddingHorizontal: SPACING.md,
+          borderRadius: 8,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        style,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={color} />
+      ) : isTextChild ? (
+        <Text style={{ color, fontSize: TYPO.body }}>{children}</Text>
+      ) : (
+        children
+      )}
+    </TouchableOpacity>
+  );
+}

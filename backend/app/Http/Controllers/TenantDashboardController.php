@@ -91,7 +91,7 @@ class TenantDashboardController extends Controller
                         'id' => $booking->id,
                         'type' => 'booking',
                         'action' => 'Booking update',
-                        'description' => "Your booking for {$booking->property->title} - Room {$booking->room->room_number} is {$booking->status}",
+                        'description' => 'Your booking for ' . $booking->property->title . ' - Room ' . $booking->room->room_number . ' is ' . $booking->status,
                         'status' => $booking->status,
                         'timestamp' => $booking->created_at,
                         'icon' => 'calendar',

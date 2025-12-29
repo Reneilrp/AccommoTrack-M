@@ -15,7 +15,12 @@ class Room extends Model
         'room_type',
         'floor',
         'monthly_rate',
+        'daily_rate',
+        'billing_policy',
+        'min_stay_days',
+        'prorate_base',
         'capacity',
+        'pricing_model',
         'status',
         'current_tenant_id',
         'description'
@@ -25,6 +30,9 @@ class Room extends Model
         'property_id' => 'integer',
         'floor' => 'integer',
         'monthly_rate' => 'decimal:2',
+        'daily_rate' => 'decimal:2',
+        'prorate_base' => 'integer',
+        'min_stay_days' => 'integer',
         'capacity' => 'integer',
         'current_tenant_id' => 'integer'
     ];
@@ -62,21 +70,49 @@ class Room extends Model
     }
 
     /**
-     * Get occupied count (for compatibility with frontend)
+     * Relationship: Room has many tenants (many-to-many through room_tenant_assignments)
      */
-    public function getOccupiedAttribute()
+    public function tenants()
     {
-        return $this->status === 'occupied' ? $this->capacity : 0;
+        return $this->belongsToMany(User::class, 'room_tenant_assignments', 'room_id', 'tenant_id')
+                    ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
+                    ->wherePivot('status', 'active');
     }
 
     /**
-     * Get tenant name (for compatibility with frontend)
+     * Get occupied count (actual number of tenants)
+     */
+    public function getOccupiedAttribute()
+    {
+        // Count active tenants in this room
+        $activeTenantsCount = $this->tenants()->count();
+        
+        // If no active tenants but room has current_tenant_id (legacy support)
+        if ($activeTenantsCount === 0 && $this->current_tenant_id) {
+            return 1;
+        }
+        
+        return $activeTenantsCount;
+    }
+
+    /**
+     * Get tenant name(s) (for compatibility with frontend)
      */
     public function getTenantAttribute()
     {
+        $activeTenants = $this->tenants;
+        
+        if ($activeTenants->count() > 0) {
+            return $activeTenants->map(function ($tenant) {
+                return $tenant->first_name . ' ' . $tenant->last_name;
+            })->implode(', ');
+        }
+        
+        // Fallback to current_tenant_id for legacy support
         if ($this->currentTenant) {
             return $this->currentTenant->first_name . ' ' . $this->currentTenant->last_name;
         }
+        
         return null;
     }
 
@@ -117,7 +153,7 @@ class Room extends Model
      */
     public function isFullyOccupied()
     {
-        return $this->status === 'occupied';
+        return $this->occupied >= $this->capacity;
     }
 
     /**
@@ -125,15 +161,20 @@ class Room extends Model
      */
     public function getAvailableSlotsAttribute()
     {
-        return $this->status === 'available' ? $this->capacity : 0;
+        if ($this->status === 'maintenance') {
+            return 0;
+        }
+        
+        $occupiedCount = $this->occupied;
+        return max(0, $this->capacity - $occupiedCount);
     }
 
     /**
-     * Check if room is available
+     * Check if room is available (has available slots)
      */
     public function isAvailable()
     {
-        return $this->status === 'available';
+        return $this->status !== 'maintenance' && $this->available_slots > 0;
     }
 
     /**
@@ -195,14 +236,31 @@ class Room extends Model
     }
 
     /**
-     * Assign tenant to room
+     * Assign tenant to room (supports multiple tenants)
      */
-    public function assignTenant($tenantId)
+    public function assignTenant($tenantId, $moveInDate = null)
     {
-        $this->update([
-            'current_tenant_id' => $tenantId,
-            'status' => 'occupied'
+        // Check if room has available slots
+        if ($this->available_slots <= 0) {
+            throw new \Exception('Room is fully occupied');
+        }
+        
+        // Add tenant to room_tenant_assignments
+        $this->tenants()->attach($tenantId, [
+            'start_date' => $moveInDate ?? now()->format('Y-m-d'),
+            'monthly_rent' => $this->monthly_rate,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now()
         ]);
+        
+        // Update room status and current_tenant_id (for legacy compatibility)
+        $updateData = ['status' => 'occupied'];
+        if (!$this->current_tenant_id) {
+            $updateData['current_tenant_id'] = $tenantId;
+        }
+        
+        $this->update($updateData);
         
         // Update property available rooms count
         if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
@@ -213,12 +271,38 @@ class Room extends Model
     /**
      * Remove tenant from room
      */
-    public function removeTenant()
+    public function removeTenant($tenantId = null)
     {
-        $this->update([
-            'current_tenant_id' => null,
-            'status' => 'available'
-        ]);
+        if ($tenantId) {
+            // Remove specific tenant
+            $this->tenants()->updateExistingPivot($tenantId, [
+                'status' => 'ended',
+                'end_date' => now()->format('Y-m-d'),
+                'updated_at' => now()
+            ]);
+            
+            // If this was the current_tenant_id, update it
+            if ($this->current_tenant_id == $tenantId) {
+                $remainingTenants = $this->tenants()->where('tenant_id', '!=', $tenantId)->first();
+                $this->update([
+                    'current_tenant_id' => $remainingTenants ? $remainingTenants->id : null
+                ]);
+            }
+        } else {
+            // Remove all tenants (legacy behavior)
+            $this->tenants()->updateExistingPivot($this->tenants()->pluck('id')->toArray(), [
+                'status' => 'ended',
+                'end_date' => now()->format('Y-m-d'),
+                'updated_at' => now()
+            ]);
+            
+            $this->update(['current_tenant_id' => null]);
+        }
+        
+        // Update room status if no active tenants remain
+        if ($this->occupied === 0) {
+            $this->update(['status' => 'available']);
+        }
         
         // Update property available rooms count
         if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
@@ -316,5 +400,122 @@ class Room extends Model
                 $room->property->updateAvailableRooms();
             }
         });
+    }
+
+    /**
+     * Calculate actual payment per tenant based on pricing model and current occupancy
+     * Used for booking/payment calculations
+     */
+    public function calculatePaymentPerTenant()
+    {
+        $monthlyRateFloat = (float) $this->monthly_rate;
+        
+        // Get current number of tenants
+        $currentOccupants = $this->tenants()->count();
+        
+        if ($this->pricing_model === 'per_bed') {
+            // For per-bed pricing, each tenant pays the full monthly rate
+            return $monthlyRateFloat;
+        }
+        
+        // For full_room pricing, divide by number of tenants or capacity
+        if ($currentOccupants > 0) {
+            // Divide by actual occupants
+            return round($monthlyRateFloat / $currentOccupants, 2);
+        }
+        
+        // If no tenants yet, show full price
+        return $monthlyRateFloat;
+    }
+
+    /**
+     * Calculate price for an arbitrary number of days using room billing settings.
+     * Returns array with total and breakdown.
+     */
+    public function calculatePriceForDays(int $days)
+    {
+        $days = max(1, $days);
+        $monthly = (float) $this->monthly_rate;
+        $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
+        $policy = $this->billing_policy ?? 'monthly';
+        $prorateBase = $this->prorate_base ?? 30;
+
+        $months = intdiv($days, $prorateBase);
+        $remaining = $days % $prorateBase;
+
+        $monthCharge = $months * $monthly;
+        $daysCharge = 0.0;
+        $method = $policy;
+
+        if ($policy === 'daily') {
+            $ratePerDay = $daily ?? ($monthly / $prorateBase);
+            $daysCharge = $days * $ratePerDay;
+            $total = $daysCharge;
+            $method = 'daily';
+        } elseif ($policy === 'monthly_with_daily') {
+            $total = $monthCharge;
+            if ($remaining > 0) {
+                $ratePerDay = $daily ?? ($monthly / $prorateBase);
+                $daysCharge = $remaining * $ratePerDay;
+                $total += $daysCharge;
+            }
+            $method = 'monthly_with_daily';
+        } else { // monthly (prorate leftover)
+            $total = $monthCharge;
+            if ($remaining > 0) {
+                $daysCharge = ($monthly * $remaining) / $prorateBase;
+                $total += $daysCharge;
+            }
+            $method = 'monthly';
+        }
+
+        $total = round($total, 2);
+
+        return [
+            'total' => $total,
+            'breakdown' => [
+                'months' => $months,
+                'remaining_days' => $remaining,
+                'month_charge' => round($monthCharge, 2),
+                'days_charge' => round($daysCharge, 2),
+            ],
+            'method' => $method,
+        ];
+    }
+
+    /**
+     * Get formatted room payment display for booking page
+     */
+    public function getPaymentDisplay()
+    {
+        $monthlyRateFloat = (float) $this->monthly_rate;
+        $billingPolicy = $this->billing_policy ?? 'monthly';
+
+        // If billing is daily, show daily display
+        if ($billingPolicy === 'daily') {
+            $daily = $this->daily_rate !== null ? (float)$this->daily_rate : ($monthlyRateFloat / ($this->prorate_base ?? 30));
+            return [
+                'pricing_model' => $this->pricing_model ?? 'full_room',
+                'display' => '₱' . number_format($daily, 2) . ' per day',
+                'amount_per_tenant' => $daily
+            ];
+        }
+
+        if ($this->pricing_model === 'per_bed') {
+            return [
+                'pricing_model' => 'per_bed',
+                'display' => '₱' . number_format($monthlyRateFloat, 2) . ' per bed/tenant',
+                'amount_per_tenant' => $monthlyRateFloat
+            ];
+        }
+
+        $occupants = $this->tenants()->count();
+        $perTenant = $occupants > 0 ? round($monthlyRateFloat / $occupants, 2) : $monthlyRateFloat;
+
+        return [
+            'pricing_model' => 'full_room',
+            'display' => '₱' . number_format($monthlyRateFloat, 2) . ' (÷' . ($occupants > 0 ? $occupants : 'capacity') . ')',
+            'amount_per_tenant' => $perTenant
+        ];
     }
 }

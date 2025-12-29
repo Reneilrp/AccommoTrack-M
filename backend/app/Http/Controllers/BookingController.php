@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
 use Illuminate\Http\Request;
 use App\Models\Booking;
 use App\Models\Room;
@@ -10,17 +11,34 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class BookingController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     /**
      * Get all bookings for the authenticated landlord
      */
     public function index(Request $request)
     {
         try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
             $query = Booking::with(['property', 'tenant', 'landlord', 'room'])
-                ->where('landlord_id', Auth::id());
+                ->where('landlord_id', $context['landlord_id']);
+
+            // If caretaker, filter by assigned properties only
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                Log::info('Caretaker booking filter', [
+                    'caretaker_id' => $context['user']->id,
+                    'assigned_property_ids' => $assignedPropertyIds,
+                    'landlord_id' => $context['landlord_id']
+                ]);
+                $query->whereIn('property_id', $assignedPropertyIds);
+            }
 
             // Filter by status if provided
             if ($request->has('status') && $request->status !== 'all') {
@@ -71,7 +89,7 @@ class BookingController extends Controller
             $validated = $request->validate([
                 'room_id' => 'required|exists:rooms,id',
                 'start_date' => 'required|date|after_or_equal:today',
-                'total_months' => 'required|integer|min:1',
+                'end_date' => 'required|date|after:start_date',
                 'notes' => 'nullable|string'
             ]);
 
@@ -84,17 +102,38 @@ class BookingController extends Controller
                 'monthly_rate' => $room->monthly_rate
             ]);
 
-            if ($room->status !== 'available') {
+            // Check if room has available slots
+            if (!$room->isAvailable() || $room->available_slots <= 0) {
                 return response()->json([
                     'message' => 'Room is not available for booking',
-                    'room_status' => $room->status
+                    'room_status' => $room->status,
+                    'occupied_slots' => $room->occupied,
+                    'total_capacity' => $room->capacity,
+                    'available_slots' => $room->available_slots
                 ], 422);
             }
 
-            // Calculate end date and total amount
+            // Calculate end date and total amount (use days and prorate logic)
             $startDate = \Carbon\Carbon::parse($validated['start_date']);
-            $endDate = $startDate->copy()->addMonths($validated['total_months']);
-            $totalAmount = $room->monthly_rate * $validated['total_months'];
+            $endDate = \Carbon\Carbon::parse($validated['end_date']);
+
+            // Inclusive days count
+            $days = $startDate->diffInDays($endDate) + 1;
+
+            // Enforce minimum stay if configured on the room
+            $minStay = isset($room->min_stay_days) ? (int) $room->min_stay_days : null;
+            if ($minStay && $days < $minStay) {
+                return response()->json([
+                    'message' => 'Minimum stay requirement not met',
+                    'errors' => ['min_stay_days' => ["Minimum stay is {$minStay} days"]]
+                ], 422);
+            }
+
+            // Use room pricing logic to calculate prorated amounts and breakdown
+            $priceResult = $room->calculatePriceForDays($days);
+            $totalAmount = $priceResult['total'];
+            // derive total months from breakdown if available
+            $totalMonths = isset($priceResult['breakdown']['months']) ? (int) $priceResult['breakdown']['months'] : intdiv($days, ($room->prorate_base ?? 30));
 
             // Generate unique booking reference
             $bookingReference = 'BK-' . strtoupper(Str::random(8));
@@ -108,7 +147,7 @@ class BookingController extends Controller
                 'booking_reference' => $bookingReference,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate->format('Y-m-d'),
-                'total_months' => $validated['total_months'],
+                'total_months' => $totalMonths,
                 'monthly_rent' => $room->monthly_rate,
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
@@ -147,33 +186,44 @@ class BookingController extends Controller
     }
 
     /**
-     * Update booking status (landlord confirms/rejects)
-     * 🆕 AUTOMATICALLY UPDATES TENANT PROFILE ON CONFIRMATION
+     * Update booking status (landlord confirms/rejects/completes/cancels)
+     * ✅ HANDLES: confirmed, completed, partial-completed, cancelled
+     * ✅ UPDATES: Room status + Tenant profile + Refunds
      */
     public function updateStatus(Request $request, $id)
     {
         DB::beginTransaction();
 
         try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
             $booking = Booking::with(['tenant.tenantProfile', 'room.property'])
-                ->where('landlord_id', Auth::id())
+                ->where('landlord_id', $context['landlord_id'])
                 ->findOrFail($id);
 
             $validated = $request->validate([
-                'status' => 'required|in:pending,confirmed,cancelled,completed,rejected',
-                'cancellation_reason' => 'required_if:status,cancelled,rejected'
+                'status' => 'required|in:pending,confirmed,cancelled,completed,partial-completed',
+                'cancellation_reason' => 'required_if:status,cancelled',
+                'refund_amount' => 'nullable|numeric|min:0',
+                'should_refund' => 'nullable|boolean'
             ]);
 
             $oldStatus = $booking->status;
-            $booking->status = $validated['status'];
+            $newStatus = $validated['status'];
+            $booking->status = $newStatus;
 
-            // ✅ IF CONFIRMED: Mark room as occupied AND update tenant profile
-            if ($validated['status'] === 'confirmed') {
-                // Update room
-                $booking->room->update([
-                    'status' => 'occupied',
-                    'current_tenant_id' => $booking->tenant_id
-                ]);
+            // ========================================
+            // 1. CONFIRMED - Assign tenant to room + Activate tenant
+            // ========================================
+            if ($newStatus === 'confirmed') {
+                // Check if room has available slots
+                if ($booking->room->available_slots <= 0) {
+                    throw new \Exception('Room is fully occupied and cannot accommodate more tenants');
+                }
+
+                // Assign tenant to room using the new system
+                $booking->room->assignTenant($booking->tenant_id, $booking->start_date);
 
                 // Create or update tenant profile
                 $booking->tenant->tenantProfile()->updateOrCreate(
@@ -181,61 +231,84 @@ class BookingController extends Controller
                     [
                         'move_in_date' => $booking->start_date,
                         'status' => 'active',
-                        'booking_id' => $booking->id  // optional: link to booking
+                        'booking_id' => $booking->id
                     ]
                 );
 
-                Log::info('Tenant assigned to room and profile activated', [
+                Log::info('Booking confirmed - Tenant assigned to room', [
+                    'booking_id' => $booking->id,
                     'tenant_id' => $booking->tenant_id,
                     'room_id' => $booking->room_id,
-                    'booking_id' => $booking->id
+                    'occupied_slots' => $booking->room->occupied,
+                    'available_slots' => $booking->room->available_slots
                 ]);
 
                 $booking->room->property->updateAvailableRooms();
             }
 
-            // IF CANCELLED OR REJECTED
-            if (in_array($validated['status'], ['cancelled', 'rejected'])) {
+            // ========================================
+            // 2. COMPLETED or PARTIAL-COMPLETED - Keep room occupied
+            // ========================================
+            if (in_array($newStatus, ['completed', 'partial-completed'])) {
+                // ✅ KEEP the room OCCUPIED (tenant is still there)
+                // The room should only become available when tenant moves out
+                // or booking is cancelled
+                
+                Log::info('Booking marked as completed', [
+                    'booking_id' => $booking->id,
+                    'status' => $newStatus,
+                    'room_still_occupied' => true
+                ]);
+
+                // Room stays occupied - no changes needed
+            }
+
+            // ========================================
+            // 3. CANCELLED - Free room + Handle refunds
+            // ========================================
+            if ($newStatus === 'cancelled') {
                 $booking->cancelled_at = now();
                 $booking->cancellation_reason = $validated['cancellation_reason'] ?? null;
 
-                // Make room available again
-                $booking->room->update([
-                    'status' => 'available',
-                    'tenant_id' => null
-                ]);
-
-                // Update tenant profile status if exists
-                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)->first();
-                if ($tenantProfile && $tenantProfile->move_in_date == $booking->start_date) {
-                    $tenantProfile->update([
-                        'status' => 'inactive',
-                        'move_out_date' => now()->format('Y-m-d')
-                    ]);
-
-                    Log::info('Tenant profile marked inactive due to cancellation', [
-                        'tenant_profile_id' => $tenantProfile->id,
-                        'booking_id' => $booking->id
+                // Handle refund if requested
+                if ($validated['should_refund'] ?? false) {
+                    $booking->refund_amount = $validated['refund_amount'] ?? 0;
+                    $booking->refund_processed_at = now();
+                    
+                    // Auto-update payment status to refunded
+                    $booking->payment_status = 'refunded';
+                    
+                    Log::info('Refund processed for cancelled booking', [
+                        'booking_id' => $booking->id,
+                        'refund_amount' => $booking->refund_amount
                     ]);
                 }
 
-                $booking->room->property->updateAvailableRooms();
-            }
+                // Remove tenant from room using the proper method
+                $booking->room->removeTenant($booking->tenant_id);
 
-            // IF COMPLETED: Make room available and mark tenant as inactive
-            if ($validated['status'] === 'completed') {
-                $booking->room->update([
-                    'status' => 'available',
-                    'current_tenant_id' => null
-                ]);
-
-                $tenantProfile = $booking->tenant->tenantProfile;
+                // Update tenant profile if exists
+                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                    ->where('booking_id', $booking->id)
+                    ->first();
+                    
                 if ($tenantProfile) {
                     $tenantProfile->update([
                         'status' => 'inactive',
                         'move_out_date' => now()->format('Y-m-d')
                     ]);
+
+                    Log::info('Tenant profile deactivated due to cancellation', [
+                        'tenant_profile_id' => $tenantProfile->id,
+                        'booking_id' => $booking->id
+                    ]);
                 }
+
+                Log::info('Booking cancelled - Tenant removed from room', [
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'room_id' => $booking->room_id
+                ]);
 
                 $booking->room->property->updateAvailableRooms();
             }
@@ -244,10 +317,14 @@ class BookingController extends Controller
 
             DB::commit();
 
+            // Load fresh data with tenant name for room card
+            $booking->load(['property', 'tenant.tenantProfile', 'room.currentTenant']);
+
             return response()->json([
                 'message' => 'Booking status updated successfully',
-                'booking' => $booking->load(['property', 'tenant.tenantProfile', 'room']),
-                'tenant_profile_updated' => $validated['status'] === 'confirmed'
+                'booking' => $booking,
+                'room_updated' => true,
+                'tenant_name' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -265,22 +342,47 @@ class BookingController extends Controller
 
     /**
      * Update payment status
+     * AUTO-UPGRADE: partial-completed → completed when payment becomes 'paid'
      */
     public function updatePaymentStatus(Request $request, $id)
     {
         try {
-            $booking = Booking::where('landlord_id', Auth::id())->findOrFail($id);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $booking = Booking::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
             $validated = $request->validate([
                 'payment_status' => 'required|in:unpaid,partial,paid,refunded'
             ]);
 
+            $oldPaymentStatus = $booking->payment_status;
+            $oldBookingStatus = $booking->status;
             $booking->payment_status = $validated['payment_status'];
+            
+            $statusUpgraded = false;
+
+            // AUTO-UPGRADE: If booking is 'partial-completed' and payment becomes 'paid', upgrade to 'completed'
+            if ($booking->status === 'partial-completed' && $validated['payment_status'] === 'paid') {
+                $booking->status = 'completed';
+                $statusUpgraded = true;
+                
+                Log::info('Booking auto-upgraded from partial-completed to completed', [
+                    'booking_id' => $booking->id,
+                    'old_status' => $oldBookingStatus,
+                    'new_status' => 'completed',
+                    'payment_status' => 'paid'
+                ]);
+            }
+
             $booking->save();
 
             return response()->json([
-                'message' => 'Payment status updated successfully',
-                'booking' => $booking
+                'message' => $statusUpgraded 
+                    ? 'Payment updated and booking upgraded to completed!' 
+                    : 'Payment status updated successfully',
+                'booking' => $booking,
+                'status_upgraded' => $statusUpgraded
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -293,13 +395,26 @@ class BookingController extends Controller
     /**
      * Get booking statistics
      */
-    public function getStats()
+    public function getStats(Request $request)
     {
         try {
-            $total = Booking::where('landlord_id', Auth::id())->count();
-            $confirmed = Booking::where('landlord_id', Auth::id())->where('status', 'confirmed')->count();
-            $pending = Booking::where('landlord_id', Auth::id())->where('status', 'pending')->count();
-            $completed = Booking::where('landlord_id', Auth::id())->where('status', 'completed')->count();
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $baseQuery = Booking::where('landlord_id', $context['landlord_id']);
+            
+            // If caretaker, filter by assigned properties only
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $baseQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $total = (clone $baseQuery)->count();
+            $confirmed = (clone $baseQuery)->where('status', 'confirmed')->count();
+            $pending = (clone $baseQuery)->where('status', 'pending')->count();
+            $completed = (clone $baseQuery)
+                ->whereIn('status', ['completed', 'partial-completed'])
+                ->count();
 
             return response()->json([
                 'total' => $total,
@@ -318,12 +433,22 @@ class BookingController extends Controller
     /**
      * Get single booking details
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         try {
-            $booking = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room'])
-                ->where('landlord_id', Auth::id())
-                ->findOrFail($id);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+
+            $query = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room'])
+                ->where('landlord_id', $context['landlord_id']);
+
+            // If caretaker, filter by assigned properties only
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $query->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $booking = $query->findOrFail($id);
 
             return response()->json($booking, 200);
         } catch (\Exception $e) {
