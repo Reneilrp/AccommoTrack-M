@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+        // ...existing code...
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../assets/Logo.png';
 import api from '../utils/api';
@@ -30,6 +31,10 @@ function AuthScreen({ onLogin = () => {} }) {
     return () => window.removeEventListener('resize', checkMobileDevice);
   }, []);
 
+  // Live email check state (should NOT be inside formData)
+  const [emailAvailable, setEmailAvailable] = useState(null); // null = untouched, true = available, false = taken
+  const [emailCheckMsg, setEmailCheckMsg] = useState('');
+  const emailCheckTimeout = useRef(null);
   const [formData, setFormData] = useState({
     first_name: '',
     middle_name: '',
@@ -37,13 +42,33 @@ function AuthScreen({ onLogin = () => {} }) {
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'landlord',
+    role: 'tenant', // Registration is tenant-only
     phone: '',
   });
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
+    // Live email uniqueness check
+    if (field === 'email') {
+      setEmailAvailable(null);
+      setEmailCheckMsg('');
+      if (emailCheckTimeout.current) clearTimeout(emailCheckTimeout.current);
+      // Only check if valid email format
+      const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+      if (emailRegex.test(value)) {
+        emailCheckTimeout.current = setTimeout(async () => {
+          try {
+            const res = await api.get('/check-email', { params: { email: value } });
+            setEmailAvailable(res.data.available);
+            setEmailCheckMsg(res.data.message);
+          } catch (err) {
+            setEmailAvailable(false);
+            setEmailCheckMsg('This email is already taken');
+          }
+        }, 500); // debounce 500ms
+      }
+    }
   };
 
   const validateLoginForm = () => {
@@ -102,18 +127,10 @@ function AuthScreen({ onLogin = () => {} }) {
 
       const data = result.data;
 
-      console.log('✅ Login successful! Role:', data.user.role);
-
-      // Allow landlords, caretakers, and admins
-      const allowedRoles = ['landlord', 'admin', 'caretaker'];
-      if (!allowedRoles.includes(data.user.role)) {
-        setError('Access denied. This portal is for landlords, caretakers, and admins only.');
-        return;
-      }
+      // Allow all roles to log in (tenant, landlord, admin, caretaker)
+      // If you want to restrict access to certain routes after login, do it in routing logic
 
       localStorage.setItem('auth_token', data.token);
-      console.log('✅ Token saved to localStorage');
-
       onLogin(data.user, data.token);
 
       // Clear sensitive form fields
@@ -122,7 +139,6 @@ function AuthScreen({ onLogin = () => {} }) {
       const landingRoute = getDefaultLandingRoute(data.user);
       navigate(landingRoute);
     } catch (err) {
-      console.error('❌ Login Error:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
       setError(errorMsg);
     } finally {
@@ -152,10 +168,9 @@ function AuthScreen({ onLogin = () => {} }) {
       } else {
         // Desktop users get normal flow
         toast.success('Registration successful! Please login with your credentials.');
-        // alert('Registration successful! Please login with your credentials.');
         setIsLogin(true);
       }
-      
+
       setFormData({
         first_name: '',
         middle_name: '',
@@ -163,11 +178,30 @@ function AuthScreen({ onLogin = () => {} }) {
         email: formData.email,
         password: '',
         password_confirmation: '',
-        role: 'landlord',
+        role: 'tenant',
         phone: '',
       });
     } catch (err) {
-      setError(err.message);
+      // Try to extract Laravel validation errors
+      let errorMsg = 'Registration failed. Please try again.';
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMsg = data;
+        } else if (data.message) {
+          errorMsg = data.message;
+        }
+        if (data.errors) {
+          // Show the first error message from the errors object
+          const firstField = Object.keys(data.errors)[0];
+          if (firstField && data.errors[firstField][0]) {
+            errorMsg = data.errors[firstField][0];
+          }
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -197,63 +231,79 @@ function AuthScreen({ onLogin = () => {} }) {
       email: '',
       password: '',
       password_confirmation: '',
-      role: 'landlord',
+      role: 'tenant',
       phone: '',
     });
   };
 
-  const inputClasses = "w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 text-white placeholder-white/70 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all";
-  const labelClasses = "block text-sm font-semibold text-white mb-2 drop-shadow-md";
-  const iconClasses = "w-5 h-5 text-white/70";
+  const inputClasses = "w-full pl-10 pr-4 py-3 bg-white border border-green-200 text-black placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-300 transition-all";
+  const labelClasses = "block text-sm font-semibold text-black mb-2";
+  const iconClasses = "w-5 h-5 text-green-400";
 
   return (
-    <div className="min-h-screen bg-[url(../assets/Bg-Pic-5.jpg)] bg-cover bg-center bg-no-repeat bg-fixed flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100">
       <Toaster />
-      <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden relative">
-        {/* Back to Landing Page Button */}
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="absolute top-4 left-4 text-white/80 hover:text-white font-semibold text-base z-10 bg-transparent p-0 border-0 shadow-none"
-        >
-          &larr; Back to Home
-        </button>
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 relative">
+        {/* Back/Sign In Button */}
+        {isLogin ? (
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="absolute top-4 left-4 text-green-700 hover:text-green-900 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+            aria-label="Back to Landing Page"
+          >
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsLogin(true)}
+            className="absolute top-4 left-4 text-green-700 hover:text-green-900 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+            aria-label="Back to Sign In"
+          >
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
         {/* Logo and Header */}
+        <div className="flex flex-col items-center justify-center mb-4">
+          <img src={Logo} alt="AccommoTrack Logo" className="h-14 w-auto mb-2" />
+          <span className="text-2xl font-extrabold text-green-700 tracking-tight">AccommoTrack</span>
+        </div>
         <div className="text-center mb-8">
-          <div className="flex flex-col items-center justify-center mb-6">
-            <img
-              src={Logo}
-              alt="AccommoTrack Logo"
-              className="h-16 w-auto"
-            />
-          </div>
-
-          <h2 className="text-2xl font-bold text-white mb-2 drop-shadow-lg">
+          <h2 className="text-2xl font-bold text-green-700 mb-2">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
-          <p className="text-white/90 drop-shadow-md">
-            {isLogin ? 'Landlord Portal' : 'Sign up to get started'}
+          <p className="text-green-900/90">
+            {isLogin
+              ? 'Access your account and discover accommodations.'
+              : 'Sign up to get started and look for accommodations.'}
           </p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-500/20 backdrop-blur-sm border border-red-300/50 rounded-lg flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-200 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
-            <span className="text-white text-sm drop-shadow-md">{error}</span>
+            <span className="text-red-700 text-sm font-semibold">{error}</span>
           </div>
         )}
 
-        {/* LOGIN FORM */}
-        {isLogin ? (
-          <>
-            <form onSubmit={handleLogin} className="space-y-5">
+        {/* LOGIN FORM (all users) */}
+        {isLogin && (
+          <form onSubmit={handleLogin} className="space-y-5">
             {/* Email Field */}
             <div>
               <label className={labelClasses}>
                 Email Address
+                {emailAvailable === false && (
+                  <span className="ml-2 text-red-400 text-xs font-semibold">*</span>
+                )}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -266,11 +316,20 @@ function AuthScreen({ onLogin = () => {} }) {
                   name="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={inputClasses}
+                  className={inputClasses + (emailAvailable === false ? ' border-red-400' : emailAvailable === true ? ' border-green-400' : '')}
                   placeholder="Enter your email"
                   disabled={loading}
                   required
                 />
+                {/* Live email check message */}
+                {formData.email && emailCheckMsg && (
+                  <span className={
+                    'absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold ' +
+                    (emailAvailable === false ? 'text-red-400' : emailAvailable === true ? 'text-green-400' : 'text-gray-300')
+                  }>
+                    {emailCheckMsg}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -302,11 +361,11 @@ function AuthScreen({ onLogin = () => {} }) {
                   disabled={loading}
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5 text-white/70 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5 text-white/70 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
@@ -319,9 +378,9 @@ function AuthScreen({ onLogin = () => {} }) {
             <div className="text-right">
               <button
                 type="button"
-                className="text-sm text-white/90 hover:text-white font-semibold transition-colors drop-shadow-md"
+                 className="text-sm text-black/70 hover:text-black font-semibold transition-colors"
               >
-                Forgot Password?
+                 Forgot Password?
               </button>
             </div>
 
@@ -344,14 +403,15 @@ function AuthScreen({ onLogin = () => {} }) {
               )}
             </button>
           </form>
-          </>
-        ) : (
-          /* REGISTER FORM */
+        )}
+        {/* TENANT SIGN UP ONLY (role is fixed to tenant) */}
+        {!isLogin && (
           <form onSubmit={handleRegister} className="space-y-4">
             {/* First Name */}
             <div>
-              <label className={labelClasses}>
-                First Name
+              <label className={labelClasses + " flex items-center gap-2"}>
+                <span>First Name</span>
+                <span className="text-red-400 text-xs font-bold">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -375,7 +435,7 @@ function AuthScreen({ onLogin = () => {} }) {
             {/* Middle Name */}
             <div>
               <label className={labelClasses}>
-                Middle Name <span className="text-white/50 text-xs">(Optional)</span>
+                Middle Name <span className="text-black/50 text-xs">(Optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -397,8 +457,9 @@ function AuthScreen({ onLogin = () => {} }) {
 
             {/* Last Name */}
             <div>
-              <label className={labelClasses}>
-                Last Name
+              <label className={labelClasses + " flex items-center gap-2"}>
+                <span>Last Name</span>
+                <span className="text-red-400 text-xs font-bold">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -421,8 +482,15 @@ function AuthScreen({ onLogin = () => {} }) {
 
             {/* Email */}
             <div>
-              <label className={labelClasses}>
-                Email Address
+              <label className={labelClasses + " flex items-center gap-2"}>
+                <span>Email Address</span>
+                <span className="text-red-400 text-xs font-bold">*</span>
+                {/* Show live email check or backend error as a red span next to label */}
+                {(formData.email && (emailCheckMsg || (error && error.toLowerCase().includes('email')))) && (
+                  <span className="text-red-400 text-xs font-semibold ml-2">
+                    {emailCheckMsg ? emailCheckMsg : error}
+                  </span>
+                )}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -435,7 +503,7 @@ function AuthScreen({ onLogin = () => {} }) {
                   name="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={inputClasses}
+                  className={inputClasses + (emailAvailable === false ? ' border-red-400' : emailAvailable === true ? ' border-green-400' : '')}
                   placeholder="Enter your email"
                   disabled={loading}
                   required
@@ -446,7 +514,7 @@ function AuthScreen({ onLogin = () => {} }) {
             {/* Phone */}
             <div>
               <label className={labelClasses}>
-                Phone Number <span className="text-white/50 text-xs">(Optional)</span>
+                Phone Number <span className="text-black/50 text-xs">(Optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -468,8 +536,9 @@ function AuthScreen({ onLogin = () => {} }) {
 
             {/* Password */}
             <div>
-              <label className={labelClasses}>
-                Password
+              <label className={labelClasses + " flex items-center gap-2"}>
+                <span>Password</span>
+                <span className="text-red-400 text-xs font-bold">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -506,13 +575,14 @@ function AuthScreen({ onLogin = () => {} }) {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-white/70 mt-1 drop-shadow-md">Minimum 8 characters</p>
+              <p className="text-xs text-green-700/70 mt-1">Minimum 8 characters</p>
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label className={labelClasses}>
-                Confirm Password
+              <label className={labelClasses + " flex items-center gap-2"}>
+                <span>Confirm Password</span>
+                <span className="text-red-400 text-xs font-bold">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -551,8 +621,8 @@ function AuthScreen({ onLogin = () => {} }) {
               </div>
             </div>
 
-            {/* Hidden Role Field */}
-            <input type="hidden" name="role" value={formData.role} />
+            {/* Hidden Role Field (always tenant) */}
+            <input type="hidden" name="role" value="tenant" />
 
             {/* Submit Button */}
             <button
@@ -577,12 +647,12 @@ function AuthScreen({ onLogin = () => {} }) {
 
         {/* Toggle Login/Register */}
         <div className="mt-6 text-center">
-          <span className="text-white/80 drop-shadow-md">
+          <span className="text-green-700/80">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
           </span>
           <button
             onClick={toggleScreen}
-            className="text-white font-semibold hover:text-white/80 transition-colors drop-shadow-md underline"
+            className="text-green-700 font-semibold hover:text-green-900 transition-colors underline"
             disabled={loading}
           >
             {isLogin ? 'Sign Up' : 'Sign In'}
@@ -592,8 +662,8 @@ function AuthScreen({ onLogin = () => {} }) {
 
       {/* Platform Choice Modal - Shows for mobile users after registration */}
       {showPlatformChoice && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
             {/* Success Icon */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
@@ -604,19 +674,19 @@ function AuthScreen({ onLogin = () => {} }) {
             </div>
 
             {/* Title */}
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+            <h3 className="text-xl font-bold text-green-700 text-center mb-2">
               Registration Successful!
             </h3>
             
             {/* Description */}
-            <p className="text-gray-600 text-center mb-6">
-              Your landlord account has been created. How would you like to continue?
+            <p className="text-green-900/90 text-center mb-6">
+              Your tenant account has been created. How would you like to continue?
             </p>
 
             {/* Registered Email Display */}
-            <div className="bg-gray-100 rounded-lg p-3 mb-6">
-              <p className="text-sm text-gray-500 text-center">Registered as:</p>
-              <p className="text-sm font-medium text-gray-800 text-center">{registeredEmail}</p>
+            <div className="bg-green-50 rounded-lg p-3 mb-6 border border-green-100">
+              <p className="text-sm text-green-700 text-center">Registered as:</p>
+              <p className="text-sm font-medium text-green-900 text-center">{registeredEmail}</p>
             </div>
 
             {/* Choice Buttons */}
@@ -625,7 +695,7 @@ function AuthScreen({ onLogin = () => {} }) {
               {/* Continue on Web */}
               <button
                 onClick={handleContinueOnWeb}
-                className="w-full bg-gradient-to-r from-emerald-500 to-green-500 text-white font-semibold py-3 px-4 rounded-xl hover:from-emerald-600 hover:to-green-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -636,7 +706,7 @@ function AuthScreen({ onLogin = () => {} }) {
               {/* Return to Mobile App */}
               <button
                 onClick={handleGoToMobileApp}
-                className="w-full bg-gray-100 text-gray-700 font-semibold py-3 px-4 rounded-xl hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full bg-green-50 text-green-900 font-semibold py-3 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -646,8 +716,8 @@ function AuthScreen({ onLogin = () => {} }) {
             </div>
 
             {/* Note */}
-            <p className="text-xs text-gray-400 text-center mt-4">
-              You can access your landlord account from any device
+            <p className="text-xs text-green-700/70 text-center mt-4">
+              You can access your tenant account from any device
             </p>
           </div>
         </div>

@@ -1,9 +1,18 @@
-
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import AdminNavigator from './AdminNavigator.jsx';
 import LandlordNavigator from './LandlordNavigator.jsx';
 import LandingPage from '../components/Pages/Guest/LandingPage.jsx';
 import BrowsingPropertyPage from '../components/Pages/Guest/BrowsingPropertyPage.jsx';
+// IMPORT THE NEW COMPONENT
+import PropertyDetails from '../components/Pages/Guest/PropertyDetails.jsx';
+
+// --- WRAPPER FOR DETAILS PAGE ---
+// This wrapper is needed to extract the ID from the URL and pass it to your component
+const PublicDetailsWrapper = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <PropertyDetails propertyId={id} onBack={() => navigate(-1)} />;
+};
 
 export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   
@@ -13,7 +22,11 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/browse-properties" element={<BrowsingPropertyPage />} />
-        {/* Add more guest routes as needed */}
+        
+        {/* --- ADD THIS LINE TO REGISTER THE ROUTE --- */}
+        <Route path="/property/:id" element={<PublicDetailsWrapper />} />
+        
+        {/* Catch-all: Redirect unknown routes to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -29,6 +42,5 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
     return <LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
   }
 
-  // TODO: Add TenantNavigator here for tenant role
   return null;
 }

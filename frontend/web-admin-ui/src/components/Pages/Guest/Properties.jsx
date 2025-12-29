@@ -1,99 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield } from 'lucide-react'; 
 
-// --- 1. EXPANDED MOCK DATA ---
-export const mockProperties = [
-  {
-    id: 1,
-    name: 'Sunrise Apartments',
-    location: 'Tetuan, Zamboanga City',
-    description: 'A modern apartment complex situated in the heart of Tetuan. Close to major transit lines and shopping centers.',
-    rating: 4.8,
-    rooms: [
-      { 
-        id: 101, 
-        name: 'Studio Deluxe', 
-        image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80', 
-        price: 5500, 
-        status: 'Available',
-        size: '18 sqm',
-        capacity: '1 Person',
-        description: 'Perfect for students who want privacy. Features a personal kitchenette, study area, and en-suite bathroom.',
-        amenities: ['Free Wi-Fi', 'Air Conditioning', 'Private Bathroom', 'Study Desk', 'Kitchenette'],
-        rules: ['No Pets', 'No Smoking', 'Curfew: 10 PM for visitors']
-      },
-      { 
-        id: 102, 
-        name: '1BR Suite', 
-        image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80', 
-        price: 8000, 
-        status: 'Occupied',
-        size: '30 sqm',
-        capacity: '2 People',
-        description: 'Spacious suite with a separate living area. Ideal for couples or siblings sharing a space.',
-        amenities: ['Free Wi-Fi', 'Air Conditioning', 'Private Bathroom', 'Living Area', 'Full Kitchen'],
-        rules: ['No Pets', 'No Smoking']
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Greenfield Residences',
-    location: 'Pasonanca, Zamboanga City',
-    description: 'Experience nature and comfort in Pasonanca. A quiet environment perfect for focused studying.',
-    rating: 4.5,
-    rooms: [
-      { 
-        id: 201, 
-        name: 'Master Bedroom', 
-        image: 'https://images.unsplash.com/photo-1560185007-cde436f6a4d0?auto=format&fit=crop&w=800&q=80', 
-        price: 4500, 
-        status: 'Available',
-        size: '22 sqm',
-        capacity: '2 People',
-        description: 'Large master bedroom with balcony access overlooking the park.',
-        amenities: ['Shared Wi-Fi', 'Ceiling Fan', 'Shared Bathroom', 'Balcony Access'],
-        rules: ['No Alcohol', 'Quiet Hours: 9 PM']
-      },
-      { 
-        id: 202, 
-        name: 'Standard Twin', 
-        image: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80', 
-        price: 3000, 
-        status: 'Occupied',
-        size: '15 sqm',
-        capacity: '2 People',
-        description: 'Affordable twin room with essential amenities. Great for budget-conscious students.',
-        amenities: ['Shared Wi-Fi', 'Wall Fan', 'Common Area Access'],
-        rules: ['No Visitors after 9 PM']
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Blue Horizon Dormtel',
-    location: 'Putik, Zamboanga City',
-    description: 'Secure and affordable dormitory living with a vibrant student community.',
-    rating: 4.2,
-    rooms: [
-      { id: 301, name: 'Bedspacer A', image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=400&q=80', price: 1500, status: 'Available', amenities: ['Bunk Bed', 'Locker', 'Shared CR'], description: 'Budget friendly bedspace in a 4-person room.' },
-      { id: 303, name: 'Quad Room', image: 'https://images.unsplash.com/photo-1596276020587-8044fe049813?auto=format&fit=crop&w=400&q=80', price: 1200, status: 'Available', amenities: ['Fan', 'Locker'], description: 'Spacious quad room with individual study lamps.' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Casa Maria Boarding House',
-    location: 'Sta. Maria, Zamboanga City',
-    description: 'Homey atmosphere with home-cooked meals available upon request.',
-    rating: 4.7,
-    rooms: [
-      { id: 401, name: 'Attic Room', image: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=400&q=80', price: 2000, status: 'Available', amenities: ['Privacy', 'Window View'], description: 'Cozy attic room with plenty of natural light.' },
-      { id: 402, name: 'Room 1 (AC)', image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=400&q=80', price: 4000, status: 'Occupied', amenities: ['Aircon', 'Private Sink'], description: 'Comfortable air-conditioned room near the university.' },
-    ],
-  },
-];
+// --- 1. API ENDPOINT ---
+const API_URL = '/api/public/properties';
 
-// --- 2. ROOM DETAILS MODAL COMPONENT (Kept for Room Preview) ---
+// --- 2. ROOM DETAILS MODAL COMPONENT ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
   if (!room) return null;
 
@@ -243,10 +155,34 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
 
 
 // --- 3. MAIN COMPONENT ---
-const Properties = ({ properties = mockProperties }) => {
-  const [selectedRoomData, setSelectedRoomData] = useState(null);
 
-  // Disable body scroll when room modal is open
+const Properties = () => {
+  const navigate = useNavigate();
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedRoomData, setSelectedRoomData] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
+
+  // Fetch properties from backend
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch(API_URL)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to fetch properties');
+        const data = await res.json();
+        setProperties(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Error fetching properties');
+        setLoading(false);
+      });
+  }, []);
+
+  // Disable body scroll when modal is open
   useEffect(() => {
     if (selectedRoomData) {
       document.body.style.overflow = 'hidden';
@@ -256,37 +192,106 @@ const Properties = ({ properties = mockProperties }) => {
     return () => { document.body.style.overflow = 'unset'; };
   }, [selectedRoomData]);
 
-  const handleOpenRoomDetails = (room, property) => {
-    setSelectedRoomData({ room, property });
+
+  // Fetch full property details and set selected room for modal
+  const handleOpenDetails = async (room, property) => {
+    setModalLoading(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/public/properties/${property.id}`);
+      if (!res.ok) throw new Error('Failed to fetch property details');
+      const fullProperty = await res.json();
+      // Find the room by id in the full property details
+      const fullRoom = Array.isArray(fullProperty.rooms)
+        ? fullProperty.rooms.find(r => r.id === room.id)
+        : null;
+      setSelectedRoomData({
+        room: fullRoom ? {
+          id: fullRoom.id,
+          name: fullRoom.room_type || fullRoom.type_label || 'Room',
+          image: fullRoom.images && fullRoom.images.length > 0 ? fullRoom.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
+          price: fullRoom.monthly_rate || 0,
+          status: fullRoom.status ? (fullRoom.status.charAt(0).toUpperCase() + fullRoom.status.slice(1)) : 'Available',
+          size: fullRoom.size || '',
+          capacity: fullRoom.capacity ? `${fullRoom.capacity} Person${fullRoom.capacity > 1 ? 's' : ''}` : '',
+          description: fullRoom.description || '',
+          amenities: fullRoom.amenities || [],
+          rules: fullRoom.rules || [],
+        } : room,
+        property: {
+          id: fullProperty.id,
+          name: fullProperty.title || fullProperty.name,
+          location: fullProperty.full_address || fullProperty.city || '',
+          description: fullProperty.description || '',
+          rating: fullProperty.rating || null,
+        }
+      });
+      setModalLoading(false);
+    } catch (err) {
+      setModalError(err.message || 'Error fetching property details');
+      setModalLoading(false);
+    }
   };
 
-  const handleCloseRoomDetails = () => {
+  const handleCloseDetails = () => {
     setSelectedRoomData(null);
+    setModalLoading(false);
+    setModalError(null);
   };
 
-  // NEW: Navigation handler for Property Click
   const handlePropertyClick = (propertyId) => {
-    // Redirect to the property details page
-    // Note: Ensure your Router is set up to handle '/property/:id'
-    window.location.href = `/property/${propertyId}`; 
+    navigate(`/property/${propertyId}`);
   };
+
+  // Helper: Map backend room to UI room
+  const mapRoom = (room) => ({
+    id: room.id,
+    name: room.room_type || room.type_label || 'Room',
+    image: room.images && room.images.length > 0 ? room.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
+    price: room.monthly_rate || 0,
+    status: room.status ? (room.status.charAt(0).toUpperCase() + room.status.slice(1)) : 'Available',
+    size: room.size || '',
+    capacity: room.capacity ? `${room.capacity} Person${room.capacity > 1 ? 's' : ''}` : '',
+    description: room.description || '',
+    amenities: room.amenities || [],
+    rules: room.rules || [],
+  });
+
+  // Helper: Map backend property to UI property
+  const mapProperty = (property) => ({
+    id: property.id,
+    name: property.title || property.name,
+    location: property.full_address || property.city || '',
+    description: property.description || '',
+    rating: property.rating || null, // If available
+    rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom) : [],
+  });
 
   return (
     <>
       <section id="properties" className="py-24 px-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
-        
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
-             <span className="text-green-600 font-bold tracking-wider text-sm uppercase mb-2 block">
-                Featured Listings
-             </span>
-             <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">
-               Latest Properties
-             </h2>
+            <span className="text-green-600 font-bold tracking-wider text-sm uppercase mb-2 block">
+              Featured Listings
+            </span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">
+              Latest Properties
+            </h2>
           </div>
         </div>
 
-        {properties.map((property) => {
+        {loading && (
+          <div className="text-center py-20 text-gray-500 text-lg">Loading properties...</div>
+        )}
+        {error && (
+          <div className="text-center py-20 text-red-500 text-lg">{error}</div>
+        )}
+        {!loading && !error && properties.length === 0 && (
+          <div className="text-center py-20 text-gray-400 text-lg">No properties found.</div>
+        )}
+
+        {!loading && !error && properties.map((property) => {
           const carouselRef = useRef(null);
           const [showLeft, setShowLeft] = useState(false);
           const [showRight, setShowRight] = useState(true);
@@ -305,41 +310,44 @@ const Properties = ({ properties = mockProperties }) => {
             el.addEventListener('scroll', checkArrows);
             window.addEventListener('resize', checkArrows);
             return () => {
-               el?.removeEventListener('scroll', checkArrows);
-               window.removeEventListener('resize', checkArrows);
+              el?.removeEventListener('scroll', checkArrows);
+              window.removeEventListener('resize', checkArrows);
             };
           }, []);
 
           const scrollToCard = (direction) => {
-             const el = carouselRef.current;
-             if (!el) return;
-             const scrollAmount = el.clientWidth * 0.75;
-             el.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+            const el = carouselRef.current;
+            if (!el) return;
+            const scrollAmount = el.clientWidth * 0.75;
+            el.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
           };
 
+          // Map property and rooms for UI
+          const mappedProperty = mapProperty(property);
+
           return (
-            <div key={property.id} className="mb-16 last:mb-0">
-              {/* PROPERTY HEADER: Now Clickable (Redirects to Details Page) */}
+            <div key={mappedProperty.id} className="mb-16 last:mb-0">
+              {/* PROPERTY HEADER: Clickable */}
               <div 
                 className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-6 group/header cursor-pointer w-fit"
-                onClick={() => handlePropertyClick(property.id)}
+                onClick={() => handlePropertyClick(mappedProperty.id)}
               >
                 <div className="hidden md:block h-8 w-1 bg-green-600 rounded-full group-hover/header:scale-y-125 transition-transform"></div>
                 <h3 className="text-2xl font-bold text-gray-900 group-hover/header:text-green-600 transition-colors">
-                  {property.name}
+                  {mappedProperty.name}
                 </h3>
-                {property.location && (
+                {mappedProperty.location && (
                   <span className="text-sm font-medium text-gray-500 flex items-center gap-1 md:ml-2 group-hover/header:text-green-500 transition-colors">
                     <MapPin className="w-4 h-4" />
-                    {property.location}
+                    {mappedProperty.location}
                   </span>
                 )}
-                {/* Subtle visual cue to click */}
+                {/* Visual cue that it's clickable */}
                 <div className="hidden md:flex opacity-0 group-hover/header:opacity-100 transition-opacity ml-2 items-center text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded-md">
                   View Profile &rarr;
                 </div>
               </div>
-              
+
               <div className="relative group/section">
                 {/* Left Arrow */}
                 {showLeft && (
@@ -356,13 +364,13 @@ const Properties = ({ properties = mockProperties }) => {
                   ref={carouselRef}
                   className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-2"
                 >
-                  {property.rooms.map((room) => (
+                  {mappedProperty.rooms.map((room) => (
                     <div
                       key={room.id}
                       className="flex-none w-[280px] md:w-[320px] bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-200 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
                     >
-                      {/* Room Image (Opens Room Modal) */}
-                      <div className="relative h-48 overflow-hidden bg-gray-200 cursor-pointer" onClick={() => handleOpenRoomDetails(room, property)}>
+                      {/* Image Click -> Open Room Details */}
+                      <div className="relative h-48 overflow-hidden bg-gray-200 cursor-pointer" onClick={() => handleOpenDetails(room, mappedProperty)}>
                         <img
                           src={room.image}
                           alt={room.name}
@@ -379,29 +387,29 @@ const Properties = ({ properties = mockProperties }) => {
                           {room.status}
                         </span>
                       </div>
-                      
+
                       <div className="p-5 flex-1 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
                           <h4 
                             className="text-lg font-bold text-gray-900 line-clamp-1 cursor-pointer hover:text-green-600 transition-colors" 
                             title={room.name}
-                            onClick={() => handleOpenRoomDetails(room, property)}
+                            onClick={() => handleOpenDetails(room, mappedProperty)}
                           >
                             {room.name}
                           </h4>
                         </div>
-                        
+
                         <div className="flex items-center justify-between mt-auto pt-4">
-                           <div className="flex flex-col">
-                             <span className="text-xs text-gray-500 font-medium uppercase">Price per month</span>
-                             <span className="text-lg font-extrabold text-green-600">₱{room.price.toLocaleString()}</span>
-                           </div>
-                           <button 
-                              onClick={() => handleOpenRoomDetails(room, property)}
-                              className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm"
-                           >
-                              View Details
-                           </button>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-gray-500 font-medium uppercase">Price per month</span>
+                            <span className="text-lg font-extrabold text-green-600">₱{room.price.toLocaleString()}</span>
+                          </div>
+                          <button 
+                            onClick={() => handleOpenDetails(room, mappedProperty)}
+                            className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm"
+                          >
+                            View Details
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -423,13 +431,28 @@ const Properties = ({ properties = mockProperties }) => {
         })}
       </section>
 
-      {/* Render Room Details Modal Only */}
-      {selectedRoomData && (
-        <RoomDetailsModal 
-          room={selectedRoomData.room} 
-          property={selectedRoomData.property} 
-          onClose={handleCloseRoomDetails} 
-        />
+      {/* Render Room Details Modal if a room is selected */}
+      {(selectedRoomData || modalLoading || modalError) && (
+        <div>
+          {modalLoading && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-xl px-8 py-6 text-lg font-semibold text-gray-700">Loading room details...</div>
+            </div>
+          )}
+          {modalError && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-xl px-8 py-6 text-lg font-semibold text-red-600">{modalError}</div>
+              <button className="absolute top-8 right-8 bg-white rounded-full p-2 shadow" onClick={handleCloseDetails}><X className="w-6 h-6" /></button>
+            </div>
+          )}
+          {selectedRoomData && !modalLoading && !modalError && (
+            <RoomDetailsModal 
+              room={selectedRoomData.room} 
+              property={selectedRoomData.property} 
+              onClose={handleCloseDetails} 
+            />
+          )}
+        </div>
       )}
     </>
   );
