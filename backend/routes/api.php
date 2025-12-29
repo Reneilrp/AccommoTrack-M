@@ -20,6 +20,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\PaymongoController;
 use App\Http\Controllers\PaymongoWebhookController;
+use App\Http\Controllers\LandlordVerificationController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 
@@ -28,6 +29,9 @@ use App\Http\Middleware\EnsureUserIsLandlord;
 // ====================================
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// Public: check if email exists
+Route::get('/check-email', [AuthController::class, 'checkEmail']);
 
 Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
@@ -47,6 +51,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me', [AuthController::class, 'updateProfile']); // For FormData with image upload
     Route::delete('/me/profile-image', [AuthController::class, 'removeProfileImage']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+
+    // Landlord verification submission (for authenticated users)
+    Route::post('/landlord-verification', [LandlordVerificationController::class, 'store']);
     // ===== TENANT ROUTES (Public property browsing) =====
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);
     Route::get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
@@ -167,6 +174,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
         Route::get('/admin/properties/pending', [PropertyController::class, 'getPendingPropertiesForApproval']);  
+
+        // Admin: list all landlord verifications
+        Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
     });
 
     Route::prefix('messages')->group(function () {

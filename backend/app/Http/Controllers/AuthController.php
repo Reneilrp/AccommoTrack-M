@@ -11,6 +11,18 @@ use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    // Live email uniqueness check for registration
+    public function checkEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+        $exists = User::where('email', $request->email)->exists();
+        return response()->json([
+            'available' => !$exists,
+            'message' => $exists ? 'This email is already taken.' : 'This email is available.'
+        ]);
+    }
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -21,6 +33,8 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:landlord,tenant',
             'phone' => 'nullable|string|max:20',
+        ], [
+            'email.unique' => 'This email is already taken. Please use a different email address.',
         ]);
 
         $user = User::create([
