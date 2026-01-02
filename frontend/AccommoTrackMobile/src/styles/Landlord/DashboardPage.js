@@ -48,7 +48,7 @@ export const styles = StyleSheet.create({
   },
   header: {
     position: 'relative',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingHorizontal: 16,
     paddingTop: 48,
     paddingBottom: 16,
@@ -92,14 +92,14 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: '#F44336',
+    backgroundColor: '#DC2626',
     width: 18,
     height: 18,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#4CAF50'
+    borderColor: '#16A34A'
   },
   notificationBadgeText: {
     color: '#FFFFFF',
@@ -173,7 +173,7 @@ export const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 14,
-    color: '#4CAF50',
+    color: '#16A34A',
     fontWeight: '600'
   },
   actionsGrid: {
@@ -256,7 +256,7 @@ export const styles = StyleSheet.create({
   activityAmount: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#4CAF50'
+    color: '#16A34A'
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -355,7 +355,7 @@ export const styles = StyleSheet.create({
     marginTop: 4
   },
   occupancyBadge: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12

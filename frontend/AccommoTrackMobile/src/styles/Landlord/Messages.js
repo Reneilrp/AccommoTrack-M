@@ -9,7 +9,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB'
   },
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -39,7 +39,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   searchContainer: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingHorizontal: 16,
     paddingBottom: 16
   },
@@ -112,7 +112,7 @@ export const styles = StyleSheet.create({
   avatarText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2E7D32'
+    color: '#16A34A'
   },
   conversationInfo: {
     flex: 1
@@ -133,7 +133,7 @@ export const styles = StyleSheet.create({
   },
   propertyName: {
     fontSize: 12,
-    color: '#2E7D32',
+    color: '#16A34A',
     marginTop: 2
   },
   lastMessage: {
@@ -142,7 +142,7 @@ export const styles = StyleSheet.create({
     marginTop: 4
   },
   unreadBadge: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: '#16A34A',
     borderRadius: 12,
     minWidth: 24,
     height: 24,
@@ -156,7 +156,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600'
   },
   chatScreenHeader: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingHorizontal: 8,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -275,7 +275,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16
   },
   myMessageBubble: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: '#16A34A',
     borderBottomRightRadius: 4,
     alignSelf: 'flex-end'
   },
@@ -323,7 +323,7 @@ export const styles = StyleSheet.create({
     color: '#1F2937'
   },
   sendButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     width: 40,
     height: 40,
     borderRadius: 20,

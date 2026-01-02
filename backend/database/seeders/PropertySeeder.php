@@ -21,19 +21,49 @@ class PropertySeeder extends Seeder
             'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
         ];
 
+        $propertyData = [
+            1 => [
+                'title' => 'Pheinz Apartment',
+                'description' => 'Modern apartment in Zamboanga City owned by Pheinz Reneil.',
+                'street_address' => '101 Mayor Jaldon St',
+                'barangay' => 'Barangay Zone I',
+                'postal_code' => '7000',
+                'latitude' => 6.9100,
+                'longitude' => 122.0730,
+            ],
+            2 => [
+                'title' => 'Neal Jean Residence',
+                'description' => 'Cozy residence in Zamboanga City owned by Neal Jean.',
+                'street_address' => '202 Gov. Alvarez Ave',
+                'barangay' => 'Barangay Zone II',
+                'postal_code' => '7000',
+                'latitude' => 6.9214,
+                'longitude' => 122.0790,
+            ],
+        ];
+
         foreach ($landlords as $i => $landlord) {
+            $data = $propertyData[$landlord->id] ?? [
+                'title' => 'Sample Property',
+                'description' => 'A property in Zamboanga City.',
+                'street_address' => 'Unknown',
+                'barangay' => 'Barangay Uno',
+                'postal_code' => '7000',
+                'latitude' => 6.9214,
+                'longitude' => 122.0790,
+            ];
             $property = Property::create([
                 'landlord_id' => $landlord->id,
-                'title' => 'Sample Property for Landlord ' . $landlord->id,
-                'description' => 'A beautiful property owned by ' . $landlord->first_name,
+                'title' => $data['title'],
+                'description' => $data['description'],
                 'property_type' => 'apartment',
-                'street_address' => '123 Main St',
-                'city' => 'Metro City',
-                'province' => 'Metro Province',
-                'barangay' => 'Barangay Uno',
-                'postal_code' => '1000',
-                'latitude' => 14.5995,
-                'longitude' => 120.9842,
+                'street_address' => $data['street_address'],
+                'city' => 'Zamboanga City',
+                'province' => 'Zamboanga',
+                'barangay' => $data['barangay'],
+                'postal_code' => $data['postal_code'],
+                'latitude' => $data['latitude'],
+                'longitude' => $data['longitude'],
                 'is_published' => true,
                 'is_available' => true,
             ]);

@@ -6,8 +6,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 /* Core */
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
-import LandlordNavigator from '../mobile-landlord/src/AppNavigation/LandlordNavigator.jsx';
-import TenantNavigator from '../mobile-tenant/AppNavigation/TenantNavigator.jsx';
+import LandlordNavigator from '../mobile-landlord/src/navigation/LandlordNavigator.jsx';
+import TenantNavigator from '../mobile-tenant/src/navigation/TenantNavigator.jsx';
 import { styles } from '../styles/AppNavigator.js';
 
 const Stack = createNativeStackNavigator();

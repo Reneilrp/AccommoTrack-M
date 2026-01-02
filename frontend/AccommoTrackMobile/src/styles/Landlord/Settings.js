@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center'
   },
   profileInitials: {
-    color: '#047857',
+    color: '#15803D',
     fontSize: 22,
     fontWeight: '700'
   },
@@ -72,12 +72,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: '#ECFDF5'
+    backgroundColor: '#F0FDF4'
   },
   profileActionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#047857'
+    color: '#15803D'
   },
 
   // Section and Card General Styles
@@ -279,7 +279,7 @@ export const styles = StyleSheet.create({
       borderRadius: 5,
   },
   changePictureText: {
-      color: '#4CAF50',
+      color: '#16A34A',
       fontSize: 14,
       fontWeight: '500',
   },
@@ -319,10 +319,10 @@ export const styles = StyleSheet.create({
   },
   fieldValueEditable: {
     borderBottomWidth: 1,
-    borderBottomColor: '#4CAF50',
+    borderBottomColor: '#16A34A',
   },
   editProfileButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     padding: 15,
     borderRadius: 12,
     alignItems: 'center',

@@ -28,18 +28,14 @@ class PropertyController extends Controller
             $properties = Property::where('is_published', true)
                 ->where('is_available', true)
                 ->with([
-                    'rooms' => function ($q) {
-                        $q->where('status', 'available')
-                            ->select('id', 'property_id', 'monthly_rate', 'room_type');
-                    },
+                    'rooms.images', // eager load images for rooms
                     'images',
                     'landlord:id,first_name,last_name'
                 ])
-
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($property) {
-                    $availableRooms = $property->rooms;
+                    $availableRooms = $property->rooms->where('status', 'available');
                     $minPrice = $availableRooms->min('monthly_rate');
                     $maxPrice = $availableRooms->max('monthly_rate');
 
@@ -84,6 +80,18 @@ class PropertyController extends Controller
                             : 'Landlord',
                         'created_at' => $property->created_at,
                         'updated_at' => $property->updated_at,
+                        // Add rooms array for frontend
+                        'rooms' => $availableRooms->map(function ($room) {
+                            return [
+                                'id' => $room->id,
+                                'room_type' => $room->room_type,
+                                'monthly_rate' => $room->monthly_rate,
+                                'status' => $room->status,
+                                'capacity' => $room->capacity,
+                                'description' => $room->description,
+                                'images' => $room->images ? $room->images->pluck('image_url')->toArray() : [],
+                            ];
+                        })->values(),
                     ];
                 });
 

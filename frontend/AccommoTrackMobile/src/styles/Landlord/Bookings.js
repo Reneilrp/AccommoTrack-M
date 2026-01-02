@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
-    backgroundColor: '#4CAF50'
+    backgroundColor: '#16A34A'
   },
   heroTitle: {
     fontSize: 20,
@@ -67,7 +67,7 @@ export const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#4CAF50',
+    color: '#16A34A',
     marginTop: 6,
     textAlign: 'center',
   },
@@ -105,7 +105,7 @@ export const styles = StyleSheet.create({
   },
   filterChipActive: {
     backgroundColor: '#DCFCE7',
-    borderColor: '#4CAF50'
+    borderColor: '#16A34A'
   },
   filterText: {
     fontSize: 13,
@@ -147,7 +147,7 @@ export const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -197,7 +197,7 @@ export const styles = StyleSheet.create({
   metaValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#4CAF50'
+    color: '#16A34A'
   },
   paymentBadge: {
     paddingHorizontal: 12,
@@ -387,7 +387,7 @@ export const styles = StyleSheet.create({
   referenceValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#4CAF50',
+    color: '#16A34A',
     fontFamily: 'monospace'
   },
   totalAmountBox: {
@@ -421,8 +421,8 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC'
   },
   paymentPillActive: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50'
+    backgroundColor: '#16A34A',
+    borderColor: '#16A34A'
   },
   paymentPillText: {
     fontSize: 13,
@@ -439,7 +439,7 @@ export const styles = StyleSheet.create({
   },
   confirmBtnFull: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center'
@@ -539,8 +539,8 @@ export const styles = StyleSheet.create({
     borderColor: '#CBD5F5'
   },
   pillActive: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50'
+    backgroundColor: '#16A34A',
+    borderColor: '#16A34A'
   },
   pillText: {
     color: '#475569',
@@ -557,7 +557,7 @@ export const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'
@@ -605,7 +605,7 @@ export const styles = StyleSheet.create({
   },
   primaryBtn: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'

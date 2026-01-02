@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6'
   },
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16A34A',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 20,
@@ -263,7 +263,7 @@ export const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#22C55E'
+    backgroundColor: '#16A34A'
   },
   errorBanner: {
     flexDirection: 'row',
