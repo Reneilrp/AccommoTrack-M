@@ -1,9 +1,9 @@
         // ...existing code...
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Logo from '../assets/Logo.png';
-import api from '../utils/api';
-import { getDefaultLandingRoute } from '../utils/userRoutes';
+import Logo from '../../assets/logo.png';
+import api from '../../utils/api';
+import { getDefaultLandingRoute } from '../../utils/userRoutes';
 import toast, { Toaster } from 'react-hot-toast';
 
 function AuthScreen({ onLogin = () => {} }) {

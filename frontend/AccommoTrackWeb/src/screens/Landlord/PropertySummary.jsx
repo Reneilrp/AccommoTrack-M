@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { getImageUrl } from '../../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import { Building2, List, ArrowLeft, ArrowRight, Edit, Users, MapPin, Loader2 } from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
-import { useSidebar } from '../../../contexts/SidebarContext';
+import { useSidebar } from '../../contexts/SidebarContext';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, Keyboard, A11y } from 'swiper/modules';

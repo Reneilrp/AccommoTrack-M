@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Building2, CheckCircle, XCircle, Clock, Loader2, AlertCircle } from 'lucide-react';
-import api from '../../../utils/api';
+import api from '../../utils/api';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);

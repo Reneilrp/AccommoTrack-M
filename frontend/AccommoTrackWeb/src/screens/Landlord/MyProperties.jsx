@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSidebar } from '../../../contexts/SidebarContext';
+import { useSidebar } from '../../contexts/SidebarContext';
 import AddProperty from './AddProperty';
-import DormProfileSettings from './DormProfileSettings';
 import {
   Plus,
   Home,
@@ -13,7 +12,7 @@ import {
   Building2,
   Loader2
 } from 'lucide-react';
-import api, { getImageUrl } from '../../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 
 export default function MyProperties({ user }) {

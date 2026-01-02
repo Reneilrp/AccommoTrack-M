@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import Logo from '../assets/Logo.png';
-import { useSidebar } from '../contexts/SidebarContext';
+import Logo from '../../assets/logo.png';
+import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import { useState } from 'react';
 
-import api, { getImageUrl } from '../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 
 export default function LandlordLayout({
   user,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import DormProfileSettings from '../components/Pages/Landlord/DormProfileSettings.jsx';
-import { useSidebar } from '../contexts/SidebarContext';
+import DormProfileSettings from '../screens/Landlord/DormProfileSettings.jsx';
+import { useSidebar } from '../contexts/SidebarContext.jsx';
 
 export default function PropertyDetailRoute() {
   const { id } = useParams();

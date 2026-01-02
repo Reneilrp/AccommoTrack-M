@@ -10,7 +10,7 @@ import {
   Maximize,
   ArrowLeft,
 } from 'lucide-react';
-import api from '../../../utils/api'; 
+import api from '../../utils/api'; 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';

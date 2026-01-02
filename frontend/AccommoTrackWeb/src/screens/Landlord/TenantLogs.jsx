@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CreditCard, MessageSquare, Inbox, ArrowLeft } from 'lucide-react';
-import api from '../../../utils/api';
+import api from '../../utils/api';
 
 export default function TenantLogs() {
   const { id } = useParams();

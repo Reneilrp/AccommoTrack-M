@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
-import api from '../../../utils/api';
-import PriceRow from '../../Shared/PriceRow';
+import api from '../../utils/api';
+import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {

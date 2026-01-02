@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
-import PriceRow from '../../Shared/PriceRow';
+import PriceRow from '../../components/Shared/PriceRow';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';

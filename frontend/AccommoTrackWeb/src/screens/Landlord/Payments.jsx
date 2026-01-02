@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../utils/api';
+import api from '../../utils/api';
 import { Loader2, Search, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
-import PriceRow from '../../Shared/PriceRow';
+import PriceRow from '../../components/Shared/PriceRow';
 
 export default function Payments() {
   const [loading, setLoading] = useState(true);

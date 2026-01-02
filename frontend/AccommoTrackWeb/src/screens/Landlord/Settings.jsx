@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 import { Clock } from 'lucide-react';
-import api, { getImageUrl } from '../../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import MyProfile from '../../components/Settings/MyProfile';
 import Notifications from '../../components/Settings/Notifications';
 import Security from '../../components/Settings/Security';

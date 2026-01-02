@@ -24,7 +24,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 // Toast
 import toast from 'react-hot-toast';
 
-import api from '../../../utils/api';
+import api from '../../utils/api';
 
 
 export default function AddProperty({ onBack, onSave }) {
