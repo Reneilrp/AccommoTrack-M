@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
-import logo from '../../assets/logo.png';
+import logo from '../../assets/Logo.png';
 import HomePage from './HomePage';
 import Properties from './Properties';
 import Service from './Service';
 import About from './About';
 
-const LandingPage = () => {
+const LandingPage = ({ user }) => {
   useEffect(() => {
     // Inject global styles for scroll padding and scrollbar hiding
     if (typeof window !== 'undefined' && !document.getElementById('global-styles')) {
@@ -37,26 +37,34 @@ const LandingPage = () => {
       
       {/* --- HEADER (Sticky + Glassmorphism) --- */}
       <header className="sticky top-0 z-50 w-full transition-all duration-300 border-b border-gray-200 bg-white/95 backdrop-blur-md shadow-sm">
-        <div className="w-[90%] max-w-7xl mx-auto h-[72px] flex items-center justify-between">
+        {/* Changed w-[90%] to w-full px-4 for better edge spacing on mobile */}
+        <div className="relative w-full max-w-7xl mx-auto h-[72px] px-4 md:px-8 flex items-center justify-between">
           
-          {/* Left: Logo */}
-          <div className="flex items-center flex-none">
+          {/* Left: Logo (Icon only on Mobile/Tablet, Icon+Text on Desktop) */}
+          <div className="flex items-center flex-none z-20">
             <a 
               href="#top" 
               className="flex items-center gap-2 no-underline group"
               onClick={e => { e.preventDefault(); document.getElementById('top').scrollIntoView({ behavior: 'smooth' }); }}
             >
-              {/* Added a subtle hover rotation to logo for playfulness */}
               <img src={logo} alt="AccommoTrack Logo" className="h-10 w-10 transition-transform group-hover:rotate-12" />
-              <span className="font-extrabold text-2xl tracking-tight text-gray-900 group-hover:text-green-700 transition-colors">
+              {/* Text hidden on mobile/tablet (lg:block) */}
+              <span className="hidden lg:block font-extrabold text-2xl tracking-tight text-gray-900 group-hover:text-green-700 transition-colors">
                 AccommoTrack
               </span>
             </a>
           </div>
 
-          {/* Center: Navigation */}
-          <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-            {['Home', 'Properties', 'Service', 'About'].map((item) => (
+          {/* Center Mobile/Tablet: Text Title (Absolute Center) */}
+          <div className="lg:hidden absolute left-0 right-0 top-1/2 transform -translate-y-1/2 z-10 text-center pointer-events-none">
+             <span className="font-extrabold text-xl tracking-tight text-gray-900 pointer-events-auto">
+                AccommoTrack
+             </span>
+          </div>
+
+          {/* Center Desktop: Navigation */}
+          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center z-20">
+            {['Home', 'Explore', 'Service', 'About'].map((item) => (
               <a 
                 key={item}
                 href={`#${item.toLowerCase()}`}
@@ -72,15 +80,25 @@ const LandingPage = () => {
           </nav>
 
           {/* Right: Login + Burger Menu */}
-          <div className="flex items-center gap-2 flex-none relative">
-            <a 
-              href="/login" 
-              className="flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
-            >
-              Sign in
-            </a>
-            {/* Burger Menu */}
-            <BurgerMenu />
+          <div className="flex items-center gap-2 flex-none relative z-20">
+            {/* Sign In Button - Hidden on mobile/tablet (lg:flex) */}
+            {user ? (
+               <a 
+                href="/dashboard" 
+                className="hidden lg:flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
+              >
+                Dashboard
+              </a>
+            ) : (
+              <a 
+                href="/login" 
+                className="hidden lg:flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
+              >
+                Sign in
+              </a>
+            )}
+            {/* Burger Menu Component */}
+            <BurgerMenu user={user} />
           </div>
 
         </div>
@@ -93,7 +111,9 @@ const LandingPage = () => {
       </div>
       
       {/* Note: Ensure these components accept className or style props if you need further spacing adjustments */}
-      <Properties />
+      <div id="explore">
+        <Properties />
+      </div>
       <Service onGetStarted={handleGetStarted} />
       <About />
     
@@ -102,7 +122,7 @@ const LandingPage = () => {
 }
 
 // --- BURGER MENU COMPONENT ---
-function BurgerMenu() {
+function BurgerMenu({ user }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
 
@@ -127,17 +147,30 @@ function BurgerMenu() {
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 animate-fade-in">
+        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 animate-fade-in overflow-hidden">
+          {/* Mobile Login/Dashboard Link */}
+          <div className="lg:hidden border-b border-gray-100">
+             {user ? (
+                <a href="/dashboard" className="block px-4 py-3 text-green-600 font-bold hover:bg-green-50">
+                   Dashboard
+                </a>
+             ) : (
+                <a href="/login" className="block px-4 py-3 text-green-600 font-bold hover:bg-green-50">
+                   Sign In
+                </a>
+             )}
+          </div>
+          
           <a
             href="/become-landlord"
-            className="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 font-semibold rounded-t-lg"
+            className="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 font-semibold"
             onClick={() => setOpen(false)}
           >
             Become a Landlord
           </a>
           <a
             href="/help"
-            className="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 font-semibold rounded-b-lg"
+            className="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 font-semibold"
             onClick={() => setOpen(false)}
           >
             Help

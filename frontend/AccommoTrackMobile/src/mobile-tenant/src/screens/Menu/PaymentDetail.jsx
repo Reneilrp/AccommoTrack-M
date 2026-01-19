@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
+import { BASE_URL } from '../../../../config';
 
 export default function PaymentDetail() {
   const route = useRoute();
@@ -61,7 +62,7 @@ export default function PaymentDetail() {
   const handleCardPay = () => {
     const base = PaymentService.API_BASE || null;
     // Build tokenize URL from backend (strip /api if present)
-    const apiUrl = 'http://192.168.254.184:8000';
+    const apiUrl = BASE_URL;
     const tokenizeUrl = `${apiUrl}/payments/tokenize/${invoice.id}`;
     navigation.navigate('PaymentCardWebview', { tokenizeUrl, invoiceId: invoice.id });
   };

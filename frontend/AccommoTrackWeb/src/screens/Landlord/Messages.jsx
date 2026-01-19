@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Search,
   Phone,
@@ -17,6 +18,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
 export default function Messages({ user, accessRole = 'landlord' }) {
+  const location = useLocation();
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -39,6 +41,40 @@ export default function Messages({ user, accessRole = 'landlord' }) {
     toast.error('Caretaker access for messages is currently view-only.');
     return true;
   }, [canSendMessages]);
+
+  // Handle start conversation from navigation state (e.g., from PropertyDetails)
+  useEffect(() => {
+    const initChat = async () => {
+      if (location.state?.startConversation) {
+        const { recipient_id, property_id } = location.state.startConversation;
+        
+        try {
+          const res = await api.post('/messages/start', {
+            recipient_id,
+            property_id
+          });
+          
+          const conversation = res.data;
+          
+          if (conversation) {
+            setConversations(prev => {
+              const exists = prev.find(c => c.id === conversation.id);
+              if (exists) return prev;
+              return [conversation, ...prev];
+            });
+            setSelectedChat(conversation);
+          }
+          
+          // Clear state to prevent re-triggering
+          window.history.replaceState({}, document.title);
+        } catch (error) {
+          console.error("Failed to start conversation", error);
+          toast.error("Failed to start conversation");
+        }
+      }
+    };
+    initChat();
+  }, [location.state]);
 
   // Fetch conversations
   useEffect(() => {

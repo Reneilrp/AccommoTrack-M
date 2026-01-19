@@ -106,30 +106,30 @@ class AdminController extends Controller
     /**
      * Create a new admin user. Only callable by authenticated admins.
      */
-    public function createAdmin(Request $request)
-    {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'email' => 'required|email|max:255',
-            'password' => 'required|string|min:8',
-        ]);
+    // public function createAdmin(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'first_name' => 'required|string|max:100',
+    //         'last_name' => 'required|string|max:100',
+    //         'email' => 'required|email|max:255',
+    //         'password' => 'required|string|min:8',
+    //     ]);
 
-        $user = User::updateOrCreate(
-            ['email' => $validated['email']],
-            [
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role' => 'admin',
-                'is_verified' => true,
-                'is_active' => true,
-            ]
-        );
+    //     $user = User::updateOrCreate(
+    //         ['email' => $validated['email']],
+    //         [
+    //             'first_name' => $validated['first_name'],
+    //             'last_name' => $validated['last_name'],
+    //             'email' => $validated['email'],
+    //             'password' => Hash::make($validated['password']),
+    //             'role' => 'admin',
+    //             'is_verified' => true,
+    //             'is_active' => true,
+    //         ]
+    //     );
 
-        return response()->json(['user' => $user, 'message' => 'Admin created/updated'], 201);
-    }
+    //     return response()->json(['user' => $user, 'message' => 'Admin created/updated'], 201);
+    // }
 
     /**
      * Approve a user

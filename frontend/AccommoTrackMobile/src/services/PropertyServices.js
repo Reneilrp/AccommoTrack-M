@@ -1,8 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL, BASE_URL } from '../config';
 
-const API_BASE_URL = 'http://192.168.254.184:8000/api';
-const BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 const STORAGE_URL = `${BASE_URL}/storage`;
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
 

@@ -21,6 +21,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\PaymongoController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\LandlordVerificationController;
+use App\Http\Controllers\AddonController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 
@@ -64,6 +65,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/stats', [TenantDashboardController::class, 'getStats']);
         Route::get('/dashboard/activities', [TenantDashboardController::class, 'getRecentActivities']);
         Route::get('/dashboard/upcoming', [TenantDashboardController::class, 'getUpcomingPayments']);
+        
+        // Tenant Dashboard - Current Stay & History
+        Route::get('/current-stay', [TenantDashboardController::class, 'getCurrentStay']);
+        Route::get('/history', [TenantDashboardController::class, 'getHistory']);
+        
+        // Tenant Addon Requests
+        Route::post('/addons/request', [TenantDashboardController::class, 'requestAddon']);
+        Route::delete('/addons/{addonId}/cancel', [TenantDashboardController::class, 'cancelAddonRequest']);
+        
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);
         Route::post('/bookings/{id}/invoice', [TenantBookingController::class, 'createInvoice']);
@@ -125,6 +135,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/caretakers/{assignmentId}', [CaretakerController::class, 'update']);
         Route::delete('/caretakers/{assignmentId}', [CaretakerController::class, 'destroy']);
         Route::post('/caretakers/{assignmentId}/reset-password', [CaretakerController::class, 'resetPassword']);
+        
+        // Landlord Addon Management
+        Route::get('/properties/{propertyId}/addons', [AddonController::class, 'index']);
+        Route::post('/properties/{propertyId}/addons', [AddonController::class, 'store']);
+        Route::put('/properties/{propertyId}/addons/{addonId}', [AddonController::class, 'update']);
+        Route::delete('/properties/{propertyId}/addons/{addonId}', [AddonController::class, 'destroy']);
+        Route::get('/properties/{propertyId}/addons/pending', [AddonController::class, 'getPendingRequests']);
+        Route::get('/properties/{propertyId}/addons/active', [AddonController::class, 'getActiveAddons']);
+        Route::patch('/bookings/{bookingId}/addons/{addonId}', [AddonController::class, 'handleRequest']);
     });
 
     // ===== SHARED BOOKINGS =====
@@ -164,7 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/stats', [AdminController::class, 'getDashboardStats']);
         Route::get('/dashboard/recent-activities', [AdminController::class, 'getRecentActivities']);
         Route::get('/users', [AdminController::class, 'getUsers']);
-        Route::post('/users', [AdminController::class, 'createAdmin']);
+        // Route::post('/users', [AdminController::class, 'createAdmin']);
         Route::post('/users/{id}/approve', [AdminController::class, 'approveUser']);
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);

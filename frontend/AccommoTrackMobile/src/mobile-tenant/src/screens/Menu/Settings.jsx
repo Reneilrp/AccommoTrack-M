@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../../styles/Menu/Settings.js';
+import { WEB_BASE_URL } from '../../../../config';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
@@ -98,7 +99,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           text: 'Open Web Portal', 
           onPress: () => {
             // Open web admin portal for landlord registration
-            Linking.openURL('http://192.168.254.184:5173/login');
+            Linking.openURL(`${WEB_BASE_URL}/login`);
             
             // Show follow-up after a delay
             setTimeout(() => {

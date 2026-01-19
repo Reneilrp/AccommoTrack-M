@@ -20,8 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import createEcho from '../../utils/echo';
 import { styles } from '../../../../styles/Tenant/MessagesPage';
 import BottomNavigation from '../../components/BottomNavigation.jsx';
-
-const API_URL = 'http://192.168.254.184:8000/api';
+import { API_BASE_URL as API_URL } from '../../../../config';
 
 export default function MessagesPage({ navigation, route }) {
     const [conversations, setConversations] = useState([]);

@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { SidebarProvider } from '../contexts/SidebarContext.jsx';
 import LandlordLayout from '../components/Layout/LandlordLayout';
-import PropertyDetailRoute from '../PropertyDetailRoute.jsx';
+import PropertyDetailRoute from './PropertyDetailRoute.jsx';
 import PropertySummary from '../screens/Landlord/PropertySummary.jsx';
 import { getDefaultLandingRoute } from '../utils/userRoutes.js';
 

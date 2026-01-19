@@ -199,6 +199,22 @@ class Property extends Model
     }
 
     /**
+     * Relationship: Property has many Addons
+     */
+    public function addons()
+    {
+        return $this->hasMany(Addon::class);
+    }
+
+    /**
+     * Get active addons for this property
+     */
+    public function activeAddons()
+    {
+        return $this->addons()->where('is_active', true);
+    }
+
+    /**
      * Check if property is active
      */
     public function isActive()

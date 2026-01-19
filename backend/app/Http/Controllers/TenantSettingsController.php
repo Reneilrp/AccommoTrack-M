@@ -99,7 +99,7 @@ class TenantSettingsController extends Controller
                 'emergency_contact_phone'       => 'nullable|string|max:20',
                 'emergency_contact_relationship'=> 'nullable|string|max:100',
                 'current_address'               => 'nullable|string',
-                'preference'                    => 'nullable|string',
+                'preference'                    => 'nullable', // Allow array or json
                 'notes'                         => 'nullable|string',
                 'move_in_date'                  => 'nullable|date',
                 'move_out_date'                 => 'nullable|date',

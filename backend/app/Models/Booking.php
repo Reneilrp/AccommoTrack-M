@@ -66,4 +66,59 @@ class Booking extends Model
     {
         return $this->belongsTo(Room::class);
     }
+
+    /**
+     * Relationship: Booking has many Addons through pivot
+     */
+    public function addons()
+    {
+        return $this->belongsToMany(Addon::class, 'booking_addons')
+                    ->withPivot([
+                        'id',
+                        'quantity',
+                        'price_at_booking',
+                        'status',
+                        'request_note',
+                        'response_note',
+                        'approved_at',
+                        'approved_by',
+                        'invoiced_at',
+                        'invoice_id'
+                    ])
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get active monthly addons for this booking
+     */
+    public function activeMonthlyAddons()
+    {
+        return $this->addons()
+                    ->wherePivot('status', 'active')
+                    ->where('price_type', 'monthly');
+    }
+
+    /**
+     * Get pending addon requests for this booking
+     */
+    public function pendingAddons()
+    {
+        return $this->addons()->wherePivot('status', 'pending');
+    }
+
+    /**
+     * Relationship: Booking has many Payments
+     */
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Relationship: Booking has many Invoices
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }

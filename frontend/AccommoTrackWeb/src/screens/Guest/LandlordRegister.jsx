@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import logo from '../../assets/logo.png';
+import logo from '../../assets/Logo.png';
 
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);

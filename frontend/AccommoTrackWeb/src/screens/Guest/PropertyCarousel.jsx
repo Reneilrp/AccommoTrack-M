@@ -46,7 +46,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       {/* Carousel */}
       <div
         ref={carouselRef}
-        className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-2"
+        className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-2"
       >
         {property.rooms.map((room) => (
           <div

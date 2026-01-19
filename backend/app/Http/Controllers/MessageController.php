@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\MessageSent;
-use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Http\Request;

@@ -16,8 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
-
-const API_URL = 'http://192.168.254.184:8000/api';
+import { API_BASE_URL as API_URL } from '../../config';
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);

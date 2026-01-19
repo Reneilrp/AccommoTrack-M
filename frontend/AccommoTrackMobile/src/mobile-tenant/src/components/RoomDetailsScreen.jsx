@@ -22,10 +22,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
 import BookingService from '../../../services/BookingServices';
 import PropertyService from '../../../services/PropertyServices';
+import { BASE_URL as API_BASE_URL } from '../../../config';
 
 const { width } = Dimensions.get('window');
-
-const API_BASE_URL = 'http://192.168.254.184:8000';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {

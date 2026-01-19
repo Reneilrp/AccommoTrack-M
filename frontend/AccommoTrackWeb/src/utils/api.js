@@ -102,3 +102,6 @@ export const getImageUrl = (imagePath) => {
 
 // Export the axios instance as default
 export default api;
+
+// Re-export axios isCancel for convenience
+export const isCancel = axios.isCancel;

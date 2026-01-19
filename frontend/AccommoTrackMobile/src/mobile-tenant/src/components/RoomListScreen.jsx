@@ -15,8 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Tenant/RoomListScreen';
-
-const API_BASE_URL = 'http://192.168.254.184:8000';
+import { BASE_URL as API_BASE_URL } from '../../../config';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {

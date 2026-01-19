@@ -22,12 +22,46 @@ class PropertyController extends Controller
     /**
      * Get all published & available properties (Tenant Homepage Cards)
      */
-    public function getAllProperties()
+    public function getAllProperties(Request $request)
     {
         try {
-            $properties = Property::where('is_published', true)
-                ->where('is_available', true)
-                ->with([
+            $query = Property::where('is_published', true)
+                ->where('is_available', true);
+
+            // 1. Search Filter
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%")
+                      ->orWhere('street_address', 'like', "%{$search}%")
+                      ->orWhere('barangay', 'like', "%{$search}%")
+                      ->orWhere('city', 'like', "%{$search}%")
+                      ->orWhere('province', 'like', "%{$search}%");
+                });
+            }
+
+            // 2. Type Filter
+            if ($request->has('type') && !empty($request->type) && $request->type !== 'All') {
+                // Convert "Boarding House" -> "boarding_house"
+                $type = strtolower(str_replace(' ', '_', $request->type));
+                $query->where('property_type', $type);
+            }
+
+            // 3. Price Filter
+            if ($request->has('min_price') || $request->has('max_price')) {
+                $query->whereHas('rooms', function($q) use ($request) {
+                    $q->where('status', 'available');
+                    if ($request->has('min_price') && !empty($request->min_price)) {
+                        $q->where('monthly_rate', '>=', $request->min_price);
+                    }
+                    if ($request->has('max_price') && !empty($request->max_price)) {
+                        $q->where('monthly_rate', '<=', $request->max_price);
+                    }
+                });
+            }
+
+            $properties = $query->with([
                     'rooms.images', // eager load images for rooms
                     'images',
                     'landlord:id,first_name,last_name'
@@ -115,17 +149,18 @@ class PropertyController extends Controller
                 ->where('is_available', true)
                 ->with([
                     'rooms' => function ($q) {
-                        $q->where('status', 'available')
-                            ->with('amenities', 'images');
+                        // Fetch all rooms regardless of status to show in UI with filters
+                        $q->with('amenities', 'images');
                     },
                     'images',
                     'landlord:id,first_name,last_name,email,phone' // Added email and phone
                 ])
                 ->findOrFail($id);
 
-            $availableRooms = $property->rooms;
-            $minPrice = $availableRooms->min('monthly_rate');
-            $maxPrice = $availableRooms->max('monthly_rate');
+            // Calculate price range only from AVAILABLE rooms
+            $availableRoomsForPrice = $property->rooms->where('status', 'available');
+            $minPrice = $availableRoomsForPrice->min('monthly_rate');
+            $maxPrice = $availableRoomsForPrice->max('monthly_rate');
 
             $primaryImage = $property->images->where('is_primary', true)->first();
             $coverImage = $primaryImage ?? $property->images->first();
@@ -146,7 +181,7 @@ class PropertyController extends Controller
                 'nearby_landmarks' => $property->nearby_landmarks,
                 'property_rules' => $property->property_rules ?? [],
                 'total_rooms' => $property->rooms->count(),
-                'available_rooms' => $availableRooms->count(),
+                'available_rooms' => $availableRoomsForPrice->count(),
                 'min_price' => $minPrice,
                 'max_price' => $maxPrice,
                 'price_range' => $minPrice && $maxPrice
@@ -184,7 +219,7 @@ class PropertyController extends Controller
                     'phone' => $property->landlord->phone,
                 ] : null,
 
-                'rooms' => $availableRooms->map(function ($room) {
+                'rooms' => $property->rooms->map(function ($room) {
                     return [
                         'id' => $room->id,
                         'room_number' => $room->room_number,

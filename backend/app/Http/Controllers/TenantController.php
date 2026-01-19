@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\User;
 use App\Models\Room;
 use Illuminate\Http\Request;

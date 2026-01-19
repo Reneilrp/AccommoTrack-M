@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-do
 // IMPORT NAVIGATORS
 import AdminNavigator from './AdminNavigator.jsx';
 import LandlordNavigator from './LandlordNavigator.jsx';
+import TenantNavigator from './TenantNavigator.jsx';
 
 // IMPORT THE NEW COMPONENT
 import PropertyDetails from '../screens/Guest/PropertyDetails.jsx';
@@ -42,6 +43,11 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   // Landlord and caretaker roles
   if (user?.role === 'landlord' || user?.role === 'caretaker') {
     return <LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
+  }
+
+  // Tenant role
+  if (user?.role === 'tenant') {
+    return <TenantNavigator user={user} onLogout={onLogout} />;
   }
 
   return null;

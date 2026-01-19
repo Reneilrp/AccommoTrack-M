@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { styles } from '../../../styles/Landlord/MyProfile';
 import Button from '../components/Button';
 import ProfileService from '../../../services/ProfileService';
+import { BASE_URL } from '../../../config';
 
 export default function MyProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -128,7 +129,7 @@ export default function MyProfileScreen({ navigation }) {
   };
 
   // Base URL for images
-  const BASE_URL = 'http://192.168.254.184:8000';
+  // const BASE_URL = 'http://192.168.254.184:8000';
 
   // Get profile image URL
   const getProfileImage = () => {

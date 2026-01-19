@@ -1,0 +1,5 @@
+APP_URL=http://<YOUR_NEW_IP_ADDRESS>:8000
+php artisan config:clear
+php artisan fix:image-urls --old="http://localhost:8000"
+
+then rename the php file into txt

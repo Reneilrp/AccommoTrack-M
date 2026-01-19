@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   MapPin,
   Star,
@@ -9,11 +10,13 @@ import {
   Bath,
   Maximize,
   ArrowLeft,
+  MessageCircle,
 } from 'lucide-react';
 import api from '../../utils/api'; 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import RoomDetailsModal from '../../components/Modals/RoomDetailsModal';
 
 // --- MAP ICON CONFIGURATION ---
 // Note: We use a simpler icon setup to avoid import issues
@@ -32,9 +35,39 @@ const greenMarkerIcon = new L.Icon({
 });
 
 export default function PropertyDetails({ propertyId, onBack }) {
+  const navigate = useNavigate();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const isAuthenticated = !!localStorage.getItem('auth_token');
+
+  const [roomFilter, setRoomFilter] = useState('available');
+
+  // Contact Landlord handler
+  const handleContactLandlord = () => {
+    if (!isAuthenticated) {
+      alert("Please login to contact the landlord.");
+      return;
+    }
+    
+    const landlordId = property?.landlord_id || property?.user_id || property?.user?.id;
+    
+    if (!landlordId) {
+      console.error("Landlord ID missing", property);
+      alert("Cannot contact landlord: Owner information is missing.");
+      return;
+    }
+
+    navigate('/messages', { 
+      state: { 
+        startConversation: {
+          recipient_id: landlordId,
+          property_id: property.id
+        }
+      } 
+    });
+  };
 
   useEffect(() => {
     if (propertyId) {
@@ -97,6 +130,121 @@ export default function PropertyDetails({ propertyId, onBack }) {
   if (!property) return <div>Property not found.</div>;
 
   // --- RENDERERS ---
+
+  const renderRooms = () => {
+    const rooms = property.rooms || [];
+    const filteredRooms = rooms.filter(room => {
+      if (roomFilter === 'all') return true;
+      return (room.status || '').toLowerCase() === roomFilter.toLowerCase();
+    });
+
+    return (
+      <div className="animate-in fade-in duration-300 space-y-6">
+        <div className="flex flex-wrap gap-3 pb-4 border-b border-gray-100">
+          {['available', 'occupied', 'maintenance'].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setRoomFilter(filter)}
+              className={`
+                px-4 py-2 rounded-full text-sm font-medium capitalize transition-all
+                ${roomFilter === filter 
+                  ? 'bg-green-600 text-white shadow-md' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }
+              `}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+
+        {filteredRooms.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredRooms.map((room) => (
+              <div key={room.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+                <div className="h-48 bg-gray-200 relative">
+                   {/* Placeholder for room image if available, or generic */}
+                   {room.images && room.images.length > 0 ? (
+                      <img 
+                        src={typeof room.images[0] === 'string' ? room.images[0] : (room.images[0].image_url || 'https://via.placeholder.com/400x300?text=Room')} 
+                        alt={`Room ${room.room_number}`} 
+                        className="w-full h-full object-cover" 
+                      />
+                   ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
+                        <BedDouble className="w-12 h-12 opacity-20" />
+                      </div>
+                   )}
+                   <div className="absolute top-3 right-3">
+                      <span className={`
+                        px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
+                        ${room.status === 'available' ? 'bg-green-100 text-green-700' : 
+                          room.status === 'occupied' ? 'bg-red-100 text-red-700' : 
+                          'bg-yellow-100 text-yellow-700'}
+                      `}>
+                        {room.status}
+                      </span>
+                   </div>
+                </div>
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="text-lg font-bold text-gray-900">Room {room.room_number}</h4>
+                      <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 mt-1 border border-blue-100 capitalize">
+                        {(room.type_label || room.room_type || 'Standard Room').replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="block text-xl font-bold text-green-600">₱{Number(room.monthly_rate || room.price).toLocaleString()}</span>
+                      <span className="text-xs text-gray-500">/month</span>
+                    </div>
+                  </div>
+                  
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{room.description || 'No description available.'}</p>
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-6">
+                    <div className="flex items-center gap-1">
+                      <Users className="w-4 h-4" />
+                      <span>{room.capacity} Pax</span>
+                    </div>
+                    {/* Add more details if available */}
+                  </div>
+
+                  <div className="mt-auto">
+                    {isAuthenticated && room.status === 'available' ? (
+                      <button 
+                        onClick={() => setSelectedRoom(room)}
+                        className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+                      >
+                        Book This Room
+                      </button>
+                    ) : (
+                      <button 
+                        disabled={!isAuthenticated && room.status === 'available' ? false : true}
+                        onClick={() => !isAuthenticated && setSelectedRoom(room)}
+                        className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2
+                          ${!isAuthenticated && room.status === 'available' 
+                            ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer' 
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          }
+                        `}
+                      >
+                        {!isAuthenticated && room.status === 'available' ? 'Login to Book' : (room.status === 'available' ? 'Book This Room' : 'Not Available')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+            <p className="text-gray-500">No rooms found with status "{roomFilter}".</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderOverview = () => (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -252,12 +400,21 @@ export default function PropertyDetails({ propertyId, onBack }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
         <div className="absolute inset-0 flex flex-col justify-between p-6 max-w-7xl mx-auto w-full">
-          <div className="mt-4">
+          <div className="mt-4 flex justify-between items-start">
             <button 
               onClick={onBack} 
               className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white p-2 rounded-full transition-all"
             >
               <ArrowLeft className="w-6 h-6" />
+            </button>
+            
+            {/* Contact Landlord Button */}
+            <button
+              onClick={handleContactLandlord}
+              className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-gray-100 transition-colors"
+            >
+              <MessageCircle className="w-5 h-5 text-green-600" />
+              <span className="hidden sm:inline">Contact Landlord</span>
             </button>
           </div>
 
@@ -283,7 +440,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex overflow-x-auto no-scrollbar gap-6 sm:gap-8">
-            {['Overview', 'Amenities', 'Policies', 'Map', 'Reviews'].map((tab) => {
+            {['Overview', 'Rooms', 'Amenities', 'Policies', 'Map', 'Reviews'].map((tab) => {
               const tabKey = tab.toLowerCase();
               const isActive = activeTab === tabKey;
               return (
@@ -307,13 +464,25 @@ export default function PropertyDetails({ propertyId, onBack }) {
       </div>
 
       {/* CONTENT AREA */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[500px]">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[500px] ${isAuthenticated ? 'pb-24' : ''}`}>
         {activeTab === 'overview' && renderOverview()}
+        {activeTab === 'rooms' && renderRooms()}
         {activeTab === 'amenities' && renderAmenities()}
         {activeTab === 'policies' && renderPolicies()}
         {activeTab === 'map' && renderMap()}
         {activeTab === 'reviews' && renderReviews()}
       </div>
+
+      {/* BOOKING MODAL */}
+      {selectedRoom && (
+        <RoomDetailsModal
+          room={selectedRoom}
+          property={property}
+          onClose={() => setSelectedRoom(null)}
+          isAuthenticated={isAuthenticated}
+          onLoginRequired={() => window.location.href = '/login'}
+        />
+      )}
     </div>
   );
 }

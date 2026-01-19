@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PropertyCarousel from './PropertyCarousel';
 import { useNavigate } from 'react-router-dom';
-import { X, Check, MapPin, Star, Shield } from 'lucide-react'; 
+import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react'; 
 
 // --- 1. API ENDPOINT ---
 const API_URL = '/api/public/properties';
@@ -280,6 +280,14 @@ const Properties = () => {
               Latest Properties
             </h2>
           </div>
+          
+          <button 
+             onClick={() => navigate('/browse-properties')}
+             className="flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-colors group"
+          >
+             View all properties 
+             <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
+          </button>
         </div>
 
         {loading && (

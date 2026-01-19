@@ -7,6 +7,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import BookingService from '../../../../services/BookingServices.js';
+import { API_BASE_URL } from '../../../../config';
 
 export default function Payments() {
   const navigation = useNavigation();
@@ -77,7 +78,7 @@ export default function Payments() {
             return;
           }
 
-          const resp = await fetch(`${PaymentService.API_URL || 'http://192.168.254.184:8000/api'}/tenant/bookings/${bookingId}/invoice`, {
+          const resp = await fetch(`${API_BASE_URL}/tenant/bookings/${bookingId}/invoice`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,

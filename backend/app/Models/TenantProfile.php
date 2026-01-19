@@ -27,6 +27,7 @@ class TenantProfile extends Model
         'move_in_date' => 'date',
         'move_out_date' => 'date',
         'date_of_birth' => 'date',
+        'preference' => 'array',
     ];
 
     /**

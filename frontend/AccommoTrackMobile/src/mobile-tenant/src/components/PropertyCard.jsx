@@ -2,12 +2,11 @@ import { useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Tenant/HomePage.js';
+import { BASE_URL as API_BASE_URL } from '../../../config';
 
 export default function PropertyCard({ accommodation, property, onPress }) {
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
-
-  const API_BASE_URL = 'http://192.168.254.184:8000';
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 

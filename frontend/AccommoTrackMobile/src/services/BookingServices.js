@@ -1,7 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_URL = 'http://192.168.254.184:8000/api';
+import { API_BASE_URL as API_URL } from '../config';
 
 class BookingService {
   async getAuthToken() {

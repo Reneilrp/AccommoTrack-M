@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import WebNavigator from './navigation/WebNavigator';
+import WebNavigator from './Navigation/WebNavigator.jsx';
 import LandingPage from './screens/Guest/LandingPage.jsx';
 import AuthScreen from './screens/Auth/Web-Auth';
 import LandlordRegister from './screens/Guest/LandlordRegister';
@@ -57,7 +57,7 @@ function App() {
       {/* 1. Landing Page - Exact Match */}
       <Route
         path="/"
-        element={<LandingPage />}
+        element={<LandingPage user={user} />}
       />
 
       {/* 2. Login Page - Redirects if already logged in */}

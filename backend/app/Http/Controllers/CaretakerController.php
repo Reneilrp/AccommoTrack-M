@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\ResolvesLandlordAccess;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\CaretakerAssignment;
 use App\Models\Property;
 use App\Models\User;

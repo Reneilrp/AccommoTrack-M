@@ -3,11 +3,10 @@ import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Ref
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { styles } from '../../../../../styles/Menu/MyBookings.js';
-import BookingService from '../../../../../services/BookingServices.js';
+import { styles } from '../../../../styles/Menu/MyBookings.js';
+import BookingService from '../../../../services/BookingServices.js';
 import { Alert } from 'react-native';
-
-const API_BASE_URL = 'http://192.168.254.184:8000';
+import { BASE_URL as API_BASE_URL } from '../../../../config';
 
 export default function MyBookings() {
   const navigation = useNavigation();
