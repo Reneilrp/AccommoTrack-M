@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const BACKEND_URL = 'http://192.168.43.142:8000';
+const BACKEND_URL = 'http://localhost:8000';
 
 export default defineConfig({
   plugins: [react()],

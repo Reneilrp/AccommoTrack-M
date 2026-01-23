@@ -157,7 +157,7 @@ const PropertyCard = ({ property, onClick }) => (
   >
     <div className="relative h-48 bg-gray-200 shrink-0">
       <img 
-        src={getImageUrl(property.images?.[0]?.image_path) || 'https://via.placeholder.com/400x300?text=No+Image'} 
+        src={getImageUrl(property.image || property.images?.[0]?.image_path) || 'https://via.placeholder.com/400x300?text=No+Image'} 
         alt={property.name}
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
       />

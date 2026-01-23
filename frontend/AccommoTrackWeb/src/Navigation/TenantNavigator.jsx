@@ -10,6 +10,7 @@ import TenantPropertyDetails from '../screens/Tenant/Explore/TenantPropertyDetai
 import MyBookings from '../screens/Tenant/Bookings/MyBookings';
 import TenantMessages from '../screens/Tenant/Messages/TenantMessages';
 import TenantProfile from '../screens/Tenant/Profile/TenantProfile';
+import TenantWallet from '../screens/Tenant/Wallet/TenantWallet';
 
 export default function TenantNavigator({ user, onLogout }) {
   return (
@@ -20,6 +21,7 @@ export default function TenantNavigator({ user, onLogout }) {
           <Route path="/explore" element={<ExploreProperties />} />
           <Route path="/property/:id" element={<TenantPropertyDetails />} />
           <Route path="/bookings" element={<MyBookings />} />
+          <Route path="/wallet" element={<TenantWallet />} />
           <Route path="/messages" element={<TenantMessages user={user} />} />
           <Route path="/profile" element={<TenantProfile user={user} />} />
           
