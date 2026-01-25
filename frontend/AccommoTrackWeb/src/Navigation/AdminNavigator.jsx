@@ -3,7 +3,7 @@ import { SidebarProvider } from '../contexts/SidebarContext.jsx';
 import AdminLayout from '../components/Layout/AdminLayout.jsx';
 import AdminDashboard from '../screens/Admin/AdminDashboard.jsx';
 import UserManagement from '../screens/Admin/UserManagement.jsx';
-import PropertyApproval from '../screens/Admin/PropertyApproval.jsx';
+import Approvals from '../screens/Admin/Approvals.jsx';
 
 export default function AdminNavigator({ user, onLogout }) {
   return (
@@ -26,10 +26,10 @@ export default function AdminNavigator({ user, onLogout }) {
           }
         />
         <Route
-          path="/admin/properties"
+          path="/admin/approvals"
           element={
             <AdminLayout user={user} onLogout={onLogout}>
-              <PropertyApproval />
+              <Approvals />
             </AdminLayout>
           }
         />

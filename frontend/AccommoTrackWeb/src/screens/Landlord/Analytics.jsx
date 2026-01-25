@@ -21,6 +21,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import api from '../../utils/api';
 
 export default function Analytics({ user }) {
   const [timeRange, setTimeRange] = useState('month');
@@ -29,15 +30,6 @@ export default function Analytics({ user }) {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const API = '/api';
-  const token = localStorage.getItem('auth_token');
-
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  };
 
   useEffect(() => {
     loadProperties();
@@ -49,10 +41,8 @@ export default function Analytics({ user }) {
 
   const loadProperties = async () => {
     try {
-      const response = await fetch(`${API}/landlord/properties`, { headers });
-      if (!response.ok) throw new Error('Failed to load properties');
-      const data = await response.json();
-      setProperties(data);
+      const response = await api.get('/landlord/properties');
+      setProperties(response.data);
     } catch (err) {
       console.error('Failed to load properties:', err);
     }
@@ -68,14 +58,11 @@ export default function Analytics({ user }) {
         ...(selectedProperty !== 'all' && { property_id: selectedProperty })
       });
 
-      const response = await fetch(`${API}/landlord/analytics/dashboard?${params}`, { headers });
+      const response = await api.get(`/landlord/analytics/dashboard?${params}`);
       
-      if (!response.ok) throw new Error('Failed to load analytics');
-      
-      const data = await response.json();
-      setAnalytics(data);
+      setAnalytics(response.data);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to load analytics');
       console.error('Analytics error:', err);
     } finally {
       setLoading(false);

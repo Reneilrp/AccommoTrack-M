@@ -3,6 +3,7 @@ import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
+import api from '../../utils/api';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -30,17 +31,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     if (canManageBookings) return false;
     toast.error('Caretaker access for bookings is currently view-only.');
     return true;
-  };
-
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
   };
 
   // Format date to readable string
@@ -82,32 +72,19 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/bookings`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
+      const response = await api.get('/bookings');
 
-      if (!response.ok) {
-        // If 404 or 204, treat as no bookings yet (new account, no property, etc.)
-        if (response.status === 404 || response.status === 204) {
-          setBookings([]);
-          setError('');
-          return;
-        }
-        throw new Error('Failed to fetch bookings');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       setBookings(data);
       setError('');
     } catch (err) {
       console.error('Error fetching bookings:', err);
       // If error is network or 404, treat as no bookings yet
-      if (err.message === 'Failed to fetch' || err.message === 'Failed to fetch bookings') {
+      if (err.response?.status === 404 || err.response?.status === 204) {
         setBookings([]);
         setError('');
       } else {
-        setError(err.message);
+        setError(err.response?.data?.message || 'Failed to fetch bookings');
       }
     } finally {
       setLoading(false);
@@ -116,15 +93,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/bookings/stats`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch stats');
-
-      const data = await response.json();
-      setStats(data);
+      const response = await api.get('/bookings/stats');
+      setStats(response.data);
     } catch (err) {
       console.error('Error fetching stats:', err);
     }
@@ -133,18 +103,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
     if (readOnlyGuard()) return;
     try {
-      const response = await fetch(`${API_URL}/bookings/${bookingId}/status`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          status: newStatus,
-          cancellation_reason: cancellationReason,
-          refund_amount: refundData?.refundAmount || 0,
-          should_refund: refundData?.shouldRefund || false
-        })
+      const response = await api.patch(`/bookings/${bookingId}/status`, {
+        status: newStatus,
+        cancellation_reason: cancellationReason,
+        refund_amount: refundData?.refundAmount || 0,
+        should_refund: refundData?.shouldRefund || false
       });
-
-      if (!response.ok) throw new Error('Failed to update status');
 
       await fetchBookings();
       await fetchStats();
@@ -161,15 +125,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleUpdatePayment = async (bookingId, paymentStatus) => {
     if (readOnlyGuard()) return;
     try {
-      const response = await fetch(`${API_URL}/bookings/${bookingId}/payment`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ payment_status: paymentStatus })
+      await api.patch(`/bookings/${bookingId}/payment`, {
+        payment_status: paymentStatus
       });
-
-      if (!response.ok) throw new Error('Failed to update payment');
-
-      const result = await response.json();
 
       // Refresh bookings list
       await fetchBookings();

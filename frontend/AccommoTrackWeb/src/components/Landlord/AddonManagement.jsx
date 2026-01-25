@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { addonService } from '../../services/addonService';
 import {
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  CheckIcon,
-  XMarkIcon,
-  SparklesIcon,
-  BellAlertIcon,
-  CurrencyDollarIcon,
-  ArrowPathIcon
-} from '@heroicons/react/24/outline';
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Sparkles,
+  BellRing,
+  DollarSign,
+  RefreshCw
+} from 'lucide-react';
 
 const AddonManagement = ({ propertyId }) => {
   const [addons, setAddons] = useState([]);
@@ -123,15 +123,15 @@ const AddonManagement = ({ propertyId }) => {
   };
 
   const tabs = [
-    { id: 'manage', label: 'Manage Add-ons', icon: SparklesIcon, count: addons.length },
-    { id: 'requests', label: 'Pending Requests', icon: BellAlertIcon, count: pendingRequests.length },
-    { id: 'active', label: 'Active Add-ons', icon: CheckIcon, count: activeAddons.summary?.totalActive || 0 }
+    { id: 'manage', label: 'Manage Add-ons', icon: Sparkles, count: addons.length },
+    { id: 'requests', label: 'Pending Requests', icon: BellRing, count: pendingRequests.length },
+    { id: 'active', label: 'Active Add-ons', icon: Check, count: activeAddons.summary?.totalActive || 0 }
   ];
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-48">
-        <ArrowPathIcon className="w-8 h-8 animate-spin text-green-600" />
+        <RefreshCw className="w-8 h-8 animate-spin text-green-600" />
       </div>
     );
   }
@@ -149,7 +149,7 @@ const AddonManagement = ({ propertyId }) => {
             onClick={() => { resetForm(); setShowModal(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            <PlusIcon className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
             Add New
           </button>
         </div>
@@ -221,7 +221,7 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
   if (addons.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
-        <SparklesIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+        <Sparkles className="w-12 h-12 mx-auto text-gray-300 mb-4" />
         <p>No add-ons created yet.</p>
         <p className="text-sm">Create add-ons to offer extra services to your tenants.</p>
       </div>
@@ -268,13 +268,13 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
                 onClick={() => onEdit(addon)}
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               >
-                <PencilIcon className="w-4 h-4" />
+                <Pencil className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDelete(addon.id)}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
-                <TrashIcon className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -289,7 +289,7 @@ const RequestsTab = ({ requests, onHandle }) => {
   if (requests.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
-        <BellAlertIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+        <BellRing className="w-12 h-12 mx-auto text-gray-300 mb-4" />
         <p>No pending requests.</p>
       </div>
     );
@@ -333,14 +333,14 @@ const RequestsTab = ({ requests, onHandle }) => {
                   onClick={() => onHandle(request.bookingId, request.addonId, 'approve')}
                   className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
                 >
-                  <CheckIcon className="w-4 h-4" />
+                  <Check className="w-4 h-4" />
                   Approve
                 </button>
                 <button
                   onClick={() => onHandle(request.bookingId, request.addonId, 'reject')}
                   className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-lg hover:bg-red-200"
                 >
-                  <XMarkIcon className="w-4 h-4" />
+                  <X className="w-4 h-4" />
                   Reject
                 </button>
               </div>
@@ -401,7 +401,7 @@ const ActiveTab = ({ data }) => {
         </div>
       ) : (
         <div className="text-center py-12 text-gray-500">
-          <CheckIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+          <Check className="w-12 h-12 mx-auto text-gray-300 mb-4" />
           <p>No active add-ons yet.</p>
         </div>
       )}

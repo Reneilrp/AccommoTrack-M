@@ -190,9 +190,19 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h4 className="text-lg font-bold text-gray-900">Room {room.room_number}</h4>
-                      <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 mt-1 border border-blue-100 capitalize">
-                        {(room.type_label || room.room_type || 'Standard Room').replace(/_/g, ' ')}
-                      </span>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 capitalize">
+                          {(room.type_label || room.room_type || 'Standard Room').replace(/_/g, ' ')}
+                        </span>
+                        {room.floor && (
+                          <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 shadow-sm">
+                             Flr {room.floor}
+                          </span>
+                        )}
+                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100 shadow-sm capitalize">
+                          {room.billing_policy || 'Monthly'} Billing
+                        </span>
+                      </div>
                     </div>
                     <div className="text-right">
                       <span className="block text-xl font-bold text-green-600">₱{Number(room.monthly_rate || room.price).toLocaleString()}</span>
@@ -399,7 +409,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
-        <div className="absolute inset-0 flex flex-col justify-between p-6 max-w-7xl mx-auto w-full">
+        <div className="absolute inset-0 flex flex-col justify-between px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">
           <div className="mt-4 flex justify-between items-start">
             <button 
               onClick={onBack} 

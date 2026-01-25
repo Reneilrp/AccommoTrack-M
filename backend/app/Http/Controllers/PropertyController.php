@@ -63,6 +63,7 @@ class PropertyController extends Controller
 
             $properties = $query->with([
                     'rooms.images', // eager load images for rooms
+                    'rooms.amenities', // Added amenities relation
                     'images',
                     'landlord:id,first_name,last_name'
                 ])
@@ -118,11 +119,15 @@ class PropertyController extends Controller
                         'rooms' => $availableRooms->map(function ($room) {
                             return [
                                 'id' => $room->id,
+                                'room_number' => $room->room_number,
+                                'floor' => $room->floor,
                                 'room_type' => $room->room_type,
                                 'monthly_rate' => $room->monthly_rate,
+                                'billing_policy' => $room->billing_policy,
                                 'status' => $room->status,
                                 'capacity' => $room->capacity,
                                 'description' => $room->description,
+                                'amenities' => $room->amenities ? $room->amenities->pluck('name')->toArray() : [],
                                 'images' => $room->images ? $room->images->pluck('image_url')->toArray() : [],
                             ];
                         })->values(),
@@ -223,6 +228,7 @@ class PropertyController extends Controller
                     return [
                         'id' => $room->id,
                         'room_number' => $room->room_number,
+                        'floor' => $room->floor, // Added
                         'room_type' => $room->room_type,
                         'type_label' => $this->getRoomTypeLabel($room->room_type),
                         'monthly_rate' => (float) $room->monthly_rate,

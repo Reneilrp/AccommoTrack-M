@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/Logo.png';
+import api from '../../utils/api';
 
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);
@@ -24,25 +24,31 @@ const LandlordRegister = () => {
   const [idTypes, setIdTypes] = useState([]);
   const [idTypesLoading, setIdTypesLoading] = useState(false);
   const [idTypesError, setIdTypesError] = useState('');
+  const [isIdDropdownOpen, setIsIdDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
   // Fetch ID types from backend
   useEffect(() => {
     if (step === 3 && idTypes.length === 0 && !idTypesLoading) {
       setIdTypesLoading(true);
       setIdTypesError('');
-      axios.get('/api/valid-id-types')
+      // Use configured api client
+      api.get('/valid-id-types')
         .then(res => {
           setIdTypes(Array.isArray(res.data) ? res.data : []);
           setIdTypesLoading(false);
         })
         .catch(() => {
           setIdTypesError('Failed to load ID types. Please try again.');
+          // Fallback static types if API fails
+          setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'SSS UMID', 'PhilHealth ID', 'Other']);
           setIdTypesLoading(false);
         });
     }
   }, [step, idTypes.length, idTypesLoading]);
+
 
   const handleChange = (e) => {
     const { name, value, files, type, checked } = e.target;
@@ -130,10 +136,9 @@ const LandlordRegister = () => {
       formData.append('valid_id', form.validId);
       formData.append('permit', form.permit);
       formData.append('agree', form.agree);
-      // You may need to append user_id if required by backend
       // formData.append('user_id', ...);
 
-      await axios.post('/api/landlord-verification', formData, {
+      await api.post('/landlord-verification', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setSuccess('Registration submitted! Our team will review your documents.');
@@ -153,20 +158,44 @@ const LandlordRegister = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 text-center">
-            {/* Removed logo from modal */}
-            <h2 className="text-2xl font-bold text-green-700 mb-2 drop-shadow-lg">Landlord registration will require verification.</h2>
-            <p className="text-green-900/90 mb-2">Please prepare the following documents for a higher chance of approval:</p>
-            <ul className="list-disc list-inside text-left mt-2 mb-2 text-green-900">
-              <li>Valid Government-issued ID (e.g., Passport, Driver's License, National ID)</li>
-              <li>Accommodation Permit or Business Permit</li>
-            </ul>
-            <span className="text-xs text-gray-500 block mb-2">Your documents will be reviewed by our team for verification and approval.<br/>Verification may take 1-3 work days.</span>
-            <button
-              className="mt-4 bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
-              onClick={() => setShowModal(false)}
-            >
-              Proceed
-            </button>
+            {success ? (
+              <>
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-green-700 mb-2 drop-shadow-lg">Application Submitted!</h2>
+                <p className="text-gray-600 mb-6">
+                  Your landlord registration has been successfully submitted. Our administrators will review your documents within 1-3 business days. You will receive an email once your account is verified.
+                </p>
+                <button
+                  className="w-full bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
+                  onClick={() => navigate('/')}
+                >
+                  Return to Home
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Removed logo from modal */}
+                <h2 className="text-2xl font-bold text-green-700 mb-2 drop-shadow-lg">Landlord registration will require verification.</h2>
+                <p className="text-green-900/90 mb-2">Please prepare the following documents for a higher chance of approval:</p>
+                <ul className="list-disc list-inside text-left mt-2 mb-2 text-green-900">
+                  <li>Valid Government-issued ID (e.g., Passport, Driver's License, National ID)</li>
+                  <li>Accommodation Permit or Business Permit</li>
+                </ul>
+                <span className="text-xs text-gray-500 block mb-2">Your documents will be reviewed by our team for verification and approval.<br/>Verification may take 1-3 work days.</span>
+                <button
+                  className="mt-4 bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
+                  onClick={() => setShowModal(false)}
+                >
+                  Proceed
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -318,20 +347,71 @@ const LandlordRegister = () => {
                   ) : idTypesError ? (
                     <div className="text-red-600 text-sm mb-2">{idTypesError} <button type="button" className="underline" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button></div>
                   ) : (
-                    <select
-                      name="validIdType"
-                      value={form.validIdType}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 bg-white"
-                      required
-                      disabled={submitting}
-                    >
-                      <option value="">Select ID type</option>
-                      {idTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                      <option value="other">Other (specify below)</option>
-                    </select>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => !submitting && setIsIdDropdownOpen(!isIdDropdownOpen)}
+                        className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-left flex justify-between items-center"
+                        disabled={submitting}
+                      >
+                        <span className={form.validIdType ? "text-green-900" : "text-gray-400"}>
+                          {
+                            [
+                              { value: "Philippine Passport", label: "Philippine Passport" },
+                              { value: "Driver’s License", label: "Driver’s License" },
+                              { value: "PhilSys ID (National ID)", label: "PhilSys ID (National ID)" },
+                              { value: "UMID", label: "Unified Multi-Purpose ID (UMID)" },
+                              { value: "PRC ID", label: "Professional Regulation Commission (PRC) ID" },
+                              { value: "Postal ID", label: "Postal ID (Digitized)" },
+                              { value: "Voter’s ID", label: "Voter’s ID" },
+                              { value: "TIN ID", label: "Taxpayer Identification Number (TIN) ID" },
+                              { value: "PhilHealth ID", label: "PhilHealth ID" },
+                              { value: "Senior Citizen ID", label: "Senior Citizen ID" },
+                              { value: "OFW ID", label: "Overseas Workers Welfare Administration (OWWA) / OFW ID" },
+                              ...idTypes.map(t => ({ value: t, label: t })),
+                              { value: "other", label: "Other (specify below)" }
+                            ].find(opt => opt.value === form.validIdType)?.label || "Select ID type"
+                          }
+                        </span>
+                        <svg className={`w-5 h-5 text-green-700 transition-transform ${isIdDropdownOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {isIdDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
+                          <div className="absolute z-20 w-full mt-1 bg-white border border-green-200 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
+                            {[
+                              { value: "Philippine Passport", label: "Philippine Passport" },
+                              { value: "Driver’s License", label: "Driver’s License" },
+                              { value: "PhilSys ID (National ID)", label: "PhilSys ID (National ID)" },
+                              { value: "UMID", label: "Unified Multi-Purpose ID (UMID)" },
+                              { value: "PRC ID", label: "Professional Regulation Commission (PRC) ID" },
+                              { value: "Postal ID", label: "Postal ID (Digitized)" },
+                              { value: "Voter’s ID", label: "Voter’s ID" },
+                              { value: "TIN ID", label: "Taxpayer Identification Number (TIN) ID" },
+                              { value: "PhilHealth ID", label: "PhilHealth ID" },
+                              { value: "Senior Citizen ID", label: "Senior Citizen ID" },
+                              { value: "OFW ID", label: "Overseas Workers Welfare Administration (OWWA) / OFW ID" },
+                              ...idTypes.map(t => ({ value: t, label: t })),
+                              { value: "other", label: "Other (specify below)" }
+                            ].map((option) => (
+                              <div
+                                key={option.value}
+                                className={`px-4 py-3 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 text-green-900 font-semibold' : 'text-gray-700 hover:bg-green-50'}`}
+                                onClick={() => {
+                                  setForm(prev => ({ ...prev, validIdType: option.value }));
+                                  setIsIdDropdownOpen(false);
+                                  setError('');
+                                }}
+                              >
+                                {option.label}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
                 {form.validIdType === 'other' && (

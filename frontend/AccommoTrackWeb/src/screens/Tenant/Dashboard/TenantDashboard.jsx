@@ -44,8 +44,8 @@ const TenantDashboard = () => {
     } catch (error) {
       console.error('Failed to fetch properties', error);
       setError('Failed to load properties. Please try again.');
-      // Fallback to mock data if API fails (for development)
-      setProperties(MOCK_PROPERTIES); 
+      // Fallback to empty list if API fails
+      setProperties([]);
     } finally {
       setLoading(false);
     }
@@ -177,42 +177,5 @@ const PropertyCard = ({ property, onClick }) => (
     </div>
   </div>
 );
-
-// Mock Data for Development
-const MOCK_PROPERTIES = [
-  {
-    id: 1,
-    name: "Sunset Dormitory",
-    type: "Dormitory",
-    address: "123 Sampaloc, Manila",
-    lowest_price: 3500,
-    rating: 4.5,
-    latitude: 14.6091,
-    longitude: 120.9890,
-    images: [{ image_path: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-1.2.1&auto=format&fit=crop&w=1351&q=80" }]
-  },
-  {
-    id: 2,
-    name: "Green Heights Apartment",
-    type: "Apartment",
-    address: "456 Taft Ave, Manila",
-    lowest_price: 8000,
-    rating: 4.8,
-    latitude: 14.5794,
-    longitude: 120.9890,
-    images: [{ image_path: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" }]
-  },
-  {
-    id: 3,
-    name: "Student Haven",
-    type: "Bed Spacer",
-    address: "789 Ubelt, Manila",
-    lowest_price: 2500,
-    rating: 4.2,
-    latitude: 14.6042,
-    longitude: 120.9946,
-    images: [{ image_path: "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" }]
-  }
-];
 
 export default TenantDashboard;

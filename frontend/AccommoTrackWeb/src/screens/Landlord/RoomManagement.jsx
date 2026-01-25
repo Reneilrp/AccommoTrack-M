@@ -46,17 +46,6 @@ export default function RoomManagement() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ show: false, room: null });
   const [deleting, setDeleting] = useState(false);
 
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
-  };
-
   // Load properties (once)
   useEffect(() => {
     const loadInitialData = async () => {

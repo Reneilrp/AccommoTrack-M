@@ -121,17 +121,6 @@ export default function AddProperty({ onBack, onSave }) {
     }
   }, [formData.latitude, formData.longitude]);
 
-  const API_URL = '/api';
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
-  };
-
   const amenitiesList = [
     'WiFi', 'Air Conditioning', 'Furnished',
     'Parking', 'Security',

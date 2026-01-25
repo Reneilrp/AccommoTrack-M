@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PropertyCarousel from './PropertyCarousel';
 import PropertyMap from '../../components/Shared/PropertyMap';
 import { X, Check, MapPin, Star, Shield, Search, ArrowLeft, ArrowRight, Filter, Map } from 'lucide-react';
-
-// --- API ENDPOINT ---
-const API_URL = '/api/public/properties';
+import api from '../../utils/api';
 
 // --- ROOM DETAILS MODAL COMPONENT (Copied from Properties.jsx for consistency) ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -317,15 +315,14 @@ const BrowsingPropertyPage = () => {
   // Fetch properties from backend
   useEffect(() => {
     setLoading(true);
-    fetch(API_URL)
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to fetch properties');
-        const data = await res.json();
-        setProperties(data);
+    api.get('/public/properties')
+      .then((res) => {
+        setProperties(res.data);
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || 'Error fetching properties');
+        console.error(err);
+        setError(err.response?.data?.message || 'Error fetching properties');
         setLoading(false);
       });
   }, []);
@@ -427,9 +424,8 @@ const BrowsingPropertyPage = () => {
     setModalLoading(true);
     setModalError(null);
     try {
-      const res = await fetch(`/api/public/properties/${property.id}`);
-      if (!res.ok) throw new Error('Failed to fetch property details');
-      const fullProperty = await res.json();
+      const res = await api.get(`/public/properties/${property.id}`);
+      const fullProperty = res.data;
       const fullRoom = Array.isArray(fullProperty.rooms)
         ? fullProperty.rooms.find(r => r.id === room.id)
         : null;

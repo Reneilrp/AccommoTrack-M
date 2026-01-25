@@ -41,6 +41,9 @@ Route::get('/properties/{id}/view', [PropertyController::class, 'showForTenant']
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
+Route::post('/landlord-verification', [LandlordVerificationController::class, 'store']);
+Route::get('/valid-id-types', [LandlordVerificationController::class, 'getValidIdTypes']);
+
 
 // ====================================
 // PROTECTED ROUTES (Authentication required)
@@ -53,8 +56,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/me/profile-image', [AuthController::class, 'removeProfileImage']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 
-    // Landlord verification submission (for authenticated users)
-    Route::post('/landlord-verification', [LandlordVerificationController::class, 'store']);
     // ===== TENANT ROUTES (Public property browsing) =====
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);
     Route::get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);

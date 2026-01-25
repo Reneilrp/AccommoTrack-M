@@ -21,7 +21,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-white">
           <NavLink to="/admin" end className={({ isActive }) => navLinkClasses(isActive)}>Dashboard</NavLink>
           <NavLink to="/admin/users" className={({ isActive }) => navLinkClasses(isActive)}>Users</NavLink>
-          <NavLink to="/admin/properties" className={({ isActive }) => navLinkClasses(isActive)}>Properties</NavLink>
+          <NavLink to="/admin/approvals" className={({ isActive }) => navLinkClasses(isActive)}>Approvals</NavLink>
         </nav>
 
         <div className="p-4 border-t border-gray-200 bg-white">

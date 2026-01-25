@@ -2,19 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../../services/tenantService';
 import { getImageUrl } from '../../../utils/api';
 import { 
-  HomeIcon, 
-  CalendarIcon, 
-  CurrencyDollarIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  PlusIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  MapPinIcon,
-  SparklesIcon,
-  ArrowPathIcon
-} from '@heroicons/react/24/outline';
+  Home, 
+  Calendar, 
+  DollarSign,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Plus,
+  Phone,
+  Mail,
+  MapPin,
+  Sparkles,
+  RefreshCw
+} from 'lucide-react';
 
 const MyBookings = () => {
   const [activeTab, setActiveTab] = useState('current'); // 'current', 'financials', 'history'
@@ -75,9 +75,9 @@ const MyBookings = () => {
   };
 
   const tabs = [
-    { id: 'current', label: 'My Stay', icon: HomeIcon },
-    { id: 'financials', label: 'Financials', icon: CurrencyDollarIcon },
-    { id: 'history', label: 'History', icon: ClockIcon }
+    { id: 'current', label: 'My Stay', icon: Home },
+    { id: 'financials', label: 'Financials', icon: DollarSign },
+    { id: 'history', label: 'History', icon: Clock }
   ];
 
   return (
@@ -152,12 +152,12 @@ const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
   if (!data?.hasActiveStay) {
     return (
       <div className="text-center py-16 bg-white rounded-xl shadow-sm">
-        <HomeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <Home className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700 mb-2">No Active Stay</h3>
         <p className="text-gray-500 mb-4">You don't have an active booking at the moment.</p>
         {data?.upcomingBooking && (
           <div className="inline-block bg-green-50 text-green-700 px-4 py-2 rounded-lg">
-            <CalendarIcon className="w-5 h-5 inline mr-2" />
+            <Calendar className="w-5 h-5 inline mr-2" />
             Upcoming: {data.upcomingBooking.property} - {data.upcomingBooking.room}
             <br />
             <span className="text-sm">Starts in {data.upcomingBooking.daysUntil} days</span>
@@ -184,7 +184,7 @@ const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
               <h2 className="text-xl font-bold text-white">{property.title}</h2>
               <p className="text-white/80 text-sm flex items-center">
-                <MapPinIcon className="w-4 h-4 mr-1" />
+                <MapPin className="w-4 h-4 mr-1" />
                 {property.address}
               </p>
             </div>
@@ -217,7 +217,7 @@ const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
               onClick={onRequestAddon}
               className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
             >
-              <PlusIcon className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
               Request Add-on
             </button>
           </div>
@@ -280,12 +280,12 @@ const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
           </div>
           <div className="space-y-2">
             <a href={`mailto:${landlord.email}`} className="flex items-center gap-2 text-sm text-gray-600 hover:text-green-600">
-              <EnvelopeIcon className="w-4 h-4" />
+              <Mail className="w-4 h-4" />
               {landlord.email}
             </a>
             {landlord.phone && (
               <a href={`tel:${landlord.phone}`} className="flex items-center gap-2 text-sm text-gray-600 hover:text-green-600">
-                <PhoneIcon className="w-4 h-4" />
+                <Phone className="w-4 h-4" />
                 {landlord.phone}
               </a>
             )}
@@ -322,7 +322,7 @@ const FinancialsTab = ({ data }) => {
   if (!data?.hasActiveStay) {
     return (
       <div className="text-center py-16 bg-white rounded-xl shadow-sm">
-        <CurrencyDollarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700">No Active Booking</h3>
         <p className="text-gray-500">Financial details will appear when you have an active stay.</p>
       </div>
@@ -425,7 +425,7 @@ const HistoryTab = ({ data, onLoadMore }) => {
   if (!bookings || bookings.length === 0) {
     return (
       <div className="text-center py-16 bg-white rounded-xl shadow-sm">
-        <ClockIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700">No History Yet</h3>
         <p className="text-gray-500">Your past bookings will appear here.</p>
       </div>
@@ -520,7 +520,7 @@ const AddonItem = ({ addon, status, onCancel }) => (
     status === 'active' ? 'bg-green-50' : 'bg-amber-50'
   }`}>
     <div className="flex items-center gap-3">
-      <SparklesIcon className={`w-5 h-5 ${status === 'active' ? 'text-green-600' : 'text-amber-600'}`} />
+      <Sparkles className={`w-5 h-5 ${status === 'active' ? 'text-green-600' : 'text-amber-600'}`} />
       <div>
         <p className="font-medium text-gray-900">{addon.name}</p>
         <p className="text-xs text-gray-500">
@@ -539,7 +539,7 @@ const AddonItem = ({ addon, status, onCancel }) => (
           className="text-red-500 hover:text-red-700 p-1"
           title="Cancel Request"
         >
-          <XCircleIcon className="w-5 h-5" />
+          <XCircle className="w-5 h-5" />
         </button>
       )}
     </div>
@@ -553,7 +553,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Available Add-ons</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <XCircleIcon className="w-6 h-6" />
+            <XCircle className="w-6 h-6" />
           </button>
         </div>
       </div>
@@ -606,7 +606,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
                     }`}
                   >
                     {requestingId === addon.id ? (
-                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      <RefreshCw className="w-4 h-4 animate-spin" />
                     ) : (
                       'Request'
                     )}

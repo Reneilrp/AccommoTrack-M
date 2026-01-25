@@ -2,20 +2,11 @@ import { useState } from 'react';
 import { X, Calendar } from 'lucide-react';
 // Toast
 import toast from 'react-hot-toast';
+import api from '../../utils/api';
 
 export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const API_URL = '/api';
-
-    const getAuthHeaders = () => {
-      const token = localStorage.getItem('auth_token');
-      return {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-    };
 
     const handleSubmit = async () => {
       setError('');
@@ -25,25 +16,20 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       }
       setLoading(true);
       try {
-        const response = await fetch(`${API_URL}/bookings`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            guest_name: formData.guestName,
-            check_in: formData.checkIn,
-            check_out: formData.checkOut,
-            amount: formData.amount,
-            payment_status: formData.paymentStatus,
-            // property_id, room_id to be added when dropdowns are implemented
-          })
+        const response = await api.post('/bookings', {
+          guest_name: formData.guestName,
+          check_in: formData.checkIn,
+          check_out: formData.checkOut,
+          amount: formData.amount,
+          payment_status: formData.paymentStatus,
+          // property_id, room_id to be added when dropdowns are implemented
         });
-        if (!response.ok) throw new Error('Failed to add booking');
         toast.success('Booking added successfully!');
         if (onBookingAdded) onBookingAdded();
         onClose();
       } catch (err) {
-        setError(err.message || 'Failed to add booking');
-        toast.error(err.message || 'Failed to add booking');
+        setError(err.response?.data?.message || err.message || 'Failed to add booking');
+        toast.error(err.response?.data?.message || err.message || 'Failed to add booking');
       } finally {
         setLoading(false);
       }

@@ -179,7 +179,7 @@ export default function TenantLayout({ user, onLogout, children }) {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 p-4 lg:p-8">
+        <div className={`flex-1 overflow-y-auto bg-gray-100 ${location.pathname.startsWith('/property/') ? '' : 'p-4 lg:p-8'}`}>
           {children}
         </div>
       </main>

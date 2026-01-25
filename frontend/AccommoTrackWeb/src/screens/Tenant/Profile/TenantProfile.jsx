@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../../services/tenantService';
-import { UserCircleIcon, CameraIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
-import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { CircleUser, Camera, CheckCircle, AlertCircle } from 'lucide-react';
 
 const TenantProfile = () => {
   const [loading, setLoading] = useState(true);
@@ -160,7 +159,7 @@ const TenantProfile = () => {
         <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
           message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
         }`}>
-          {message.type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : <ExclamationCircleIcon className="w-5 h-5" />}
+          {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           {message.text}
         </div>
       )}
@@ -177,11 +176,11 @@ const TenantProfile = () => {
                   className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md"
                 />
               ) : (
-                <UserCircleIcon className="w-32 h-32 text-gray-300" />
+                <CircleUser className="w-32 h-32 text-gray-300" />
               )}
               
               <label className="absolute bottom-0 right-0 bg-green-600 p-2 rounded-full text-white cursor-pointer hover:bg-green-700 transition shadow-sm">
-                <CameraIcon className="w-4 h-4" />
+                <Camera className="w-4 h-4" />
                 <input 
                   type="file" 
                   accept="image/*" 

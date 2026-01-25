@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/api';
 
-const PropertyApproval = () => {
+const PropertyApproval = ({ isEmbedded = false }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
@@ -58,9 +58,13 @@ const PropertyApproval = () => {
   };
 
   return (
-    <div className="w-full max-w-full px-6 py-6">
-      <h2 className="text-2xl font-bold mb-2 text-gray-800">Property Management</h2>
-      <p className="text-sm text-gray-600 mb-6">Review and manage property submissions and approvals.</p>
+    <div className={isEmbedded ? "w-full" : "w-full max-w-full px-6 py-6"}>
+      {!isEmbedded && (
+        <>
+          <h2 className="text-2xl font-bold mb-2 text-gray-800">Property Management</h2>
+          <p className="text-sm text-gray-600 mb-6">Review and manage property submissions and approvals.</p>
+        </>
+      )}
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
