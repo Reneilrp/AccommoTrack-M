@@ -67,9 +67,15 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => ['This email is not registered.'],
+            ]);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['The password you entered is incorrect.'],
             ]);
         }
 
@@ -121,6 +127,9 @@ class AuthController extends Controller
                 'last_name' => 'sometimes|required|string|max:100',
                 'phone' => 'nullable|string|max:20',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'payment_methods_settings' => 'nullable|array',
+                'payment_methods_settings.allowed' => 'nullable|array',
+                'payment_methods_settings.details' => 'nullable|array',
             ]);
 
             // Handle profile image upload

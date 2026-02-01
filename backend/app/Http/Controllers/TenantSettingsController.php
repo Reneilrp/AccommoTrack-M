@@ -108,14 +108,13 @@ class TenantSettingsController extends Controller
 
             DB::beginTransaction();
 
-            // Update User table directly
-            $userData = [
-                'first_name'  => $validated['first_name'] ?? $user->first_name,
-                'middle_name' => $validated['middle_name'] ?? $user->middle_name,
-                'last_name'   => $validated['last_name'] ?? $user->last_name,
-                'email'       => $validated['email'] ?? $user->email,
-                'phone'       => $validated['phone'] ?? $user->phone,
-            ];
+            // Update User table directly (only fields present in request)
+            $userData = [];
+            if ($request->has('first_name')) $userData['first_name'] = $validated['first_name'];
+            if ($request->has('middle_name')) $userData['middle_name'] = $validated['middle_name'];
+            if ($request->has('last_name')) $userData['last_name'] = $validated['last_name'];
+            if ($request->has('email')) $userData['email'] = $validated['email'];
+            if ($request->has('phone')) $userData['phone'] = $validated['phone'];
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {
@@ -127,26 +126,38 @@ class TenantSettingsController extends Controller
                 $userData['profile_image'] = $path;
             }
 
-            User::where('id', $userId)->update($userData);
+            if (!empty($userData)) {
+                User::where('id', $userId)->update($userData);
+            }
 
-            // Update or create TenantProfile directly
-            $tenantProfileData = [
-                'date_of_birth'                 => $validated['date_of_birth'] ?? null,
-                'emergency_contact_name'        => $validated['emergency_contact_name'] ?? null,
-                'emergency_contact_phone'       => $validated['emergency_contact_phone'] ?? null,
-                'emergency_contact_relationship'=> $validated['emergency_contact_relationship'] ?? null,
-                'current_address'               => $validated['current_address'] ?? null,
-                'preference'                    => $validated['preference'] ?? null,
-                'notes'                         => $validated['notes'] ?? null,
-                'move_in_date'                  => $validated['move_in_date'] ?? null,
-                'move_out_date'                 => $validated['move_out_date'] ?? null,
-                'status'                        => $validated['status'] ?? null,
+            // Update or create TenantProfile safely (merging preferences)
+            $tenantProfile = TenantProfile::firstOrNew(['user_id' => $userId]);
+            
+            $profileFields = [
+                'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone',
+                'emergency_contact_relationship', 'current_address', 'notes',
+                'move_in_date', 'move_out_date', 'status'
             ];
 
-            TenantProfile::updateOrCreate(
-                ['user_id' => $userId],
-                $tenantProfileData
-            );
+            foreach ($profileFields as $field) {
+                if (array_key_exists($field, $validated)) {
+                    $tenantProfile->$field = $validated[$field];
+                }
+            }
+
+            // Smart merge for preferences
+            if (array_key_exists('preference', $validated)) {
+                $currentPrefs = $tenantProfile->preference ?? [];
+                // Ensure currentPrefs is array
+                if (!is_array($currentPrefs)) $currentPrefs = [];
+                
+                $newPrefs = $validated['preference'];
+                if (is_array($newPrefs)) {
+                    $tenantProfile->preference = array_merge($currentPrefs, $newPrefs);
+                }
+            }
+
+            $tenantProfile->save();
 
             DB::commit();
 
