@@ -1,5 +1,4 @@
-// CHANGE THIS IP ADDRESS WHEN NEEDED
-export const IP_ADDRESS = '192.168.254.184';
+export const IP_ADDRESS = '192.168.43.142';
 
 export const PORT = '8000';
 export const WEB_PORT = '5173'; // For web portal links

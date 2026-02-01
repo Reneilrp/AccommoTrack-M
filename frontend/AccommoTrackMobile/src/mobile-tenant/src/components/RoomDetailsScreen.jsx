@@ -69,8 +69,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [bookingData, setBookingData] = useState({
     start_date: new Date(),
     end_date: null,
-    notes: ''
+    notes: '',
+    payment_method: 'cash',
   });
+
+  // Get allowed methods from landlord settings, default to cash only if not set
+  const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
+  const gcashDetails = activeRoom?.landlord?.payment_methods_settings?.details?.gcash_info;
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -250,7 +255,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setBookingData({
       start_date: today,
       end_date: defaultEndDate,
-      notes: ''
+      notes: '',
+      payment_method: 'cash', // Reset to default
     });
 
     setBookingModalVisible(true);
@@ -315,6 +321,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         room_id: activeRoom.id,
         start_date: bookingData.start_date.toISOString().split('T')[0],
         end_date: bookingData.end_date.toISOString().split('T')[0],
+        payment_method: bookingData.payment_method || 'cash',
         notes: bookingData.notes || null
       };
 
@@ -748,6 +755,44 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   minimumDate={bookingData.start_date || new Date()}
                   // No maximumDate: checkout may be any future date
                 />
+              )}
+            </View>
+
+            {/* Payment Method Selection */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Payment Method <Text style={{color: '#ef4444'}}>*</Text></Text>
+              
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 5 }}>
+                {allowedMethods.includes('cash') && (
+                  <TouchableOpacity 
+                    style={[
+                      styles.dateButton, 
+                      { flex: 1, borderColor: bookingData.payment_method === 'cash' ? '#16a34a' : '#ddd', backgroundColor: bookingData.payment_method === 'cash' ? '#f0fdf4' : '#fff' }
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'cash' }))}
+                  >
+                     <Text style={{ color: bookingData.payment_method === 'cash' ? '#16a34a' : '#374151', fontWeight: 'bold', textAlign: 'center' }}>Cash</Text>
+                  </TouchableOpacity>
+                )}
+
+                {allowedMethods.includes('gcash') && (
+                  <TouchableOpacity 
+                    style={[
+                      styles.dateButton, 
+                      { flex: 1, borderColor: bookingData.payment_method === 'gcash' ? '#16a34a' : '#ddd', backgroundColor: bookingData.payment_method === 'gcash' ? '#f0fdf4' : '#fff' }
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'gcash' }))}
+                  >
+                     <Text style={{ color: bookingData.payment_method === 'gcash' ? '#16a34a' : '#374151', fontWeight: 'bold', textAlign: 'center' }}>GCash</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {bookingData.payment_method === 'gcash' && gcashDetails && (
+                <View style={{ marginTop: 8, padding: 10, backgroundColor: '#f9fafb', borderRadius: 6, borderWidth: 1, borderColor: '#eee' }}>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Please send payment to:</Text>
+                  <Text style={{ fontSize: 14, color: '#111827', fontWeight: '500', marginTop: 2 }}>{gcashDetails}</Text>
+                </View>
               )}
             </View>
 
