@@ -9,7 +9,6 @@ class DropPricingFieldsFromRooms extends Migration
     /**
      * Run the migrations.
      *
-     * Drops `min_stay_days` and `prorate_base` from `rooms` if they exist.
      *
      * @return void
      */
@@ -19,12 +18,6 @@ class DropPricingFieldsFromRooms extends Migration
         if (Schema::hasColumn('rooms', 'min_stay_days')) {
             Schema::table('rooms', function (Blueprint $table) {
                 $table->dropColumn('min_stay_days');
-            });
-        }
-
-        if (Schema::hasColumn('rooms', 'prorate_base')) {
-            Schema::table('rooms', function (Blueprint $table) {
-                $table->dropColumn('prorate_base');
             });
         }
     }
@@ -40,9 +33,6 @@ class DropPricingFieldsFromRooms extends Migration
         Schema::table('rooms', function (Blueprint $table) {
             if (!Schema::hasColumn('rooms', 'min_stay_days')) {
                 $table->integer('min_stay_days')->nullable()->after('billing_policy');
-            }
-            if (!Schema::hasColumn('rooms', 'prorate_base')) {
-                $table->integer('prorate_base')->default(30)->after('min_stay_days');
             }
         });
     }

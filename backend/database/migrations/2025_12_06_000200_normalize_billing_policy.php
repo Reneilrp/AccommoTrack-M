@@ -10,7 +10,6 @@ class NormalizeBillingPolicy extends Migration
     /**
      * Run the migrations.
      * Map old policy names to new ones:
-     * - monthly_prorate -> monthly
      * - daily_only -> daily
      * - monthly_with_daily -> monthly_with_daily (unchanged)
      * - min_month -> monthly
@@ -22,7 +21,6 @@ class NormalizeBillingPolicy extends Migration
             return;
         }
 
-        DB::table('rooms')->where('billing_policy', 'monthly_prorate')->update(['billing_policy' => 'monthly']);
         DB::table('rooms')->where('billing_policy', 'daily_only')->update(['billing_policy' => 'daily']);
         DB::table('rooms')->where('billing_policy', 'min_month')->update(['billing_policy' => 'monthly']);
         // monthly_with_daily stays the same
@@ -38,7 +36,6 @@ class NormalizeBillingPolicy extends Migration
             return;
         }
 
-        DB::table('rooms')->where('billing_policy', 'monthly')->update(['billing_policy' => 'monthly_prorate']);
         DB::table('rooms')->where('billing_policy', 'daily')->update(['billing_policy' => 'daily_only']);
         // monthly_with_daily stays the same
     }
