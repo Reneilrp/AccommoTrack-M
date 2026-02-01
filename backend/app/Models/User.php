@@ -6,6 +6,64 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property int $id
+ * @property string $role
+ * @property string $email
+ * @property string $password
+ * @property string|null $remember_token
+ * @property string $first_name
+ * @property string|null $middle_name
+ * @property string $last_name
+ * @property string|null $phone
+ * @property string|null $profile_image
+ * @property bool $is_verified
+ * @property bool $is_active
+ * @property array<array-key, mixed>|null $payment_methods_settings
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Booking> $bookings
+ * @property-read int|null $bookings_count
+ * @property-read \App\Models\CaretakerAssignment|null $caretakerAssignment
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CaretakerAssignment> $caretakers
+ * @property-read int|null $caretakers_count
+ * @property-read array $caretaker_permissions
+ * @property-read mixed $current_room
+ * @property-read mixed $full_name
+ * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
+ * @property-read int|null $notifications_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Property> $properties
+ * @property-read int|null $properties_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Booking> $receivedBookings
+ * @property-read int|null $received_bookings_count
+ * @property-read \App\Models\Room|null $room
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Room> $roomAssignments
+ * @property-read int|null $room_assignments_count
+ * @property-read \App\Models\TenantProfile|null $tenantProfile
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
+ * @property-read int|null $tokens_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User landlords()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User tenants()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereFirstName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsVerified($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereLastName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereMiddleName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePaymentMethodsSettings($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePhone($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereProfileImage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRole($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, Notifiable;
@@ -21,6 +79,7 @@ class User extends Authenticatable
         'profile_image',
         'is_verified',
         'is_active',
+        'payment_methods_settings',
     ];
 
     protected $hidden = [
@@ -31,6 +90,7 @@ class User extends Authenticatable
     protected $casts = [
         'is_verified' => 'boolean',
         'is_active' => 'boolean',
+        'payment_methods_settings' => 'array',
     ];
 
     protected $appends = [
