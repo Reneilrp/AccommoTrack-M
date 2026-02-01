@@ -4,6 +4,7 @@ import PropertyCarousel from './PropertyCarousel';
 import PropertyMap from '../../components/Shared/PropertyMap';
 import { X, Check, MapPin, Star, Shield, Search, ArrowLeft, ArrowRight, Filter, Map } from 'lucide-react';
 import api from '../../utils/api';
+import { SkeletonPropertyCard, Skeleton } from '../../components/Shared/Skeleton';
 
 // --- ROOM DETAILS MODAL COMPONENT (Copied from Properties.jsx for consistency) ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -304,12 +305,32 @@ const BrowsingPropertyPage = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
 
+  // Reviews State
+  const [drawerReviews, setDrawerReviews] = useState({ reviews: [], summary: null });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Fetch reviews when drawer opens
+  const fetchPropertyReviews = async (propertyId) => {
+    try {
+      setReviewsLoading(true);
+      const res = await api.get(`/public/properties/${propertyId}/reviews`);
+      setDrawerReviews(res.data);
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+      setDrawerReviews({ reviews: [], summary: null });
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   // Handle Marker Click
   const onMapMarkerClick = (property) => {
       setDrawerData(property);
       setDrawerOpen(true);
       setActiveTab('Overview');
       setSelectedMapProperty(property); // Keep track for map if needed
+      // Fetch reviews for this property
+      fetchPropertyReviews(property.id);
   };
 
   // Fetch properties from backend
@@ -537,9 +558,33 @@ const BrowsingPropertyPage = () => {
         </div>
 
         {loading && (
-            <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-gray-500 font-medium">Finding the best places for you...</p>
+            <div className="space-y-6">
+              {/* Skeleton Property Cards */}
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 animate-pulse">
+                  {/* Header skeleton */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <Skeleton className="h-7 w-48" />
+                        <Skeleton className="h-5 w-16 rounded-md" />
+                      </div>
+                      <Skeleton className="h-4 w-64" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-8 w-20 rounded-full" />
+                      <Skeleton className="h-8 w-20 rounded-full" />
+                    </div>
+                  </div>
+                  
+                  {/* Carousel skeleton */}
+                  <div className="flex gap-4 overflow-hidden">
+                    {[...Array(4)].map((_, j) => (
+                      <Skeleton key={j} className="w-72 h-64 rounded-2xl flex-shrink-0" />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
         )}
 
@@ -750,7 +795,7 @@ const BrowsingPropertyPage = () => {
                                                         </div>
                                                     </div>
                                                     <span className="text-gray-400 text-xs">•</span>
-                                                    <span className="text-sm text-gray-500">(12 reviews)</span>
+                                                    <span className="text-sm text-gray-500">({drawerReviews.summary?.total_reviews || 0} reviews)</span>
                                                     <span className="text-gray-400 text-xs">•</span>
                                                     <span className="text-sm text-gray-500">{drawerData.type}</span>
                                                 </div>
@@ -854,37 +899,59 @@ const BrowsingPropertyPage = () => {
                                                     <div className="flex items-center justify-center mb-6">
                                                          <div className="flex items-center gap-1 bg-yellow-400 text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                                                             <Star className="w-4 h-4 fill-white text-white" />
-                                                            {drawerData.rating || 'N/A'}
+                                                            {drawerReviews.summary?.average_rating || drawerData.rating || 'N/A'}
                                                          </div>
+                                                         {drawerReviews.summary?.total_reviews > 0 && (
+                                                            <span className="ml-2 text-xs text-gray-500">({drawerReviews.summary.total_reviews} reviews)</span>
+                                                         )}
                                                     </div>
 
-                                                    {/* Review List (Mock Data) */}
+                                                    {/* Review List - Real Data */}
                                                     <div className="space-y-4">
-                                                        {[
-                                                            { name: "Sarah J.", role: "Student", date: "2 days ago", rating: 5, comment: "Super convenient location! Just 5 mins walk to the university. The landlord is very kind." },
-                                                            { name: "Mark D.", role: "Professional", date: "1 week ago", rating: 4, comment: "Clean rooms and fast WiFi. Highly recommended for remote workers." },
-                                                            { name: "Angela P.", role: "Student", date: "3 weeks ago", rating: 5, comment: "Security is top notch. I feel very safe here." }
-                                                        ].map((review, i) => (
-                                                            <div key={i} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-400 to-green-500 flex items-center justify-center text-white text-xs font-bold">
-                                                                            {review.name.charAt(0)}
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="text-xs font-bold text-gray-900">{review.name}</p>
-                                                                            <p className="text-[10px] text-gray-400">{review.role} • {review.date}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex text-yellow-400">
-                                                                        {[...Array(5)].map((_, starI) => (
-                                                                            <Star key={starI} className={`w-3 h-3 ${starI < review.rating ? 'fill-current' : 'text-gray-200'}`} />
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                                <p className="text-xs text-gray-600 leading-relaxed">"{review.comment}"</p>
+                                                        {reviewsLoading ? (
+                                                            <div className="flex justify-center py-8">
+                                                                <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
                                                             </div>
-                                                        ))}
+                                                        ) : drawerReviews.reviews?.length > 0 ? (
+                                                            drawerReviews.reviews.map((review, i) => (
+                                                                <div key={review.id || i} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-400 to-green-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                                                                                {review.reviewer_image ? (
+                                                                                    <img src={review.reviewer_image} alt="" className="w-full h-full object-cover" />
+                                                                                ) : (
+                                                                                    review.reviewer_name?.charAt(0) || 'U'
+                                                                                )}
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="text-xs font-bold text-gray-900">{review.reviewer_name || 'Anonymous'}</p>
+                                                                                <p className="text-[10px] text-gray-400">{review.time_ago}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex text-yellow-400">
+                                                                            {[...Array(5)].map((_, starI) => (
+                                                                                <Star key={starI} className={`w-3 h-3 ${starI < review.rating ? 'fill-current' : 'text-gray-200'}`} />
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                    {review.comment && (
+                                                                        <p className="text-xs text-gray-600 leading-relaxed">"{review.comment}"</p>
+                                                                    )}
+                                                                    {review.landlord_response && (
+                                                                        <div className="mt-3 pl-3 border-l-2 border-teal-200 bg-teal-50/50 p-2 rounded-r-lg">
+                                                                            <p className="text-[10px] text-teal-700 font-semibold mb-1">Landlord Response:</p>
+                                                                            <p className="text-xs text-gray-600">{review.landlord_response}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="text-center py-8">
+                                                                <p className="text-sm text-gray-500">No reviews yet</p>
+                                                                <p className="text-xs text-gray-400 mt-1">Be the first to review this property</p>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -903,23 +970,43 @@ const BrowsingPropertyPage = () => {
                                                     <div>
                                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities</h4>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {['WiFi', 'Security', 'Parking', 'Study Area', 'Kitchen', 'CCTV', 'Aircon', 'Laundry'].map((item, i) => (
-                                                                <span key={i} className="px-3 py-2 bg-gray-50 hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors border border-gray-100 text-gray-600 text-xs font-semibold rounded-xl">
-                                                                    {item}
-                                                                </span>
-                                                            ))}
+                                                            {/* Use amenities from rooms or property */}
+                                                            {(() => {
+                                                                // Collect unique amenities from all rooms
+                                                                const allAmenities = new Set();
+                                                                (drawerData.rooms || []).forEach(room => {
+                                                                    (room.amenities || []).forEach(a => allAmenities.add(a));
+                                                                });
+                                                                const amenitiesList = Array.from(allAmenities);
+                                                                
+                                                                if (amenitiesList.length > 0) {
+                                                                    return amenitiesList.map((item, i) => (
+                                                                        <span key={i} className="px-3 py-2 bg-gray-50 hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors border border-gray-100 text-gray-600 text-xs font-semibold rounded-xl">
+                                                                            {item}
+                                                                        </span>
+                                                                    ));
+                                                                }
+                                                                return <p className="text-xs text-gray-400">No amenities listed</p>;
+                                                            })()}
                                                         </div>
                                                     </div>
                                                     
                                                     <div>
                                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">House Rules</h4>
                                                         <ul className="space-y-2 bg-white p-4 rounded-xl border border-gray-100">
-                                                            {['No pets allowed', 'Curfew at 10 PM', 'No smoking inside', 'Clean as you go', 'Visitors until 8 PM'].map((rule, idx) => (
-                                                                <li key={idx} className="flex items-center gap-3 text-sm text-gray-600 py-1 border-b border-gray-50 last:border-0">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"></div>
-                                                                    {rule}
-                                                                </li>
-                                                            ))}
+                                                            {/* Use property_rules from backend */}
+                                                            {(() => {
+                                                                const rules = drawerData.property_rules || drawerData.rules || [];
+                                                                if (rules.length > 0) {
+                                                                    return rules.map((rule, idx) => (
+                                                                        <li key={idx} className="flex items-center gap-3 text-sm text-gray-600 py-1 border-b border-gray-50 last:border-0">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"></div>
+                                                                            {rule}
+                                                                        </li>
+                                                                    ));
+                                                                }
+                                                                return <li className="text-xs text-gray-400">No house rules specified</li>;
+                                                            })()}
                                                         </ul>
                                                     </div>
                                                 </div>

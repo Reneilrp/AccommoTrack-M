@@ -18,20 +18,21 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RoomDetailsModal from '../../components/Modals/RoomDetailsModal';
 
-// --- MAP ICON CONFIGURATION ---
-// Note: We use a simpler icon setup to avoid import issues
-const greenMarkerSvg = encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <path fill="#10B981" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-    <circle cx="12" cy="9" r="3" fill="#ffffff" />
-  </svg>
+// --- CUSTOM HOUSE ICON ---
+const houseSvg = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48">
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="rgba(0,0,0,0.4)"/>
+  </filter>
+  <path d="M12 2L2 11h2.5v10h6v-6h3v6h6v-10h2.5L12 2z" fill="#16a34a" stroke="#ffffff" stroke-width="1.5" filter="url(#shadow)"/>
+</svg>
 `);
-const greenMarkerUrl = `data:image/svg+xml;utf8,${greenMarkerSvg}`;
-const greenMarkerIcon = new L.Icon({
-  iconUrl: greenMarkerUrl,
-  iconSize: [28, 42],
-  iconAnchor: [14, 42],
-  popupAnchor: [0, -36]
+
+const greenMarkerIcon = L.icon({
+    iconUrl: `data:image/svg+xml;utf8,${houseSvg}`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 40], // Bottom-center anchor
+    popupAnchor: [0, -40]
 });
 
 export default function PropertyDetails({ propertyId, onBack }) {
@@ -43,6 +44,24 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const isAuthenticated = !!localStorage.getItem('auth_token');
 
   const [roomFilter, setRoomFilter] = useState('available');
+
+  // Reviews State
+  const [reviews, setReviews] = useState({ reviews: [], summary: null });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Fetch reviews for property
+  const fetchReviews = async (propId) => {
+    try {
+      setReviewsLoading(true);
+      const res = await api.get(`/public/properties/${propId}/reviews`);
+      setReviews(res.data);
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+      setReviews({ reviews: [], summary: null });
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
 
   // Contact Landlord handler
   const handleContactLandlord = () => {
@@ -72,6 +91,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   useEffect(() => {
     if (propertyId) {
       fetchProperty();
+      fetchReviews(propertyId);
     }
   }, [propertyId]);
 
@@ -370,28 +390,57 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="animate-in fade-in duration-300">
       <div className="flex items-center gap-2 mb-6">
         <h3 className="text-xl font-bold text-gray-900">Guest Reviews</h3>
-        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full flex items-center gap-1">
-          <Star className="w-3 h-3 fill-current" /> 4.8 (Example)
-        </span>
+        {reviews.summary?.average_rating && (
+          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full flex items-center gap-1">
+            <Star className="w-3 h-3 fill-current" /> {reviews.summary.average_rating} ({reviews.summary.total_reviews})
+          </span>
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[1, 2].map((i) => (
-          <div key={i} className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-500">
-                U{i}
+      
+      {reviewsLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : reviews.reviews?.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {reviews.reviews.map((review) => (
+            <div key={review.id} className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center font-bold text-white overflow-hidden">
+                  {review.reviewer_image ? (
+                    <img src={review.reviewer_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    review.reviewer_name?.charAt(0) || 'U'
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-gray-900">{review.reviewer_name || 'Anonymous'}</div>
+                  <div className="text-xs text-gray-500">{review.time_ago}</div>
+                </div>
+                <div className="flex text-yellow-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-current' : 'text-gray-200'}`} />
+                  ))}
+                </div>
               </div>
-              <div>
-                <div className="font-bold text-gray-900">Student User</div>
-                <div className="text-xs text-gray-500">October 2025</div>
-              </div>
+              {review.comment && (
+                <p className="text-gray-600 text-sm">"{review.comment}"</p>
+              )}
+              {review.landlord_response && (
+                <div className="mt-3 pl-3 border-l-2 border-green-200 bg-green-50/50 p-2 rounded-r-lg">
+                  <p className="text-xs text-green-700 font-semibold mb-1">Landlord Response:</p>
+                  <p className="text-sm text-gray-600">{review.landlord_response}</p>
+                </div>
+              )}
             </div>
-            <p className="text-gray-600 text-sm">
-              "Great location and very secure. The amenities are exactly as described."
-            </p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
+          <p className="text-gray-500">No reviews yet</p>
+          <p className="text-sm text-gray-400 mt-1">Be the first to review this property after your stay!</p>
+        </div>
+      )}
     </div>
   );
 
@@ -433,9 +482,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
               <span className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                 {property.property_type || 'Property'}
               </span>
-              <span className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-lg text-sm font-medium">
-                <Star className="w-4 h-4 text-yellow-400 fill-current" /> 4.8
-              </span>
+              {reviews.summary?.average_rating && (
+                <span className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-lg text-sm font-medium">
+                  <Star className="w-4 h-4 text-yellow-400 fill-current" /> {reviews.summary.average_rating}
+                </span>
+              )}
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold mb-2 tracking-tight">{property.title}</h1>
             <div className="flex items-center gap-2 text-white/90 text-sm md:text-base">

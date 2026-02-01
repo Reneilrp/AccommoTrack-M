@@ -189,7 +189,16 @@ function AuthScreen({ onLogin = () => {} }) {
       const landingRoute = getDefaultLandingRoute(data.user);
       navigate(landingRoute);
     } catch (err) {
-      const errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
+      let errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
+
+      if (err.response?.data?.errors) {
+        // Get the first error message from the validation errors object
+        const firstField = Object.keys(err.response.data.errors)[0];
+        if (firstField && err.response.data.errors[firstField][0]) {
+          errorMsg = err.response.data.errors[firstField][0];
+        }
+      }
+
       setError(errorMsg);
     } finally {
       setLoading(false);
