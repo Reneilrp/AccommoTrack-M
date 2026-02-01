@@ -22,6 +22,7 @@ use App\Http\Controllers\PaymongoController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\LandlordVerificationController;
 use App\Http\Controllers\AddonController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 
@@ -36,6 +37,7 @@ Route::get('/check-email', [AuthController::class, 'checkEmail']);
 
 Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
 
 Route::get('/properties/{id}/view', [PropertyController::class, 'showForTenant']);
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
@@ -92,12 +94,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/change-password', [TenantSettingsController::class, 'changePassword']);
         // Tenant: cancel own booking
         Route::patch('/bookings/{id}/cancel', [TenantBookingController::class, 'cancel']);
+        // Tenant: Reviews
+        Route::post('/reviews', [ReviewController::class, 'store']);
+        Route::get('/reviews', [ReviewController::class, 'getTenantReviews']);
     });
 
     // ===== LANDLORD ROUTES =====
     Route::get('/landlord/tenants', [TenantController::class, 'index']);
 
     Route::prefix('landlord')->middleware(EnsureUserIsLandlord::class)->group(function () {
+        // Landlord: Reviews
+        Route::get('/reviews', [ReviewController::class, 'getLandlordReviews']);
+        Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
+        
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
         Route::post('/properties/verify-password', [PropertyController::class, 'verifyPassword']);
