@@ -85,7 +85,6 @@ class RoomController extends Controller
                 'daily_rate' => 'required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
                 'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
                 'min_stay_days' => 'nullable|integer|min:1',
-                'prorate_base' => 'nullable|integer|min:1',
                 // Capacity is required only for bedSpacer rooms
                 'capacity' => 'required_if:room_type,bedSpacer|integer|min:1',
                 'pricing_model' => 'sometimes|in:full_room,per_bed',
@@ -94,6 +93,7 @@ class RoomController extends Controller
                 'description' => 'nullable|string',
                 'amenities' => 'nullable|array',
                 'amenities.*' => 'string',
+                'addons' => 'nullable', // Allow addons to be passed and ignored
                 'images' => 'nullable|array|max:10',
                 'images.*' => 'image|mimes:jpeg,png,jpg|max:10240'
             ]);
@@ -140,7 +140,6 @@ class RoomController extends Controller
                 'daily_rate' => $validated['daily_rate'] ?? null,
                 'billing_policy' => $validated['billing_policy'] ?? 'monthly',
                 'min_stay_days' => $validated['min_stay_days'] ?? null,
-                'prorate_base' => $validated['prorate_base'] ?? null,
                 'capacity' => $capacityValue,
                 'pricing_model' => $pricingModelValue,
                 'status' => $validated['status'] ?? 'available',
@@ -221,7 +220,6 @@ class RoomController extends Controller
                 'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
                 'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
                 'min_stay_days' => 'nullable|integer|min:1',
-                'prorate_base' => 'nullable|integer|min:1',
                 'capacity' => 'sometimes|integer|min:1',
                 'pricing_model' => 'sometimes|in:full_room,per_bed',
                 'status' => 'sometimes|in:available,occupied,maintenance',
@@ -528,7 +526,6 @@ class RoomController extends Controller
             'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
             'billing_policy' => $room->billing_policy ?? 'monthly',
             'min_stay_days' => isset($room->min_stay_days) ? (int) $room->min_stay_days : null,
-            'prorate_base' => isset($room->prorate_base) ? (int) $room->prorate_base : 30,
             'capacity' => $room->capacity,
                 'pricing_model' => $room->pricing_model ?? 'full_room',
                 'payment' => method_exists($room, 'getPaymentDisplay') ? $room->getPaymentDisplay() : null,
@@ -600,7 +597,6 @@ class RoomController extends Controller
                         'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
                         'billing_policy' => $room->billing_policy ?? 'monthly',
                         'min_stay_days' => isset($room->min_stay_days) ? (int) $room->min_stay_days : null,
-                        'prorate_base' => isset($room->prorate_base) ? (int) $room->prorate_base : 30,
                         'capacity' => $room->capacity,
                         'status' => $room->status,
                         'description' => $room->description,

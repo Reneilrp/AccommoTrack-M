@@ -197,20 +197,20 @@ class TenantBookingController extends Controller
             // Base monthly amount (use booking.monthly_rent for tenant-specific rent)
             $monthlyDue = (float) ($booking->monthly_rent ?? $booking->room->monthly_rate ?? 0);
 
-            // Prorate: if tenant has exceeded the cycle start (i.e., today is after cycle start), charge prorated extra days
-            $prorateBase = isset($booking->room->prorate_base) ? (int) $booking->room->prorate_base : 30;
+            // Partial calculation: if tenant has exceeded the cycle start (i.e., today is after cycle start), charge partial extra days
+            $daysInMonth = 30; // Hardcoded to 30
             $daysOverdue = 0;
             if ($today->greaterThan($cycleStart)) {
                 $daysOverdue = $cycleStart->diffInDays($today);
             }
 
-            $prorateCharge = 0.0;
+            $partialCharge = 0.0;
             if ($daysOverdue > 0) {
-                $ratePerDay = $booking->room->daily_rate !== null ? (float)$booking->room->daily_rate : ($monthlyDue / max(1, $prorateBase));
-                $prorateCharge = round($daysOverdue * $ratePerDay, 2);
+                $ratePerDay = $booking->room->daily_rate !== null ? (float)$booking->room->daily_rate : ($monthlyDue / max(1, $daysInMonth));
+                $partialCharge = round($daysOverdue * $ratePerDay, 2);
             }
 
-            $totalAmount = round($monthlyDue + $prorateCharge, 2);
+            $totalAmount = round($monthlyDue + $partialCharge, 2);
 
             $amountCents = (int) round($totalAmount * 100);
 
@@ -229,9 +229,9 @@ class TenantBookingController extends Controller
                 'issued_at' => now(),
                 'metadata' => [
                     'monthly_due' => $monthlyDue,
-                    'prorate_days' => $daysOverdue,
-                    'prorate_charge' => $prorateCharge,
-                    'prorate_base' => $prorateBase,
+                    'partial_days' => $daysOverdue,
+                    'partial_charge' => $partialCharge,
+                    'days_in_month' => $daysInMonth,
                     'cycle_start' => $cycleStart->format('Y-m-d')
                 ]
             ]);

@@ -422,17 +422,17 @@ class DashboardController extends Controller
                     // Calculate total potential revenue and actual revenue respecting billing_policy
                     $potentialRevenue = $property->rooms->sum(function($r) {
                         if (($r->billing_policy ?? 'monthly') === 'daily') {
-                            $prorate = $r->prorate_base ?? 30;
-                            $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null && $prorate) ? ((float)$r->monthly_rate / $prorate) : 0);
-                            return $daily * $prorate;
+                            $daysInMonth = 30;
+                            $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null) ? ((float)$r->monthly_rate / $daysInMonth) : 0);
+                            return $daily * $daysInMonth;
                         }
                         return (float)$r->monthly_rate;
                     });
                     $actualRevenue = $property->rooms->where('status', 'occupied')->sum(function($r) {
                         if (($r->billing_policy ?? 'monthly') === 'daily') {
-                            $prorate = $r->prorate_base ?? 30;
-                            $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null && $prorate) ? ((float)$r->monthly_rate / $prorate) : 0);
-                            return $daily * $prorate;
+                            $daysInMonth = 30;
+                            $daily = $r->daily_rate !== null ? (float)$r->daily_rate : (($r->monthly_rate !== null) ? ((float)$r->monthly_rate / $daysInMonth) : 0);
+                            return $daily * $daysInMonth;
                         }
                         return (float)$r->monthly_rate;
                     });
