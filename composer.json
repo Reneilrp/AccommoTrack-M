@@ -1,5 +1,0 @@
-{
-    "require-dev": {
-        "kitloong/laravel-migrations-generator": "^7.2"
-    }
-}
