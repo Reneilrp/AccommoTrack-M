@@ -558,10 +558,11 @@ class PropertyController extends Controller
             'images'
         ])->findOrFail($roomId);
 
-        // Format room images
-        $room->images = $room->images->map(function ($image) {
-            return asset('storage/' . $image);
-        });
+        // Format room images - use setRelation() since relationship properties are readonly
+        $room->setRelation('images', $room->images->map(function ($image) {
+            $image->image_url = asset('storage/' . $image->image_url);
+            return $image;
+        }));
 
         // Add landlord info to root level of property
         if ($room->property && $room->property->landlord) {
@@ -690,6 +691,71 @@ class PropertyController extends Controller
                 } catch (\Exception $e) {
                     // Log and continue; do not fail the whole update for a file deletion error
                     // You can replace with logger()->error(...) if needed
+                }
+            }
+        }
+
+        // Handle deletion of images requested by client
+        if ($request->has('deleted_images')) {
+            $deletedImages = $request->input('deleted_images');
+            if (!is_array($deletedImages)) {
+                $deletedImages = [$deletedImages];
+            }
+            
+            // Ensure at least one image remains
+            $currentImageCount = $property->images()->count();
+            $deleteCount = count($deletedImages);
+            
+            if ($currentImageCount - $deleteCount >= 1) {
+                foreach ($deletedImages as $imageId) {
+                    try {
+                        $image = PropertyImage::where('property_id', $property->id)
+                            ->where('id', $imageId)
+                            ->first();
+                        if ($image) {
+                            // Remove file from storage if exists
+                            $filePath = storage_path('app/public/' . $image->image_url);
+                            if (file_exists($filePath)) {
+                                @unlink($filePath);
+                            }
+                            $image->delete();
+                        }
+                    } catch (\Exception $e) {
+                        // Log and continue
+                    }
+                }
+            }
+        }
+
+        // Handle primary image update
+        if ($request->has('primary_image_id')) {
+            $primaryImageId = $request->input('primary_image_id');
+            
+            // First, unset all images as primary
+            $property->images()->update(['is_primary' => false]);
+            
+            // Then set the specified image as primary
+            PropertyImage::where('property_id', $property->id)
+                ->where('id', $primaryImageId)
+                ->update(['is_primary' => true]);
+        }
+
+        // Handle image reordering
+        if ($request->has('image_order')) {
+            $imageOrder = $request->input('image_order');
+            
+            // Parse if JSON string
+            if (is_string($imageOrder)) {
+                $imageOrder = json_decode($imageOrder, true);
+            }
+            
+            if (is_array($imageOrder)) {
+                foreach ($imageOrder as $orderItem) {
+                    if (isset($orderItem['id']) && isset($orderItem['display_order'])) {
+                        PropertyImage::where('property_id', $property->id)
+                            ->where('id', $orderItem['id'])
+                            ->update(['display_order' => $orderItem['display_order']]);
+                    }
                 }
             }
         }
