@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSidebar } from '../../contexts/SidebarContext';
+import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
 
@@ -57,11 +58,12 @@ export default function TenantLayout({ user, onLogout, children }) {
       )
     },
     {
-      path: '/profile',
-      label: 'Profile',
+      path: '/settings',
+      label: 'Settings',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       )
     }
@@ -80,14 +82,20 @@ export default function TenantLayout({ user, onLogout, children }) {
       >
         {/* Logo & Toggle */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
-          {isSidebarOpen ? (
-            <div className="flex items-center gap-2 overflow-hidden">
-              <img src={Logo} alt="AccommoTrack" className="h-8 w-auto flex-shrink-0" />
-              <span className="text-lg font-bold text-brand-700 truncate">AccommoTrack</span>
-            </div>
-          ) : (
-            <img src={Logo} alt="AccommoTrack" className="h-8 w-auto mx-auto" />
-          )}
+          <div 
+            className="cursor-pointer" 
+            onClick={() => navigate('/dashboard')}
+            title="Go to Dashboard"
+          >
+            {isSidebarOpen ? (
+              <div className="flex items-center gap-2 overflow-hidden">
+                <img src={Logo} alt="AccommoTrack" className="h-8 w-auto flex-shrink-0" />
+                <span className="text-lg font-bold text-brand-700 truncate">AccommoTrack</span>
+              </div>
+            ) : (
+              <img src={Logo} alt="AccommoTrack" className="h-8 w-auto mx-auto" />
+            )}
+          </div>
           
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -114,7 +122,11 @@ export default function TenantLayout({ user, onLogout, children }) {
         )}
 
         {/* User Profile Summary */}
-        <div className="p-4 border-b bg-gray-50">
+        <div 
+            className="p-4 border-b bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+            onClick={() => navigate('/settings')}
+            title="Go to Profile Settings"
+        >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
             <img
               src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${user?.name}&background=random`}
@@ -185,52 +197,14 @@ export default function TenantLayout({ user, onLogout, children }) {
       </main>
 
       {/* Logout Confirmation Modal */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">Sign Out</h3>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">Are you sure you want to sign out of your account?</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLogoutModal(false);
-                    onLogout();
-                  }}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Sign Out
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowLogoutModal(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <LogoutConfirmModal 
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={() => {
+          setShowLogoutModal(false);
+          onLogout();
+        }}
+      />
     </div>
   );
 }

@@ -1,9 +1,8 @@
-import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
-import { useState } from 'react';
-
+import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import api, { getImageUrl } from '../../utils/api';
 
 export default function LandlordLayout({
@@ -20,6 +19,7 @@ export default function LandlordLayout({
     try { return Number(localStorage.getItem('caretaker_property')) || null; } catch (e) { return null; }
   });
   const location = useLocation();
+  const navigate = useNavigate();
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
@@ -149,22 +149,28 @@ export default function LandlordLayout({
       } flex flex-col min-h-0`}>
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
-          {isSidebarOpen ? (
-            <div className="flex items-center gap-2">
+          <div 
+             className="cursor-pointer"
+             onClick={() => navigate('/dashboard')}
+             title="Go to Dashboard"
+          >
+            {isSidebarOpen ? (
+              <div className="flex items-center gap-2">
+                <img 
+                  src={Logo} 
+                  alt="AccommoTrack Logo" 
+                  className="h-8 w-auto"
+                />
+                <span className="text-lg font-bold text-gray-900">AccommoTrack</span>
+              </div>
+            ) : (
               <img 
                 src={Logo} 
                 alt="AccommoTrack Logo" 
-                className="h-8 w-auto"
+                className="h-8 w-auto mx-auto"
               />
-              <span className="text-lg font-bold text-gray-900">AccommoTrack</span>
-            </div>
-          ) : (
-            <img 
-              src={Logo} 
-              alt="AccommoTrack Logo" 
-              className="h-8 w-auto mx-auto"
-            />
-          )}
+            )}
+          </div>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${!isSidebarOpen && 'hidden'}`}
@@ -190,9 +196,13 @@ export default function LandlordLayout({
         )}
 
         {/* User Profile */}
-        <div className="p-4 border-b border-gray-200">
+        <div 
+            className="p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => navigate('/settings')}
+            title="Go to Profile Settings"
+        >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
               {user?.profile_image ? (
                 <img 
                   src={getImageUrl(user.profile_image)} 
@@ -200,7 +210,7 @@ export default function LandlordLayout({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-green-600 font-semibold">
+                <span className="text-brand-600 font-semibold">
                   {user?.first_name?.[0]}{user?.last_name?.[0]}
                 </span>
               )}
@@ -228,7 +238,7 @@ export default function LandlordLayout({
               className={({ isActive }) => 
                 `w-full flex items-center gap-3 px-4 py-3 transition-colors relative ${
                   isActive
-                    ? 'bg-green-50 text-green-600 border-r-4 border-green-600'
+                    ? 'bg-brand-50 text-brand-600 border-r-4 border-brand-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 } ${!isSidebarOpen && 'justify-center'}`
               }
@@ -327,33 +337,11 @@ export default function LandlordLayout({
       </main>
 
       {/* Logout Confirmation Modal */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Confirm Logout</h3>
-            <p className="text-gray-600 text-center mb-6">Are you sure you want to logout?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmLogout}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LogoutConfirmModal 
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 }
