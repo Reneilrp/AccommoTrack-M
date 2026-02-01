@@ -65,7 +65,10 @@ class PropertyController extends Controller
                     'rooms.images', // eager load images for rooms
                     'rooms.amenities', // Added amenities relation
                     'images',
-                    'landlord:id,first_name,last_name'
+                    'landlord:id,first_name,last_name',
+                    'reviews' => function($q) {
+                        $q->where('is_published', true);
+                    }
                 ])
                 ->orderBy('created_at', 'desc')
                 ->get()
@@ -79,6 +82,11 @@ class PropertyController extends Controller
 
                     // Check if any room has bedSpacer type
                     $hasBedSpacerRoom = $availableRooms->contains('room_type', 'bedSpacer');
+
+                    // Calculate average rating from reviews
+                    $avgRating = $property->reviews->count() > 0 
+                        ? round($property->reviews->avg('rating'), 1) 
+                        : null;
 
                     return [
                         'id' => $property->id,
@@ -109,12 +117,15 @@ class PropertyController extends Controller
                                 ? $coverImage->image_url
                                 : asset('storage/' . ltrim($coverImage->image_url, '/')))
                             : 'https://via.placeholder.com/400x200?text=No+Image',
+                        'rating' => $avgRating,
+                        'reviews_count' => $property->reviews->count(),
                         'landlord_id' => $property->landlord_id,
                         'landlord_name' => $property->landlord
                             ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
                             : 'Landlord',
                         'created_at' => $property->created_at,
                         'updated_at' => $property->updated_at,
+                        'property_rules' => $property->property_rules ?? [],
                         // Add rooms array for frontend
                         'rooms' => $availableRooms->map(function ($room) {
                             return [
@@ -158,7 +169,7 @@ class PropertyController extends Controller
                         $q->with('amenities', 'images');
                     },
                     'images',
-                    'landlord:id,first_name,last_name,email,phone' // Added email and phone
+                    'landlord:id,first_name,last_name,email,phone,payment_methods_settings'
                 ])
                 ->findOrFail($id);
 
@@ -222,9 +233,10 @@ class PropertyController extends Controller
                     'last_name' => $property->landlord->last_name,
                     'email' => $property->landlord->email,
                     'phone' => $property->landlord->phone,
+                    'payment_methods_settings' => $property->landlord->payment_methods_settings,
                 ] : null,
 
-                'rooms' => $property->rooms->map(function ($room) {
+                'rooms' => $property->rooms->map(function ($room) use ($property) {
                     return [
                         'id' => $room->id,
                         'room_number' => $room->room_number,
@@ -246,6 +258,13 @@ class PropertyController extends Controller
                             // Otherwise, prepend storage path
                             return asset('storage/' . ltrim($url, '/'));
                         })->toArray() ?? [],
+                        // Include landlord payment settings for mobile booking
+                        'landlord' => $property->landlord ? [
+                            'id' => $property->landlord->id,
+                            'first_name' => $property->landlord->first_name,
+                            'last_name' => $property->landlord->last_name,
+                            'payment_methods_settings' => $property->landlord->payment_methods_settings,
+                        ] : null,
                     ];
                 })->values()
             ], 200);
@@ -283,7 +302,7 @@ class PropertyController extends Controller
                 ->with(['images', 'amenities'])
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function ($property) {
+                ->map(function (Property $property) {
                     $amenityNames = $property->amenities->pluck('name')->toArray();
                     $propertyArray = $property->toArray();
                     $propertyArray['amenities'] = $amenityNames;
@@ -299,7 +318,7 @@ class PropertyController extends Controller
             ->with(['images', 'amenities', 'credentials'])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($property) {
+            ->map(function (Property $property) {
                 $amenityNames = $property->amenities->pluck('name')->toArray();
                 $propertyArray = $property->toArray();
                 $propertyArray['amenities'] = $amenityNames;
@@ -321,7 +340,7 @@ class PropertyController extends Controller
             ->with(['images', 'amenities', 'credentials'])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($property) {
+            ->map(function (Property $property) {
                 // Convert amenities to array of names only
                 $amenityNames = $property->amenities->pluck('name')->toArray();
 
@@ -534,7 +553,7 @@ class PropertyController extends Controller
         $room = Room::with([
             'property' => function ($query) {
                 $query->select('id', 'landlord_id', 'title', 'name', 'address', 'city')
-                    ->with('landlord:id,first_name,last_name,email,phone');
+                    ->with('landlord:id,first_name,last_name,email,phone,payment_methods_settings');
             },
             'images'
         ])->findOrFail($roomId);
@@ -551,6 +570,18 @@ class PropertyController extends Controller
                 $room->property->landlord->first_name . ' ' .
                     $room->property->landlord->last_name
             );
+        }
+
+        // Add landlord to the room itself for easy access in mobile app
+        if ($room->property && $room->property->landlord) {
+            $room->landlord = [
+                'id' => $room->property->landlord->id,
+                'first_name' => $room->property->landlord->first_name,
+                'last_name' => $room->property->landlord->last_name,
+                'email' => $room->property->landlord->email,
+                'phone' => $room->property->landlord->phone,
+                'payment_methods_settings' => $room->property->landlord->payment_methods_settings,
+            ];
         }
 
         return response()->json($room, 200);
