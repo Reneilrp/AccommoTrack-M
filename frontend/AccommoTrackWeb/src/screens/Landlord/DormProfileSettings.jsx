@@ -10,6 +10,8 @@ import {
   Plus,
   Trash,
   Save,
+  GripVertical,
+  Star,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '../../utils/api';
@@ -69,6 +71,8 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [passwordError, setPasswordError] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
+  const [deletedImageIds, setDeletedImageIds] = useState([]);
+  const [draggedImageIndex, setDraggedImageIndex] = useState(null);
 
   useEffect(() => {
     if (propertyId) {
@@ -88,18 +92,24 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       const parsedAmenities = parseAmenities(amenitiesData);
 
       // Parse images - backend returns objects with image_url property that's already a full URL
-      const images = (data.images || []).map(img => {
-        // If it's already a string URL, use it
+      // Keep full image objects to preserve id, is_primary, and display_order
+      const images = (data.images || []).map((img, idx) => {
+        // If it's already a string URL, convert to object format
         if (typeof img === 'string') {
-          return img;
+          return { id: null, url: img, is_primary: idx === 0, display_order: idx };
         }
-        // If it's an object with image_url property, extract it
+        // If it's an object with image_url property, normalize structure
         if (img && typeof img === 'object' && img.image_url) {
-          return img.image_url;
+          return {
+            id: img.id || null,
+            url: img.image_url,
+            is_primary: Boolean(img.is_primary),
+            display_order: img.display_order ?? idx
+          };
         }
         // Fallback
-        return img;
-      }).filter(Boolean); // Remove any null/undefined values
+        return null;
+      }).filter(Boolean).sort((a, b) => a.display_order - b.display_order);
 
       setDormData({
         id: data.id,
@@ -139,6 +149,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       });
       // Reset any staged deletions when reloading from server
       setDeletedCredentialIds([]);
+      setDeletedImageIds([]);
     } catch (err) {
       console.error('Error fetching property:', err);
       setError(err.message);
@@ -366,10 +377,86 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   };
 
   const handleRemoveImage = (index) => {
-    setDormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
+    setDormData(prev => {
+      const images = Array.isArray(prev.images) ? [...prev.images] : [];
+      
+      // Enforce minimum 1 image rule
+      const existingImages = images.filter(img => img && (img.id || (typeof img !== 'object' || !img.file)));
+      const newFiles = images.filter(img => img instanceof File || (img && img.file));
+      const totalAfterRemove = images.length - 1;
+      
+      if (totalAfterRemove < 1) {
+        toast.error('Property must have at least 1 image');
+        return prev;
+      }
+      
+      const removed = images[index];
+      const newImages = images.filter((_, i) => i !== index);
+      
+      // If removed image was an existing one with ID, mark for deletion
+      if (removed && removed.id) {
+        setDeletedImageIds(prevIds => {
+          if (prevIds.includes(removed.id)) return prevIds;
+          return [...prevIds, removed.id];
+        });
+      }
+      
+      // If we removed the primary image, set the first remaining as primary
+      if (removed && removed.is_primary && newImages.length > 0) {
+        newImages[0] = { ...newImages[0], is_primary: true };
+      }
+      
+      return { ...prev, images: newImages };
+    });
+  };
+
+  const handleSetPrimaryImage = (index) => {
+    setDormData(prev => {
+      const images = (prev.images || []).map((img, i) => ({
+        ...img,
+        is_primary: i === index
+      }));
+      return { ...prev, images };
+    });
+  };
+
+  // Drag and drop handlers for image reordering
+  const handleDragStart = (e, index) => {
+    setDraggedImageIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedImageIndex === null || draggedImageIndex === index) return;
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedImageIndex === null || draggedImageIndex === dropIndex) {
+      setDraggedImageIndex(null);
+      return;
+    }
+    
+    setDormData(prev => {
+      const images = [...(prev.images || [])];
+      const [draggedItem] = images.splice(draggedImageIndex, 1);
+      images.splice(dropIndex, 0, draggedItem);
+      
+      // Update display_order for all images
+      const reorderedImages = images.map((img, idx) => ({
+        ...img,
+        display_order: idx
+      }));
+      
+      return { ...prev, images: reorderedImages };
+    });
+    
+    setDraggedImageIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImageIndex(null);
   };
 
   const handleSave = async () => {
@@ -407,6 +494,15 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       // If there are any new File objects in images, send multipart/form-data
       const imageFiles = (dormData.images || []).filter((i) => i instanceof File);
       const credentialFiles = (dormData.credentials || []).filter((c) => c && c.file instanceof File).map(c => c.file);
+      
+      // Get primary image ID (if it's an existing image)
+      const primaryImage = (dormData.images || []).find(img => img && img.is_primary && img.id);
+      const primaryImageId = primaryImage?.id || null;
+      
+      // Get image order for existing images (id -> display_order)
+      const imageOrder = (dormData.images || [])
+        .filter(img => img && img.id)
+        .map(img => ({ id: img.id, display_order: img.display_order }));
 
       let response;
       // Use multipart if we have any new images or credential files to upload
@@ -442,6 +538,21 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         if (deletedCredentialIds.length > 0) {
           deletedCredentialIds.forEach((id) => fd.append('deleted_credentials[]', String(id)));
         }
+        
+        // Append ids of images the user removed so backend can delete them
+        if (deletedImageIds.length > 0) {
+          deletedImageIds.forEach((id) => fd.append('deleted_images[]', String(id)));
+        }
+        
+        // Append primary image ID if set
+        if (primaryImageId) {
+          fd.append('primary_image_id', String(primaryImageId));
+        }
+        
+        // Append image order
+        if (imageOrder.length > 0) {
+          fd.append('image_order', JSON.stringify(imageOrder));
+        }
 
         // Log form data entries for debugging (will print File objects too)
         for (const entry of fd.entries()) {
@@ -467,6 +578,15 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         if (deletedCredentialIds.length > 0) {
           payload.deleted_credentials = deletedCredentialIds;
         }
+        if (deletedImageIds.length > 0) {
+          payload.deleted_images = deletedImageIds;
+        }
+        if (primaryImageId) {
+          payload.primary_image_id = primaryImageId;
+        }
+        if (imageOrder.length > 0) {
+          payload.image_order = imageOrder;
+        }
         response = await api.put(`/landlord/properties/${propertyId}`, payload);
       }
 
@@ -475,6 +595,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       setIsEditing(false);
       // Clear staged deletions after successful save
       setDeletedCredentialIds([]);
+      setDeletedImageIds([]);
       fetchPropertyDetails();
     } catch (err) {
       console.error('Error updating property:', err);
@@ -886,27 +1007,77 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
               {dormData.images.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
-                  {dormData.images.map((img, index) => (
-                    <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                      <img
-                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
-                        alt={`Property ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback if image fails to load
-                          e.target.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
-                        }}
-                      />
-                      {isEditing && (
-                        <button
-                          onClick={() => handleRemoveImage(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {dormData.images.map((img, index) => {
+                    // Handle both File objects and image objects from server
+                    const isFile = img instanceof File;
+                    const imageUrl = isFile ? URL.createObjectURL(img) : (img?.url || img);
+                    const isPrimary = !isFile && img?.is_primary;
+                    const imageId = !isFile ? img?.id : null;
+                    
+                    return (
+                      <div
+                        key={imageId || `new-${index}`}
+                        className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden group ${
+                          isEditing ? 'cursor-move' : ''
+                        } ${draggedImageIndex === index ? 'opacity-50 ring-2 ring-green-500' : ''} ${
+                          isPrimary ? 'ring-2 ring-yellow-400' : ''
+                        }`}
+                        draggable={isEditing}
+                        onDragStart={(e) => isEditing && handleDragStart(e, index)}
+                        onDragOver={(e) => isEditing && handleDragOver(e, index)}
+                        onDrop={(e) => isEditing && handleDrop(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Property ${index + 1}`}
+                          className="w-full h-full object-cover pointer-events-none"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
+                          }}
+                        />
+                        
+                        {/* Primary badge */}
+                        {isPrimary && (
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded-full flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-current" />
+                            Cover
+                          </div>
+                        )}
+                        
+                        {/* Drag handle indicator */}
+                        {isEditing && (
+                          <div className="absolute top-2 left-2 p-1 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                            <GripVertical className="w-4 h-4" />
+                          </div>
+                        )}
+                        
+                        {/* Action buttons on hover */}
+                        {isEditing && (
+                          <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Set as primary button (only for non-primary, non-File images) */}
+                            {!isPrimary && !isFile && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleSetPrimaryImage(index); }}
+                                className="p-1.5 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition-colors"
+                                title="Set as cover image"
+                              >
+                                <Star className="w-3 h-3" />
+                              </button>
+                            )}
+                            {/* Delete button */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRemoveImage(index); }}
+                              className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                              title="Remove image"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {isEditing && dormData.images.length < 10 && (
                     <label htmlFor="image-upload-edit" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
                       <Plus className="w-8 h-8 text-gray-400" />
@@ -917,6 +1088,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                   <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 text-sm">No images added yet</p>
+                  <p className="text-gray-400 text-xs mt-1">At least 1 image is required</p>
                 </div>
               )}
 
