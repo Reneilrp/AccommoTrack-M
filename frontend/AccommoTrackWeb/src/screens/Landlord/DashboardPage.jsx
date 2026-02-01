@@ -23,22 +23,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
-  // Checklist state for new users
-  const initialChecklist = [
-    { key: 'property', label: 'Add a property', icon: <Building2 className="w-5 h-5 text-blue-500" />, action: 'Add now', actionColor: 'text-green-600', path: '/properties/add' },
-    { key: 'payment', label: 'Set up payment methods', icon: <CreditCard className="w-5 h-5 text-purple-500" />, action: 'Set up', actionColor: 'text-green-600', path: '/settings/payments' },
-    { key: 'caretaker', label: 'Add a caretaker', icon: <Users className="w-5 h-5 text-yellow-500" />, action: 'Add', actionColor: 'text-green-600', path: '/tenants?tab=caretakers' },
-    { key: 'booking', label: 'Create a booking for a tenant', icon: <Calendar className="w-5 h-5 text-pink-500" />, action: 'Create', actionColor: 'text-green-600', path: '/bookings/add' },
-  ];
-  const [checklist, setChecklist] = useState(initialChecklist);
-  const [checkedTasks, setCheckedTasks] = useState([]);
-    // Mark a checklist task as complete
-    const handleCheckTask = (key) => {
-      setCheckedTasks((prev) => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-    };
-
-    // Consider checklist complete if all tasks are checked
-    const checklistComplete = checkedTasks.length === checklist.length;
+  
   const [upcomingPayments, setUpcomingPayments] = useState({ upcomingCheckouts: [], unpaidBookings: [] });
   const [revenueChart, setRevenueChart] = useState({ labels: [], data: [] });
   const [propertyPerformance, setPropertyPerformance] = useState([]);
@@ -630,52 +615,13 @@ export default function DashboardPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activities</h2>
               <div className="space-y-4">
-                {activities.length === 0 && !checklistComplete ? (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <div className="w-full bg-gradient-to-br from-blue-50 to-green-50 border border-blue-200 rounded-xl p-8 shadow-md max-w-lg mx-auto">
-                      <div className="flex items-center gap-3 mb-4">
-                        <AlertCircle className="w-8 h-8 text-blue-400" />
-                        <h3 className="text-2xl font-bold text-gray-900">Welcome to AccommoTrack!</h3>
-                      </div>
-                      <p className="text-gray-600 mb-4">Get started by completing the steps below. Your dashboard will show recent activities once you’re set up.</p>
-                      {/* Progress Bar */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-gray-500">Progress</span>
-                          <span className="font-semibold text-green-700">{checkedTasks.length}/{checklist.length} Completed</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${(checkedTasks.length / checklist.length) * 100}%` }}></div>
-                        </div>
-                      </div>
-                      <ul className="space-y-3">
-                        {checklist.map((item, idx) => (
-                          <li key={item.key} className="flex items-center gap-3">
-                            <button
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${checkedTasks.includes(item.key) ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
-                              aria-label={checkedTasks.includes(item.key) ? 'Mark incomplete' : 'Mark complete'}
-                              onClick={() => handleCheckTask(item.key)}
-                            >
-                              {checkedTasks.includes(item.key) && (
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                              )}
-                            </button>
-                            <span className="flex items-center gap-2 text-base font-medium text-gray-900">
-                              {item.icon}
-                              <span className={checkedTasks.includes(item.key) ? 'line-through text-gray-400' : ''}>{item.label}</span>
-                            </span>
-                            <button
-                              className={`ml-auto text-sm font-semibold ${item.actionColor} hover:underline`}
-                              onClick={() => navigate(item.path)}
-                              tabIndex={checkedTasks.includes(item.key) ? -1 : 0}
-                              disabled={checkedTasks.includes(item.key)}
-                            >
-                              {item.action}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                {activities.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <Clock className="w-6 h-6 text-gray-400" />
                     </div>
+                    <p className="font-medium">No recent activities</p>
+                    <p className="text-sm">Activities will appear here once you start managing your properties.</p>
                   </div>
                 ) : (
                   activities.map((activity, index) => (

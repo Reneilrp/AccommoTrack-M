@@ -4,6 +4,7 @@ import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
 import api from '../../utils/api';
+import { Skeleton, SkeletonStatCard, SkeletonTableRow, SkeletonBookingCard } from '../../components/Shared/Skeleton';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -249,17 +250,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading bookings...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -313,22 +303,28 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-            <p className="text-sm text-gray-500">Total Bookings</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-            <p className="text-sm text-gray-500">Confirmed</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-            <p className="text-sm text-gray-500">Pending</p>
-            <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-            <p className="text-sm text-gray-500">Completed</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
-          </div>
+          {loading ? (
+            [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
+          ) : (
+            <>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <p className="text-sm text-gray-500">Total Bookings</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <p className="text-sm text-gray-500">Confirmed</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <p className="text-sm text-gray-500">Completed</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Search and Filter */}
@@ -391,7 +387,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredBookings.length === 0 ? (
+                {loading ? (
+                  // Skeleton rows
+                  [...Array(5)].map((_, i) => <SkeletonTableRow key={i} columns={8} />)
+                ) : filteredBookings.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="px-6 py-12 text-center">
                       {searchQuery ? (

@@ -22,6 +22,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import api from '../../utils/api';
+import { SkeletonStatCard, SkeletonChart, Skeleton } from '../../components/Shared/Skeleton';
 
 export default function Analytics({ user }) {
   const [timeRange, setTimeRange] = useState('month');
@@ -80,16 +81,31 @@ export default function Analytics({ user }) {
 
   const PIE_COLORS = [COLORS.primary, COLORS.secondary, COLORS.warning, COLORS.danger];
 
-  if (loading && !analytics) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading analytics...</p>
+  // Skeleton loading state for full page
+  const AnalyticsSkeleton = () => (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Key Metrics Skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {[...Array(4)].map((_, i) => (
+          <SkeletonStatCard key={i} />
+        ))}
+      </div>
+      
+      {/* Charts Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <SkeletonChart height="h-80" />
+        <SkeletonChart height="h-80" />
+      </div>
+      
+      {/* More Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <SkeletonChart height="h-72" />
+        <div className="lg:col-span-2">
+          <SkeletonChart height="h-72" />
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,7 +180,9 @@ export default function Analytics({ user }) {
           </div>
         )}
 
-        {analytics && (
+        {loading && !analytics ? (
+          <AnalyticsSkeleton />
+        ) : analytics && (
           <>
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

@@ -16,6 +16,7 @@ import {
 import createEcho from '../../utils/echo';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import { SkeletonConversation, Skeleton } from '../../components/Shared/Skeleton';
 
 export default function Messages({ user, accessRole = 'landlord' }) {
   const location = useLocation();
@@ -265,16 +266,14 @@ export default function Messages({ user, accessRole = 'landlord' }) {
 
   console.log('Messages: currentUserId=', currentUserId, 'localStorage.user_id=', localStorage.getItem('user_id'), 'localStorage.user=', localStorage.getItem('user'), 'localStorage.userData=', localStorage.getItem('userData'));
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading messages...</p>
-        </div>
-      </div>
-    );
-  }
+  // Skeleton for message list loading
+  const MessageListSkeleton = () => (
+    <div className="divide-y divide-gray-100">
+      {[...Array(6)].map((_, i) => (
+        <SkeletonConversation key={i} />
+      ))}
+    </div>
+  );
 
   return (
     <div className="h-screen bg-gray-50 flex">
@@ -359,7 +358,9 @@ export default function Messages({ user, accessRole = 'landlord' }) {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredConversations.length === 0 ? (
+          {loading ? (
+            <MessageListSkeleton />
+          ) : filteredConversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No conversations yet</p>

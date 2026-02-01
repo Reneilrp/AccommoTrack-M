@@ -30,7 +30,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     dailyRate: '',
     billingPolicy: 'monthly',
     minStayDays: '1',
-    prorateBase: '30',
     capacity: isBedSpacerProperty ? '1' : '1',
     pricingModel: initialPricingModel,
     description: '',
@@ -267,6 +266,10 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   };
 
   const handleSubmit = async () => {
+    if (!propertyId) {
+      setError('Property ID is missing. Please refresh the page.');
+      return;
+    }
     if (!formData.roomNumber) {
       setError('Room number is required');
       return;
@@ -310,11 +313,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         const v = parseInt(formData.minStayDays);
         if (Number.isFinite(v)) payload.append('min_stay_days', v);
       }
-      if (formData.prorateBase) {
-        const p = parseInt(formData.prorateBase);
-        if (Number.isFinite(p)) payload.append('prorate_base', p);
-      }
-      // min_stay_days and prorate_base removed per UX decision; billing handled by billing policy and daily rate
       payload.append('pricing_model', formData.pricingModel);
       payload.append('description', formData.description || '');
       payload.append('status', 'available');
@@ -344,7 +342,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         dailyRate: '',
         billingPolicy: 'monthly',
         minStayDays: '1',
-        prorateBase: '30',
         capacity: '1',
         pricingModel: 'full_room',
         description: '',
@@ -504,21 +501,8 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
           </div>
 
-          {/* Row 3: Prorate Base | Minimum Stay | Capacity */}
+          {/* Row 3: Minimum Stay | Capacity */}
           <div className="grid grid-cols-3 gap-4 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Prorate Base (days)</label>
-              <input
-                type="number"
-                placeholder="e.g., 30"
-                value={formData.prorateBase}
-                onChange={(e) => handleInputChange('prorateBase', e.target.value)}
-                className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                min="1"
-                step="1"
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Stay (days)</label>
               <input

@@ -8,6 +8,7 @@ import Notifications from '../../components/Settings/Notifications';
 import Security from '../../components/Settings/Security';
 import CareTakerAccess from '../../components/Settings/CareTakerAccess';
 import Billing from '../../components/Settings/Billing';
+import PaymentMethods from '../../components/Settings/PaymentMethods';
 
 const CARETAKER_PERMISSION_FIELDS = [
   {
@@ -76,7 +77,7 @@ const serializeCaretakerPermissions = (permissions) => ({
   can_view_properties: Boolean(permissions.properties)
 });
 
-const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'billing'];
+const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'billing', 'payments'];
 
 const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
@@ -482,6 +483,14 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                 >
                   Billing
                 </button>
+                <button
+                  onClick={() => handleTabChange('payments')}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+                    activeTab === 'payments' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Payment Methods
+                </button>
               </nav>
             </div>
           </div>
@@ -544,6 +553,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
               />
             )}
             {activeTab === 'billing' && <Billing />}
+            {activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
           </div>
         </div>
       </div>

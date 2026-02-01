@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
+import { Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
 
 export default function MyProperties({ user }) {
   const [activeTab, setActiveTab] = useState('all');
@@ -156,16 +157,35 @@ export default function MyProperties({ user }) {
     return <AddProperty onBack={handleBackToList} onSave={handleBackToList} />;
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading properties...</p>
+  // Skeleton for property list item
+  const SkeletonPropertyListItem = () => (
+    <div className="p-4 animate-pulse">
+      <div className="flex items-start gap-6">
+        {/* Image skeleton */}
+        <Skeleton className="w-60 h-48 rounded-lg flex-shrink-0" />
+        
+        {/* Content skeleton */}
+        <div className="flex-1 pt-5">
+          <div className="flex items-center gap-3 mb-3">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-64 mb-3" />
+          <Skeleton className="h-6 w-20 rounded mb-4" />
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-4 w-8" />
+            </div>
+            <div>
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-4 w-8" />
+            </div>
+          </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -201,22 +221,29 @@ export default function MyProperties({ user }) {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Active Listings</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.activeListings}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Inactive Listings</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.inactiveListings}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Total Rooms</p>
-            <p className="text-3xl font-bold text-green-600">{stats.totalRooms}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Total Inquiries</p>
-            <p className="text-3xl font-bold text-orange-500">{stats.totalInquiries.toLocaleString()}</p>
-          </div>
+          {loading ? (
+            // Skeleton stats
+            [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
+          ) : (
+            <>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Active Listings</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.activeListings}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Inactive Listings</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.inactiveListings}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Total Rooms</p>
+                <p className="text-3xl font-bold text-green-600">{stats.totalRooms}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Total Inquiries</p>
+                <p className="text-3xl font-bold text-orange-500">{stats.totalInquiries.toLocaleString()}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Tabs and Search */}
@@ -285,7 +312,10 @@ export default function MyProperties({ user }) {
 
           {/* Properties List */}
           <div className="divide-y divide-gray-200">
-            {filteredProperties.length === 0 ? (
+            {loading ? (
+              // Skeleton property items
+              [...Array(3)].map((_, i) => <SkeletonPropertyListItem key={i} />)
+            ) : filteredProperties.length === 0 ? (
               <div className="p-8 text-center">
                 <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 text-lg mb-2">No properties found</p>

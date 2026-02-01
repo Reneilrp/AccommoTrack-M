@@ -185,7 +185,6 @@ export default function RoomManagement() {
         // include optional short-stay pricing fields
         daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
         billing_policy: selectedRoom.billingPolicy || null,
-        // min_stay_days and prorate_base removed from frontend per UX decision
         capacity: parseInt(selectedRoom.capacity),
         status: selectedRoom.status,
         description: selectedRoom.description || null
