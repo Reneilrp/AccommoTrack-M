@@ -40,4 +40,4 @@ AccommoTrack aims to solve the hassle of finding reliable student accommodation 
 
 ## 👤 Author
 
-Developed by **Reneilrp**.
+Developed by **AccommoTrack Dev Team**.
