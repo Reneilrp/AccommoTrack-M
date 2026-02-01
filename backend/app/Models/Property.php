@@ -5,6 +5,88 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $landlord_id
+ * @property string $title
+ * @property string|null $description
+ * @property string $property_type
+ * @property string $current_status
+ * @property string $street_address
+ * @property string $city
+ * @property string $province
+ * @property string|null $postal_code
+ * @property string $country
+ * @property string|null $barangay
+ * @property numeric|null $latitude
+ * @property numeric|null $longitude
+ * @property string|null $nearby_landmarks
+ * @property array<array-key, mixed>|null $property_rules
+ * @property int $total_rooms
+ * @property int $available_rooms
+ * @property bool $is_published
+ * @property bool $is_available
+ * @property bool $is_eligible
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Addon> $addons
+ * @property-read int|null $addons_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Amenity> $amenities
+ * @property-read int|null $amenities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Booking> $bookings
+ * @property-read int|null $bookings_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PropertyCredential> $credentials
+ * @property-read int|null $credentials_count
+ * @property-read mixed $available_rooms_count
+ * @property-read mixed $average_rating
+ * @property-read mixed $full_address
+ * @property-read mixed $image_url
+ * @property-read mixed $maintenance_rooms_count
+ * @property-read mixed $occupied_rooms_count
+ * @property-read int|null $reviews_count
+ * @property-read mixed $total_rooms_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PropertyImage> $images
+ * @property-read int|null $images_count
+ * @property-read \App\Models\User $landlord
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Review> $reviews
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Room> $rooms
+ * @property-read int|null $rooms_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property available()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property forLandlord(int $landlordId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property inCity($city)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property ofType(string $type)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property priceRange(?float $minPrice = null, ?float $maxPrice = null)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property published()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property search(string $search)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereAvailableRooms($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereBarangay($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereCity($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereCountry($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereCurrentStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereIsAvailable($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereIsEligible($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereIsPublished($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereLandlordId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereLatitude($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereLongitude($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereNearbyLandmarks($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property wherePostalCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property wherePropertyRules($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property wherePropertyType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereProvince($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereStreetAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereTitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereTotalRooms($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class Property extends Model
 {
     use HasFactory;
@@ -93,6 +175,31 @@ class Property extends Model
     public function bookings()
     {
         return $this->hasMany(Booking::class);
+    }
+
+    /**
+     * Relationship: Property has many Reviews
+     */
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Get average rating for the property
+     */
+    public function getAverageRatingAttribute()
+    {
+        $avg = $this->reviews()->where('is_published', true)->avg('rating');
+        return $avg ? round($avg, 1) : null;
+    }
+
+    /**
+     * Get total reviews count
+     */
+    public function getReviewsCountAttribute()
+    {
+        return $this->reviews()->where('is_published', true)->count();
     }
 
     /**
@@ -255,31 +362,6 @@ class Property extends Model
     }
 
     /**
-     * Scope: Get only published properties
-     */
-    public function scopePublished($query)
-    {
-        return $query->where('is_published', true);
-    }
-
-    /**
-     * Scope: Get available properties
-     */
-    public function scopeAvailable($query)
-    {
-        return $query->where('is_available', true)
-            ->where('available_rooms', '>', 0);
-    }
-
-    /**
-     * Scope: Filter by property type
-     */
-    public function scopeOfType($query, $type)
-    {
-        return $query->where('property_type', $type);
-    }
-
-    /**
      * Scope: Filter by city
      */
     public function scopeInCity($query, $city)
@@ -303,5 +385,72 @@ class Property extends Model
     {
         $this->total_rooms = $this->rooms()->count();
         $this->save();
+    }
+
+    // ====================================================================
+    // QUERY SCOPES
+    // ====================================================================
+
+    /**
+     * Scope: Filter by published status
+     */
+    public function scopePublished($query)
+    {
+        return $query->where('is_published', true);
+    }
+
+    /**
+     * Scope: Filter by available status
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where('is_available', true);
+    }
+
+    /**
+     * Scope: Filter by landlord
+     */
+    public function scopeForLandlord($query, int $landlordId)
+    {
+        return $query->where('landlord_id', $landlordId);
+    }
+
+    /**
+     * Scope: Search by title, description, or address
+     */
+    public function scopeSearch($query, string $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%")
+              ->orWhere('street_address', 'like', "%{$search}%")
+              ->orWhere('barangay', 'like', "%{$search}%")
+              ->orWhere('city', 'like', "%{$search}%")
+              ->orWhere('province', 'like', "%{$search}%");
+        });
+    }
+
+    /**
+     * Scope: Filter by property type
+     */
+    public function scopeOfType($query, string $type)
+    {
+        return $query->where('property_type', $type);
+    }
+
+    /**
+     * Scope: Filter by price range (based on room monthly rates)
+     */
+    public function scopePriceRange($query, ?float $minPrice = null, ?float $maxPrice = null)
+    {
+        return $query->whereHas('rooms', function ($q) use ($minPrice, $maxPrice) {
+            $q->where('status', 'available');
+            if ($minPrice !== null) {
+                $q->where('monthly_rate', '>=', $minPrice);
+            }
+            if ($maxPrice !== null) {
+                $q->where('monthly_rate', '<=', $maxPrice);
+            }
+        });
     }
 }

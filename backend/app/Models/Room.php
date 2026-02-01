@@ -5,6 +5,65 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $property_id
+ * @property string $room_number
+ * @property string $room_type
+ * @property int $floor
+ * @property numeric $monthly_rate
+ * @property numeric|null $daily_rate
+ * @property string $billing_policy
+ * @property int $min_stay_days
+ * @property int $capacity
+ * @property string $pricing_model
+ * @property string $status
+ * @property int|null $current_tenant_id
+ * @property string|null $description
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property \Illuminate\Support\Carbon $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Amenity> $amenities
+ * @property-read int|null $amenities_count
+ * @property-read \App\Models\User|null $currentTenant
+ * @property-read mixed $available_slots
+ * @property-read mixed $occupied
+ * @property-read mixed $price
+ * @property-read mixed $tenant
+ * @property-read mixed $type
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RoomImage> $images
+ * @property-read int|null $images_count
+ * @property-read \App\Models\Property $property
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $tenants
+ * @property-read int|null $tenants_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room available()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room byFloor($floor)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room byType($type)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room forProperty($propertyId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room inPriceRange($minPrice, $maxPrice)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room occupied()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room underMaintenance()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereBillingPolicy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereCapacity($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereCurrentTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereDailyRate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereFloor($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereMinStayDays($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereMonthlyRate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room wherePricingModel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room wherePropertyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereRoomNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereRoomType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Room withMinCapacity($minCapacity)
+ * @mixin \Eloquent
+ */
 class Room extends Model
 {
     use HasFactory;
@@ -18,7 +77,6 @@ class Room extends Model
         'daily_rate',
         'billing_policy',
         'min_stay_days',
-        'prorate_base',
         'capacity',
         'pricing_model',
         'status',
@@ -31,7 +89,6 @@ class Room extends Model
         'floor' => 'integer',
         'monthly_rate' => 'decimal:2',
         'daily_rate' => 'decimal:2',
-        'prorate_base' => 'integer',
         'min_stay_days' => 'integer',
         'capacity' => 'integer',
         'current_tenant_id' => 'integer'
@@ -438,32 +495,33 @@ class Room extends Model
         $monthly = (float) $this->monthly_rate;
         $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
         $policy = $this->billing_policy ?? 'monthly';
-        $prorateBase = $this->prorate_base ?? 30;
+        $daysInMonth = 30; // Hardcoded to 30
 
-        $months = intdiv($days, $prorateBase);
-        $remaining = $days % $prorateBase;
+        $months = intdiv($days, $daysInMonth);
+        $remaining = $days % $daysInMonth;
 
         $monthCharge = $months * $monthly;
         $daysCharge = 0.0;
         $method = $policy;
 
         if ($policy === 'daily') {
-            $ratePerDay = $daily ?? ($monthly / $prorateBase);
+            $ratePerDay = $daily ?? ($monthly / $daysInMonth);
             $daysCharge = $days * $ratePerDay;
             $total = $daysCharge;
             $method = 'daily';
         } elseif ($policy === 'monthly_with_daily') {
             $total = $monthCharge;
             if ($remaining > 0) {
-                $ratePerDay = $daily ?? ($monthly / $prorateBase);
+                $ratePerDay = $daily ?? ($monthly / $daysInMonth);
                 $daysCharge = $remaining * $ratePerDay;
                 $total += $daysCharge;
             }
             $method = 'monthly_with_daily';
-        } else { // monthly (prorate leftover)
+        } else { // monthly (calculate leftover)
             $total = $monthCharge;
             if ($remaining > 0) {
-                $daysCharge = ($monthly * $remaining) / $prorateBase;
+                // For plain monthly policy, we calculate strictly by base days if not exact month
+                $daysCharge = ($monthly * $remaining) / $daysInMonth;
                 $total += $daysCharge;
             }
             $method = 'monthly';
@@ -493,7 +551,7 @@ class Room extends Model
 
         // If billing is daily, show daily display
         if ($billingPolicy === 'daily') {
-            $daily = $this->daily_rate !== null ? (float)$this->daily_rate : ($monthlyRateFloat / ($this->prorate_base ?? 30));
+            $daily = $this->daily_rate !== null ? (float)$this->daily_rate : ($monthlyRateFloat / 30);
             return [
                 'pricing_model' => $this->pricing_model ?? 'full_room',
                 'display' => '₱' . number_format($daily, 2) . ' per day',
