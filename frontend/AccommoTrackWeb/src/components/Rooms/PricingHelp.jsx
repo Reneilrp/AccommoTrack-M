@@ -53,22 +53,6 @@ export default function PricingHelp({ open, onClose }) {
           <div className="text-xs text-gray-500">
             Notes: calculations round to 2 decimals. The server-side calculation is authoritative; use the preview endpoint for booking estimates.
           </div>
-
-          <div>
-            <strong>prorate_base</strong>: the number of days used to compute a per-day value when the system prorates a monthly rate.
-            In some billing flows the backend will use an explicit <em>daily_rate</em> when provided. When a <em>daily_rate</em> is not set
-            and the system needs to prorate a monthly amount, it computes a per-day amount using the <em>prorate_base</em>:
-            <div className="mt-2 p-3 bg-gray-50 rounded border text-xs">
-              <div className="font-mono text-sm">daily = monthly_rate / prorate_base</div>
-              <div className="mt-2">Prorated charge for N days = daily × N</div>
-              <div className="mt-2 font-medium">Example (prorate_base = 30):</div>
-              <div className="mt-1">monthly_rate = ₱5,000 → daily = 5,000 / 30 = ₱166.67</div>
-              <div>Booking: 35 days → months = 1 (30), remaining = 5 days</div>
-              <div>Prorate charge = 5 × ₱166.67 = ₱833.33</div>
-              <div className="mt-1 font-medium">Total = ₱5,000 + ₱833.33 = ₱5,833.33</div>
-              <div className="mt-2 text-gray-500">If a <em>daily_rate</em> is provided, the system may use that instead of prorating the monthly amount (see the Monthly + Daily policy example).</div>
-            </div>
-          </div>
         </div>
 
         <div className="mt-6 text-right">
