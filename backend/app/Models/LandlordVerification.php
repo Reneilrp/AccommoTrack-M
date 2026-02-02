@@ -50,10 +50,27 @@ class LandlordVerification extends Model
         'valid_id_path',
         'permit_path',
         'status',
+        'rejection_reason',
+        'reviewed_at',
+        'reviewed_by',
+    ];
+
+    protected $casts = [
+        'reviewed_at' => 'datetime',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function history()
+    {
+        return $this->hasMany(LandlordVerificationHistory::class)->orderBy('created_at', 'desc');
     }
 }

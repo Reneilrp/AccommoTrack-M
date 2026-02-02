@@ -386,15 +386,29 @@ class PropertyController extends Controller
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
         ]);
 
+        // Check if landlord is verified - unverified landlords can only create drafts
+        $user = Auth::user();
+        $isVerified = $user->is_verified ?? false;
+
+        // Determine current status based on verification and draft flag
+        $currentStatus = 'draft'; // Default to draft
+        $isPublished = false;
+        
+        if ($isVerified) {
+            // Verified landlords can submit for approval or save as draft
+            $currentStatus = ($request->has('is_draft') && $request->boolean('is_draft'))
+                ? 'draft'
+                : ($validated['current_status'] ?? 'pending');
+            $isPublished = $validated['is_published'] ?? false;
+        }
+        // Unverified landlords are forced to draft with is_published = false
+
         $property = Property::create([
             'landlord_id' => Auth::id(),
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'property_type' => $validated['property_type'],
-            // Determine current status: explicit is_draft takes precedence
-            'current_status' => ($request->has('is_draft') && $request->boolean('is_draft'))
-                ? 'draft'
-                : ($validated['current_status'] ?? 'pending'),
+            'current_status' => $currentStatus,
             'street_address' => $validated['street_address'],
             'city' => $validated['city'],
             'province' => $validated['province'],
@@ -406,7 +420,7 @@ class PropertyController extends Controller
             'property_rules' => $validated['property_rules'] ?? null,
             'total_rooms' => 0,
             'available_rooms' => 0,
-            'is_published' => $validated['is_published'] ?? false,
+            'is_published' => $isPublished,
             'is_available' => $validated['is_available'] ?? false,
             'is_eligible' => $request->has('is_eligible') ? (bool)$request->input('is_eligible') : false,
         ]);
@@ -618,9 +632,34 @@ class PropertyController extends Controller
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
         ]);
 
+        // Check if landlord is verified - unverified landlords can only have drafts
+        $user = Auth::user();
+        $isVerified = $user->is_verified ?? false;
+
         // If is_draft present, map to current_status to ensure consistent handling
         if ($request->has('is_draft') && $request->boolean('is_draft')) {
             $validated['current_status'] = 'draft';
+        }
+
+        // Enforce draft-only for unverified landlords
+        if (!$isVerified) {
+            // Force draft status and prevent publishing
+            $validated['current_status'] = 'draft';
+            $validated['is_published'] = false;
+            
+            // If trying to submit for approval or publish, return error
+            if ($request->has('current_status') && !in_array($request->current_status, ['draft'])) {
+                return response()->json([
+                    'message' => 'Your account is pending verification. Properties can only be saved as drafts until your documents are approved.',
+                    'verification_required' => true
+                ], 403);
+            }
+            if ($request->has('is_published') && $request->boolean('is_published')) {
+                return response()->json([
+                    'message' => 'Your account is pending verification. You cannot publish properties until your documents are approved.',
+                    'verification_required' => true
+                ], 403);
+            }
         }
 
         $property->update($validated);

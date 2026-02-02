@@ -141,6 +141,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Landlord verification record
+     */
+    public function landlordVerification()
+    {
+        return $this->hasOne(LandlordVerification::class, 'user_id');
+    }
+
+    /**
      * Bookings made by tenant
      */
     public function bookings()

@@ -4,8 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Property;
+use App\Models\LandlordVerification;
+use App\Models\LandlordVerificationHistory;
+use App\Notifications\LandlordApprovedNotification;
+use App\Notifications\LandlordRejectedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
@@ -16,8 +21,9 @@ class AdminController extends Controller
     {
         $users = User::where('role', '!=', 'admin')
             ->with([
-                // For landlords: their properties
+                // For landlords: their properties and verification
                 'properties:id,landlord_id,title',
+                'landlordVerification:id,user_id,status',
                 // For tenants: their bookings with property and room info
                 'bookings' => function ($query) {
                     $query->where('status', 'confirmed')
@@ -34,7 +40,7 @@ class AdminController extends Controller
                 }
             ])
             ->get()
-            ->map(function ($user) {
+            ->map(function (User $user) {
                 $userData = $user->toArray();
 
                 // Add property info for landlords
@@ -46,6 +52,8 @@ class AdminController extends Controller
                             'name' => $p->title
                         ];
                     })->toArray();
+                    // Add verification status for landlords
+                    $userData['verification_status'] = $user->landlordVerification?->status ?? 'not_submitted';
                 }
 
                 // Add property/room info for tenants
@@ -132,7 +140,7 @@ class AdminController extends Controller
     // }
 
     /**
-     * Approve a user
+     * Approve a user (landlord verification)
      */
     public function approveUser(Request $request, $id)
     {
@@ -140,7 +148,89 @@ class AdminController extends Controller
         $user->is_verified = true;
         $user->save();
 
+        // Also update the landlord verification record
+        $verification = LandlordVerification::where('user_id', $id)->first();
+        if ($verification) {
+            // Save current state to history before updating
+            LandlordVerificationHistory::create([
+                'landlord_verification_id' => $verification->id,
+                'valid_id_type' => $verification->valid_id_type,
+                'valid_id_other' => $verification->valid_id_other,
+                'valid_id_path' => $verification->valid_id_path,
+                'permit_path' => $verification->permit_path,
+                'status' => 'approved',
+                'rejection_reason' => null,
+                'submitted_at' => $verification->created_at,
+                'reviewed_at' => now(),
+                'reviewed_by' => Auth::id(),
+            ]);
+
+            $verification->status = 'approved';
+            $verification->rejection_reason = null;
+            $verification->reviewed_at = now();
+            $verification->reviewed_by = Auth::id();
+            $verification->save();
+
+            // Send approval email notification
+            try {
+                $user->notify(new LandlordApprovedNotification());
+            } catch (\Exception $e) {
+                \Log::error('Failed to send approval notification: ' . $e->getMessage());
+            }
+        }
+
         return response()->json(['user' => $user, 'message' => 'User approved']);
+    }
+
+    /**
+     * Reject a landlord verification
+     */
+    public function rejectVerification(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|min:10|max:1000',
+        ]);
+
+        $verification = LandlordVerification::with('user')->findOrFail($id);
+        
+        // Save current state to history before updating
+        LandlordVerificationHistory::create([
+            'landlord_verification_id' => $verification->id,
+            'valid_id_type' => $verification->valid_id_type,
+            'valid_id_other' => $verification->valid_id_other,
+            'valid_id_path' => $verification->valid_id_path,
+            'permit_path' => $verification->permit_path,
+            'status' => 'rejected',
+            'rejection_reason' => $request->reason,
+            'submitted_at' => $verification->updated_at ?? $verification->created_at,
+            'reviewed_at' => now(),
+            'reviewed_by' => Auth::id(),
+        ]);
+
+        $verification->status = 'rejected';
+        $verification->rejection_reason = $request->reason;
+        $verification->reviewed_at = now();
+        $verification->reviewed_by = Auth::id();
+        $verification->save();
+
+        // Update user verification status
+        $user = $verification->user;
+        if ($user) {
+            $user->is_verified = false;
+            $user->save();
+
+            // Send rejection email notification with reason
+            try {
+                $user->notify(new LandlordRejectedNotification($request->reason));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send rejection notification: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'verification' => $verification,
+            'message' => 'Verification rejected successfully'
+        ]);
     }
 
     /**
@@ -175,7 +265,7 @@ class AdminController extends Controller
         $properties = Property::where('current_status', 'pending')
             ->with(['landlord', 'images', 'amenities', 'credentials'])
             ->get()
-            ->map(function ($property) {
+            ->map(function (Property $property) {
                 // Transform images with proper URLs
                 $property->images->transform(function ($image) {
                     $image->image_url = asset('storage/' . $image->image_url);
@@ -218,7 +308,7 @@ class AdminController extends Controller
         $properties = Property::where('current_status', 'active')
             ->with(['landlord', 'images', 'amenities', 'credentials'])
             ->get()
-            ->map(function ($property) {
+            ->map(function (Property $property) {
                 // Transform images with proper URLs
                 $property->images->transform(function ($image) {
                     $image->image_url = asset('storage/' . $image->image_url);
@@ -259,7 +349,7 @@ class AdminController extends Controller
         $properties = Property::where('current_status', 'inactive')
             ->with(['landlord', 'images', 'amenities', 'credentials'])
             ->get()
-            ->map(function ($property) {
+            ->map(function (Property $property) {
                 // Transform images with proper URLs
                 $property->images->transform(function ($image) {
                     $image->image_url = asset('storage/' . $image->image_url);

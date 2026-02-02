@@ -103,6 +103,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/landlord/tenants', [TenantController::class, 'index']);
 
     Route::prefix('landlord')->middleware(EnsureUserIsLandlord::class)->group(function () {
+        // Landlord Verification Status & Resubmission
+        Route::get('/my-verification', [LandlordVerificationController::class, 'getMyVerification']);
+        Route::get('/verification-history', [LandlordVerificationController::class, 'getVerificationHistory']);
+        Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
+        
         // Landlord: Reviews
         Route::get('/reviews', [ReviewController::class, 'getLandlordReviews']);
         Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
@@ -206,6 +211,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Admin: list all landlord verifications
         Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
+        // Admin: reject landlord verification with reason
+        Route::post('/landlord-verifications/{id}/reject', [AdminController::class, 'rejectVerification']);
     });
 
     Route::prefix('messages')->group(function () {

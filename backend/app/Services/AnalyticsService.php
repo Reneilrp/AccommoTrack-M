@@ -19,6 +19,14 @@ class AnalyticsService
     {
         $dateRange = $this->getDateRange($timeRange);
 
+        // Check if landlord has any properties first
+        $hasProperties = Property::where('landlord_id', $landlordId)->exists();
+
+        if (!$hasProperties) {
+            // Return empty/default analytics structure
+            return $this->getEmptyAnalytics();
+        }
+
         return [
             'overview' => $this->calculateOverviewStats($landlordId, $propertyId),
             'revenue' => $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange),
@@ -28,6 +36,57 @@ class AnalyticsService
             'tenants' => $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange),
             'payments' => $this->calculatePaymentAnalytics($landlordId, $propertyId),
             'bookings' => $this->calculateBookingAnalytics($landlordId, $propertyId, $dateRange),
+        ];
+    }
+
+    /**
+     * Return empty analytics structure for landlords with no properties
+     */
+    protected function getEmptyAnalytics(): array
+    {
+        return [
+            'overview' => [
+                'total_properties' => 0,
+                'total_rooms' => 0,
+                'occupied_rooms' => 0,
+                'available_rooms' => 0,
+                'occupancy_rate' => 0,
+                'total_revenue' => 0,
+                'monthly_revenue' => 0,
+                'active_tenants' => 0,
+                'new_tenants_this_month' => 0,
+            ],
+            'revenue' => [
+                'expected_monthly' => 0,
+                'actual_monthly' => 0,
+                'collection_rate' => 0,
+                'monthly_trend' => [],
+            ],
+            'occupancy' => [
+                'current_rate' => 0,
+                'trend' => [],
+            ],
+            'roomTypes' => [],
+            'properties' => [],
+            'tenants' => [
+                'total' => 0,
+                'average_stay_months' => 0,
+                'move_ins' => 0,
+                'move_outs' => 0,
+            ],
+            'payments' => [
+                'paid' => 0,
+                'unpaid' => 0,
+                'partial' => 0,
+                'overdue' => 0,
+                'payment_rate' => 0,
+            ],
+            'bookings' => [
+                'total' => 0,
+                'pending' => 0,
+                'confirmed' => 0,
+                'cancelled' => 0,
+            ],
         ];
     }
 

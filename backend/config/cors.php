@@ -16,9 +16,9 @@ return [
     */
 
     // include broadcasting auth so the preflight for Echo/Pusher auth is handled
-    'paths' => ['api/*', 'login' ,'broadcasting/auth', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'login' ,'broadcasting/auth', 'sanctum/csrf-cookie', 'storage/*'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => ['*', 'http://localhost:5173'],
+    'allowed_origins' => ['*'],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
