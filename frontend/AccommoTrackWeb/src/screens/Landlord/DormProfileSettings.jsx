@@ -649,10 +649,10 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
   if (loading && !dormData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading property details...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading property details...</p>
         </div>
       </div>
     );
@@ -660,10 +660,10 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
   if (error && !dormData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-            <p className="text-red-700 mb-4">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md">
+            <p className="text-red-700 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={onBack}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -679,9 +679,9 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   if (!dormData) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="grid grid-cols-3 items-center">
             {/* Left: Back button */}
@@ -698,8 +698,8 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
             {/* Center: Title */}
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900">Property Profile & Settings</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage your property information</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Property Profile & Settings</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your property information</p>
             </div>
 
             {/* Right: Actions */}
@@ -724,7 +724,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       fetchPropertyDetails();
                     }}
                     disabled={loading}
-                    className="w-10 h-10 bg-white border border-gray-300 text-gray-700 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="w-10 h-10 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
                     title="Cancel"
                     aria-label="Cancel"
                   >
@@ -764,7 +764,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   onClick={() => setIsEditing(true)}
                   disabled={loading}
                   aria-label="Edit Property"
-                  className="w-10 h-10 bg-white text-green-600 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="w-10 h-10 bg-white dark:bg-gray-700 text-green-600 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
                 >
                   <Edit className="w-5 h-5 text-green-600" />
                 </button>
@@ -776,9 +776,9 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
       {error && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
-            <p className="text-red-700 text-sm">{error}</p>
-            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -790,28 +790,28 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Basic Information */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Property Name</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Property Name</label>
                   <input
                     type="text"
                     value={dormData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Property Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Property Type</label>
                   <select
                     value={dormData.type}
                     onChange={(e) => handleInputChange('type', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 capitalize"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
                   >
                     <option value="dormitory">Dormitory</option>
                     <option value="apartment">Apartment</option>
@@ -821,12 +821,12 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                   <select
                     value={dormData.status}
                     onChange={(e) => handleInputChange('status', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 capitalize"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -836,96 +836,96 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                   <textarea
                     value={dormData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     disabled={!isEditing}
                     rows={5}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                   />
                 </div>
               </div>
             </div>
 
             {/* Location */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Location</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Street Address</label>
                   <input
                     type="text"
                     value={dormData.address.street}
                     onChange={(e) => handleAddressChange('street', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Barangay</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Barangay</label>
                     <input
                       type="text"
                       value={dormData.address.barangay}
                       onChange={(e) => handleAddressChange('barangay', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">City</label>
                     <input
                       type="text"
                       value={dormData.address.city}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Province</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Province</label>
                     <input
                       type="text"
                       value={dormData.address.province}
                       onChange={(e) => handleAddressChange('province', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Zip Code</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Zip Code</label>
                     <input
                       type="text"
                       value={dormData.address.zipCode}
                       onChange={(e) => handleAddressChange('zipCode', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nearby Landmarks</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nearby Landmarks</label>
                   <textarea
                     value={dormData.nearbyLandmarks}
                     onChange={(e) => handleInputChange('nearbyLandmarks', e.target.value)}
                     disabled={!isEditing}
                     rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
                   />
                 </div>
 
                 {/* Editable Map */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Map (drag marker or click map to set location)</label>
-                  <div className="w-full h-72 rounded-lg overflow-hidden border border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Map (drag marker or click map to set location)</label>
+                  <div className="w-full h-72 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                     <MapContainer
                       center={[dormData.latitude ?? 14.5995, dormData.longitude ?? 120.9842]}
                       zoom={13}
@@ -951,23 +951,23 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Latitude</label>
                     <input
                       type="text"
                       value={dormData.latitude || ''}
                       onChange={(e) => handleInputChange('latitude', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Longitude</label>
                     <input
                       type="text"
                       value={dormData.longitude || ''}
                       onChange={(e) => handleInputChange('longitude', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     />
                   </div>
                 </div>
@@ -975,35 +975,35 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             </div>
 
             {/* Specifications */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Specifications</h2>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Total Rooms</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total Rooms</label>
                   <input
                     type="number"
                     value={dormData.specifications.totalRooms}
                     onChange={(e) => handleSpecificationChange('totalRooms', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Available Rooms</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Available Rooms</label>
                   <input
                     type="number"
                     value={dormData.specifications.availableRooms}
                     disabled
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                   />
                 </div>
               </div>
             </div>
 
             {/* Property Images */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Property Images</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Property Images</h2>
 
               {dormData.images.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
@@ -1017,7 +1017,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     return (
                       <div
                         key={imageId || `new-${index}`}
-                        className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden group ${
+                        className={`relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group ${
                           isEditing ? 'cursor-move' : ''
                         } ${draggedImageIndex === index ? 'opacity-50 ring-2 ring-green-500' : ''} ${
                           isPrimary ? 'ring-2 ring-yellow-400' : ''
@@ -1079,16 +1079,16 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     );
                   })}
                   {isEditing && dormData.images.length < 10 && (
-                    <label htmlFor="image-upload-edit" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
+                    <label htmlFor="image-upload-edit" className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
                       <Plus className="w-8 h-8 text-gray-400" />
                     </label>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
                   <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 text-sm">No images added yet</p>
-                  <p className="text-gray-400 text-xs mt-1">At least 1 image is required</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">No images added yet</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">At least 1 image is required</p>
                 </div>
               )}
 
@@ -1114,16 +1114,16 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Amenities */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Amenities</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Amenities</h2>
 
               <div className="space-y-3 mb-4">
                 {(!dormData.amenities || dormData.amenities.length === 0) ? (
-                  <p className="text-gray-500 text-sm">No amenities added yet</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">No amenities added yet</p>
                 ) : (
                   dormData.amenities.map((amenity, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-700">{amenity}</span>
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{amenity}</span>
                       {isEditing && (
                         <button
                           onClick={() => handleRemoveAmenity(index)}
@@ -1145,7 +1145,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     onChange={(e) => setNewCustomAmenity(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAmenity(newCustomAmenity)}
                     placeholder="Add an amenity..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
                   />
                   <button
                     onClick={() => handleAddCustomAmenity(newCustomAmenity)}
@@ -1158,17 +1158,17 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             </div>
 
             {/* Property Rules */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Property Rules</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Property Rules</h2>
 
               <div className="space-y-3 mb-4">
                 {dormData.rules.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No rules added yet</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">No rules added yet</p>
                 ) : (
                   dormData.rules.map((rule, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <span className="text-green-600 mt-0.5">•</span>
-                      <span className="flex-1 text-sm text-gray-700">{rule}</span>
+                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{rule}</span>
                       {isEditing && (
                         <button
                           onClick={() => handleRemoveRule(index)}
@@ -1189,7 +1189,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     value={newRule}
                     onChange={(e) => setNewRule(e.target.value)}
                     placeholder="Add a new rule..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     onKeyPress={(e) => e.key === 'Enter' && handleAddRule()}
                   />
                   <button
@@ -1203,26 +1203,26 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             </div>
 
             {/* Credentials (Read-only view) */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Credentials</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Credentials</h2>
               {(!dormData.credentials || dormData.credentials.length === 0) ? (
-                <p className="text-gray-500 text-sm">No credential documents uploaded</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">No credential documents uploaded</p>
               ) : (
                 <div className="space-y-3">
                   {dormData.credentials.map((cred, idx) => {
                     const name = cred.original_name || cred.originalName || cred.file?.name || `Document ${idx + 1}`;
                     const url = cred.file_url || cred.file_path || (cred.file ? URL.createObjectURL(cred.file) : null);
                     return (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                         <div className="flex items-center gap-3">
-                          <FileText className="w-5 h-5 text-gray-600" />
-                          <div className="text-sm text-gray-700">{name}</div>
+                          <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                          <div className="text-sm text-gray-700 dark:text-gray-300">{name}</div>
                         </div>
                         <div className="flex items-center gap-3">
                           {url ? (
                             <a href={url} target="_blank" rel="noreferrer" className="text-sm text-green-600 hover:underline">View</a>
                           ) : (
-                            <span className="text-sm text-gray-400">Unavailable</span>
+                            <span className="text-sm text-gray-400 dark:text-gray-500">Unavailable</span>
                           )}
                           {isEditing && (
                             <button onClick={() => handleRemoveCredential(idx)} title="Remove" className="p-1 text-red-600 hover:text-red-800">
@@ -1246,7 +1246,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     className="hidden"
                     id="credential-upload-edit"
                   />
-                  <label htmlFor="credential-upload-edit" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  <label htmlFor="credential-upload-edit" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium">
                     <Upload className="w-4 h-4" />
                     Upload Documents
                   </label>
@@ -1259,13 +1259,13 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       {/* Password Verification Modal */}
       {passwordModal.show && passwordModal.property && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Verify Password</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Verify Password</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Please enter your password to confirm deletion of "{passwordModal.property.title || passwordModal.property.name}".
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -1280,14 +1280,14 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     verifyPassword();
                   }
                 }}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                  passwordError ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${
+                  passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="Enter your password"
                 autoFocus
               />
               {passwordError && (
-                <p className="mt-2 text-sm text-red-600">{passwordError}</p>
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{passwordError}</p>
               )}
             </div>
             <div className="flex justify-end gap-3">
@@ -1297,7 +1297,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   setPassword('');
                   setPasswordError('');
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 disabled={verifying}
               >
                 Cancel
@@ -1317,16 +1317,16 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       {/* Delete Confirmation Modal */}
       {deleteConfirm.show && deleteConfirm.property && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Confirm Deletion</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Are you sure you want to delete "{deleteConfirm.property.title || deleteConfirm.property.name}"?
               {deleteConfirm.property.total_rooms > 0 && (
-                <span className="block mt-2 text-red-600 font-medium">
+                <span className="block mt-2 text-red-600 dark:text-red-400 font-medium">
                   This will also delete all {deleteConfirm.property.total_rooms} associated room(s).
                 </span>
               )}
-              <span className="block mt-2">This action cannot be undone.</span>
+              <span className="block mt-2 dark:text-gray-400">This action cannot be undone.</span>
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -1334,7 +1334,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   setDeleteConfirm({ show: false, property: null });
                   setPassword('');
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancel
               </button>

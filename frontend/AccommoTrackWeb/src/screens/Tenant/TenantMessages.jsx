@@ -1,5 +1,5 @@
 import React from 'react';
-import Messages from '../../Landlord/Messages';
+import Messages from '../Landlord/Messages';
 
 const TenantMessages = ({ user }) => {
   return <Messages user={user} accessRole="tenant" />;

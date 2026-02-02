@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import PropertyDetails from '../../Guest/PropertyDetails';
-import { useSidebar } from '../../../contexts/SidebarContext';
+import PropertyDetails from '../Guest/PropertyDetails';
+import { useSidebar } from '../../contexts/SidebarContext';
 
 const TenantPropertyDetails = () => {
   const { id } = useParams();

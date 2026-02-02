@@ -2,6 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Properties for font preferences and theming */
+:root {
+  --font-scale: 1;
+  /* Base font sizes that will scale */
+  --text-xs: calc(0.75rem * var(--font-scale));
+  --text-sm: calc(0.875rem * var(--font-scale));
+  --text-base: calc(1rem * var(--font-scale));
+  --text-lg: calc(1.125rem * var(--font-scale));
+  --text-xl: calc(1.25rem * var(--font-scale));
+  --text-2xl: calc(1.5rem * var(--font-scale));
+  --text-3xl: calc(1.875rem * var(--font-scale));
+  --text-4xl: calc(2.25rem * var(--font-scale));
+  --text-5xl: calc(3rem * var(--font-scale));
+  --text-6xl: calc(3.75rem * var(--font-scale));
+  --text-7xl: calc(4.5rem * var(--font-scale));
+  --text-8xl: calc(6rem * var(--font-scale));
+  
+  /* Light theme colors (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --border-color: #e5e7eb;
+  --border-light: #f3f4f6;
+}
+
+/* Dark theme colors */
+.dark {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --border-color: #374151;
+  --border-light: #4b5563;
+}
+
+/* Smooth theme transitions */
+html {
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Apply transitions to common elements for smooth theme switching */
+body,
+.theme-transition,
+.theme-transition * {
+  transition: background-color 200ms ease-in-out, 
+              border-color 200ms ease-in-out,
+              color 200ms ease-in-out;
+}
+
+/* Scalable text utility classes - use these for text that should scale */
+.text-scaled-xs { font-size: var(--text-xs) !important; }
+.text-scaled-sm { font-size: var(--text-sm) !important; }
+.text-scaled-base { font-size: var(--text-base) !important; }
+.text-scaled-lg { font-size: var(--text-lg) !important; }
+.text-scaled-xl { font-size: var(--text-xl) !important; }
+.text-scaled-2xl { font-size: var(--text-2xl) !important; }
+.text-scaled-3xl { font-size: var(--text-3xl) !important; }
+
+/* Apply scaling to common text elements inside .font-scaled container */
+.font-scaled {
+  /* Body text */
+  font-size: var(--text-base);
+}
+
+.font-scaled p,
+.font-scaled span:not(.no-scale),
+.font-scaled label,
+.font-scaled td,
+.font-scaled th,
+.font-scaled li {
+  font-size: var(--text-base);
+}
+
+.font-scaled h1 { font-size: var(--text-3xl); }
+.font-scaled h2 { font-size: var(--text-2xl); }
+.font-scaled h3 { font-size: var(--text-xl); }
+.font-scaled h4 { font-size: var(--text-lg); }
+
+/* Button and input text scaling */
+.font-scaled button,
+.font-scaled input,
+.font-scaled select,
+.font-scaled textarea {
+  font-size: var(--text-base);
+}
+
+/* Small text elements */
+.font-scaled .text-xs { font-size: var(--text-xs); }
+.font-scaled .text-sm { font-size: var(--text-sm); }
+.font-scaled .text-lg { font-size: var(--text-lg); }
+.font-scaled .text-xl { font-size: var(--text-xl); }
+.font-scaled .text-2xl { font-size: var(--text-2xl); }
+
+/* Ensure containers handle overflow gracefully */
+.font-scaled .overflow-safe {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Constrain max font scaling for very small elements */
+.font-scaled .text-xs {
+  font-size: clamp(0.65rem, var(--text-xs), 1rem);
+}
+
 @keyframes slide-up {
   from {
     transform: translateY(100%);

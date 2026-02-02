@@ -13,13 +13,13 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
     return img;
   };
   return (
-    <div className={`bg-white rounded-xl shadow-sm border p-6 transition-all ${isEditingProfile ? 'border-green-300 ring-2 ring-green-100' : 'border-gray-100'}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all ${isEditingProfile ? 'border-green-300 dark:border-green-600 ring-2 ring-green-100 dark:ring-green-900/30' : 'border-gray-100 dark:border-gray-700'}`}>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-900">My Profile</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Profile</h2>
         {!isEditingProfile && (
           <button
             onClick={() => setIsEditingProfile(true)}
-            className="px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium flex items-center gap-2"
+            className="px-4 py-2 border border-green-600 dark:border-green-500 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -31,10 +31,10 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column - Avatar Only */}
         <div className="md:col-span-1">
-          <div className={`flex flex-col items-center justify-center h-full p-6 rounded-xl border transition-all ${isEditingProfile ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}> 
+          <div className={`flex flex-col items-center justify-center h-full p-6 rounded-xl border transition-all ${isEditingProfile ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700'}`}> 
             {/* Profile Photo */}
             <div className="relative mb-4">
-              <div className={`w-32 h-32 rounded-full flex items-center justify-center overflow-hidden transition-all ${isEditingProfile ? 'ring-4 ring-green-300' : ''} ${(photoPreview || profilePhoto) ? '' : (isEditingProfile ? 'bg-green-200' : 'bg-green-100')}`}> 
+              <div className={`w-32 h-32 rounded-full flex items-center justify-center overflow-hidden transition-all ${isEditingProfile ? 'ring-4 ring-green-300 dark:ring-green-600' : ''} ${(photoPreview || profilePhoto) ? '' : (isEditingProfile ? 'bg-green-200 dark:bg-green-800' : 'bg-green-100 dark:bg-green-900')}`}> 
                 {photoPreview || profilePhoto ? (
                   <img 
                     src={photoPreview || getImageUrl(profilePhoto)} 
@@ -58,10 +58,10 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                 </button>
               )}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
               {profileData.firstName} {profileData.lastName}
             </h3>
-            <p className="text-sm text-gray-500 capitalize">{user?.role || 'Landlord'}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{user?.role || 'Landlord'}</p>
             {/* Hidden file input */}
             <input
               type="file"
@@ -215,22 +215,22 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
               // View Mode - Clean read-only display
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                    <label className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">First Name</label>
-                    <p className="text-gray-900 font-medium text-lg">{profileData.firstName || '-'}</p>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">First Name</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.firstName || '-'}</p>
                   </div>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                    <label className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Last Name</label>
-                    <p className="text-gray-900 font-medium text-lg">{profileData.lastName || '-'}</p>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Last Name</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.lastName || '-'}</p>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <label className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Email Address</label>
-                  <p className="text-gray-900 font-medium text-lg">{profileData.email || '-'}</p>
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Email Address</label>
+                  <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.email || '-'}</p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <label className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Phone Number</label>
-                  <p className="text-gray-900 font-medium text-lg">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Phone Number</label>
+                  <p className="text-gray-900 dark:text-white font-medium text-lg">
                     {(!profileData.phone || profileData.phone === '-') ? (
                       <button
                         type="button"
@@ -243,13 +243,13 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   </p>
                 </div>
                 {/* Account Info Card */}
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                  <p className="text-sm font-medium text-blue-900 mb-2">Account Information</p>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">Account Information</p>
                   <div className="flex gap-6">
-                    <p className="text-sm text-blue-700">
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
                       Role: <span className="font-semibold capitalize">{user?.role || 'Landlord'}</span>
                     </p>
-                    <p className="text-sm text-blue-700">
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
                       Member since: <span className="font-semibold">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</span>
                     </p>
                   </div>

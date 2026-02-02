@@ -142,13 +142,13 @@ export default function LandlordLayout({
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white border-r border-gray-200 transition-all duration-300 ${
+      <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
         isSidebarOpen ? 'w-64' : 'w-20'
       } flex flex-col min-h-0`}>
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 
              className="cursor-pointer"
              onClick={() => navigate('/dashboard')}
@@ -161,7 +161,7 @@ export default function LandlordLayout({
                   alt="AccommoTrack Logo" 
                   className="h-8 w-auto"
                 />
-                <span className="text-lg font-bold text-gray-900">AccommoTrack</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">AccommoTrack</span>
               </div>
             ) : (
               <img 
@@ -173,9 +173,9 @@ export default function LandlordLayout({
           </div>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${!isSidebarOpen && 'hidden'}`}
+            className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -183,12 +183,12 @@ export default function LandlordLayout({
 
         {/* Collapsed Sidebar - Show hamburger when closed */}
         {!isSidebarOpen && (
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="w-full p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <svg className="w-5 h-5 text-gray-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
@@ -197,12 +197,12 @@ export default function LandlordLayout({
 
         {/* User Profile */}
         <div 
-            className="p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+            className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             onClick={() => navigate('/settings')}
             title="Go to Profile Settings"
         >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-            <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
               {user?.profile_image ? (
                 <img 
                   src={getImageUrl(user.profile_image)} 
@@ -210,19 +210,19 @@ export default function LandlordLayout({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-brand-600 font-semibold">
+                <span className="text-brand-600 dark:text-brand-400 font-semibold">
                   {user?.first_name?.[0]}{user?.last_name?.[0]}
                 </span>
               )}
             </div>
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
                 {isCaretaker && (
-                  <p className="text-xs text-amber-600 font-semibold mt-1">Caretaker Access</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">Caretaker Access</p>
                 )}
               </div>
             )}
@@ -238,8 +238,8 @@ export default function LandlordLayout({
               className={({ isActive }) => 
                 `w-full flex items-center gap-3 px-4 py-3 transition-colors relative ${
                   isActive
-                    ? 'bg-brand-50 text-brand-600 border-r-4 border-brand-600'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 border-r-4 border-brand-600 dark:border-brand-500'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 } ${!isSidebarOpen && 'justify-center'}`
               }
             >
@@ -263,14 +263,14 @@ export default function LandlordLayout({
 
         {/* Caretaker-only quick links */}
         {isCaretaker && (
-          <div className="px-4 pb-4 border-t border-gray-100">
+          <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold text-gray-500">Caretaker</div>
+              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">Caretaker</div>
             </div>
 
             <div className="mb-2">
-              <div className="text-xs text-gray-500">Monitoring</div>
-              <div className="text-sm font-medium text-gray-800 mt-1">
+              <div className="text-xs text-gray-500 dark:text-gray-400">Monitoring</div>
+              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1">
                 {selectedCaretakerProperty
                   ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`)
                   : 'No assigned property'}
@@ -282,14 +282,14 @@ export default function LandlordLayout({
                 (selectedCaretakerProperty) ? (
                   <NavLink
                     to={`/rooms?property=${selectedCaretakerProperty}`}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 7h18M3 7l9-4 9 4M4 7v14h16V7"/></svg>
+                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 7h18M3 7l9-4 9 4M4 7v14h16V7"/></svg>
                     <span>Rooms</span>
                   </NavLink>
                 ) : (
-                  <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 bg-gray-50" aria-disabled="true">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 7h18M3 7l9-4 9 4M4 7v14h16V7"/></svg>
+                  <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700" aria-disabled="true">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 7h18M3 7l9-4 9 4M4 7v14h16V7"/></svg>
                     <span>Rooms</span>
                   </div>
                 )
@@ -299,14 +299,14 @@ export default function LandlordLayout({
                 (selectedCaretakerProperty) ? (
                   <NavLink
                     to={`/tenants?property=${selectedCaretakerProperty}`}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                     <span>Tenants</span>
                   </NavLink>
                 ) : (
-                  <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 bg-gray-50" aria-disabled="true">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                  <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700" aria-disabled="true">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                     <span>Tenants</span>
                   </div>
                 )
@@ -316,10 +316,10 @@ export default function LandlordLayout({
         )}
 
         {/* Logout */}
-        <div className="p-4 border-t border-gray-200 mt-auto">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={handleLogoutClick}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
               !isSidebarOpen && 'justify-center'
             }`}
           >

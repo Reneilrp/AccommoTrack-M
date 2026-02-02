@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { useSearchParams } from 'react-router-dom';
-import { Clock } from 'lucide-react';
+import { useSearchParams, useLocation } from 'react-router-dom';
+import { Clock, ShieldCheck, Palette, User, Bell, Lock, Users, Receipt, CreditCard } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
-import MyProfile from '../../components/Settings/MyProfile';
-import Notifications from '../../components/Settings/Notifications';
-import Security from '../../components/Settings/Security';
-import CareTakerAccess from '../../components/Settings/CareTakerAccess';
-import Billing from '../../components/Settings/Billing';
-import PaymentMethods from '../../components/Settings/PaymentMethods';
+import MyProfile from '../../components/Settings/landlord/MyProfile';
+import Notifications from '../../components/Settings/landlord/Notifications';
+import Security from '../../components/Settings/landlord/Security';
+import CareTakerAccess from '../../components/Settings/landlord/CareTakerAccess';
+// import Billing from '../../components/Settings/landlord/Billing';
+import PaymentMethods from '../../components/Settings/landlord/PaymentMethods';
+import VerificationStatus from './VerificationStatus';
+import AppearanceTab from '../../components/Settings/AppearanceTab';
 
 const CARETAKER_PERMISSION_FIELDS = [
   {
@@ -77,7 +79,7 @@ const serializeCaretakerPermissions = (permissions) => ({
   can_view_properties: Boolean(permissions.properties)
 });
 
-const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'billing', 'payments'];
+const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'billing', 'payments', 'verification', 'appearance'];
 
 const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
@@ -90,9 +92,28 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       }));
     };
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(ensureValidTab(searchParams.get('tab')));
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check if there's a tab in location state (from Link navigation)
+    if (location.state?.tab && VALID_TABS.includes(location.state.tab)) {
+      return location.state.tab;
+    }
+    return ensureValidTab(searchParams.get('tab'));
+  });
   const normalizedRole = accessRole || user?.role || 'landlord';
   useEffect(() => {
+    // Handle location state tab (from Link with state)
+    if (location.state?.tab && VALID_TABS.includes(location.state.tab)) {
+      if (location.state.tab !== activeTab) {
+        setActiveTab(location.state.tab);
+        // Update URL params to match
+        const params = new URLSearchParams(searchParams);
+        params.set('tab', location.state.tab);
+        setSearchParams(params, { replace: true });
+      }
+      return;
+    }
+
     const paramTab = searchParams.get('tab');
     const nextTab = ensureValidTab(paramTab);
 
@@ -429,11 +450,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your account and business preferences</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your account and business preferences</p>
         </div>
       </header>
 
@@ -441,61 +462,85 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
               <nav className="space-y-1">
                 <button
                   onClick={() => handleTabChange('profile')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'profile' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'profile' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
+                  <User className="w-4 h-4" />
                   My Profile
                 </button>
                 <button
                   onClick={() => handleTabChange('notifications')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'notifications' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'notifications' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
+                  <Bell className="w-4 h-4" />
                   Notifications
                 </button>
                 <button
                   onClick={() => handleTabChange('security')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'security' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'security' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
+                  <Lock className="w-4 h-4" />
                   Security
                 </button>
                 <button
                   onClick={() => handleTabChange('caretaker')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'caretaker' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'caretaker' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
+                  <Users className="w-4 h-4" />
                   Caretaker
                 </button>
-                <button
+                {/* <button
                   onClick={() => handleTabChange('billing')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'billing' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'billing' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
+                  <Receipt className="w-4 h-4" />
                   Billing
-                </button>
+                </button> */}
                 <button
                   onClick={() => handleTabChange('payments')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === 'payments' ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'payments' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
+                  <CreditCard className="w-4 h-4" />
                   Payment Methods
+                </button>
+                <button
+                  onClick={() => handleTabChange('verification')}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'verification' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Verification Status
+                </button>
+                <button
+                  onClick={() => handleTabChange('appearance')}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'appearance' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <Palette className="w-4 h-4" />
+                  Appearance
                 </button>
               </nav>
             </div>
           </div>
           {/* Main Content Area */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 min-w-0">
             {activeTab === 'profile' && (
               <MyProfile
                 user={user}
@@ -552,8 +597,10 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                 handlePermissionToggle={handlePermissionToggle}
               />
             )}
-            {activeTab === 'billing' && <Billing />}
+            {/* {activeTab === 'billing' && <Billing />} */}
             {activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
+            {activeTab === 'verification' && <VerificationStatus />}
+            {activeTab === 'appearance' && <AppearanceTab />}
           </div>
         </div>
       </div>

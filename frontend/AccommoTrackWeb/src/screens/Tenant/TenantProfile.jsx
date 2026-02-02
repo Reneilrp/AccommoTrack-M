@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { tenantService } from '../../../services/tenantService';
+import { tenantService } from '../../services/tenantService';
 import { CircleUser, Camera, CheckCircle, AlertCircle } from 'lucide-react';
 
 const TenantProfile = () => {
@@ -145,19 +145,19 @@ const TenantProfile = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading profile...</div>;
+    return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading profile...</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 pb-20">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">My Tenant Profile</h1>
-        <p className="text-gray-500 text-sm">Update your personal information and preferences.</p>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">My Tenant Profile</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">Update your personal information and preferences.</p>
       </div>
 
       {message.text && (
         <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-          message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'
         }`}>
           {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           {message.text}
@@ -167,16 +167,16 @@ const TenantProfile = () => {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Avatar & Basic Info */}
         <div className="md:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col items-center text-center">
             <div className="relative group">
               {imagePreview ? (
                 <img 
                   src={imagePreview} 
                   alt="Profile" 
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
                 />
               ) : (
-                <CircleUser className="w-32 h-32 text-gray-300" />
+                <CircleUser className="w-32 h-32 text-gray-300 dark:text-gray-600" />
               )}
               
               <label className="absolute bottom-0 right-0 bg-green-600 p-2 rounded-full text-white cursor-pointer hover:bg-green-700 transition shadow-sm">
@@ -190,29 +190,29 @@ const TenantProfile = () => {
               </label>
             </div>
             
-            <h2 className="mt-4 font-semibold text-lg text-gray-800">
+            <h2 className="mt-4 font-semibold text-lg text-gray-800 dark:text-white">
               {formData.first_name} {formData.last_name}
             </h2>
-            <p className="text-gray-500 text-sm">{formData.email}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">{formData.email}</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-md font-semibold text-gray-800 mb-4 border-b pb-2">Account Info</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Account Info</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Email (Read-only)</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Email (Read-only)</label>
                 <input 
                   type="email" 
                   value={formData.email} 
                   disabled 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500"
+                  className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Change Password</label>
-                <button type="button" className="text-sm text-green-600 hover:text-green-700 font-medium hover:underline">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Change Password</label>
+                <button type="button" className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium hover:underline">
                   Update Password
                 </button>
               </div>
@@ -224,78 +224,78 @@ const TenantProfile = () => {
         <div className="md:col-span-2 space-y-6">
           
           {/* Personal Information Section */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-md font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
               <span className="w-1 h-6 bg-green-500 rounded-full"></span>
               Personal Information
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">First Name</label>
                 <input 
                   type="text" 
                   name="first_name"
                   value={formData.first_name}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                   required
                 />
               </div>
               
               <div>
-                 <label className="block text-xs font-medium text-gray-700 mb-1">Middle Name</label>
+                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Middle Name</label>
                 <input 
                   type="text" 
                   name="middle_name"
                   value={formData.middle_name}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Last Name</label>
                 <input 
                   type="text" 
                   name="last_name"
                   value={formData.last_name}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                   required
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Phone Number</label>
                 <input 
                   type="tel" 
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Date of Birth</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Date of Birth</label>
                 <input 
                   type="date" 
                   name="date_of_birth"
                   value={formData.date_of_birth}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                 />
               </div>
               
                <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Current Address</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Current Address</label>
                 <textarea 
                   name="current_address"
                   value={formData.current_address}
                   onChange={handleChange}
                   rows="2"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                   placeholder="Your permanent address (hometown)"
                 ></textarea>
               </div>
@@ -303,51 +303,51 @@ const TenantProfile = () => {
           </div>
 
           {/* Emergency Contact */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-md font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
               <span className="w-1 h-6 bg-red-400 rounded-full"></span>
               Emergency Contact
             </h3>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Contact Name</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Contact Name</label>
                 <input 
                   type="text" 
                   name="emergency_contact_name"
                   value={formData.emergency_contact_name}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                 />
               </div>
               
                <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Relationship</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Relationship</label>
                 <input 
                   type="text" 
                   name="emergency_contact_relationship"
                   value={formData.emergency_contact_relationship}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                   placeholder="e.g. Parent, Sibling"
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Contact Phone</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Contact Phone</label>
                 <input 
                   type="tel" 
                   name="emergency_contact_phone"
                   value={formData.emergency_contact_phone}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                 />
               </div>
              </div>
           </div>
 
           {/* Preferences & Lifestyle */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-md font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
               <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
               Preferences & Lifestyle
             </h3>
@@ -355,12 +355,12 @@ const TenantProfile = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Room Type</label>
+                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Preferred Room Type</label>
                    <select 
                      name="room_preference" 
                      value={formData.room_preference} 
                      onChange={handleChange}
-                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                    >
                      <option value="">Select preference...</option>
                      <option value="Single">Single Room</option>
@@ -370,38 +370,38 @@ const TenantProfile = () => {
                 </div>
                 
                  <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-1">Budget Range (Monthly)</label>
+                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Budget Range (Monthly)</label>
                    <input 
                       type="text"
                       name="budget_range"
                       value={formData.budget_range}
                       onChange={handleChange}
                       placeholder="e.g. 5000-8000"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                    />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                  <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-1">Smoking?</label>
+                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Smoking?</label>
                    <select 
                      name="smoking" 
                      value={formData.smoking} 
                      onChange={handleChange}
-                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                    >
                      <option value="no">No</option>
                      <option value="yes">Yes</option>
                    </select>
                 </div>
                  <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-1">Pets?</label>
+                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Pets?</label>
                    <select 
                      name="pets" 
                      value={formData.pets} 
                      onChange={handleChange}
-                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                    >
                      <option value="no">No</option>
                      <option value="yes">Yes</option>
@@ -410,19 +410,19 @@ const TenantProfile = () => {
               </div>
 
                <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Behaviour & Attitude / About Me
-                  <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                  <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">(Optional)</span>
                 </label>
                 <textarea 
                   name="lifestyle_notes"
                   value={formData.lifestyle_notes}
                   onChange={handleChange}
                   rows="3"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                   placeholder="Describe your lifestyle, study habits, or any preferences for roommates..."
                 ></textarea>
-                <p className="text-xs text-gray-400 mt-1">Helps landlords or potential roommates understand your compatibility.</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Helps landlords or potential roommates understand your compatibility.</p>
               </div>
             </div>
           </div>
@@ -431,7 +431,7 @@ const TenantProfile = () => {
              <button
                type="submit"
                disabled={saving}
-               className={`px-6 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-200 transition shadow-lg ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+               className={`px-6 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-200 dark:focus:ring-green-800 transition shadow-lg ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
              >
                {saving ? 'Saving Changes...' : 'Save Profile'}
              </button>

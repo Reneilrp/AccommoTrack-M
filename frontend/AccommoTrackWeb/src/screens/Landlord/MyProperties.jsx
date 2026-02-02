@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useSidebar } from '../../contexts/SidebarContext';
 import AddProperty from './AddProperty';
 import {
@@ -8,9 +8,8 @@ import {
   Search,
   Filter,
   MapPin,
-  Edit,
   Building2,
-  Loader2
+  ShieldAlert
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -31,10 +30,21 @@ export default function MyProperties({ user }) {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [isVerified, setIsVerified] = useState(null);
 
   useEffect(() => {
     fetchProperties();
+    checkVerificationStatus();
   }, []);
+
+  const checkVerificationStatus = async () => {
+    try {
+      const res = await api.get('/landlord/my-verification');
+      setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
+    } catch (err) {
+      setIsVerified(false);
+    }
+  };
 
   const fetchProperties = async () => {
     try {
@@ -188,14 +198,40 @@ export default function MyProperties({ user }) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Verification Warning Banner */}
+      {isVerified === false && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="w-6 h-6 text-yellow-600" />
+                <div>
+                  <h4 className="text-yellow-800 font-semibold">Draft-Only Mode</h4>
+                  <p className="text-yellow-700 text-sm">
+                    Your account is pending verification. Properties can only be saved as drafts until approved.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/settings"
+                state={{ tab: 'verification' }}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium text-sm transition-colors"
+              >
+                Check Status
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center">
             <div className="w-full text-center">
-              <h1 className="text-2xl font-bold text-gray-900">My Properties</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage and track all your property listings</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Properties</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage and track all your property listings</p>
             </div>
             <div className="mt-4 lg:mt-0">
               <button
@@ -226,20 +262,20 @@ export default function MyProperties({ user }) {
             [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
           ) : (
             <>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <p className="text-sm text-gray-600 mb-1">Active Listings</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.activeListings}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Active Listings</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.activeListings}</p>
               </div>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <p className="text-sm text-gray-600 mb-1">Inactive Listings</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.inactiveListings}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Inactive Listings</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.inactiveListings}</p>
               </div>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <p className="text-sm text-gray-600 mb-1">Total Rooms</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Rooms</p>
                 <p className="text-3xl font-bold text-green-600">{stats.totalRooms}</p>
               </div>
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <p className="text-sm text-gray-600 mb-1">Total Inquiries</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Inquiries</p>
                 <p className="text-3xl font-bold text-orange-500">{stats.totalInquiries.toLocaleString()}</p>
               </div>
             </>
@@ -247,10 +283,10 @@ export default function MyProperties({ user }) {
         </div>
 
         {/* Tabs and Search */}
-        <div className="bg-white rounded-lg border border-gray-200 mb-4">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 All Properties ({filteredProperties.length})
               </h2>
             </div>
@@ -263,21 +299,21 @@ export default function MyProperties({ user }) {
                   placeholder="Search properties..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
 
               {/* Filter */}
-              <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter className="w-5 h-5 text-gray-600" />
+              <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </button>
 
               {/* Tabs */}
-              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
                   onClick={() => setActiveTab('all')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   All
@@ -285,7 +321,7 @@ export default function MyProperties({ user }) {
                 <button
                   onClick={() => setActiveTab('active')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   Active
@@ -293,7 +329,7 @@ export default function MyProperties({ user }) {
                 <button
                   onClick={() => setActiveTab('inactive')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   Inactive
@@ -301,7 +337,7 @@ export default function MyProperties({ user }) {
                 <button
                   onClick={() => setActiveTab('pending')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 hover:text-gray-900'
+                    activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   Pending
@@ -311,7 +347,7 @@ export default function MyProperties({ user }) {
           </div>
 
           {/* Properties List */}
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               // Skeleton property items
               [...Array(3)].map((_, i) => <SkeletonPropertyListItem key={i} />)
@@ -338,7 +374,7 @@ export default function MyProperties({ user }) {
                 return (
                   <div
                     key={property.id}
-                    className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                     role="button"
                     tabIndex={0}
                     onClick={() => handleViewProperty(property.id)}
@@ -347,7 +383,7 @@ export default function MyProperties({ user }) {
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-6 flex-1">
                         {/* Property Image */}
-                        <div className="w-60 h-48 min-w-60 min-h-48 rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-300 flex-shrink-0">
+                        <div className="w-60 h-48 min-w-60 min-h-48 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 flex-shrink-0">
                           {imageUrl ? (
                             <img
                               src={imageUrl}
@@ -370,7 +406,7 @@ export default function MyProperties({ user }) {
                         {/* Property Details */}
                         <div className="flex-1 flex-row-3">
                           <div className="flex items-center gap-3 mb-1 pt-5">
-                                            <h3 className="text-xl font-semibold text-gray-900 text-center">{property.title}</h3>
+                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white text-center">{property.title}</h3>
                             <span
                               className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
                                 property.current_status === 'active'
@@ -384,13 +420,13 @@ export default function MyProperties({ user }) {
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1 text-sm text-gray-600 mb-3">
+                          <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 mb-3">
                             <MapPin className="w-4 h-4" />
                             {property.street_address}, {property.city}
                           </div>
 
                           <div className="flex items-center gap-2 mb-3">
-                            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded capitalize">
+                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium rounded capitalize">
                               {property.property_type}
                             </span>
                           </div>
@@ -398,12 +434,12 @@ export default function MyProperties({ user }) {
                           {/* Property Stats */}
                           <div className="grid grid-cols-3 gap-4">
                             <div>
-                              <p className="text-xs text-gray-500 mb-1">Available Rooms</p>
-                              <p className="text-sm font-semibold text-gray-900">{property.available_rooms || 0}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Rooms</p>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.available_rooms || 0}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-gray-500 mb-1">Total Rooms</p>
-                              <p className="text-sm font-semibold text-gray-900">{property.total_rooms || 0}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.total_rooms || 0}</p>
                             </div>
                           </div>
                         </div>
@@ -420,13 +456,13 @@ export default function MyProperties({ user }) {
       {/* Password Verification Modal */}
       {passwordModal.show && passwordModal.property && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Verify Password</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Verify Password</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Please enter your password to confirm deletion of "{passwordModal.property.title}".
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Password
               </label>
               <input
@@ -441,8 +477,8 @@ export default function MyProperties({ user }) {
                     verifyPassword();
                   }
                 }}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                  passwordError ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${
+                  passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="Enter your password"
                 autoFocus
@@ -478,9 +514,9 @@ export default function MyProperties({ user }) {
       {/* Delete Confirmation Modal */}
       {deleteConfirm.show && deleteConfirm.property && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Confirm Deletion</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Confirm Deletion</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Are you sure you want to delete "{deleteConfirm.property.title}"?
               {deleteConfirm.property.total_rooms > 0 && (
                 <span className="block mt-2 text-red-600 font-medium">

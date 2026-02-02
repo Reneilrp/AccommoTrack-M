@@ -5,6 +5,23 @@
     <link rel="icon" type="image/png" href="src/assets/Logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>web-admin-ui</title>
+    <!-- Prevent flash of wrong theme on page load -->
+    <script>
+      (function() {
+        try {
+          const stored = localStorage.getItem('accommo_preferences');
+          if (stored) {
+            const prefs = JSON.parse(stored);
+            const theme = prefs.theme || 'system';
+            if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+              document.documentElement.classList.add('dark');
+            }
+          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

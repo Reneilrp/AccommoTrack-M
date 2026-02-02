@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
 import api from '../../utils/api';
-import { Skeleton, SkeletonStatCard, SkeletonTableRow, SkeletonBookingCard } from '../../components/Shared/Skeleton';
+import { 
+  SkeletonStatCard, SkeletonTableRow 
+} from '../../components/Shared/Skeleton';
 
 export default function Bookings({ user, accessRole = 'landlord' }) {
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -251,13 +253,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage all room bookings and reservations</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bookings</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage all room bookings and reservations</p>
           </div>
           <div className="mt-4 sm:mt-0">
             <button
@@ -307,20 +309,20 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
           ) : (
             <>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <p className="text-sm text-gray-500">Total Bookings</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Bookings</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <p className="text-sm text-gray-500">Confirmed</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Confirmed</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <p className="text-sm text-gray-500">Pending</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                <p className="text-sm text-gray-500">Completed</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
               </div>
             </>
@@ -328,7 +330,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Search Input */}
             <div className="w-fit">
@@ -339,7 +341,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by name, room, property, dates, amount..."
-                  className="w-[27rem] pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  className="w-[27rem] pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white"
                 />
                 {searchQuery && (
                   <button
@@ -360,7 +362,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   onClick={() => setFilterStatus(status)}
                   className={`px-4 py-2.5 rounded-lg font-medium transition-colors ${filterStatus === status
                       ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -371,22 +373,22 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         </div>
 
         {/* Bookings Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property/Room</th>
-                  <th className="pl-16 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="pl-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="pl-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
-                  <th className="pl-1 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Guest</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Property/Room</th>
+                  <th className="pl-16 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Dates</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Duration</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Amount</th>
+                  <th className="pl-5 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
+                  <th className="pl-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Payment</th>
+                  <th className="pl-1 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
                   // Skeleton rows
                   [...Array(5)].map((_, i) => <SkeletonTableRow key={i} columns={8} />)
@@ -410,32 +412,32 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   filteredBookings.map((booking) => {
                     const totalDays = calculateDays(booking.checkIn, booking.checkOut);
                     return (
-                      <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={booking.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td className="pl-5 py-4">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{booking.guestName}</div>
-                            <div className="text-xs text-gray-500">{booking.email}</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{booking.guestName}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{booking.email}</div>
                           </div>
                         </td>
                         <td className="pl-6 py-4">
-                          <div className="text-sm font-medium text-gray-900">{booking.propertyTitle}</div>
-                          <div className="text-xs text-gray-500">Room {booking.roomNumber} - {booking.roomType}</div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{booking.propertyTitle}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Room {booking.roomNumber} - {booking.roomType}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-start gap-2">
                             <Calendar className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                             <div>
-                              <div className="text-sm text-gray-900 whitespace-nowrap">{formatDate(booking.checkIn)}</div>
-                              <div className="text-xs text-gray-500 whitespace-nowrap">to {formatDate(booking.checkOut)}</div>
+                              <div className="text-sm text-gray-900 dark:text-white whitespace-nowrap">{formatDate(booking.checkIn)}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">to {formatDate(booking.checkOut)}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{booking.duration}</div>
-                          <div className="text-xs text-gray-500">{totalDays} days</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{booking.duration}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{totalDays} days</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                             <PriceRow amount={booking.amount} />
                           </div>
                           <div className="text-xs text-gray-500 whitespace-nowrap">
@@ -474,10 +476,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       {/* Detail Modal */}
       {showDetailModal && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
-              <h2 className="text-xl font-bold text-gray-900">Booking Details</h2>
-              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Booking Details</h2>
+              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -753,10 +755,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800">
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Close
               </button>
@@ -768,10 +770,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       {/* Cancel & Refund Modal */}
       {showCancelModal && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900 text-center">Cancel Booking</h3>
-              <button onClick={() => setShowCancelModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center">Cancel Booking</h3>
+              <button onClick={() => setShowCancelModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -784,14 +786,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Cancellation Reason *
               </label>
               <textarea
                 value={cancellationData.reason}
                 onChange={(e) => setCancellationData({ ...cancellationData, reason: e.target.value })}
                 placeholder="Enter reason for cancellation..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 rows="3"
               />
             </div>
@@ -810,18 +812,18 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                     })}
                     className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                   />
-                  <label htmlFor="shouldRefund" className="text-sm font-medium text-gray-700">
+                  <label htmlFor="shouldRefund" className="text-sm font-medium text-gray-700 dark:text-gray-200">
                     Process Refund
                   </label>
                 </div>
 
                 {cancellationData.shouldRefund && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       Refund Amount
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-2 text-gray-500">₱</span>
+                      <span className="absolute left-3 top-2 text-gray-500 dark:text-gray-400">₱</span>
                       <input
                         type="number"
                         value={cancellationData.refundAmount}
@@ -830,11 +832,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           refundAmount: parseFloat(e.target.value) || 0
                         })}
                         max={selectedBooking.amount}
-                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="0.00"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Maximum refundable: ₱{selectedBooking.amount.toLocaleString()}
                     </p>
                   </div>
@@ -852,7 +854,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Go Back
               </button>

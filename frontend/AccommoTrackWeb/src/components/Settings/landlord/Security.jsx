@@ -13,12 +13,12 @@ export default function Security({
 }) {
   return (
     <div className="space-y-6">
-      <div className={`bg-white rounded-xl shadow-sm border p-6 transition-all ${isEditingPassword ? 'border-green-300 ring-2 ring-green-100' : 'border-gray-100'}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all ${isEditingPassword ? 'border-green-300 dark:border-green-600 ring-2 ring-green-100 dark:ring-green-900/30' : 'border-gray-100 dark:border-gray-700'}`}>
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-gray-900">Password</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Password</h2>
             {isEditingPassword && (
-              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
                 Editing
               </span>
             )}
@@ -26,7 +26,7 @@ export default function Security({
           {!isEditingPassword && (
             <button
               onClick={() => setIsEditingPassword(true)}
-              className="px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium flex items-center gap-2"
+              className="px-4 py-2 border border-green-600 dark:border-green-500 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -97,25 +97,25 @@ export default function Security({
             </div>
           </div>
         ) : (
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               <div>
-                <p className="text-sm font-medium text-gray-900">Password Protected</p>
-                <p className="text-xs text-gray-500">Your account is secured with a password</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Password Protected</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Your account is secured with a password</p>
               </div>
             </div>
           </div>
         )}
       </div>
-      <div className={`bg-white rounded-xl shadow-sm border p-6 transition-all ${isEditingSecurity ? 'border-green-300 ring-2 ring-green-100' : 'border-gray-100'}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all ${isEditingSecurity ? 'border-green-300 dark:border-green-600 ring-2 ring-green-100 dark:ring-green-900/30' : 'border-gray-100 dark:border-gray-700'}`}>
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-gray-900">Security Settings</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security Settings</h2>
             {isEditingSecurity && (
-              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
                 Editing
               </span>
             )}
@@ -123,7 +123,7 @@ export default function Security({
           {!isEditingSecurity && (
             <button
               onClick={() => setIsEditingSecurity(true)}
-              className="px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium flex items-center gap-2"
+              className="px-4 py-2 border border-green-600 dark:border-green-500 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -142,11 +142,11 @@ export default function Security({
         )}
         <div className="space-y-4">
           <div className={`flex items-center justify-between p-4 rounded-lg transition-all ${
-            isEditingSecurity ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'
+            isEditingSecurity ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700'
           }`}>
             <div>
-              <p className="font-medium text-gray-900">Two-Factor Authentication</p>
-              <p className="text-sm text-gray-500">Add an extra layer of security</p>
+              <p className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Add an extra layer of security</p>
             </div>
             {isEditingSecurity ? (
               <button
@@ -169,11 +169,11 @@ export default function Security({
             )}
           </div>
           <div className={`flex items-center justify-between p-4 rounded-lg transition-all ${
-            isEditingSecurity ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'
+            isEditingSecurity ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700'
           }`}>
             <div>
-              <p className="font-medium text-gray-900">Login Alerts</p>
-              <p className="text-sm text-gray-500">Get notified of new logins</p>
+              <p className="font-medium text-gray-900 dark:text-white">Login Alerts</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Get notified of new logins</p>
             </div>
             {isEditingSecurity ? (
               <button

@@ -4,23 +4,23 @@ export default function TenantCard({ tenant }) {
   const profile = tenant.tenantProfile;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-shadow">
       {/* Header: Name + Status */}
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
             {tenant.first_name} {tenant.last_name}
           </h3>
-          <p className="text-sm text-gray-600 flex items-center gap-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
             <Mail className="w-4 h-4" /> {tenant.email}
           </p>
           {tenant.phone && (
-            <p className="text-sm text-gray-600 flex items-center gap-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
               <Phone className="w-4 h-4" /> {tenant.phone}
             </p>
           )}
           {tenant.age && (
-            <p className="text-sm text-gray-600 flex items-center gap-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
               <User className="w-4 h-4" /> Age: {tenant.age}
             </p>
           )}
@@ -37,17 +37,17 @@ export default function TenantCard({ tenant }) {
 
       {/* Room Info */}
       {tenant.room ? (
-        <p className="flex items-center gap-1 text-sm text-gray-700 mb-2">
+        <p className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300 mb-2">
           <Home className="w-4 h-4" />
           Room {tenant.room?.room_number} ({tenant.room?.type_label})
         </p>
       ) : (
-        <p className="text-sm text-amber-700 italic mb-2">No room assigned</p>
+        <p className="text-sm text-amber-700 dark:text-amber-500 italic mb-2">No room assigned</p>
       )}
 
       {/* Move-in Date */}
       {profile?.move_in_date && (
-        <p className="flex items-center gap-1 text-sm text-gray-600 mb-2">
+        <p className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
           <Calendar className="w-4 h-4" />
           Move-in: {new Date(profile.move_in_date).toLocaleDateString()}
         </p>
@@ -62,14 +62,14 @@ export default function TenantCard({ tenant }) {
 
       {/* Preference */}
       {profile?.preference && (
-        <p className="text-sm italic text-gray-600 mb-2">
+        <p className="text-sm italic text-gray-600 dark:text-gray-400 mb-2">
           "{profile.preference}"
         </p>
       )}
 
       {/* Notes */}
       {profile?.notes && (
-        <details className="mt-2 text-xs text-gray-500">
+        <details className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           <summary className="cursor-pointer flex items-center gap-1 font-medium">
             <FileText className="w-3 h-3" /> Notes
           </summary>

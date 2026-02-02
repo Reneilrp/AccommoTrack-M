@@ -371,14 +371,14 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
   return (
   <div className="flex flex-col fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-center relative">
-          <h2 className="text-xl font-semibold text-gray-900 text-center">Add New Room</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-center">Add New Room</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors absolute right-0"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors absolute right-0"
           >
             <X className="w-6 h-6" />
           </button>
@@ -395,7 +395,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         {/* Basic Information */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Basic Information</h3>
             {/* For dormitory/boarding properties the Room Type select will include
                 both Single and Bed Spacer options. No separate toggle is needed. */}
           </div>
@@ -403,7 +403,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
           {/* Row 2: Room Number | Floor | Room Type */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Room Number <span className="text-red-500">*</span>
               </label>
               <input
@@ -411,18 +411,18 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 placeholder="e.g., 301"
                 value={formData.roomNumber}
                 onChange={(e) => handleInputChange('roomNumber', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Floor <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.floor}
                 onChange={(e) => handleInputChange('floor', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
               >
                 {floors.map(floor => (
                   <option key={floor.value} value={floor.value}>{floor.label}</option>
@@ -431,13 +431,13 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Room Type {!isApartment && <span className="text-xs text-gray-500">(auto capacity unless Bed Spacer)</span>}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Room Type {!isApartment && <span className="text-xs text-gray-500 dark:text-gray-400">(auto capacity unless Bed Spacer)</span>}
               </label>
               <select
                 value={formData.roomType}
                 onChange={(e) => handleInputChange('roomType', e.target.value)}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-green-500 ${isBedSpacerProperty ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 ${isBedSpacerProperty ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''}`}
                 disabled={isBedSpacerProperty}
               >
                 {roomTypes.map(type => (
@@ -450,11 +450,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
           {/* Row 2: Billing Policy | Monthly Rate | Daily Rate */}
           <div className="grid grid-cols-3 gap-4 mt-2 items-end min-w-0">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing Policy</label>
               <select
                 value={formData.billingPolicy}
                 onChange={(e) => handleInputChange('billingPolicy', e.target.value)}
-                className="w-full pr-4 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pr-4 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="monthly">Monthly Rate</option>
                 <option value="monthly_with_daily">Monthly + Daily</option>
@@ -463,7 +463,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Monthly Rate (₱/month)
                 {formData.billingPolicy === 'monthly' || formData.billingPolicy === 'monthly_with_daily' ? (
                   <span className="text-red-500 ml-1">*</span>
@@ -474,7 +474,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 placeholder="e.g., 5000"
                 value={formData.monthlyRate}
                 onChange={(e) => handleInputChange('monthlyRate', e.target.value)}
-                className={`w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${formData.billingPolicy === 'daily' ? 'bg-gray-50' : ''}`}
+                className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${formData.billingPolicy === 'daily' ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
                 min="0"
                 step="0.01"
                 disabled={formData.billingPolicy === 'daily'}
@@ -482,7 +482,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Daily Rate (₱/day)
                 {(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? (
                   <span className="text-red-500 ml-1">*</span>
@@ -493,7 +493,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 placeholder="e.g., 300"
                 value={formData.dailyRate}
                 onChange={(e) => handleInputChange('dailyRate', e.target.value)}
-                className={`w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50' : ''}`}
+                className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
                 min="0"
                 step="0.01"
                 disabled={!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily')}
@@ -504,13 +504,13 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
           {/* Row 3: Minimum Stay | Capacity */}
           <div className="grid grid-cols-3 gap-4 mt-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Stay (days)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Minimum Stay (days)</label>
               <input
                 type="number"
                 placeholder="e.g., 30"
                 value={formData.minStayDays}
                 onChange={(e) => handleInputChange('minStayDays', e.target.value)}
-                className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
                 min="1"
                 step="1"
               />
@@ -518,10 +518,10 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
             <div>
               <div className="flex items-baseline justify-between">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Capacity</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capacity</label>
                 <div className="flex items-baseline gap-2">
                   <span className="text-red-500 ml-1">*</span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
                     {formData.roomType === 'bedSpacer' ? '(manually if bed spacer)' : '(auto-set by room type)'}
                   </span>
                 </div>
@@ -535,7 +535,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                     type="number"
                     value={displayValue}
                     onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
-                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${capacityDisabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${capacityDisabled ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''}`}
                     min="1"
                     max="10"
                     disabled={capacityDisabled}
@@ -545,20 +545,20 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-900">Pricing Model</h4>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Pricing Model</h4>
               <button
                 type="button"
                 onClick={() => setShowPricingHelp(true)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded focus:outline-none"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded focus:outline-none"
                 title="Pricing help"
                 aria-label="Open pricing help"
               >
                 <HelpCircle className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-xs text-gray-600 mb-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
               {formData.roomType === 'bedSpacer' 
                 ? 'Bed Spacer rooms use per-bed pricing only'
                 : 'How should tenants pay for this room?'
@@ -568,7 +568,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             <div className="space-y-2">
               {/* Full Room Price - NOT shown for bedSpacer */}
               {formData.roomType !== 'bedSpacer' && (
-                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                   style={{ backgroundColor: formData.pricingModel === 'full_room' ? '#dbeafe' : 'transparent' }}
                 >
                   <input
@@ -580,8 +580,8 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                     className="w-4 h-4"
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Room Price</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">Room Price</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       {formData.capacity > 1 ? (
                         <span>ic
                           Tenants divide <PriceRow amount={parseFloat(formData.monthlyRate) || 0} /> equally (
@@ -596,7 +596,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
               {/* Per Bed Price - shown for all non-single rooms OR bedSpacer */}
               {(formData.roomType !== 'single' || formData.roomType === 'bedSpacer') && (
-                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                   style={{ backgroundColor: formData.pricingModel === 'per_bed' ? '#dbeafe' : 'transparent' }}
                 >
                   <input
@@ -608,8 +608,8 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                     className="w-4 h-4"
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Per Bed/Tenant Price</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">Per Bed/Tenant Price</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       Each tenant pays <PriceRow amount={parseFloat(formData.monthlyRate) || 0} small={true} /> for their bed (independent billing)
                     </p>
                   </div>
@@ -621,7 +621,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
           <PricingHelp open={showPricingHelp} onClose={() => setShowPricingHelp(false)} />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Description (Optional)
             </label>
             <textarea
@@ -629,17 +629,17 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none dark:bg-gray-700 dark:text-white"
             />
           </div>
         </div>
 
         {/* Amenities */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Room Amenities</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Room Amenities</h3>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Add New Amenity</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Add New Amenity</label>
             <div className="flex gap-3">
               <input
                 type="text"
@@ -652,7 +652,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                     addNewAmenity();
                   }
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
               />
               <button
                 type="button"
@@ -664,12 +664,12 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 Add
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">Add amenities that will be available in this room and saved to property</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Add amenities that will be available in this room and saved to property</p>
           </div>
 
           {amenitiesList.length > 0 ? (
             <>
-              <p className="text-sm font-medium text-gray-700 mb-3">Property Amenities:</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Property Amenities:</p>
               <div className="grid grid-cols-3 gap-3">
                 {amenitiesList.map((amenity) => (
                   <button
@@ -678,8 +678,8 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                     onClick={() => toggleAmenity(amenity)}
                     className={`px-4 py-3 rounded-lg border-2 text-left text-sm transition-all ${
                       formData.amenities.includes(amenity)
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
                     }`}
                   >
                     {amenity}
@@ -688,18 +688,18 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               </div>
             </>
           ) : (
-            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-600 text-sm">No amenities in property yet</p>
-              <p className="text-gray-500 text-xs mt-1">Add amenities above to get started</p>
+            <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">No amenities in property yet</p>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">Add amenities above to get started</p>
             </div>
           )}
         </div>
 
         {/* Images */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Room Images</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Room Images</h3>
           
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+          <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
             <input
               type="file"
               multiple
@@ -711,15 +711,15 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             
             {previewImages.length === 0 ? (
               <label htmlFor="room-image-upload" className="cursor-pointer block text-center">
-                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600 text-sm mb-1">Click to upload room images</p>
-                <p className="text-gray-500 text-xs">PNG, JPG up to 10MB (Max 10 images)</p>
+                <Upload className="w-10 h-10 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">Click to upload room images</p>
+                <p className="text-gray-500 dark:text-gray-500 text-xs">PNG, JPG up to 10MB (Max 10 images)</p>
               </label>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-5 gap-3">
                   {previewImages.map((img, index) => (
-                    <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                    <div key={index} className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group">
                       <img src={img} alt={`Room ${index + 1}`} className="w-full h-full object-cover" />
 
                       {/* Cover badge for first image */}
@@ -731,7 +731,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                         type="button"
                         onClick={() => removeImage(index)}
                         title="Remove image"
-                        className="absolute top-2 right-2 p-1 bg-white bg-opacity-90 text-gray-700 rounded-full shadow-sm hover:bg-opacity-100 transition-colors"
+                        className="absolute top-2 right-2 p-1 bg-white dark:bg-gray-800 bg-opacity-90 text-gray-700 dark:text-gray-300 rounded-full shadow-sm hover:bg-opacity-100 transition-colors"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -740,9 +740,9 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   {formData.images.length < 10 && (
                     <label
                       htmlFor="room-image-upload"
-                      className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                      className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
                     >
-                      <Plus className="w-8 h-8 text-gray-400" />
+                      <Plus className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                     </label>
                   )}
                 </div>
@@ -753,12 +753,12 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={onClose}
           disabled={loading}
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
           Cancel
         </button>

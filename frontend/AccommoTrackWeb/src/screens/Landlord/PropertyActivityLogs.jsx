@@ -93,15 +93,15 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto z-10">
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto z-10">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Activity Logs</h3>
-            <p className="text-sm text-gray-500">Property activity — ordered by time</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Activity Logs</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Property activity — ordered by time</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="p-2 rounded-md hover:bg-gray-50">
-              <X className="w-5 h-5 text-gray-600" />
+            <button onClick={onClose} className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
+              <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-md text-sm ${filter === f ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                className={`px-3 py-1.5 rounded-md text-sm ${filter === f ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
                 {f}
               </button>
@@ -120,23 +120,23 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
           </div>
 
           {loading ? (
-            <div className="text-sm text-gray-500">Loading activity...</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Loading activity...</div>
           ) : error ? (
             <div className="text-sm text-red-600">{error}</div>
           ) : finalList.length === 0 ? (
-            <div className="text-sm text-gray-500">No activity found for this property.</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">No activity found for this property.</div>
           ) : (
             <ul className="space-y-2">
               {finalList.map((a, i) => (
-                <li key={i} className="p-3 bg-gray-50 rounded-md border border-gray-100">
+                <li key={i} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md border border-gray-100 dark:border-gray-600">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-sm text-gray-800 font-medium">{a.title || a.action || a.type || 'Activity'}</div>
-                      <div className="text-xs text-gray-500">{a.by || a.user || a.actor || 'System'} — {a.created_at || a.time || ''}</div>
-                      {a.details && <div className="mt-1 text-sm text-gray-700">{a.details}</div>}
+                      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{a.title || a.action || a.type || 'Activity'}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{a.by || a.user || a.actor || 'System'} — {a.created_at || a.time || ''}</div>
+                      {a.details && <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{a.details}</div>}
                     </div>
                     {a.amount_cents || a.amount ? (
-                      <div className="text-sm font-medium text-gray-800">{a.amount ? a.amount : `₱${Number(a.amount_cents || 0) / 100}`}</div>
+                      <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{a.amount ? a.amount : `₱${Number(a.amount_cents || 0) / 100}`}</div>
                     ) : null}
                   </div>
                 </li>

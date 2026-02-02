@@ -17,18 +17,18 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
       ></div>
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in duration-200">
+      <div className="relative w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in duration-200">
         
         {/* Mobile Close Button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white transition-all md:hidden text-gray-800"
+          className="absolute top-4 right-4 z-20 p-2 bg-white/90 dark:bg-gray-700/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-600 transition-all md:hidden text-gray-800 dark:text-gray-200"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* LEFT SIDE: Hero Image */}
-        <div className="w-full md:w-5/12 h-64 md:h-auto relative bg-gray-100 group flex-shrink-0">
+        <div className="w-full md:w-5/12 h-64 md:h-auto relative bg-gray-100 dark:bg-gray-700 group flex-shrink-0">
           <img 
             src={room.image} 
             alt={room.name} 
@@ -56,13 +56,13 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
         </div>
 
         {/* RIGHT SIDE: Details & Content */}
-        <div className="w-full md:w-7/12 flex flex-col flex-1 min-h-0 bg-white">
+        <div className="w-full md:w-7/12 flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800">
           
           {/* Desktop Header Actions */}
           <div className="hidden md:flex justify-end p-6 pb-0 flex-shrink-0">
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-800"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
               <X className="w-6 h-6" />
             </button>
@@ -72,19 +72,19 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
           <div className="flex-1 overflow-y-auto p-6 md:p-8 pt-4">
             
             {/* Price & Key Specs */}
-            <div className="flex items-end justify-between mb-8 pb-6 border-b border-gray-100">
+            <div className="flex items-end justify-between mb-8 pb-6 border-b border-gray-100 dark:border-gray-700">
               <div>
-                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Monthly Rent</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-1">Monthly Rent</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-black text-green-600 tracking-tight">₱{room.price.toLocaleString()}</span>
-                  <span className="text-gray-400 font-medium">/mo</span>
+                  <span className="text-gray-400 dark:text-gray-500 font-medium">/mo</span>
                 </div>
               </div>
               <div className="text-right space-y-1">
-                 <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 border border-gray-100 text-sm text-gray-600 font-medium">
+                 <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 font-medium">
                     {room.size || 'N/A'}
                  </div>
-                 <div className="block text-xs text-gray-400 font-medium uppercase mt-1">
+                 <div className="block text-xs text-gray-400 dark:text-gray-500 font-medium uppercase mt-1">
                     Capacity: {room.capacity || '1-2 Pax'}
                  </div>
               </div>
@@ -92,19 +92,19 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
 
             {/* Description */}
             <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">About this space</h3>
-              <p className="text-gray-600 leading-relaxed text-[15px]">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">About this space</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-[15px]">
                 {room.description || "A comfortable space designed for students and professionals. Enjoy a secure environment with easy access to local amenities."}
               </p>
             </div>
 
             {/* Amenities Grid */}
             <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">What this place offers</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">What this place offers</h3>
               <div className="grid grid-cols-2 gap-3">
                 {(room.amenities || ['Standard Amenities']).map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-gray-600 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <div key={idx} className="flex items-center gap-3 text-gray-600 dark:text-gray-300 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                       <Check className="w-4 h-4 text-green-600" />
                     </div>
                     <span className="text-sm font-medium">{item}</span>
@@ -116,13 +116,13 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
             {/* House Rules */}
             {room.rules && (
               <div className="mb-6">
-                <div className="bg-orange-50 rounded-xl p-5 border border-orange-100">
-                  <h3 className="text-base font-bold text-orange-800 mb-3 flex items-center gap-2">
+                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-5 border border-orange-100 dark:border-orange-800/30">
+                  <h3 className="text-base font-bold text-orange-800 dark:text-orange-300 mb-3 flex items-center gap-2">
                     <Shield className="w-4 h-4" /> House Rules
                   </h3>
                   <ul className="space-y-2">
                     {room.rules.map((rule, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-orange-700/80">
+                      <li key={idx} className="flex items-start gap-2 text-sm text-orange-700/80 dark:text-orange-300/80">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-2 flex-shrink-0" />
                         {rule}
                       </li>
@@ -134,14 +134,14 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
           </div>
 
           {/* Fixed Footer with CTA */}
-          <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
+          <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex-shrink-0">
             <button 
               className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               onClick={() => window.location.href = '/login'}
             >
               Login to Book
             </button>
-            <p className="text-center text-xs text-gray-400 mt-3 font-medium">
+            <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-3 font-medium">
               You must have a verified tenant account to proceed with booking.
             </p>
           </div>
@@ -266,13 +266,13 @@ const Properties = () => {
 
   return (
     <>
-      <section id="properties" className="py-24 px-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
+      <section id="properties" className="py-24 px-6 max-w-7xl mx-auto bg-gray-50 dark:bg-gray-900 min-h-screen">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
             <span className="text-green-600 font-bold tracking-wider text-sm uppercase mb-2 block">
               Featured Listings
             </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
               Latest Properties
             </h2>
           </div>
@@ -287,13 +287,13 @@ const Properties = () => {
         </div>
 
         {loading && (
-          <div className="text-center py-20 text-gray-500 text-lg">Loading properties...</div>
+          <div className="text-center py-20 text-gray-500 dark:text-gray-400 text-lg">Loading properties...</div>
         )}
         {error && (
-          <div className="text-center py-20 text-red-500 text-lg">{error}</div>
+          <div className="text-center py-20 text-red-500 dark:text-red-400 text-lg">{error}</div>
         )}
         {!loading && !error && properties.length === 0 && (
-          <div className="text-center py-20 text-gray-400 text-lg">No properties found.</div>
+          <div className="text-center py-20 text-gray-400 dark:text-gray-500 text-lg">No properties found.</div>
         )}
 
         {!loading && !error && properties.map((property) => {
@@ -306,17 +306,17 @@ const Properties = () => {
                 onClick={() => handlePropertyClick(mappedProperty.id)}
               >
                 <div className="hidden md:block h-8 w-1 bg-green-600 rounded-full group-hover/header:scale-y-125 transition-transform"></div>
-                <h3 className="text-2xl font-bold text-gray-900 group-hover/header:text-green-600 transition-colors">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white group-hover/header:text-green-600 transition-colors">
                   {mappedProperty.name}
                 </h3>
                 {mappedProperty.location && (
-                  <span className="text-sm font-medium text-gray-500 flex items-center gap-1 md:ml-2 group-hover/header:text-green-500 transition-colors">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1 md:ml-2 group-hover/header:text-green-500 transition-colors">
                     <MapPin className="w-4 h-4" />
                     {mappedProperty.location}
                   </span>
                 )}
                 {/* Visual cue that it's clickable */}
-                <div className="hidden md:flex opacity-0 group-hover/header:opacity-100 transition-opacity ml-2 items-center text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded-md">
+                <div className="hidden md:flex opacity-0 group-hover/header:opacity-100 transition-opacity ml-2 items-center text-xs font-bold text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-md">
                   View Profile &rarr;
                 </div>
               </div>
@@ -331,13 +331,13 @@ const Properties = () => {
         <div>
           {modalLoading && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-2xl shadow-xl px-8 py-6 text-lg font-semibold text-gray-700">Loading room details...</div>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl px-8 py-6 text-lg font-semibold text-gray-700 dark:text-gray-200">Loading room details...</div>
             </div>
           )}
           {modalError && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-2xl shadow-xl px-8 py-6 text-lg font-semibold text-red-600">{modalError}</div>
-              <button className="absolute top-8 right-8 bg-white rounded-full p-2 shadow" onClick={handleCloseDetails}><X className="w-6 h-6" /></button>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl px-8 py-6 text-lg font-semibold text-red-600 dark:text-red-400">{modalError}</div>
+              <button className="absolute top-8 right-8 bg-white dark:bg-gray-700 rounded-full p-2 shadow" onClick={handleCloseDetails}><X className="w-6 h-6" /></button>
             </div>
           )}
           {selectedRoomData && !modalLoading && !modalError && (

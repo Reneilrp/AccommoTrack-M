@@ -152,9 +152,29 @@ const UserManagement = () => {
                     <td className="px-6 py-4 text-gray-700">{u.email}</td>
                     <td className="px-6 py-4 text-gray-700 capitalize">{u.role}</td>
                     <td className="px-6 py-4 text-gray-700">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      {u.role === 'landlord' ? (
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          u.verification_status === 'approved' 
+                            ? 'bg-green-100 text-green-800' 
+                            : u.verification_status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : u.verification_status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {u.verification_status === 'approved' 
+                            ? 'Verified' 
+                            : u.verification_status === 'pending'
+                              ? 'Pending'
+                              : u.verification_status === 'rejected'
+                                ? 'Rejected'
+                                : 'Not Submitted'}
+                        </span>
+                      ) : (
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2 justify-center">
@@ -226,9 +246,29 @@ const UserManagement = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedUser.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {selectedUser.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                    {selectedUser.role === 'landlord' ? (
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        selectedUser.verification_status === 'approved' 
+                          ? 'bg-green-100 text-green-800' 
+                          : selectedUser.verification_status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : selectedUser.verification_status === 'rejected'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedUser.verification_status === 'approved' 
+                          ? 'Verified' 
+                          : selectedUser.verification_status === 'pending'
+                            ? 'Pending Verification'
+                            : selectedUser.verification_status === 'rejected'
+                              ? 'Rejected'
+                              : 'Not Submitted'}
+                      </span>
+                    ) : (
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedUser.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {selectedUser.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

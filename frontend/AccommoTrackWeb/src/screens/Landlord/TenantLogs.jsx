@@ -132,10 +132,10 @@ export default function TenantLogs() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading tenant logs...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading tenant logs...</p>
         </div>
       </div>
     );
@@ -143,12 +143,12 @@ export default function TenantLogs() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-lg p-6 border border-red-100">
-          <p className="text-red-700 font-medium">Error</p>
-          <p className="text-sm text-gray-700 mt-2">{error}</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
+          <p className="text-red-700 dark:text-red-400 font-medium">Error</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
           <div className="mt-4 text-right">
-            <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-100 rounded">Back</button>
+            <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">Back</button>
           </div>
         </div>
       </div>
@@ -219,61 +219,61 @@ export default function TenantLogs() {
   const groupedDue = groupPayments(displayedDue, paymentGroup);
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <button onClick={() => navigate(-1)} className="flex items-center text-sm text-gray-600 mb-2 gap-2">
+          <button onClick={() => navigate(-1)} className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-2 gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 text-center w-full">Tenant Logs</h1>
-          <p className="text-gray-600 mt-1 text-center w-full">Logs and payment history for {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || 'Tenant'}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center w-full">Tenant Logs</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-center w-full">Logs and payment history for {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || 'Tenant'}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 border">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 text-center w-full">User Profile</h3>
-            <p className="text-sm text-gray-800 font-medium">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
-            <p className="text-sm text-gray-500">{tenant?.email || tenant?.contact || 'No contact'}</p>
-            <p className="text-sm text-gray-500 mt-2">Status: <span className="font-medium">{tenant?.tenantProfile?.status || '—'}</span></p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center w-full">User Profile</h3>
+            <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{tenant?.email || tenant?.contact || 'No contact'}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Status: <span className="font-medium">{tenant?.tenantProfile?.status || '—'}</span></p>
             <div className="mt-3">
-              <p className="text-xs text-gray-500">Current Room</p>
-              <p className="font-medium text-sm">{currentRoom ? `Room ${currentRoom.room_number} ${currentRoom.type_label ? `• ${currentRoom.type_label}` : ''}` : '—'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Current Room</p>
+              <p className="font-medium text-sm dark:text-gray-200">{currentRoom ? `Room ${currentRoom.room_number} ${currentRoom.type_label ? `• ${currentRoom.type_label}` : ''}` : '—'}</p>
             </div>
             <div className="mt-3">
-              <p className="text-xs text-gray-500">Outstanding Due</p>
-              <p className="font-medium text-sm text-red-700">₱{dueAmount ? dueAmount.toFixed(2) : '0.00'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding Due</p>
+              <p className="font-medium text-sm text-red-700 dark:text-red-400">₱{dueAmount ? dueAmount.toFixed(2) : '0.00'}</p>
             </div>
           </div>
 
-          <div className="md:col-span-2 bg-white rounded-lg p-4 border">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2 justify-center"><CreditCard className="w-4 h-4"/> Payments</h3>
+          <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 justify-center"><CreditCard className="w-4 h-4"/> Payments</h3>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <button onClick={() => setPaymentFilter('all')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'all' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>All</button>
-                <button onClick={() => setPaymentFilter('paid')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'paid' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Paid</button>
-                <button onClick={() => setPaymentFilter('due')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'due' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Due</button>
+                <button onClick={() => setPaymentFilter('all')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'all' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>All</button>
+                <button onClick={() => setPaymentFilter('paid')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'paid' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>Paid</button>
+                <button onClick={() => setPaymentFilter('due')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'due' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>Due</button>
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">Sort</label>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Sort</label>
                 <select
                   value={`${paymentSort.key}_${paymentSort.dir}`}
                   onChange={(e) => {
                     const [key, dir] = e.target.value.split('_');
                     setPaymentSort({ key, dir });
                   }}
-                  className="text-sm p-1 border rounded"
+                  className="text-sm p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="date_desc">Date ▾</option>
                   <option value="date_asc">Date ▴</option>
                   <option value="amount_desc">Amount ▾</option>
                   <option value="amount_asc">Amount ▴</option>
                 </select>
-                <label className="text-xs text-gray-500 ml-2">Group</label>
+                <label className="text-xs text-gray-500 dark:text-gray-400 ml-2">Group</label>
                 <select
                   value={paymentGroup}
                   onChange={(e) => setPaymentGroup(e.target.value)}
-                  className="text-sm p-1 border rounded"
+                  className="text-sm p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="none">None</option>
                   <option value="monthly">Monthly</option>
@@ -282,28 +282,28 @@ export default function TenantLogs() {
               </div>
             </div>
             {payments.length === 0 ? (
-              <p className="text-sm text-gray-500">No payments found.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No payments found.</p>
             ) : (
               <>
                 {paymentFilter !== 'due' && (
-                  <p className="text-sm text-gray-600 mb-2">{paymentFilter === 'paid' ? 'Paid Payments' : 'Paid Payments'}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{paymentFilter === 'paid' ? 'Paid Payments' : 'Paid Payments'}</p>
                 )}
                 {paymentGroup === 'none' ? (
                   <ul className="space-y-2 mb-3">
                     {displayedPaid.map((p) => (
-                      <li key={p.id || `${p.reference}-${p.created_at}`} className="p-3 bg-gray-50 rounded border border-gray-100 flex justify-between items-center">
+                      <li key={p.id || `${p.reference}-${p.created_at}`} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex justify-between items-center">
                         <div>
                           <div className="flex items-center gap-3">
-                            <div className="text-sm font-medium">{p.reference || p.description || 'Payment'}</div>
+                            <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Payment'}</div>
                             {/* booking room badge if available */}
                             {((p.booking && p.booking.room) || currentRoom) && (
-                              <div className="text-xs text-gray-500">{p.booking?.room?.room_number ? `Room ${p.booking.room.room_number}` : (currentRoom ? `Room ${currentRoom.room_number}` : null)}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{p.booking?.room?.room_number ? `Room ${p.booking.room.room_number}` : (currentRoom ? `Room ${currentRoom.room_number}` : null)}</div>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">{p.paid_at ? formatDate(p.paid_at) : (p.created_at ? formatDate(p.created_at) : '')}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{p.paid_at ? formatDate(p.paid_at) : (p.created_at ? formatDate(p.created_at) : '')}</div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="text-sm font-semibold">₱{formatAmount(p)}</div>
+                          <div className="text-sm font-semibold dark:text-white">₱{formatAmount(p)}</div>
                           {/* show payment status badge */}
                           <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(p.status || p.payment_status)}`}>
                             {(p.status || p.payment_status || '').toString().charAt(0).toUpperCase() + (p.status || p.payment_status || '').toString().slice(1) || ''}
@@ -322,15 +322,15 @@ export default function TenantLogs() {
                   <div className="space-y-4 mb-3">
                     {groupedPaid.map((g) => (
                       <div key={g.key}>
-                        <div className="text-sm text-gray-600 font-semibold mb-2">{g.label}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2">{g.label}</div>
                         <ul className="space-y-2">
                           {g.items.map((p) => (
-                            <li key={p.id || `${p.reference}-${p.created_at}`} className="p-3 bg-gray-50 rounded border border-gray-100 flex justify-between items-center">
+                            <li key={p.id || `${p.reference}-${p.created_at}`} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex justify-between items-center">
                               <div>
-                                <div className="text-sm font-medium">{p.reference || p.description || 'Payment'}</div>
-                                <div className="text-xs text-gray-500">{p.paid_at ? formatDate(p.paid_at) : (p.created_at ? formatDate(p.created_at) : '')}</div>
+                                <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Payment'}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">{p.paid_at ? formatDate(p.paid_at) : (p.created_at ? formatDate(p.created_at) : '')}</div>
                               </div>
-                              <div className="text-sm font-semibold">₱{formatAmount(p)}</div>
+                              <div className="text-sm font-semibold dark:text-white">₱{formatAmount(p)}</div>
                             </li>
                           ))}
                         </ul>
@@ -340,24 +340,24 @@ export default function TenantLogs() {
                 )}
 
                 {paymentFilter !== 'paid' && (
-                  <p className="text-sm text-gray-600 mb-2">Outstanding / Due</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Outstanding / Due</p>
                 )}
 
                 {paymentGroup === 'none' ? (
                   <ul className="space-y-2 mb-3">
                     {displayedDue.map((p) => (
-                      <li key={`due-${p.id || p.reference}`} className="p-3 bg-white rounded border border-yellow-100 flex justify-between items-center">
+                      <li key={`due-${p.id || p.reference}`} className="p-3 bg-white dark:bg-gray-800 rounded border border-yellow-100 dark:border-yellow-900 flex justify-between items-center">
                         <div>
                           <div className="flex items-center gap-3">
-                            <div className="text-sm font-medium">{p.reference || p.description || 'Invoice'}</div>
+                            <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Invoice'}</div>
                             {((p.booking && p.booking.room) || currentRoom) && (
-                              <div className="text-xs text-gray-500">{p.booking?.room?.room_number ? `Room ${p.booking.room.room_number}` : (currentRoom ? `Room ${currentRoom.room_number}` : null)}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{p.booking?.room?.room_number ? `Room ${p.booking.room.room_number}` : (currentRoom ? `Room ${currentRoom.room_number}` : null)}</div>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="text-sm font-semibold text-yellow-700">₱{formatAmount(p)}</div>
+                          <div className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">₱{formatAmount(p)}</div>
                           <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(p.status || p.payment_status)}`}>
                             {(p.status || p.payment_status || '').toString().charAt(0).toUpperCase() + (p.status || p.payment_status || '').toString().slice(1) || ''}
                           </span>
@@ -374,15 +374,15 @@ export default function TenantLogs() {
                   <div className="space-y-4 mb-3">
                     {groupedDue.map((g) => (
                       <div key={g.key}>
-                        <div className="text-sm text-gray-600 font-semibold mb-2">{g.label}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2">{g.label}</div>
                         <ul className="space-y-2">
                           {g.items.map((p) => (
-                            <li key={`due-${p.id || p.reference}`} className="p-3 bg-white rounded border border-yellow-100 flex justify-between items-center">
+                            <li key={`due-${p.id || p.reference}`} className="p-3 bg-white dark:bg-gray-800 rounded border border-yellow-100 dark:border-yellow-900 flex justify-between items-center">
                               <div>
-                                <div className="text-sm font-medium">{p.reference || p.description || 'Invoice'}</div>
-                                <div className="text-xs text-gray-500">Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</div>
+                                <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Invoice'}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</div>
                               </div>
-                              <div className="text-sm font-semibold text-yellow-700">₱{formatAmount(p)}</div>
+                              <div className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">₱{formatAmount(p)}</div>
                             </li>
                           ))}
                         </ul>
@@ -395,20 +395,20 @@ export default function TenantLogs() {
           </div>
         </div>
 
-          <div className="bg-white rounded-lg p-4 border">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2 justify-center"><MessageSquare className="w-4 h-4"/> Messages / Search Results</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 justify-center"><MessageSquare className="w-4 h-4"/> Messages / Search Results</h3>
           {searchResults.length === 0 ? (
-            <p className="text-sm text-gray-500">No messages or requests from this tenant.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No messages or requests from this tenant.</p>
           ) : (
             <ul className="space-y-2">
               {searchResults.map((m) => {
                 const tenantId = m.id || m.tenant_id || m.tenantId || (m.user && m.user.id);
                 const displayName = m.first_name ? `${m.first_name} ${m.last_name || ''}` : (m.name || m.email || m.contact || 'Unknown');
                 return (
-                  <li key={tenantId || m.created_at || JSON.stringify(m)} className="p-3 bg-gray-50 rounded border border-gray-100 flex justify-between items-center">
+                  <li key={tenantId || m.created_at || JSON.stringify(m)} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex justify-between items-center">
                     <div>
-                      <div className="text-sm text-gray-800 font-medium">{displayName}</div>
-                      <div className="text-xs text-gray-500">{m.email || m.contact || (m.created_at ? formatDate(m.created_at) : '')}</div>
+                      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{displayName}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{m.email || m.contact || (m.created_at ? formatDate(m.created_at) : '')}</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => tenantId && navigate(`/tenants/${tenantId}`)} className="px-3 py-1 bg-green-600 text-white rounded text-sm">Open</button>

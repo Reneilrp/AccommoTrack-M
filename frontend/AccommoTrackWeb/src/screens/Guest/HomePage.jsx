@@ -51,7 +51,7 @@ const HomePage = ({ onGetStarted }) => {
         }
       `}</style>
 
-      <main className="w-full bg-gray-50 font-sans text-gray-900 overflow-x-hidden">
+      <main className="w-full bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white overflow-x-hidden">
         
         {/* --- IMAGE MODAL --- */}
         {/* {modalImages.length > 0 && (
@@ -110,11 +110,11 @@ const HomePage = ({ onGetStarted }) => {
         {/* --- SECTION 1: HERO --- */}
         <section className="snap-section h-screen w-full flex flex-col items-center pt-32 pb-32 px-6 max-w-7xl mx-auto relative">
           <div data-aos="fade-up" className="text-center max-w-[900px] z-10 mb-auto">
-            <h1 className="text-[clamp(40px,5vw,64px)] font-black leading-[1.1] mb-6 tracking-tight text-gray-900">
+            <h1 className="no-scale text-[clamp(40px,5vw,64px)] font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
               Find Your Next Home <br />
-              <span className="text-green-600">in Zamboanga City.</span>
+              <span className="no-scale text-green-600">in Zamboanga City.</span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-500 max-w-[600px] mx-auto mb-10 leading-relaxed">
+            <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-10 leading-relaxed">
               Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-md mx-auto">
@@ -131,7 +131,7 @@ const HomePage = ({ onGetStarted }) => {
           <div className="absolute top-[15%] right-[5%] w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
           
           <div className="w-full z-10">
-            <p className="text-center text-xs font-bold tracking-widest uppercase mb-6 text-gray-400">Built for students from</p>
+            <p className="text-center text-xs font-bold tracking-widest uppercase mb-6 text-gray-400 dark:text-gray-500">Built for students from</p>
             <div className="flex justify-center gap-8 md:gap-16 flex-wrap">
               <span className="text-xl font-bold text-[#DC143C]">WMSU</span>
               <span className="text-xl font-bold text-sky-500">ADZU</span>
@@ -143,43 +143,43 @@ const HomePage = ({ onGetStarted }) => {
 
 
         {/* --- SECTION 2: WHY ACCOMMOTRACK --- */}
-        <section className="snap-section h-screen w-full flex flex-col items-center pt-32 px-6 bg-white">
+        <section className="snap-section h-screen w-full flex flex-col items-center pt-32 px-6 bg-white dark:bg-gray-800">
           <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
             <div className="text-center mb-12 flex-none">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
                 Why Live & Study Here?
               </h2>
-              <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+              <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
                 We provide the tools you need to find a safe, affordable, and convenient place to stay while you focus on your studies.
               </p>
             </div>
 
             <div className="flex-1 flex items-center pb-20">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
-                <div data-aos="fade-up" data-aos-delay="0" className="bg-gray-50 rounded-2xl p-8 border border-gray-100 hover:border-green-200 transition-colors duration-300">
-                  <div className="bg-green-100 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                <div data-aos="fade-up" data-aos-delay="0" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
+                  <div className="bg-green-100 dark:bg-green-900/30 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                     <MapPin className="w-7 h-7 text-green-600" />
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900">Near Campus</h3>
-                  <p className="text-gray-500 leading-relaxed">
+                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Near Campus</h3>
+                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
                     Filter properties by distance to WMSU, Ateneo, and other major universities to save on commute time.
                   </p>
                 </div>
-                <div data-aos="fade-up" data-aos-delay="100" className="bg-gray-50 rounded-2xl p-8 border border-gray-100 hover:border-green-200 transition-colors duration-300">
-                  <div className="bg-blue-100 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                <div data-aos="fade-up" data-aos-delay="100" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
+                  <div className="bg-blue-100 dark:bg-blue-900/30 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                     <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900">Verified Landlords</h3>
-                  <p className="text-gray-500 leading-relaxed">
+                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Verified Landlords</h3>
+                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
                     Every listing is verified by our team to ensure your safety and prevent scams.
                   </p>
                 </div>
-                <div data-aos="fade-up" data-aos-delay="200" className="bg-gray-50 rounded-2xl p-8 border border-gray-100 hover:border-green-200 transition-colors duration-300">
-                  <div className="bg-purple-100 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                <div data-aos="fade-up" data-aos-delay="200" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
+                  <div className="bg-purple-100 dark:bg-purple-900/30 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                     <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900">Easy Payments</h3>
-                  <p className="text-gray-500 leading-relaxed">
+                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Easy Payments</h3>
+                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
                     Pay your rent and reservation fees securely through the app using GCash or Maya.
                   </p>
                 </div>
@@ -190,16 +190,16 @@ const HomePage = ({ onGetStarted }) => {
 
 
         {/* --- SECTION 3: ACCOMMODATION TYPES --- */}
-        <section className="snap-section h-screen w-full flex flex-col items-center pt-32 px-6 bg-gray-50">
+        <section className="snap-section h-screen w-full flex flex-col items-center pt-32 px-6 bg-gray-50 dark:bg-gray-900">
            <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
               
               {/* HEADER: Flex-none to keep it pinned at the top */}
               <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4 flex-none">
                 <div>
-                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
                     Find Your Space
                   </h2>
-                  <p className="text-lg text-gray-500">Browse by accommodation type to fit your lifestyle.</p>
+                  <p className="text-lg text-gray-500 dark:text-gray-400">Browse by accommodation type to fit your lifestyle.</p>
                 </div>
                 <button onClick={onGetStarted} className="group flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-colors">
                   View All Properties <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

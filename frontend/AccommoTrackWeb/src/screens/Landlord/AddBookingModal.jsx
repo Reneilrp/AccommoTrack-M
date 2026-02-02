@@ -48,33 +48,33 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-lg p-6 relative">
         <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           onClick={onClose}
         >
           <X className="w-6 h-6" />
         </button>
         <div className="flex items-center gap-2 mb-6">
           <Calendar className="w-7 h-7 text-green-600" />
-          <h2 className="text-xl font-bold text-gray-900">Add Booking</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Booking</h2>
         </div>
         <form className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Guest Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Guest Name</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
               value={formData.guestName}
               onChange={e => setFormData({ ...formData, guestName: e.target.value })}
               placeholder="Enter guest name"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Property</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-600"
               value={formData.property}
               onChange={e => setFormData({ ...formData, property: e.target.value })}
               placeholder="Select property"
@@ -82,10 +82,10 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Room</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Room</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-600"
               value={formData.room}
               onChange={e => setFormData({ ...formData, room: e.target.value })}
               placeholder="Select room"
@@ -94,38 +94,38 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in</label>
               <input
                 type="date"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 value={formData.checkIn}
                 onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Check-out</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out</label>
               <input
                 type="date"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 value={formData.checkOut}
                 onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
             <input
               type="number"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
               value={formData.amount}
               onChange={e => setFormData({ ...formData, amount: e.target.value })}
               placeholder="Enter amount"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Status</label>
             <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
               value={formData.paymentStatus}
               onChange={e => setFormData({ ...formData, paymentStatus: e.target.value })}
             >
@@ -137,7 +137,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           <div className="flex justify-end gap-2 mt-6">
             <button
               type="button"
-              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               onClick={onClose}
             >
               Cancel

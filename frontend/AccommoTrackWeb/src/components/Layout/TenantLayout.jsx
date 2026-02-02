@@ -70,18 +70,18 @@ export default function TenantLayout({ user, onLogout, children }) {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
       <aside 
         ref={asideRef}
         className={`
           fixed left-0 top-0 bottom-0 z-30
-          bg-white border-r border-gray-200 transition-all duration-300 ease-in-out flex flex-col
+          bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col
           ${isSidebarOpen ? 'w-64' : 'w-20'}
         `}
       >
         {/* Logo & Toggle */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 
             className="cursor-pointer" 
             onClick={() => navigate('/dashboard')}
@@ -90,7 +90,7 @@ export default function TenantLayout({ user, onLogout, children }) {
             {isSidebarOpen ? (
               <div className="flex items-center gap-2 overflow-hidden">
                 <img src={Logo} alt="AccommoTrack" className="h-8 w-auto flex-shrink-0" />
-                <span className="text-lg font-bold text-brand-700 truncate">AccommoTrack</span>
+                <span className="text-lg font-bold text-brand-700 dark:text-brand-400 truncate">AccommoTrack</span>
               </div>
             ) : (
               <img src={Logo} alt="AccommoTrack" className="h-8 w-auto mx-auto" />
@@ -99,9 +99,9 @@ export default function TenantLayout({ user, onLogout, children }) {
           
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${!isSidebarOpen && 'hidden'}`}
+            className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -109,12 +109,12 @@ export default function TenantLayout({ user, onLogout, children }) {
 
         {/* Collapsed Sidebar - Show hamburger when closed */}
         {!isSidebarOpen && (
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="w-full p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <svg className="w-5 h-5 text-gray-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
@@ -123,7 +123,7 @@ export default function TenantLayout({ user, onLogout, children }) {
 
         {/* User Profile Summary */}
         <div 
-            className="p-4 border-b bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+            className="p-4 border-b bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             onClick={() => navigate('/settings')}
             title="Go to Profile Settings"
         >
@@ -131,12 +131,12 @@ export default function TenantLayout({ user, onLogout, children }) {
             <img
               src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${user?.name}&background=random`}
               alt="Profile"
-              className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm flex-shrink-0"
+              className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-sm flex-shrink-0"
             />
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-                <p className="text-xs text-gray-500 truncate capitalize">{user?.role}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{user?.role}</p>
               </div>
             )}
           </div>
@@ -151,8 +151,8 @@ export default function TenantLayout({ user, onLogout, children }) {
               className={({ isActive }) => `
                 w-full flex items-center gap-3 px-4 py-3 transition-colors relative
                 ${isActive 
-                  ? 'bg-brand-50 text-brand-700 border-r-4 border-brand-600' 
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+                  ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border-r-4 border-brand-600 dark:border-brand-500' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
                 ${!isSidebarOpen && 'justify-center'}
               `}
             >
@@ -165,10 +165,10 @@ export default function TenantLayout({ user, onLogout, children }) {
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-gray-200 mt-auto">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={() => setShowLogoutModal(true)}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
               !isSidebarOpen && 'justify-center'
             }`}
           >
@@ -183,15 +183,15 @@ export default function TenantLayout({ user, onLogout, children }) {
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
         {/* Top Header - Simplified (No Menu Button) */}
-        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 lg:px-8">
-          <span className="text-lg font-semibold text-gray-900">
+        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center justify-between px-4 lg:px-8">
+          <span className="text-lg font-semibold text-gray-900 dark:text-white">
             {tenantMenu.find(m => m.path === location.pathname)?.label || 'AccommoTrack'}
           </span>
           <div className="w-10" /> {/* Spacer */}
         </header>
 
         {/* Page Content */}
-        <div className={`flex-1 overflow-y-auto bg-gray-100 ${location.pathname.startsWith('/property/') ? '' : 'p-4 lg:p-8'}`}>
+        <div className={`flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 ${location.pathname.startsWith('/property/') ? '' : 'p-4 lg:p-8'}`}>
           {children}
         </div>
       </main>

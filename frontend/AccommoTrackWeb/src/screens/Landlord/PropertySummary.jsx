@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
-import { Building2, List, ArrowLeft, ArrowRight, Edit, Users, MapPin, Loader2 } from 'lucide-react';
+import { 
+  Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2 
+} from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
@@ -116,10 +118,10 @@ export default function PropertySummary() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading property...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading property...</p>
         </div>
       </div>
     );
@@ -127,10 +129,10 @@ export default function PropertySummary() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-xl w-full bg-white rounded-lg p-6 border border-red-100">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-xl w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
           <p className="text-red-700 font-medium">Error</p>
-          <p className="text-sm text-gray-700 mt-2">{error}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
         </div>
       </div>
     );
@@ -138,10 +140,10 @@ export default function PropertySummary() {
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Property not found</p>
+          <Building2 className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">Property not found</p>
         </div>
       </div>
     );
@@ -165,13 +167,13 @@ export default function PropertySummary() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
           {/* left: back arrow */}
           <button
             onClick={handleBackClick}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center"
             aria-label="Back to properties"
           >
             <ArrowLeft className="w-5 h-5 text-green-600" />
@@ -179,14 +181,14 @@ export default function PropertySummary() {
 
           {/* center: title */}
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">{property.title || 'Untitled Property'}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{property.title || 'Untitled Property'}</h1>
           </div>
 
           {/* right: tenants icon (edit moved into details card) */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             <button
               onClick={() => setShowActivityLogs(true)}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               title="Activity logs"
               aria-label="Activity logs"
             >
@@ -195,7 +197,7 @@ export default function PropertySummary() {
 
             <button
               onClick={() => navigate(`/rooms?property=${id}`)}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               title="Room management"
               aria-label="Room management"
             >
@@ -204,7 +206,7 @@ export default function PropertySummary() {
 
             <button
               onClick={() => navigate(`/tenants?property=${id}`)}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               title="View tenants"
               aria-label="View tenants"
             >
@@ -215,15 +217,15 @@ export default function PropertySummary() {
       </header>
       {/* Two-column layout: gallery left (50%), details right (50%) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 relative">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
           <div className="mb-4 text-center">
-            <h2 className="text-lg font-semibold text-gray-900">Property Details & Information</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Property Details & Information</h2>
           </div>
 
           {/* Edit button moved here (upper-right of the details card) */}
           <button
             onClick={goToEdit}
-            className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+            className="absolute top-4 right-4 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
             title="Edit property"
             aria-label="Edit property"
           >
@@ -233,7 +235,7 @@ export default function PropertySummary() {
           {/* Left: Gallery */}
           <div className="w-full p-8">
             <div className="relative w-full">
-              <div ref={galleryRef} className="relative bg-gray-100 rounded-xl overflow-hidden">
+              <div ref={galleryRef} className="relative bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden">
                 <div className="w-full relative">
                   {images.length > 0 ? (
                     <>
@@ -256,7 +258,7 @@ export default function PropertySummary() {
                         {images.map((src, i) => (
                           <SwiperSlide key={i} className="h-full">
                                 <div
-                                  className="w-full relative overflow-hidden rounded-xl bg-gray-100 flex items-center justify-center"
+                                  className="w-full relative overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center"
                                   style={(() => {
                                     const defaultAspect = 9 / 16; // fallback to 16:9 while images load
                                     const aspect = currentAspect || imageAspects[i] || defaultAspect;
@@ -328,29 +330,29 @@ export default function PropertySummary() {
                       )}
                     </>
                   ) : (
-                    <div className="text-center text-gray-500">
+                    <div className="text-center text-gray-500 dark:text-gray-400">
                       <Building2 className="w-16 h-16 mx-auto mb-2" />
                       <p>No photos available</p>
                     </div>
                   )}
                 </div>
 
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-gray-50 to-transparent" />
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-gray-50 to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-gray-50 dark:from-gray-800 to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-gray-50 dark:from-gray-800 to-transparent" />
               </div>
             </div>
           </div>
 
           {/* Right: Details (Description, Address, Rules, Amenities) */}
           <aside className="flex flex-col gap-6">
-            <div className="bg-white rounded-lg border border-gray-100 p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
-              <p className="text-sm text-gray-700">{property.description || 'No description provided.'}</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{property.description || 'No description provided.'}</p>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-100 p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">Full Address</h3>
-              <div className="text-sm text-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Full Address</h3>
+              <div className="text-sm text-gray-700 dark:text-gray-300">
                 <div>{property.street_address}</div>
                 <div>{property.barangay ? `${property.barangay}, ` : ''}{property.city}{property.province ? `, ${property.province}` : ''}{property.postal_code ? ` ${property.postal_code}` : ''}</div>
                 {property.country && <div>{property.country}</div>}
@@ -358,25 +360,25 @@ export default function PropertySummary() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white rounded-lg border border-gray-100 p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">Property Rules</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Property Rules</h3>
                 {rules.length === 0 ? (
-                  <p className="text-sm text-gray-500">No rules provided.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No rules provided.</p>
                 ) : (
-                  <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700">
+                  <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
                     {rules.map((r, i) => <li key={i}>{renderRuleLabel(r)}</li>)}
                   </ul>
                 )}
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-100 p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">Amenities</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Amenities</h3>
                 {amenities.length === 0 ? (
-                  <p className="text-sm text-gray-500">No amenities listed.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No amenities listed.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {amenities.map((a, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-100">
+                      <span key={i} className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium border border-green-100 dark:border-green-800">
                         {renderAmenityLabel(a)}
                       </span>
                     ))}
@@ -390,9 +392,9 @@ export default function PropertySummary() {
 
         {/* Room Management section below spanning both columns */}
         <div className="mt-8">
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 relative">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
               <div className="mb-4 text-center">
-                <h2 className="text-xl font-semibold text-gray-900">Room Management</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Room Management</h2>
               </div>
               <button
                 onClick={() => navigate(`/rooms?property=${id}`)}
@@ -402,9 +404,9 @@ export default function PropertySummary() {
               </button>
 
             {roomsLoading ? (
-              <p className="text-sm text-gray-500">Loading rooms...</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading rooms...</p>
             ) : rooms.length === 0 ? (
-              <p className="text-sm text-gray-500">No rooms found.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No rooms found.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {rooms.map((room) => (

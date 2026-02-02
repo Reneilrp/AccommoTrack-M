@@ -295,15 +295,15 @@ export default function RoomManagement() {
   // }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
           {/* absolute back arrow - upper-left */}
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
             <button
               onClick={handleBackClick}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               aria-label="Back to property"
             >
               <ArrowLeft className="w-5 h-5 text-green-600" />
@@ -312,15 +312,15 @@ export default function RoomManagement() {
 
           {/* centered title and subtitle */}
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
-            <h3 className="text-sm text-gray-600 mt-1">Manage all rooms in your properties</h3>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Room Management</h1>
+            <h3 className="text-sm text-gray-600 dark:text-gray-400 mt-1">Manage all rooms in your properties</h3>
           </div>
 
           {/* right-side actions */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
             {!isFromProperty && (
               <select
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 value={selectedPropertyId || ''}
                 onChange={(e) => setSelectedPropertyId(Number(e.target.value))}
                 disabled={loadingProperties}
@@ -367,49 +367,49 @@ export default function RoomManagement() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Rooms</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                 <Home className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Occupied</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Occupied</p>
                 <p className="text-2xl font-bold text-red-600 mt-1">{stats.occupied}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-red-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Available</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Available</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">{stats.available}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Maintenance</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Maintenance</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.maintenance}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
                 <Wrench className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
@@ -417,13 +417,13 @@ export default function RoomManagement() {
         </div>
 
         {/* Filter */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
           <div className="flex gap-2">
             <button
               onClick={() => setFilterStatus('all')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'all'
                 ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
             >
               All Rooms ({stats.total})
@@ -432,7 +432,7 @@ export default function RoomManagement() {
               onClick={() => setFilterStatus('occupied')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'occupied'
                 ? 'bg-red-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
             >
               Occupied ({stats.occupied})
@@ -441,7 +441,7 @@ export default function RoomManagement() {
               onClick={() => setFilterStatus('available')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'available'
                 ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
             >
               Available ({stats.available})
@@ -450,7 +450,7 @@ export default function RoomManagement() {
               onClick={() => setFilterStatus('maintenance')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'maintenance'
                 ? 'bg-yellow-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
             >
               Maintenance ({stats.maintenance})
@@ -464,28 +464,28 @@ export default function RoomManagement() {
             // SKELETON CARDS (same size as RoomCard)
             [...Array(3)].map((_, i) => (
               <div key={i} className="h-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse flex flex-col h-full">
-                  <div className="relative h-48 bg-gray-200" />
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-pulse flex flex-col h-full">
+                  <div className="relative h-48 bg-gray-200 dark:bg-gray-700" />
                   <div className="p-4 flex flex-col h-full">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-24"></div>
+                        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2"></div>
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
                       </div>
-                      <div className="h-8 bg-gray-200 rounded w-20"></div>
+                      <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
                     </div>
                     <div className="flex items-center gap-4 mb-3">
-                      <div className="h-5 bg-gray-200 rounded w-16"></div>
+                      <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
                     </div>
                     <div className="flex gap-1 mb-3">
-                      <div className="h-6 bg-gray-200 rounded w-16"></div>
-                      <div className="h-6 bg-gray-200 rounded w-16"></div>
-                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
                     </div>
-                    <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
-                      <div className="flex-1 h-10 bg-gray-200 rounded-lg"></div>
-                      <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-                      <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                    <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
+                      <div className="flex-1 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                     </div>
                   </div>
                 </div>
@@ -505,9 +505,9 @@ export default function RoomManagement() {
           ) : (
             <div className="col-span-full px-2">
               <div className="text-center py-12 mx-auto max-w-xl">
-                <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by adding a new room.</p>
+                <Building2 className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No rooms found</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding a new room.</p>
                 <div className="mt-6">
                   <button
                     onClick={() => setShowAddModal(true)}
@@ -537,15 +537,15 @@ export default function RoomManagement() {
       {/* Edit Room Modal */}
       {showEditModal && selectedRoom && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-start justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Edit Room {selectedRoom.roomNumber}</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Room {selectedRoom.roomNumber}</h2>
               <button
                 onClick={() => { setShowEditModal(false); setSelectedRoom(null); setError(null); }}
-                className="p-2 rounded-md hover:bg-gray-100"
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                 aria-label="Close edit"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </button>
@@ -560,20 +560,20 @@ export default function RoomManagement() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Room Number</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Number</label>
                   <input
                     type="text"
                     value={selectedRoom.roomNumber}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, roomNumber: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Room Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Type</label>
                   <select
                     value={selectedRoom.type}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, type: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option>Single Room</option>
                     <option>Double Room</option>
@@ -587,20 +587,20 @@ export default function RoomManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Price (₱/month)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Price (₱/month)</label>
                   <input
                     type="number"
                     value={selectedRoom.price}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Floor</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Floor</label>
                   <select
                     value={selectedRoom.floor}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, floor: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option>1st Floor</option>
                     <option>2nd Floor</option>
@@ -611,12 +611,12 @@ export default function RoomManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Capacity</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capacity</label>
                 <input
                   type="number"
                   value={selectedRoom.capacity}
                   onChange={(e) => setSelectedRoom({ ...selectedRoom, capacity: parseInt(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   min="1"
                 />
               </div>
@@ -624,23 +624,23 @@ export default function RoomManagement() {
               {/* Short-stay / Daily pricing for edit */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate (₱/day)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Rate (₱/day)</label>
                   <input
                     type="number"
                     value={selectedRoom.dailyRate || ''}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     min="0"
                     step="0.01"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Billing Policy</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing Policy</label>
                   <select
                     value={selectedRoom.billingPolicy || 'monthly'}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, billingPolicy: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option value="monthly">Monthly Rate</option>
                     <option value="monthly_with_daily">Monthly + Daily</option>
@@ -652,11 +652,11 @@ export default function RoomManagement() {
               {/* Short-stay options simplified: billing policy and daily rate are handled above. */}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                 <select
                   value={selectedRoom.status}
                   onChange={(e) => setSelectedRoom({ ...selectedRoom, status: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 >
                   <option value="available">Available</option>
                   <option value="occupied">Occupied</option>
@@ -665,18 +665,18 @@ export default function RoomManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                 <textarea
                   value={selectedRoom.description || ''}
                   onChange={(e) => setSelectedRoom({ ...selectedRoom, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   rows="3"
                   placeholder="Add room description..."
                 />
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-between">
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between">
               <button
                 onClick={handleDeleteFromModal}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -693,7 +693,7 @@ export default function RoomManagement() {
                     setSelectedRoom(null);
                     setError(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -748,18 +748,18 @@ export default function RoomManagement() {
       {/* Delete Confirmation Modal */}
       {deleteConfirmModal.show && deleteConfirmModal.room && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Delete Room</h3>
-                <p className="text-sm text-gray-500">This action cannot be undone</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Delete Room</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
               </div>
             </div>
             
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Are you sure you want to delete <span className="font-semibold">Room {deleteConfirmModal.room.room_number || deleteConfirmModal.room.roomNumber}</span>? 
               All data associated with this room will be permanently removed.
             </p>
@@ -777,7 +777,7 @@ export default function RoomManagement() {
                   setError(null);
                 }}
                 disabled={deleting}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

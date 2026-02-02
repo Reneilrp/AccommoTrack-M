@@ -4,13 +4,13 @@ import { SidebarProvider } from '../contexts/SidebarContext';
 import TenantLayout from '../components/Layout/TenantLayout';
 
 // Screens
-import TenantDashboard from '../screens/Tenant/Dashboard/TenantDashboard';
-import ExploreProperties from '../screens/Tenant/Explore/ExploreProperties';
-import TenantPropertyDetails from '../screens/Tenant/Explore/TenantPropertyDetails';
-import MyBookings from '../screens/Tenant/Bookings/MyBookings';
-import TenantMessages from '../screens/Tenant/Messages/TenantMessages';
-import TenantSettings from '../screens/Tenant/Settings/TenantSettings';
-import TenantWallet from '../screens/Tenant/Wallet/TenantWallet';
+import TenantDashboard from '../screens/Tenant/TenantDashboard';
+import ExploreProperties from '../screens/Tenant/ExploreProperties';
+import TenantPropertyDetails from '../screens/Tenant/TenantPropertyDetails';
+import MyBookings from '../screens/Tenant/MyBookings';
+import TenantMessages from '../screens/Tenant/TenantMessages';
+import TenantSettings from '../screens/Tenant/TenantSettings';
+import TenantWallet from '../screens/Tenant/TenantWallet';
 
 export default function TenantNavigator({ user, onLogout }) {
   return (

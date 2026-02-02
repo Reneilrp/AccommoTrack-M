@@ -18,9 +18,11 @@ import Logo from '../../assets/Logo.png';
 import api, { isCancel } from '../../utils/api';
 import { getDefaultLandingRoute } from '../../utils/userRoutes';
 import toast, { Toaster } from 'react-hot-toast';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 function AuthScreen({ onLogin = () => {} }) {
   const navigate = useNavigate();
+  const { effectiveTheme } = usePreferences();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -297,20 +299,20 @@ function AuthScreen({ onLogin = () => {} }) {
     });
   };
 
-  const inputClasses = "w-full pl-10 pr-4 py-3 bg-white border border-green-200 text-black placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-300 transition-all";
-  const labelClasses = "block text-sm font-semibold text-black mb-2";
-  const iconClasses = "w-5 h-5 text-green-400";
+  const inputClasses = "w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-500 focus:border-green-300 dark:focus:border-green-400 transition-all";
+  const labelClasses = "block text-sm font-semibold text-black dark:text-gray-200 mb-2";
+  const iconClasses = "w-5 h-5 text-green-400 dark:text-green-500";
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Toaster />
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 relative">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
         {/* Back/Sign In Button */}
         {isLogin ? (
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="absolute top-4 left-4 text-green-700 hover:text-green-900 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
             aria-label="Back to Landing Page"
           >
             <ChevronLeft className="w-7 h-7" />
@@ -319,7 +321,7 @@ function AuthScreen({ onLogin = () => {} }) {
           <button
             type="button"
             onClick={() => setIsLogin(true)}
-            className="absolute top-4 left-4 text-green-700 hover:text-green-900 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
             aria-label="Back to Sign In"
           >
             <ChevronLeft className="w-7 h-7" />
@@ -328,13 +330,13 @@ function AuthScreen({ onLogin = () => {} }) {
         {/* Logo and Header */}
         <div className="flex flex-col items-center justify-center mb-4">
           <img src={Logo} alt="AccommoTrack Logo" className="h-14 w-auto mb-2" />
-          <span className="text-2xl font-extrabold text-green-700 tracking-tight">AccommoTrack</span>
+          <span className="text-2xl font-extrabold text-green-700 dark:text-green-400 tracking-tight">AccommoTrack</span>
         </div>
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-green-700 mb-2">
+          <h2 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-2">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
-          <p className="text-green-900/90">
+          <p className="text-green-900/90 dark:text-gray-300">
             {isLogin
               ? 'Access your account and discover accommodations.'
               : 'Sign up to get started and look for accommodations.'}
@@ -343,9 +345,9 @@ function AuthScreen({ onLogin = () => {} }) {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <span className="text-red-700 text-sm font-semibold">{error}</span>
+          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <span className="text-red-700 dark:text-red-300 text-sm font-semibold">{error}</span>
           </div>
         )}
 
@@ -425,7 +427,7 @@ function AuthScreen({ onLogin = () => {} }) {
             <div className="text-right">
               <button
                 type="button"
-                 className="text-sm text-black/70 hover:text-black font-semibold transition-colors"
+                 className="text-sm text-black/70 hover:text-black font-semibold transition-colors opacity-50 hover:opacity-80"
               >
                  Forgot Password?
               </button>

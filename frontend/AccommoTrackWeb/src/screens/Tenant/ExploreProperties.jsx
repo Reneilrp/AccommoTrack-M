@@ -1,5 +1,5 @@
 import React from 'react';
-import BrowsingPropertyPage from '../../Guest/BrowsingPropertyPage';
+import BrowsingPropertyPage from '../Guest/BrowsingPropertyPage';
 
 const ExploreProperties = () => {
   return <BrowsingPropertyPage />;

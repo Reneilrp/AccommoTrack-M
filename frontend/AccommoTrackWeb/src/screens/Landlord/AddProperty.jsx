@@ -11,7 +11,9 @@ import {
   Check,
   Loader2,
   ArrowRight,
-  X
+  X,
+  ShieldAlert,
+  Clock
 } from 'lucide-react';
 
 // Leaflet
@@ -33,6 +35,7 @@ export default function AddProperty({ onBack, onSave }) {
   const [error, setError] = useState('');
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
+  const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
   const formContentRef = useRef(null);
 
   // Fix Leaflet marker icon issue
@@ -93,6 +96,21 @@ export default function AddProperty({ onBack, onSave }) {
     description: '',
     images: []
   });
+
+  // Auto-fill address fields when latitude/longitude changes
+  useEffect(() => {
+    // Check verification status
+    const checkVerification = async () => {
+      try {
+        const res = await api.get('/landlord/my-verification');
+        setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
+      } catch (err) {
+        // If 404 or error, assume not verified
+        setIsVerified(false);
+      }
+    };
+    checkVerification();
+  }, []);
 
   // Auto-fill address fields when latitude/longitude changes
   useEffect(() => {
@@ -407,6 +425,22 @@ export default function AddProperty({ onBack, onSave }) {
             <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
               <X className="w-5 h-5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Warning Banner */}
+      {isVerified === false && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-yellow-800 font-semibold">Account Verification Required</h4>
+              <p className="text-yellow-700 text-sm mt-1">
+                Your account is pending verification. You can create and save properties as drafts, 
+                but you won't be able to submit them for approval or publish until your documents are verified.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -1012,23 +1046,30 @@ export default function AddProperty({ onBack, onSave }) {
                   >
                     {loading ? 'Saving...' : 'Save as Draft'}
                   </button>
-                <button
-                  onClick={() => handleSubmit(false)}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="animate-spin h-5 w-5 text-white" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-5 h-5" />
-                      Submit for Approval
-                    </>
-                  )}
-                </button>
+                {isVerified ? (
+                  <button
+                    onClick={() => handleSubmit(false)}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="animate-spin h-5 w-5 text-white" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Submit for Approval
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <Clock className="w-5 h-5 text-yellow-600" />
+                    <span className="text-sm text-yellow-800 font-medium">Verify account to submit</span>
+                  </div>
+                )}
               </>
             ) : (
               <button

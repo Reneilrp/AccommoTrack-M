@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Home,
-  Users,
   Calendar,
   TrendingUp,
   LucidePhilippinePeso,
@@ -16,6 +15,8 @@ import {
   Clock,
   CreditCard,
   LogOut,
+  ShieldAlert,
+  FileWarning,
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [verificationStatus, setVerificationStatus] = useState(null);
   
   const [upcomingPayments, setUpcomingPayments] = useState({ upcomingCheckouts: [], unpaidBookings: [] });
   const [revenueChart, setRevenueChart] = useState({ labels: [], data: [] });
@@ -41,7 +43,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchVerificationStatus();
   }, []);
+
+  const fetchVerificationStatus = async () => {
+    try {
+      const res = await api.get('/landlord/my-verification');
+      setVerificationStatus(res.data);
+    } catch (err) {
+      // If 404, user might not have submitted verification yet
+      if (err.response?.status === 404) {
+        setVerificationStatus({ status: 'not_submitted' });
+      }
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -287,10 +302,92 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 64px)' }}>
-        <div className="text-center">
-          <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard...</p>
+      <div className="bg-gray-50 dark:bg-gray-900" style={{ minHeight: 'calc(100vh - 64px)' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-pulse">
+          {/* Header skeleton */}
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-6" />
+
+          {/* Stats skeleton grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg mb-4" />
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2" />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+
+          {/* Main content skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4" />
+                <div className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <div key={idx} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
+                      <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700" />
+                      <div className="flex-1 min-w-0">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-1" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+                      </div>
+                      <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4" />
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 border-gray-100">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4" />
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-3 bg-red-50 dark:bg-gray-700 rounded-lg border border-red-200">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Property performance skeleton */}
+          <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full mb-3" />
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                    </div>
+                    <div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -315,14 +412,80 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-50 dark:bg-gray-900">
+      {/* Verification Status Banner */}
+      {verificationStatus && verificationStatus.status !== 'approved' && verificationStatus.user?.is_verified !== true && (
+        <div className={`border-b ${
+          verificationStatus.status === 'rejected' 
+            ? 'bg-red-50 border-red-200' 
+            : verificationStatus.status === 'pending'
+            ? 'bg-yellow-50 border-yellow-200'
+            : 'bg-orange-50 border-orange-200'
+        }`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {verificationStatus.status === 'rejected' ? (
+                  <FileWarning className="w-6 h-6 text-red-600" />
+                ) : verificationStatus.status === 'pending' ? (
+                  <Clock className="w-6 h-6 text-yellow-600" />
+                ) : (
+                  <ShieldAlert className="w-6 h-6 text-orange-600" />
+                )}
+                <div>
+                  <h3 className={`font-semibold ${
+                    verificationStatus.status === 'rejected' 
+                      ? 'text-red-800' 
+                      : verificationStatus.status === 'pending'
+                      ? 'text-yellow-800'
+                      : 'text-orange-800'
+                  }`}>
+                    {verificationStatus.status === 'rejected' 
+                      ? 'Verification Rejected' 
+                      : verificationStatus.status === 'pending'
+                      ? 'Verification Pending'
+                      : 'Account Not Verified'}
+                  </h3>
+                  <p className={`text-sm ${
+                    verificationStatus.status === 'rejected' 
+                      ? 'text-red-600' 
+                      : verificationStatus.status === 'pending'
+                      ? 'text-yellow-600'
+                      : 'text-orange-600'
+                  }`}>
+                    {verificationStatus.status === 'rejected' 
+                      ? 'Please review the rejection reason and resubmit your documents.' 
+                      : verificationStatus.status === 'pending'
+                      ? 'Your documents are under review. Properties can only be saved as drafts.'
+                      : 'Complete verification to publish properties.'}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/settings"
+                state={{ tab: 'verification' }}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                  verificationStatus.status === 'rejected' 
+                    ? 'bg-red-600 hover:bg-red-700 text-white' 
+                    : verificationStatus.status === 'pending'
+                    ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                }`}
+              >
+                {verificationStatus.status === 'rejected' ? 'Resubmit Documents' : 'View Status'}
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome back! Here's what's happening today.</p>
             </div>
             
             {/* Notification Bell */}
@@ -341,9 +504,9 @@ export default function DashboardPage() {
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <h3 className="font-semibold text-gray-900">Notifications</h3>
+                <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-700">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                     <button
                       onClick={() => setShowNotifications(false)}
                       className="text-gray-400 hover:text-gray-600"
@@ -540,7 +703,7 @@ export default function DashboardPage() {
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Properties */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-blue-600" />
@@ -549,12 +712,12 @@ export default function DashboardPage() {
                 {stats?.properties.active}/{stats?.properties.total} Active
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.properties.total}</p>
-            <p className="text-sm text-gray-500">Total Properties</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.properties.total}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Properties</p>
           </div>
 
           {/* Total Rooms */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Home className="w-6 h-6 text-green-600" />
@@ -563,14 +726,14 @@ export default function DashboardPage() {
                 {stats?.rooms.occupancyRate}% Occupied
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.rooms.total}</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.rooms.total}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available
             </p>
           </div>
 
           {/* Bookings */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-purple-600" />
@@ -581,14 +744,14 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            <p className="text-2xl font-bold text-gray-900">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {stats?.bookings.confirmed || 0} Confirmed · {stats?.bookings.pending || 0} Pending
             </p>
           </div>
 
           {/* Monthly Revenue */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -603,8 +766,8 @@ export default function DashboardPage() {
                 <TrendingUp className="w-4 h-4 inline" />
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">₱{stats?.revenue.monthly.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">Monthly Revenue</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{stats?.revenue.monthly.toLocaleString()}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Monthly Revenue</p>
           </div>
         </div>
 
@@ -612,8 +775,8 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Activities - Takes 2 columns */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activities</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
               <div className="space-y-4">
                 {activities.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
@@ -630,9 +793,9 @@ export default function DashboardPage() {
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{activity.action}</p>
-                        <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                        <p className="text-xs text-gray-400 mt-1">{formatDate(activity.timestamp)}</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{activity.description}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatDate(activity.timestamp)}</p>
                       </div>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                           activity.status === 'confirmed' ? 'bg-green-100 text-green-800' :
@@ -652,8 +815,8 @@ export default function DashboardPage() {
           {/* Upcoming Checkouts & Payments */}
           <div className="space-y-6">
             {/* Upcoming Checkouts */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Upcoming Checkouts</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
               <div className="space-y-3">
                 {upcomingPayments.upcomingCheckouts.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">No upcoming checkouts</p>
@@ -673,8 +836,8 @@ export default function DashboardPage() {
             </div>
 
             {/* Unpaid Bookings */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Unpaid Bookings</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Bookings</h2>
               <div className="space-y-3">
                 {upcomingPayments.unpaidBookings.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">All payments up to date!</p>
@@ -696,8 +859,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Property Performance */}
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Property Performance</h2>
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Performance</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {propertyPerformance.length === 0 ? (
               <div className="col-span-full text-center py-8 text-gray-500">
@@ -706,9 +869,9 @@ export default function DashboardPage() {
               </div>
             ) : (
               propertyPerformance.map((property) => (
-                <div key={property.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div key={property.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900">{property.title}</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{property.title}</h3>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${property.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
                       {property.status}
@@ -717,11 +880,11 @@ export default function DashboardPage() {
 
                   {/* Progress Bar */}
                   <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 mb-1">
                       <span>Occupancy</span>
                       <span className="font-semibold">{property.occupancyRate}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                       <div
                         className="bg-green-600 h-2 rounded-full transition-all"
                         style={{ width: `${property.occupancyRate}%` }}
@@ -731,11 +894,11 @@ export default function DashboardPage() {
 
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <p className="text-gray-500">Occupied</p>
-                      <p className="font-semibold text-gray-900">{property.occupiedRooms}/{property.totalRooms}</p>
+                      <p className="text-gray-500 dark:text-gray-400">Occupied</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{property.occupiedRooms}/{property.totalRooms}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Revenue</p>
+                      <p className="text-gray-500 dark:text-gray-400">Revenue</p>
                       <p className="font-semibold text-green-600">₱{property.actualRevenue.toLocaleString()}</p>
                     </div>
                   </div>

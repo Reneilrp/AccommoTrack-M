@@ -153,22 +153,22 @@ const LandlordRegister = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 text-center">
             {success ? (
               <>
                 <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
                     <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold text-green-700 mb-2 drop-shadow-lg">Application Submitted!</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-2 drop-shadow-lg">Application Submitted!</h2>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
                   Your landlord registration has been successfully submitted. Our administrators will review your documents within 1-3 business days. You will receive an email once your account is verified.
                 </p>
                 <button
@@ -181,13 +181,13 @@ const LandlordRegister = () => {
             ) : (
               <>
                 {/* Removed logo from modal */}
-                <h2 className="text-2xl font-bold text-green-700 mb-2 drop-shadow-lg">Landlord registration will require verification.</h2>
-                <p className="text-green-900/90 mb-2">Please prepare the following documents for a higher chance of approval:</p>
-                <ul className="list-disc list-inside text-left mt-2 mb-2 text-green-900">
+                <h2 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-2 drop-shadow-lg">Landlord registration will require verification.</h2>
+                <p className="text-green-900/90 dark:text-green-300 mb-2">Please prepare the following documents for a higher chance of approval:</p>
+                <ul className="list-disc list-inside text-left mt-2 mb-2 text-green-900 dark:text-green-200">
                   <li>Valid Government-issued ID (e.g., Passport, Driver's License, National ID)</li>
                   <li>Accommodation Permit or Business Permit</li>
                 </ul>
-                <span className="text-xs text-gray-500 block mb-2">Your documents will be reviewed by our team for verification and approval.<br/>Verification may take 1-3 work days.</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2">Your documents will be reviewed by our team for verification and approval.<br/>Verification may take 1-3 work days.</span>
                 <button
                   className="mt-4 bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
                   onClick={() => setShowModal(false)}
@@ -201,12 +201,12 @@ const LandlordRegister = () => {
       )}
       {/* Stepper Form */}
       {!showModal && (
-        <div className="bg-white/90 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 relative backdrop-blur-sm">
+        <div className="bg-white/90 dark:bg-gray-800/90 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative backdrop-blur-sm">
           {/* Back Arrow */}
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="absolute top-4 left-4 text-green-700 hover:text-green-900 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
             aria-label="Back to Landing Page"
           >
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,57 +215,57 @@ const LandlordRegister = () => {
           </button>
           <div className="flex flex-col items-center justify-center mb-4">
             <img src={logo} alt="AccommoTrack Logo" className="h-14 w-auto mb-2" />
-            <span className="text-2xl font-extrabold text-green-700 drop-shadow-lg tracking-tight">AccommoTrack</span>
+            <span className="text-2xl font-extrabold text-green-700 dark:text-green-400 drop-shadow-lg tracking-tight">AccommoTrack</span>
           </div>
           <div className="flex justify-center mb-6">
             <div className="flex gap-2">
               {[1,2,3].map((s) => (
-                <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm ${step === s ? 'bg-green-700' : 'bg-green-200'}`}>{s}</div>
+                <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm ${step === s ? 'bg-green-700' : 'bg-green-200 dark:bg-green-900/50'}`}>{s}</div>
               ))}
             </div>
           </div>
           <form className="space-y-4" onSubmit={step === 3 ? handleSubmit : handleNext}>
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm font-semibold">{error}</div>
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm font-semibold">{error}</div>
             )}
             {success && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-300 rounded-lg text-green-700 text-sm font-semibold">{success}</div>
+              <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg text-green-700 dark:text-green-300 text-sm font-semibold">{success}</div>
             )}
             {step === 1 && (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">First Name <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">First Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="firstName"
                     value={form.firstName}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your first name"
                     required
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Middle Name <span className="text-gray-400">(optional)</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
                   <input
                     type="text"
                     name="middleName"
                     value={form.middleName}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your middle name"
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Last Name <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Last Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="lastName"
                     value={form.lastName}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your last name"
                     required
                     disabled={submitting}
@@ -279,53 +279,53 @@ const LandlordRegister = () => {
             {step === 2 && (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Email Address <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Email Address <span className="text-red-500">*</span></label>
                   <input
                     type="email"
                     name="email"
                     value={form.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your email"
                     required
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Phone Number <span className="text-gray-400">(optional)</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Phone Number <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
                   <input
                     type="tel"
                     name="phone"
                     value={form.phone}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your phone number"
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Password <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Password <span className="text-red-500">*</span></label>
                   <input
                     type="password"
                     name="password"
                     value={form.password}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Create a password"
                     required
                     disabled={submitting}
                     minLength="8"
                   />
-                  <p className="text-xs text-green-700/70 mt-1">Minimum 8 characters</p>
+                  <p className="text-xs text-green-700/70 dark:text-green-400/70 mt-1">Minimum 8 characters</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Confirm Password <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Confirm Password <span className="text-red-500">*</span></label>
                   <input
                     type="password"
                     name="confirmPassword"
                     value={form.confirmPassword}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Confirm your password"
                     required
                     disabled={submitting}
@@ -333,7 +333,7 @@ const LandlordRegister = () => {
                   />
                 </div>
                 <div className="flex justify-between mt-4">
-                  <button type="button" className="bg-gray-300 text-green-800 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
+                  <button type="button" className="bg-gray-300 dark:bg-gray-600 text-green-800 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
                   <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold" onClick={handleNext} disabled={submitting}>Next</button>
                 </div>
               </>
@@ -341,20 +341,20 @@ const LandlordRegister = () => {
             {step === 3 && (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Valid ID Type <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Valid ID Type <span className="text-red-500">*</span></label>
                   {idTypesLoading ? (
-                    <div className="text-green-700 text-sm">Loading ID types...</div>
+                    <div className="text-green-700 dark:text-green-400 text-sm">Loading ID types...</div>
                   ) : idTypesError ? (
-                    <div className="text-red-600 text-sm mb-2">{idTypesError} <button type="button" className="underline" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button></div>
+                    <div className="text-red-600 dark:text-red-400 text-sm mb-2">{idTypesError} <button type="button" className="underline" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button></div>
                   ) : (
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => !submitting && setIsIdDropdownOpen(!isIdDropdownOpen)}
-                        className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-left flex justify-between items-center"
+                        className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-left flex justify-between items-center"
                         disabled={submitting}
                       >
-                        <span className={form.validIdType ? "text-green-900" : "text-gray-400"}>
+                        <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-400 dark:text-gray-500"}>
                           {
                             [
                               { value: "Philippine Passport", label: "Philippine Passport" },
@@ -373,14 +373,14 @@ const LandlordRegister = () => {
                             ].find(opt => opt.value === form.validIdType)?.label || "Select ID type"
                           }
                         </span>
-                        <svg className={`w-5 h-5 text-green-700 transition-transform ${isIdDropdownOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`w-5 h-5 text-green-700 dark:text-green-400 transition-transform ${isIdDropdownOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
                       {isIdDropdownOpen && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
-                          <div className="absolute z-20 w-full mt-1 bg-white border border-green-200 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
+                          <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
                             {[
                               { value: "Philippine Passport", label: "Philippine Passport" },
                               { value: "Driver’s License", label: "Driver’s License" },
@@ -398,7 +398,7 @@ const LandlordRegister = () => {
                             ].map((option) => (
                               <div
                                 key={option.value}
-                                className={`px-4 py-3 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 text-green-900 font-semibold' : 'text-gray-700 hover:bg-green-50'}`}
+                                className={`px-4 py-3 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-200 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-600'}`}
                                 onClick={() => {
                                   setForm(prev => ({ ...prev, validIdType: option.value }));
                                   setIsIdDropdownOpen(false);
@@ -416,13 +416,13 @@ const LandlordRegister = () => {
                 </div>
                 {form.validIdType === 'other' && (
                   <div>
-                    <label className="block text-sm font-semibold text-green-800 mb-2">Specify ID Type <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Specify ID Type <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="validIdOther"
                       value={form.validIdOther}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                      className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Enter your ID type"
                       required
                       disabled={submitting}
@@ -430,25 +430,25 @@ const LandlordRegister = () => {
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
                   <input
                     type="file"
                     name="validId"
                     accept="image/*,.pdf"
                     onChange={handleChange}
-                    className="w-full px-2 py-2 border border-green-200 rounded-lg bg-white"
+                    className="w-full px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     required
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 mb-2">Upload Accommodation/Business Permit <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Accommodation/Business Permit <span className="text-red-500">*</span></label>
                   <input
                     type="file"
                     name="permit"
                     accept="image/*,.pdf"
                     onChange={handleChange}
-                    className="w-full px-2 py-2 border border-green-200 rounded-lg bg-white"
+                    className="w-full px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     required
                     disabled={submitting}
                   />
@@ -463,10 +463,10 @@ const LandlordRegister = () => {
                     disabled={submitting}
                     required
                   />
-                  <label className="text-sm text-green-800">I agree to the <a href="/terms" className="underline text-green-700">terms and conditions</a>.</label>
+                  <label className="text-sm text-green-800 dark:text-green-300">I agree to the <a href="/terms" className="underline text-green-700 dark:text-green-400">terms and conditions</a>.</label>
                 </div>
                 <div className="flex justify-between mt-4">
-                  <button type="button" className="bg-gray-300 text-green-800 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
+                  <button type="button" className="bg-gray-300 dark:bg-gray-600 text-green-800 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
                   <button
                     type="submit"
                     className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-60"

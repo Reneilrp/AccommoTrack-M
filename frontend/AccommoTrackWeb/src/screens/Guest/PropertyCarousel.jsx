@@ -37,7 +37,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       {showLeft && (
         <button
           onClick={() => scrollToCard('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:text-green-600 hover:border-green-600 transition-all opacity-0 group-hover/section:opacity-100 duration-200 hidden md:flex"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-md border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 hover:border-green-600 dark:hover:border-green-400 transition-all opacity-0 group-hover/section:opacity-100 duration-200 hidden md:flex"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
@@ -51,10 +51,10 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         {property.rooms.map((room) => (
           <div
             key={room.id}
-            className="flex-none w-[280px] md:w-[320px] bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-200 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
+            className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-green-200 dark:hover:border-green-700 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
           >
             {/* Image Click -> Open Room Details */}
-            <div className="relative h-48 overflow-hidden bg-gray-200 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
+            <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
               <img
                 src={room.image}
                 alt={room.name}
@@ -75,7 +75,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             <div className="p-5 flex-1 flex flex-col">
               <div className="flex justify-between items-start mb-2">
                 <h4
-                  className="text-lg font-bold text-gray-900 line-clamp-1 cursor-pointer hover:text-green-600 transition-colors"
+                  className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
                   title={room.name}
                   onClick={() => onOpenDetails(room, property)}
                 >
@@ -85,7 +85,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
 
               <div className="flex items-center justify-between mt-auto pt-4">
                 <div className="flex flex-col">
-                  <span className="text-xs text-gray-500 font-medium uppercase">Price per month</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">Price per month</span>
                   <span className="text-lg font-extrabold text-green-600">₱{room.price.toLocaleString()}</span>
                 </div>
                 <button
@@ -104,7 +104,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
       {showRight && (
         <button
           onClick={() => scrollToCard('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:text-green-600 hover:border-green-600 transition-all opacity-0 group-hover/section:opacity-100 duration-200 hidden md:flex"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-md border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 hover:border-green-600 dark:hover:border-green-400 transition-all opacity-0 group-hover/section:opacity-100 duration-200 hidden md:flex"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </button>
