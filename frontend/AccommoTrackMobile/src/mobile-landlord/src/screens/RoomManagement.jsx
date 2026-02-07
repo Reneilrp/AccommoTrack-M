@@ -19,6 +19,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService, { getImageUrl } from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Landlord/RoomManagement.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const FILTERS = [
   { label: 'All Rooms', value: 'all' },
@@ -124,6 +125,7 @@ const buildEmptyForm = () => ({
 });
 
 export default function RoomManagementScreen({ navigation, route }) {
+  const { theme } = useTheme();
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const initialFilter = route?.params?.filter || 'all';
   const [properties, setProperties] = useState([]);
@@ -641,9 +643,9 @@ export default function RoomManagementScreen({ navigation, route }) {
   if (loadingProperties && properties.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#16A34A" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading properties...</Text>
         </View>
       </SafeAreaView>
@@ -654,7 +656,7 @@ export default function RoomManagementScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
@@ -677,7 +679,7 @@ export default function RoomManagementScreen({ navigation, route }) {
           <Text style={styles.emptyTitle}>No properties yet</Text>
           <Text style={styles.emptySubtitle}>Add a property first to start creating rooms.</Text>
           <TouchableOpacity style={[styles.addButton, { marginTop: 24 }]} onPress={() => navigation.navigate('AddProperty')}>
-            <Ionicons name="add" size={18} color="#16A34A" />
+            <Ionicons name="add" size={18} color={theme.colors.primary} />
             <Text style={styles.addButtonText}>Add Property</Text>
           </TouchableOpacity>
         </View>
@@ -688,11 +690,11 @@ export default function RoomManagementScreen({ navigation, route }) {
           renderItem={renderRoomCard}
           ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#16A34A" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />}
           ListEmptyComponent={
             loadingRooms ? (
               <View style={{ paddingTop: 60, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#16A34A" />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading rooms...</Text>
               </View>
             ) : (
@@ -835,7 +837,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               onSubmitEditing={handleAddAmenity}
             />
             <TouchableOpacity style={styles.pill} onPress={handleAddAmenity}>
-              <Text style={[styles.pillText, { color: '#16A34A' }]}>Save Amenity</Text>
+              <Text style={[styles.pillText, { color: theme.colors.primary }]}>Save Amenity</Text>
             </TouchableOpacity>
             {modalMode === 'add' && (
               <>

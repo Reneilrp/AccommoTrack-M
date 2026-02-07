@@ -12,12 +12,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/Settings';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const SettingRow = ({ item, onPress, onToggle }) => {
+  const { theme } = useTheme();
   const content = (
     <View style={styles.settingLeft}>
       <View style={styles.settingIcon}>
-        <Ionicons name={item.icon} size={20} color="#16A34A" />
+        <Ionicons name={item.icon} size={20} color={theme.colors.primary} />
       </View>
       <View style={styles.settingTextBlock}>
         <Text style={styles.settingLabel}>{item.label}</Text>
@@ -33,7 +35,7 @@ const SettingRow = ({ item, onPress, onToggle }) => {
           value={item.value}
           onValueChange={() => onToggle(item)}
           trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-          thumbColor={item.value ? '#16A34A' : '#F3F4F6'}
+          thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
         />
       );
     }
@@ -84,6 +86,8 @@ export default function SettingsScreen({ navigation, onLogout }) {
     };
     loadUser();
   }, []);
+
+  const { theme } = useTheme();
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -223,7 +227,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Settings</Text>

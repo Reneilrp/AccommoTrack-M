@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Tenant/RoomListScreen';
 import { BASE_URL as API_BASE_URL } from '../../../config';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
@@ -36,6 +37,7 @@ const getRoomImageUrl = (imageUrl) => {
 
 export default function RoomListScreen({ route }) {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const { property } = route.params;
 
   const [rooms, setRooms] = useState([]);
@@ -96,10 +98,10 @@ export default function RoomListScreen({ route }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'available': return '#10b981';
-      case 'occupied': return '#ef4444';
-      case 'maintenance': return '#f59e0b';
-      default: return '#6b7280';
+      case 'available': return theme.colors.success;
+      case 'occupied': return theme.colors.error;
+      case 'maintenance': return theme.colors.warning;
+      default: return theme.colors.textTertiary;
     }
   };
 
@@ -128,7 +130,7 @@ export default function RoomListScreen({ route }) {
           <View style={styles.placeholder} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -139,11 +141,11 @@ export default function RoomListScreen({ route }) {
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
           {property.name || property.title}
         </Text>
         <View style={styles.placeholder} />
@@ -173,9 +175,9 @@ export default function RoomListScreen({ route }) {
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         {filteredRooms.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="bed-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyText}>No rooms found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your filter</Text>
+            <Ionicons name="bed-outline" size={64} color={theme.colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: theme.colors.text }]}>No rooms found</Text>
+            <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>Try adjusting your filter</Text>
           </View>
         ) : (
           <View style={styles.roomsContainer}>
@@ -216,12 +218,12 @@ export default function RoomListScreen({ route }) {
 
                   <View style={styles.roomDetailsGrid}>
                     <View style={styles.roomDetailItem}>
-                      <Ionicons name="layers-outline" size={16} color="#6b7280" />
-                      <Text style={styles.roomDetailText}>{room.floor_label || `Floor ${room.floor}`}</Text>
+                      <Ionicons name="layers-outline" size={16} color={theme.colors.textSecondary} />
+                      <Text style={[styles.roomDetailText, { color: theme.colors.textSecondary }]}>{room.floor_label || `Floor ${room.floor}`}</Text>
                     </View>
                     <View style={styles.roomDetailItem}>
-                      <Ionicons name="people-outline" size={16} color="#6b7280" />
-                      <Text style={styles.roomDetailText}>Capacity: {room.capacity}</Text>
+                      <Ionicons name="people-outline" size={16} color={theme.colors.textSecondary} />
+                      <Text style={[styles.roomDetailText, { color: theme.colors.textSecondary }]}>Capacity: {room.capacity}</Text>
                     </View>
                   </View>
 
@@ -230,8 +232,8 @@ export default function RoomListScreen({ route }) {
                     style={styles.viewDetailsButton}
                     onPress={() => navigation.navigate('RoomDetails', { room, property })}
                   >
-                    <Text style={styles.viewDetailsText}>View Details</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#10b981" />
+                    <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]}>View Details</Text>
+                    <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>

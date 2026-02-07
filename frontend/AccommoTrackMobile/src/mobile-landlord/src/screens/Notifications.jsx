@@ -11,10 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const notificationTypeMap = {
   booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
-  payment: { icon: 'cash-outline', color: '#4CAF50', bg: '#DCFCE7' },
+  payment: { icon: 'cash-outline', color: '#10b981', bg: '#DCFCE7' },
   message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
   maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
   alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
@@ -37,9 +38,19 @@ const formatRelativeTime = (timestamp) => {
 };
 
 export default function NotificationsScreen({ navigation }) {
+  const { theme } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const notificationTypeMap = {
+    booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
+    payment: { icon: 'cash-outline', color: theme.colors.primary, bg: theme.colors.successLight },
+    message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
+    maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
+    alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
+    default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
+  };
 
   // Placeholder data - replace with actual API call
   const fetchNotifications = useCallback(async () => {
@@ -111,8 +122,8 @@ export default function NotificationsScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
-        <ActivityIndicator size="large" color="#16a34a" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Loading notifications...</Text>
       </SafeAreaView>
     );
@@ -120,7 +131,7 @@ export default function NotificationsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -142,8 +153,8 @@ export default function NotificationsScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#16a34a']}
-            tintColor="#16a34a"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
@@ -178,7 +189,7 @@ export default function NotificationsScreen({ navigation }) {
                     {formatRelativeTime(notification.timestamp)}
                   </Text>
                 </View>
-                {!notification.read && <View style={styles.unreadDot} />}
+                {!notification.read && <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />}
               </TouchableOpacity>
             );
           })
@@ -207,7 +218,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
@@ -298,7 +309,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     marginLeft: 8,
   },
 });

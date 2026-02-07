@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BookingServices from '../../../services/BookingServices.js';
 import PaymentService from '../../../services/PaymentService.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function NotificationBadge({ type = 'combined', compact = false, style }) {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [bookingsCount, setBookingsCount] = useState(0);
   const [paymentsCount, setPaymentsCount] = useState(0);
@@ -64,7 +66,7 @@ export default function NotificationBadge({ type = 'combined', compact = false, 
     }
     return (
       <View style={[styles.container, style]}>
-        <ActivityIndicator size="small" color="#10b981" />
+        <ActivityIndicator size="small" color={theme.colors.primary} />
       </View>
     );
   }
@@ -74,7 +76,7 @@ export default function NotificationBadge({ type = 'combined', compact = false, 
   // Compact mode: only show the red bubble with number
   if (compact) {
     return (
-      <View style={[styles.compactBadgeContainer, style]}>
+      <View style={[styles.compactBadgeContainer, { backgroundColor: theme.colors.error }, style]}>
         <Text style={styles.text}>{displayCount > 99 ? '99+' : displayCount}</Text>
       </View>
     );
@@ -82,8 +84,8 @@ export default function NotificationBadge({ type = 'combined', compact = false, 
 
   return (
     <View style={[styles.container, style]}>
-      <Ionicons name="notifications-outline" size={18} color="#111827" />
-      <View style={styles.badge}>
+      <Ionicons name="notifications-outline" size={18} color={theme.colors.text} />
+      <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
         <Text style={styles.text}>{displayCount > 99 ? '99+' : displayCount}</Text>
       </View>
     </View>
@@ -97,7 +99,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   badge: {
-    backgroundColor: '#ef4444',
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -107,7 +108,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   compactBadgeContainer: {
-    backgroundColor: '#ef4444',
     borderRadius: 10,
     minWidth: 20,
     height: 20,

@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/HelpSupport';
+import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 
 export default function HelpSupportScreen({ navigation }) {
+  const { theme } = useTheme();
   
   const faqs = [
     { question: "How do I add a new room type to my Dorm Profile?", screen: 'FAQDetail', detail: "To add a new room type, navigate to 'Dorm Profile' in Settings, find the 'Room Inventory' section, and tap 'Add New Type'. Fill in the required details like capacity and base rent." },
@@ -35,7 +37,7 @@ export default function HelpSupportScreen({ navigation }) {
       title: 'Live Chat (9am - 5pm PST)', 
       subtitle: 'Connect with a live agent instantly', 
       icon: 'chatbubbles-outline', 
-      color: '#4CAF50',
+      color: '#10b981',
       action: () => Alert.alert("Live Chat", "Connecting you to a support agent...") 
     },
     { 
@@ -73,7 +75,7 @@ export default function HelpSupportScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       
       {/* Header */}
       <View style={styles.header}>

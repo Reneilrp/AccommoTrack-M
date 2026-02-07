@@ -23,6 +23,7 @@ import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
 import BookingService from '../../../services/BookingServices';
 import PropertyService from '../../../services/PropertyServices';
 import { BASE_URL as API_BASE_URL } from '../../../config';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ const getRoomImageUrl = (imageUrl) => {
 
 export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const { room, property } = route.params;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
@@ -79,10 +81,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'available': return '#10b981';
-      case 'occupied': return '#ef4444';
-      case 'maintenance': return '#f59e0b';
-      default: return '#6b7280';
+      case 'available': return theme.colors.success;
+      case 'occupied': return theme.colors.error;
+      case 'maintenance': return theme.colors.warning;
+      default: return theme.colors.textTertiary;
     }
   };
 
@@ -558,8 +560,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#10b981"]}
-            tintColor="#10b981"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
@@ -664,8 +666,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               <View style={styles.amenitiesGrid}>
                 {activeRoom.amenities.map((amenity, index) => (
                   <View key={index} style={styles.amenityItem}>
-                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                    <Text style={styles.amenityText}>{amenity}</Text>
+                    <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                    <Text style={[styles.amenityText, { color: theme.colors.text }]}>{amenity}</Text>
                   </View>
                 ))}
               </View>
@@ -709,6 +711,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
+            <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>Monthly = 30 days (no prorate)</Text>
 
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
@@ -763,15 +766,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               <Text style={styles.inputLabel}>Payment Method <Text style={{color: '#ef4444'}}>*</Text></Text>
               
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 5 }}>
-                {allowedMethods.includes('cash') && (
+                    {allowedMethods.includes('cash') && (
                   <TouchableOpacity 
                     style={[
                       styles.dateButton, 
-                      { flex: 1, borderColor: bookingData.payment_method === 'cash' ? '#16a34a' : '#ddd', backgroundColor: bookingData.payment_method === 'cash' ? '#f0fdf4' : '#fff' }
+                      { flex: 1, borderColor: bookingData.payment_method === 'cash' ? theme.colors.primary : '#ddd', backgroundColor: bookingData.payment_method === 'cash' ? theme.colors.successLight : '#fff' }
                     ]}
                     onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'cash' }))}
                   >
-                     <Text style={{ color: bookingData.payment_method === 'cash' ? '#16a34a' : '#374151', fontWeight: 'bold', textAlign: 'center' }}>Cash</Text>
+                     <Text style={{ color: bookingData.payment_method === 'cash' ? theme.colors.primary : '#374151', fontWeight: 'bold', textAlign: 'center' }}>Cash</Text>
                   </TouchableOpacity>
                 )}
 
@@ -779,19 +782,19 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <TouchableOpacity 
                     style={[
                       styles.dateButton, 
-                      { flex: 1, borderColor: bookingData.payment_method === 'gcash' ? '#16a34a' : '#ddd', backgroundColor: bookingData.payment_method === 'gcash' ? '#f0fdf4' : '#fff' }
+                      { flex: 1, borderColor: bookingData.payment_method === 'gcash' ? theme.colors.primary : '#ddd', backgroundColor: bookingData.payment_method === 'gcash' ? theme.colors.successLight : '#fff' }
                     ]}
                     onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'gcash' }))}
                   >
-                     <Text style={{ color: bookingData.payment_method === 'gcash' ? '#16a34a' : '#374151', fontWeight: 'bold', textAlign: 'center' }}>GCash</Text>
+                     <Text style={{ color: bookingData.payment_method === 'gcash' ? theme.colors.primary : '#374151', fontWeight: 'bold', textAlign: 'center' }}>GCash</Text>
                   </TouchableOpacity>
                 )}
               </View>
               
               {bookingData.payment_method === 'gcash' && gcashDetails && (
-                <View style={{ marginTop: 8, padding: 10, backgroundColor: '#f9fafb', borderRadius: 6, borderWidth: 1, borderColor: '#eee' }}>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Please send payment to:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827', fontWeight: '500', marginTop: 2 }}>{gcashDetails}</Text>
+                <View style={{ marginTop: 8, padding: 10, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border }}>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Please send payment to:</Text>
+                  <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '500', marginTop: 2 }}>{gcashDetails}</Text>
                 </View>
               )}
             </View>

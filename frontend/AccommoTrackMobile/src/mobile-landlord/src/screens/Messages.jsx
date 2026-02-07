@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MessageService from '../../../services/MessageService';
 import createEcho from '../../../services/echo.js';
 import { styles } from '../../../styles/Landlord/Messages.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const formatTime = (timestamp) => {
   if (!timestamp) return '';
@@ -63,6 +64,7 @@ const resolveSenderId = (message) =>
   null;
 
 export default function MessagesScreen({ navigation, route }) {
+  const { theme } = useTheme();
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -327,7 +329,7 @@ export default function MessagesScreen({ navigation, route }) {
 
   const renderListScreen = () => (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -353,7 +355,7 @@ export default function MessagesScreen({ navigation, route }) {
 
       {loadingList ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#16A34A" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading conversations...</Text>
         </View>
       ) : filteredConversations.length === 0 ? (
@@ -365,7 +367,7 @@ export default function MessagesScreen({ navigation, route }) {
           </Text>
         </View>
       ) : (
-        <FlatList
+          <FlatList
           data={filteredConversations}
           keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
           renderItem={renderConversation}
@@ -374,7 +376,7 @@ export default function MessagesScreen({ navigation, route }) {
           onRefresh={onRefresh}
         />
       )}
-    </View>
+        </View>
   );
 
   const renderChatScreen = () => {
@@ -386,7 +388,7 @@ export default function MessagesScreen({ navigation, route }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <View style={styles.chatScreenHeader}>
           <TouchableOpacity style={styles.backButton} onPress={() => setSelectedConversation(null)}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -413,11 +415,11 @@ export default function MessagesScreen({ navigation, route }) {
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={scrollToBottom}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} tintColor="#4CAF50" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
         >
           {propertyName ? (
             <View style={styles.propertyCard}>
-              <Ionicons name="home-outline" size={24} color="#4CAF50" />
+              <Ionicons name="home-outline" size={24} color={theme.colors.primary} />
               <View style={styles.propertyCardInfo}>
                 <Text style={styles.propertyCardTitle}>{propertyName}</Text>
                 <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
@@ -427,7 +429,7 @@ export default function MessagesScreen({ navigation, route }) {
 
           {loadingMessages ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#16A34A" />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
               <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
           ) : null}
@@ -476,9 +478,9 @@ export default function MessagesScreen({ navigation, route }) {
           })}
         </ScrollView>
 
-        <View style={styles.inputContainer}>
+          <View style={styles.inputContainer}>
           <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-            <Ionicons name="add-circle" size={28} color="#4CAF50" />
+            <Ionicons name="add-circle" size={28} color={theme.colors.primary} />
           </TouchableOpacity>
           <TextInput
             style={styles.textInput}
@@ -508,7 +510,7 @@ export default function MessagesScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#16A34A" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Opening conversation...</Text>
         </View>
       </SafeAreaView>

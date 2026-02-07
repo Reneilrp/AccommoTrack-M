@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, useNavigationState } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { useTheme } from '../../../contexts/ThemeContext';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 
 export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired }) {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [isNavigating, setIsNavigating] = useState(false);
   
   // Get the current route name to determine active tab
@@ -14,17 +16,30 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
     return state.routes[state.index]?.name || 'TenantHome';
   });
 
-  // Map route names to tab names
+  // Define tabs array matching demo UI
+  const tabs = [
+    { id: 'Dashboard', icon: 'grid', label: 'Dashboard', route: 'Dashboard' },
+    { id: 'Bookings', icon: 'calendar', label: 'My Booking', route: 'MyBookings' },
+    { id: 'Explore', icon: 'search', label: 'Explore', route: 'TenantHome' },
+    { id: 'Messages', icon: 'chatbubbles', label: 'Messages', route: 'Messages' },
+    { id: 'Settings', icon: 'settings', label: 'Settings', route: 'Settings' },
+  ];
+
+  // Map route names to tab IDs
   const getActiveTabFromRoute = (routeName) => {
     switch (routeName) {
+      case 'Dashboard':
+        return 'Dashboard';
+      case 'MyBookings':
+        return 'Bookings';
       case 'TenantHome':
-        return 'home';
+        return 'Explore';
       case 'Messages':
-        return 'messages';
+        return 'Messages';
       case 'Settings':
-        return 'settings';
+        return 'Settings';
       default:
-        return propActiveTab || 'home';
+        return propActiveTab || 'Explore';
     }
   };
 
@@ -36,36 +51,34 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
     if (isNavigating) return;
 
     // Don't navigate if already on the same tab
-    if (activeTab === tab) return;
+    if (activeTab === tab.id) return;
 
-    // Only restrict messages for guests, allow settings
-    if (isGuest && tab === 'messages') {
-      if (onAuthRequired) {
-        onAuthRequired();
+    // Check authentication requirements
+    if (isGuest) {
+      // Dashboard and Bookings require authentication
+      if (tab.id === 'Dashboard' || tab.id === 'Bookings') {
+        if (onAuthRequired) {
+          onAuthRequired();
+        }
+        return;
       }
-      return;
+      // Messages require authentication
+      if (tab.id === 'Messages') {
+        if (onAuthRequired) {
+          onAuthRequired();
+        }
+        return;
+      }
     }
     
     if (onTabPress) {
-      onTabPress(tab);
+      onTabPress(tab.id);
     }
     
     setIsNavigating(true);
     
-    // Navigate immediately
-    switch(tab) {
-      case 'home':
-        navigation.navigate('TenantHome');
-        break;
-      case 'messages':
-        navigation.navigate('Messages');
-        break;
-      case 'settings':
-        navigation.navigate('Settings');
-        break;
-      default:
-        break;
-    }
+    // Navigate to the route
+    navigation.navigate(tab.route);
     
     // Reset navigating state after a short delay
     setTimeout(() => {
@@ -74,45 +87,74 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
   };
 
   return (
-    <View style={styles.bottomNav}>
+    <View style={[styles.bottomNav, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+      {/* Floating menu button to open global MenuDrawer modal */}
       <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => handleTabPress('home')}
-        disabled={isNavigating}
+        onPress={() => navigation.navigate('MenuModal')}
+        style={{ position: 'absolute', left: 12, top: -28, zIndex: 999 }}
       >
-        <Ionicons
-          name={activeTab === 'home' ? 'home' : 'home-outline'}
-          size={24}
-          color={activeTab === 'home' ? '#FDD835' : 'white'}
-        />
-        {activeTab === 'home' && <View style={styles.activeIndicator} />}
+        <Ionicons name="menu" size={28} color={theme.colors.textTertiary} />
       </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => handleTabPress('messages')}
-        disabled={isNavigating}
-      >
-        <Ionicons
-          name={activeTab === 'messages' ? 'chatbubble' : 'chatbubble-outline'}
-          size={24}
-          color={activeTab === 'messages' ? '#FDD835' : 'white'}
-        />
-        {activeTab === 'messages' && <View style={styles.activeIndicator} />}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => handleTabPress('settings')}
-        disabled={isNavigating}
-      >
-        <Ionicons
-          name={activeTab === 'settings' ? 'settings' : 'settings-outline'}
-          size={24}
-          color={activeTab === 'settings' ? '#FDD835' : 'white'}
-        />
-        {activeTab === 'settings' && <View style={styles.activeIndicator} />}
-      </TouchableOpacity>
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        
+        // Special handling for Explore tab (FAB)
+        if (tab.id === 'Explore') {
+          return (
+            <View key={tab.id} style={styles.fabContainer}>
+              <TouchableOpacity
+                style={[styles.fabButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => handleTabPress(tab)}
+                disabled={isNavigating}
+              >
+                <Ionicons
+                  name={isActive ? tab.icon : `${tab.icon}-outline`}
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color: isActive ? theme.colors.primary : theme.colors.textTertiary,
+                    fontWeight: isActive ? '600' : '400',
+                  },
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </View>
+          );
+        }
+        
+        // Regular tabs
+        return (
+          <TouchableOpacity
+            key={tab.id}
+            style={styles.tabButton}
+            onPress={() => handleTabPress(tab)}
+            disabled={isNavigating}
+          >
+            <Ionicons
+              name={isActive ? tab.icon : `${tab.icon}-outline`}
+              size={24}
+              color={isActive ? theme.colors.primary : theme.colors.textTertiary}
+            />
+            <Text
+              style={[
+                styles.tabLabel,
+                {
+                  color: isActive ? theme.colors.primary : theme.colors.textTertiary,
+                  fontWeight: isActive ? '600' : '400',
+                },
+              ]}
+            >
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const menuItems = [
-  { id: 1, title: 'My Properties', icon: 'business-outline', color: '#4CAF50', screen: 'MyProperties' },
+  { id: 1, title: 'My Properties', icon: 'business-outline', color: '#10b981', screen: 'MyProperties' },
   { id: 2, title: 'Room Management', icon: 'bed-outline', color: '#8B5CF6', screen: 'RoomManagement' },
   { id: 3, title: 'Tenants', icon: 'people-outline', color: '#2196F3', screen: 'Tenants' },
   { id: 4, title: 'Bookings', icon: 'calendar-outline', color: '#FF9800', screen: 'Bookings' },
@@ -14,6 +15,7 @@ const menuItems = [
 const logoutItem = { id: 99, title: 'Logout', icon: 'log-out-outline', color: '#EF4444', action: 'logout' };
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout }) {
+  const { theme } = useTheme();
   const [userName, setUserName] = useState('Landlord');
   const [userEmail, setUserEmail] = useState('landlord@example.com');
 
@@ -62,7 +64,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
           <View style={styles.menuHeader}>
             <View style={styles.menuUserInfo}>
               <View style={styles.menuAvatar}>
-                <Ionicons name="person" size={32} color="#4CAF50" />
+                <Ionicons name="person" size={32} color={theme.colors.primary} />
               </View>
               <View style={styles.userTextContainer}>
                 <Text style={styles.menuUserName}>{userName}</Text>
@@ -82,7 +84,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
                 style={styles.menuItem}
                 onPress={() => handleItemPress(item)}
               >
-                <Ionicons name={item.icon} size={24} color={item.color} />
+                <Ionicons name={item.icon} size={24} color={item.id === 1 ? theme.colors.primary : item.color} />
                 <Text style={styles.menuItemText}>
                   {item.title}
                 </Text>

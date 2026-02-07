@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/AllActivities.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 import LandlordDashboardService from '../../../services/LandlordDashboardService';
 
 const activityColorMap = {
@@ -53,6 +54,7 @@ const formatRelativeTime = (timestamp) => {
 };
 
 export default function AllActivities({ navigation, route }) {
+  const { theme } = useTheme();
   const [activities, setActivities] = useState(route.params?.activities || []);
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,7 +115,7 @@ export default function AllActivities({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -189,14 +191,14 @@ export default function AllActivities({ navigation, route }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#4CAF50']}
-            tintColor="#4CAF50"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={styles.loadingText}>Loading activities...</Text>
           </View>
         ) : filteredActivities.length === 0 ? (

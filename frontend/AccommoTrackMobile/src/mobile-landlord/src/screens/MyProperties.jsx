@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import PropertyService, { getImageUrl } from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Landlord/MyProperties.js';
 import MapModal from '../../../mobile-tenant/src/components/MapModal';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const STATUS_TABS = [
   { key: 'all', label: 'All' },
@@ -36,6 +37,7 @@ const STATUS_COLORS = {
 const emptyMetrics = { active: 0, inactive: 0, pending: 0, totalRooms: 0 };
 
 export default function MyPropertiesScreen({ navigation }) {
+  const { theme } = useTheme();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -168,7 +170,7 @@ export default function MyPropertiesScreen({ navigation }) {
             <View style={styles.metricsGrid}>
               <View style={styles.metricsGridRow}>
                 <View style={styles.metricItem}>
-                  <Ionicons name="bed-outline" size={16} color="#16A34A" />
+                  <Ionicons name="bed-outline" size={16} color={theme.colors.primary} />
                   <Text style={styles.metricLabel}>{totalRooms} rooms</Text>
                 </View>
                 <View style={styles.metricItem}>
@@ -239,11 +241,11 @@ export default function MyPropertiesScreen({ navigation }) {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          <TouchableOpacity 
+            <TouchableOpacity 
             style={styles.mapButton}
             onPress={() => setMapOpen(true)}
           >
-            <Ionicons name="map-outline" size={20} color="#4CAF50" />
+            <Ionicons name="map-outline" size={20} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
         <View style={styles.filtersRow}>
@@ -267,8 +269,8 @@ export default function MyPropertiesScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
-        <ActivityIndicator size="large" color="#16A34A" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Loading properties...</Text>
       </SafeAreaView>
     );
@@ -276,7 +278,7 @@ export default function MyPropertiesScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
@@ -306,8 +308,8 @@ export default function MyPropertiesScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#16A34A"
-            colors={['#16A34A']}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
         showsVerticalScrollIndicator={false}

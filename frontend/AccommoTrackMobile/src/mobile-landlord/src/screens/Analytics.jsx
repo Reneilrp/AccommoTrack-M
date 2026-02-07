@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 import { styles } from '../../../styles/Landlord/Analytics';
 import LandlordAnalyticsService from '../../../services/LandlordAnalyticsService';
@@ -80,6 +81,7 @@ const bookingPalette = [
 ];
 
 export default function Analytics({ navigation }) {
+  const { theme } = useTheme();
   const [timeRange, setTimeRange] = useState('month');
   const [selectedProperty, setSelectedProperty] = useState('all');
   const [properties, setProperties] = useState([]);
@@ -379,7 +381,7 @@ export default function Analytics({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
@@ -403,7 +405,7 @@ export default function Analytics({ navigation }) {
             <Ionicons
               name={dropdownOpen ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color="#4CAF50"
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
           {dropdownOpen && (
@@ -427,7 +429,7 @@ export default function Analytics({ navigation }) {
                     {property.name}
                   </Text>
                   {selectedProperty === property.id && (
-                    <Ionicons name="checkmark" size={18} color="#4CAF50" />
+                    <Ionicons name="checkmark" size={18} color={theme.colors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -449,7 +451,7 @@ export default function Analytics({ navigation }) {
 
       <ScrollView
         style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4CAF50" colors={['#4CAF50']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
         showsVerticalScrollIndicator={false}
       >
         {errorMessage ? (
@@ -460,7 +462,7 @@ export default function Analytics({ navigation }) {
 
         {loading && !analytics ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={styles.loadingLabel}>Loading analytics...</Text>
           </View>
         ) : (

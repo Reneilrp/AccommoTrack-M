@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 import PropertyService, { getImageUrl } from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Landlord/DormProfile.js';
 
@@ -135,6 +136,7 @@ const normalizeProperty = (data) => {
 };
 
 export default function DormProfileScreen({ route, navigation }) {
+  const { theme } = useTheme();
   const propertyId = route.params?.propertyId || route.params?.property?.id;
   const [form, setForm] = useState(buildEmptyForm);
   const [baseline, setBaseline] = useState(buildEmptyForm);
@@ -390,7 +392,7 @@ export default function DormProfileScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButtonBg} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
@@ -413,13 +415,13 @@ export default function DormProfileScreen({ route, navigation }) {
 
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4CAF50" colors={['#4CAF50']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
         >
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -452,7 +454,7 @@ export default function DormProfileScreen({ route, navigation }) {
             <TouchableOpacity 
               style={{
                 marginTop: 16,
-                backgroundColor: '#16A34A',
+                backgroundColor: theme.colors.primary,
                 paddingVertical: 12,
                 borderRadius: 8,
                 alignItems: 'center',
@@ -661,7 +663,7 @@ export default function DormProfileScreen({ route, navigation }) {
               form.rules.map((rule, index) => (
                 <View key={`${rule}-${index}`}>
                   <View style={styles.ruleItem}>
-                    <Ionicons name="information-circle" size={16} color="#16A34A" />
+                    <Ionicons name="information-circle" size={16} color={theme.colors.primary} />
                     <Text style={{ flex: 1, color: '#111827' }}>{rule}</Text>
                     {isEditing && (
                       <TouchableOpacity onPress={() => removeRule(index)}>

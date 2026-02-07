@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 import PropertyService from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Landlord/Bookings.js';
 
@@ -46,6 +47,7 @@ const formatDate = (value) => {
 };
 
 export default function BookingsScreen({ navigation }) {
+  const { theme } = useTheme();
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [filter, setFilter] = useState('all');
@@ -299,9 +301,9 @@ export default function BookingsScreen({ navigation }) {
   if (loading && bookings.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <View style={styles.centerState}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.centerText}>Loading bookings...</Text>
         </View>
       </SafeAreaView>
@@ -310,7 +312,7 @@ export default function BookingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.heroHeader}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
@@ -330,7 +332,7 @@ export default function BookingsScreen({ navigation }) {
         keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
         renderItem={renderBookingCard}
         ListHeaderComponent={listHeader}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4CAF50" colors={['#4CAF50']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
@@ -517,11 +519,11 @@ export default function BookingsScreen({ navigation }) {
             />
             <View style={styles.switchRow}>
               <Text style={styles.detailLabel}>Refund payment?</Text>
-              <Switch
+                <Switch
                 value={cancelForm.shouldRefund}
                 onValueChange={(value) => setCancelForm((prev) => ({ ...prev, shouldRefund: value }))}
                 trackColor={{ true: '#86EFAC', false: '#CBD5F5' }}
-                thumbColor={cancelForm.shouldRefund ? '#16A34A' : '#FFFFFF'}
+                thumbColor={cancelForm.shouldRefund ? theme.colors.primary : '#FFFFFF'}
               />
             </View>
             {cancelForm.shouldRefund ? (

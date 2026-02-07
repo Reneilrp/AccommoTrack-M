@@ -21,8 +21,11 @@ import createEcho from '../../utils/echo';
 import { styles } from '../../../../styles/Tenant/MessagesPage';
 import BottomNavigation from '../../components/BottomNavigation.jsx';
 import { API_BASE_URL as API_URL } from '../../../../config';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { ConversationSkeleton, DashboardStatSkeleton } from '../../../../components/Skeletons';
 
 export default function MessagesPage({ navigation, route }) {
+    const { theme } = useTheme();
     const [conversations, setConversations] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -33,7 +36,7 @@ export default function MessagesPage({ navigation, route }) {
     const [sendingMessage, setSendingMessage] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeNavTab, setActiveNavTab] = useState('messages');
+    const [activeNavTab, setActiveNavTab] = useState('Messages');
     const [newConversationId, setNewConversationId] = useState(null);
 
     const scrollViewRef = useRef(null);
@@ -54,12 +57,12 @@ export default function MessagesPage({ navigation, route }) {
             const stored = await AsyncStorage.getItem('user_id');
             if (!stored) {
                 setCurrentUserId(null);
-                return;
-            }
-            try {
-                const parsed = JSON.parse(stored);
-                // If stored value is the whole user object, use its id
-                if (parsed && typeof parsed === 'object' && parsed.id) {
+                return (
+            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading conversations...</Text>
+            </SafeAreaView>
+        );
                     setCurrentUserId(parsed.id);
                     return;
                 }
@@ -337,7 +340,7 @@ export default function MessagesPage({ navigation, route }) {
         return (
             <SafeAreaView style={styles.safeArea} edges={['top']}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#10b981" />
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
                     <Text style={styles.loadingText}>Starting conversation...</Text>
                 </View>
             </SafeAreaView>
@@ -347,16 +350,22 @@ export default function MessagesPage({ navigation, route }) {
     // Chat List Screen
     const renderChatList = () => (
         <>
-            <View style={styles.container}>
-                <StatusBar barStyle="light-content" />
-
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Messages</Text>
+            {/* Header */}
+            <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
+                <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+                    <View style={{ width: 40 }} />
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Messages</Text>
+                    </View>
                     <TouchableOpacity style={styles.headerIcon}>
-                        <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+                        <Ionicons name="create-outline" size={24} color={theme.colors.text} />
                     </TouchableOpacity>
                 </View>
+            </SafeAreaView>
+
+            {/* Content Area */}
+            <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+                <View style={styles.container}>
 
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
@@ -372,21 +381,29 @@ export default function MessagesPage({ navigation, route }) {
                     </View>
                 </View>
 
-                {/* Conversations List */}
-                {loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#10b981" />
-                        <Text style={styles.loadingText}>Loading conversations...</Text>
-                    </View>
-                ) : filteredConversations.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
-                        <Text style={styles.emptyTitle}>No conversations yet</Text>
-                        <Text style={styles.emptySubtitle}>
-                            Contact a landlord from a property listing to start chatting
-                        </Text>
-                    </View>
-                ) : (
+                    {/* Conversations List */}
+                    {loading ? (
+                        <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+                            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                                <DashboardStatSkeleton />
+                                <DashboardStatSkeleton />
+                            </View>
+                            <View style={{ height: 16 }} />
+                            <ConversationSkeleton />
+                            <ConversationSkeleton />
+                            <ConversationSkeleton />
+                            <ConversationSkeleton />
+                            <ConversationSkeleton />
+                        </ScrollView>
+                    ) : filteredConversations.length === 0 ? (
+                        <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+                            <Ionicons name="chatbubbles-outline" size={64} color={theme.colors.textTertiary} />
+                            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No conversations yet</Text>
+                            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                                Contact a landlord from a property listing to start chatting
+                            </Text>
+                        </View>
+                    ) : (
                     <FlatList
                         data={filteredConversations}
                         keyExtractor={(item) => item.id.toString()}
@@ -434,14 +451,19 @@ export default function MessagesPage({ navigation, route }) {
                         showsVerticalScrollIndicator={false}
                         refreshing={refreshing}
                         onRefresh={onRefresh}
+                        contentContainerStyle={{ paddingBottom: 16 }}
                     />
-                )}
+                    )}
+                </View>
             </View>
 
-            <BottomNavigation
-                activeTab={activeNavTab}
-                onTabPress={setActiveNavTab}
-            />
+            {/* Bottom Navigation */}
+            <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
+                <BottomNavigation
+                    activeTab={activeNavTab}
+                    onTabPress={setActiveNavTab}
+                />
+            </SafeAreaView>
         </>
     );
 
@@ -484,20 +506,20 @@ export default function MessagesPage({ navigation, route }) {
                 </View>
 
                 {/* Messages */}
-                <ScrollView
+                    <ScrollView
                     ref={scrollViewRef}
                     style={styles.messagesContainer}
                     contentContainerStyle={styles.messagesContent}
                     showsVerticalScrollIndicator={false}
-                    onContentSizeChange={scrollToBottom}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} tintColor="#10b981" />
-                    }
+                        onContentSizeChange={scrollToBottom}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
+                        }
                 >
                     {/* Property Info Card */}
                     {selectedChat.property && (
                         <View style={styles.propertyCard}>
-                            <Ionicons name="home-outline" size={24} color="#10b981" />
+                            <Ionicons name="home-outline" size={24} color={theme.colors.primary} />
                             <View style={styles.propertyCardInfo}>
                                 <Text style={styles.propertyCardTitle}>{selectedChat.property.title}</Text>
                                 <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
@@ -508,7 +530,7 @@ export default function MessagesPage({ navigation, route }) {
                     {/* Empty Messages State */}
                     {messages.length === 0 && (
                         <View style={styles.emptyMessagesContainer}>
-                            <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
+                                <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
                             <Text style={styles.emptyMessagesText}>No messages yet</Text>
                             <Text style={styles.emptyMessagesSubtext}>
                                 Say hello to start the conversation!
@@ -557,7 +579,7 @@ export default function MessagesPage({ navigation, route }) {
                 {/* Input Area */}
                 <View style={styles.inputContainer}>
                     <TouchableOpacity style={styles.attachButton}>
-                        <Ionicons name="add-circle" size={28} color="#10b981" />
+                        <Ionicons name="add-circle" size={28} color={theme.colors.primary} />
                     </TouchableOpacity>
 
                     <TextInput
@@ -592,9 +614,15 @@ export default function MessagesPage({ navigation, route }) {
         </>
     );
 
+    // If chat is selected, show chat screen (full screen without bottom nav)
+    if (selectedChat) {
+        return renderChatScreen();
+    }
+
+    // Otherwise show list with bottom navigation
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-            {selectedChat ? renderChatScreen() : renderChatList()}
-        </SafeAreaView>
+        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+            {renderChatList()}
+        </View>
     );
 }

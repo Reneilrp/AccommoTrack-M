@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Tenant/HomePage.js';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 import Header from '../../components/Header.jsx';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
@@ -20,13 +21,14 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const [activeNavTab, setActiveNavTab] = useState('home');
+  const [activeNavTab, setActiveNavTab] = useState('Explore');
 
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const { theme } = useTheme();
 
   // Filter options matching your screenshot and backend types
   const filterOptions = [
@@ -91,9 +93,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
         const filterType = selectedFilter.toLowerCase();
 
         // Special case: BedSpacer filter
-        // Show property if it has any room with bedSpacer type OR if property type is bedSpacer
         if (filterType === 'bedspacer') {
-          // Check for truthy value (handles true, "true", 1, etc.)
           const hasBedSpacer = prop.has_bedspacer_room === true || 
                                prop.has_bedspacer_room === 'true' || 
                                prop.has_bedspacer_room === 1;
@@ -103,7 +103,6 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
                  propType.includes('spacer');
         }
 
-        // Match variations for other types
         const typeMap = {
           'boardinghouse': ['boarding', 'house', 'boardinghouse'],
           'dormitory': ['dorm', 'dormitory'],
@@ -167,13 +166,11 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     filterProperties();
   };
 
-  // 🔐 Modified: Handle menu items for guest vs authenticated users
   const handleMenuItemPress = async (itemTitle) => {
     setMenuModalVisible(false);
 
-    // Guest users can't access these features
     if (isGuest) {
-      const protectedItems = ['My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
+      const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
       
       if (protectedItems.includes(itemTitle)) {
         Alert.alert(
@@ -196,6 +193,12 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     }
 
     switch (itemTitle) {
+      case 'Dashboard':
+        navigation.navigate('Dashboard');
+        break;
+      case 'Future UI Demo':
+        navigation.navigate('DemoUI');
+        break;
       case 'Notifications':
         navigation.navigate('Notifications');
         break;
@@ -216,12 +219,10 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
         break;
       case 'Logout':
         if (isGuest) {
-          // For guests, show sign in option
           if (onAuthRequired) {
             onAuthRequired();
           }
         } else {
-          // For authenticated users, show logout confirmation
           Alert.alert(
             'Logout',
             'Are you sure you want to log out?',
@@ -256,7 +257,6 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   };
 
   const handleLikePress = async (id) => {
-    // If guest, prompt to sign in
     if (isGuest) {
       Alert.alert(
         'Sign In Required',
@@ -277,10 +277,8 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     }
     
     console.log('Like pressed for:', id);
-    // TODO: Implement favorites functionality
   };
 
-  // 🔐 Modified: Handle profile press for guest users
   const handleProfilePress = () => {
     if (isGuest) {
       if (onAuthRequired) {
@@ -301,7 +299,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
           isGuest={isGuest}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading properties...</Text>
         </View>
         <MenuDrawer
@@ -329,10 +327,10 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
             showsVerticalScrollIndicator={false}
             refreshControl={
             <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#10b981']}
-                tintColor="#10b981"
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
             />
             }
         >
@@ -342,7 +340,6 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
             isGuest={isGuest}
             />
 
-            {/* 🔐 Guest Mode Banner */}
             {isGuest && (
             <TouchableOpacity 
                 style={styles.guestBanner}
@@ -373,7 +370,6 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
             }}
             />
 
-            {/* Filter Buttons Row */}
             <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -384,14 +380,14 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
                 <TouchableOpacity
                 key={filter.value}
                 style={[
-                    styles.filterButton,
-                    selectedFilter === filter.value && styles.filterButtonActive
+                  styles.filterButton,
+                  selectedFilter === filter.value && { backgroundColor: theme.colors.primary }
                 ]}
                 onPress={() => handleFilterSelect(filter.value)}
                 >
                 <Text style={[
-                    styles.filterButtonText,
-                    selectedFilter === filter.value && styles.filterButtonTextActive
+                  styles.filterButtonText,
+                  selectedFilter === filter.value && styles.filterButtonTextActive
                 ]}>
                     {filter.label}
                 </Text>

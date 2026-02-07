@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5'
   },
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -73,7 +73,7 @@ export const styles = StyleSheet.create({
     marginRight: 8
   },
   filterTabActive: {
-    backgroundColor: '#4CAF50'
+    backgroundColor: '#10b981'
   },
   filterTabText: {
     fontSize: 14,
@@ -133,7 +133,7 @@ export const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     borderRadius: 8
   },
   clearSearchText: {

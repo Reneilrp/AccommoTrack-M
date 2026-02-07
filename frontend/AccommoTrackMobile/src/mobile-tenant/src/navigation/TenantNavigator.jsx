@@ -1,13 +1,16 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import TenantHomePage from '../screens/TenantHomePage/HomePage.jsx';
+import TenantHomePage from '../screens/TenantHomePage/ExploreScreen.jsx';
 import MessagesPage from '../screens/Messages/MessagesPage.jsx';
 import AccommodationDetails from '../components/PropertyDetailsScreen.jsx';
 import ProfilePage from '../screens/Profile/ProfilePage.jsx';
 import MyBookings from '../screens/Menu/MyBookings.jsx';
-import Payments from '../screens/Menu/Payments.jsx';
+import WalletScreen from '../screens/Menu/WalletScreen.jsx';
+import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
+import DemoUIScreen from '../screens/Demo/DemoUIScreen.jsx';
 import Notifications from '../screens/Menu/Notifications.jsx';
+import TenantMenuModal from '../screens/TenantHomePage/TenantMenuModal.jsx';
 import PaymentDetail from '../screens/Menu/PaymentDetail.jsx';
 import PaymentCardWebview from '../screens/Menu/PaymentCardWebview.jsx';
 import PaymentRedirectWebview from '../screens/Menu/PaymentRedirectWebview.jsx';
@@ -39,6 +42,8 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
           />
         )}
       </Stack.Screen>
+      {/* Menu modal accessible from bottom nav */}
+      <Stack.Screen name="MenuModal" component={TenantMenuModal} options={{ presentation: 'transparentModal', animation: 'none' }} />
       
       <Stack.Screen name="AccommodationDetails" options={{ animation: 'none' }}>
         {(props) => (
@@ -80,14 +85,19 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
         )}
       </Stack.Screen>
 
+      {/* Demo UI - Available for all users */}
+      <Stack.Screen name="DemoUI" component={DemoUIScreen} options={{ animation: 'none' }} />
+
       {/* Protected Routes - Only for authenticated users */}
       {!isGuest && (
         <>
+          <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ animation: 'none' }} />
           <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
           <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
           <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
           <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
-          <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+          {/* Keep route name as 'Payments' but render the WalletScreen component */}
+          <Stack.Screen name="Payments" component={WalletScreen} options={{ animation: 'none' }} />
           <Stack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
           <Stack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
           <Stack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />

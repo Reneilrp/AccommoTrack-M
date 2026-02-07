@@ -6,9 +6,13 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../../styles/Menu/Settings.js';
 import { WEB_BASE_URL } from '../../../../config';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { ListItemSkeleton } from '../../../../components/Skeletons';
+import BottomNavigation from '../../components/BottomNavigation.jsx';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   
   const [notifications, setNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -16,6 +20,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [locationServices, setLocationServices] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     checkGuestMode();
@@ -232,28 +237,43 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const settingSections = getSettingSections();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+          <View style={{ width: 40 }} />
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Settings & Profile</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+      </SafeAreaView>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#10b981']}
-            tintColor="#10b981"
-          />
-        }
-      >
+      {/* Content Area */}
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+          </ScrollView>
+        ) : (
+          <ScrollView 
+            style={styles.content} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[theme.colors.primary]}
+                tintColor={theme.colors.primary}
+              />
+            }
+          >
         {settingSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -272,18 +292,18 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                 >
                   <View style={styles.settingLeft}>
                     <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight]}>
-                      <Ionicons name={item.icon} size={22} color={item.highlight ? "#FFFFFF" : "#10b981"} />
+                      <Ionicons name={item.icon} size={22} color={item.highlight ? "#FFFFFF" : theme.colors.primary} />
                     </View>
                     <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight]}>{item.label}</Text>
                   </View>
                   
                   <View style={styles.settingRight}>
                     {item.toggle ? (
-                      <Switch
+                        <Switch
                         value={item.value}
                         onValueChange={item.onChange}
                         trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-                        thumbColor={item.value ? '#10b981' : '#F3F4F6'}
+                        thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
                       />
                     ) : (
                       <>
@@ -315,8 +335,15 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           </View>
         )}
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </SafeAreaView>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
+      </View>
+
+      {/* Bottom Navigation */}
+      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
+        <BottomNavigation />
+      </SafeAreaView>
+    </View>
   );
 }

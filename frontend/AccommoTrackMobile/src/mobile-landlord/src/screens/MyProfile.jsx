@@ -19,8 +19,10 @@ import { styles } from '../../../styles/Landlord/MyProfile';
 import Button from '../components/Button';
 import ProfileService from '../../../services/ProfileService';
 import { BASE_URL } from '../../../config';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function MyProfileScreen({ navigation }) {
+  const { theme } = useTheme();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -182,8 +184,8 @@ export default function MyProfileScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
@@ -191,7 +193,7 @@ export default function MyProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -222,8 +224,8 @@ export default function MyProfileScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#4CAF50']}
-            tintColor="#4CAF50"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
@@ -297,7 +299,7 @@ export default function MyProfileScreen({ navigation }) {
               <Ionicons 
                 name={user?.is_active ? "checkmark-circle" : "close-circle"} 
                 size={20} 
-                color={user?.is_active ? "#16A34A" : "#DC2626"} 
+                color={user?.is_active ? theme.colors.primary : "#DC2626"} 
               />
               <Text style={styles.statusLabel}>
                 {user?.is_active ? 'Active' : 'Inactive'}

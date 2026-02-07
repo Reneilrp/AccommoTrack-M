@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   methodAvailableBadge: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#10b981',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,

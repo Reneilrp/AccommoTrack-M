@@ -2,10 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Tenant/HomePage.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const filterOptions = ['All', 'Dormitory', 'Apartment', 'Boarding House', 'Bed Spacer'];
 
 export default function FilterModal({ visible, onClose, selectedFilter, onFilterSelect }) {
+  const { theme } = useTheme();
   const getFilterIcon = (filter) => {
     switch (filter) {
       case 'All': return 'apps';
@@ -26,11 +28,11 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
       statusBarTranslucent={true}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter by Type</Text>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Filter by Type</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={28} color="#111827" />
+              <Ionicons name="close" size={28} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -40,7 +42,8 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
                 key={filter}
                 style={[
                   styles.filterOption,
-                  selectedFilter === filter && styles.filterOptionActive
+                  { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border },
+                  selectedFilter === filter && { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }
                 ]}
                 onPress={() => onFilterSelect(filter)}
               >
@@ -48,17 +51,18 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
                   <Ionicons
                     name={getFilterIcon(filter)}
                     size={24}
-                    color={selectedFilter === filter ? '#4CAF50' : '#6B7280'}
+                    color={selectedFilter === filter ? theme.colors.primary : theme.colors.textSecondary}
                   />
                   <Text style={[
                     styles.filterOptionText,
-                    selectedFilter === filter && styles.filterOptionTextActive
+                    { color: theme.colors.textSecondary },
+                    selectedFilter === filter && { color: theme.colors.primary, fontWeight: '600' }
                   ]}>
                     {filter}
                   </Text>
                 </View>
                 {selectedFilter === filter && (
-                  <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                  <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
                 )}
               </TouchableOpacity>
             ))}

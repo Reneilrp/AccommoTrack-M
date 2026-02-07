@@ -17,9 +17,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { styles } from '../../../../styles/Tenant/ProfilePage.js';
 import { API_BASE_URL as API_URL } from '../../../../config';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -323,16 +325,16 @@ export default function ProfilePage() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" />
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
           <View style={{ width: 50 }} />
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#10b981" />
-          <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading profile...</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 12, color: theme.colors.textSecondary }}>Loading profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -379,20 +381,20 @@ export default function ProfilePage() {
             {getProfileImageSource() ? (
               <Image source={getProfileImageSource()} style={styles.profilePhoto} />
             ) : (
-              <View style={[styles.profilePhoto, { backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="person" size={60} color="#10b981" />
+              <View style={[styles.profilePhoto, { backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="person" size={60} color={theme.colors.primary} />
               </View>
             )}
             {isEditing && (
               <TouchableOpacity 
-                style={styles.changePhotoButton}
+                style={[styles.changePhotoButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleChangePhoto}
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
                 ) : (
-                  <Ionicons name="camera" size={24} color="#FFFFFF" />
+                  <Ionicons name="camera" size={24} color={theme.colors.textInverse} />
                 )}
               </TouchableOpacity>
             )}
@@ -408,14 +410,14 @@ export default function ProfilePage() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
             <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
-              <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 value={profileData.name}
                 onChangeText={(text) => handleInputChange('name', text)}
                 editable={isEditing}
                 placeholder="Enter your name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
           </View>
@@ -424,12 +426,12 @@ export default function ProfilePage() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <View style={[styles.inputContainer, styles.inputDisabled]}>
-              <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 value={profileData.email}
                 editable={false}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
             <Text style={styles.helperText}>Email cannot be changed</Text>
@@ -447,7 +449,7 @@ export default function ProfilePage() {
                 editable={isEditing}
                 keyboardType="numeric"
                 placeholder="Enter your age"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
           </View>
@@ -464,7 +466,7 @@ export default function ProfilePage() {
                 editable={isEditing}
                 keyboardType="phone-pad"
                 placeholder="Enter phone number"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
           </View>
@@ -481,7 +483,7 @@ export default function ProfilePage() {
                 multiline
                 numberOfLines={4}
                 placeholder="Tell us about yourself..."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
           </View>
@@ -496,7 +498,7 @@ export default function ProfilePage() {
               disabled={!isEditing}
             >
               <View style={styles.preferenceLeft}>
-                <Ionicons name="volume-mute" size={24} color="#4CAF50" />
+                <Ionicons name="volume-mute" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
                   <Text style={styles.preferenceTitle}>Quiet Environment</Text>
                   <Text style={styles.preferenceDescription}>I prefer a peaceful place</Text>
@@ -519,7 +521,7 @@ export default function ProfilePage() {
               disabled={!isEditing}
             >
               <View style={styles.preferenceLeft}>
-                <Ionicons name="paw" size={24} color="#4CAF50" />
+                <Ionicons name="paw" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
                   <Text style={styles.preferenceTitle}>Pet Friendly</Text>
                   <Text style={styles.preferenceDescription}>I have or plan to have pets</Text>
@@ -542,7 +544,7 @@ export default function ProfilePage() {
               disabled={!isEditing}
             >
               <View style={styles.preferenceLeft}>
-                <Ionicons name="ban" size={24} color="#4CAF50" />
+                <Ionicons name="ban" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
                   <Text style={styles.preferenceTitle}>No Smoking</Text>
                   <Text style={styles.preferenceDescription}>I prefer smoke-free areas</Text>
@@ -565,7 +567,7 @@ export default function ProfilePage() {
               disabled={!isEditing}
             >
               <View style={styles.preferenceLeft}>
-                <Ionicons name="restaurant" size={24} color="#4CAF50" />
+                <Ionicons name="restaurant" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
                   <Text style={styles.preferenceTitle}>Cooking Allowed</Text>
                   <Text style={styles.preferenceDescription}>I like to cook my own meals</Text>

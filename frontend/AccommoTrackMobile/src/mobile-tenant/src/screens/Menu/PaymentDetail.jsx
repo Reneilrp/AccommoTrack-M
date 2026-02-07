@@ -6,10 +6,12 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL } from '../../../../config';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function PaymentDetail() {
   const route = useRoute();
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const { invoiceId } = route.params || {};
 
   const [loading, setLoading] = useState(true);
@@ -72,13 +74,13 @@ export default function PaymentDetail() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Invoice</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={{ padding: 20 }}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -89,7 +91,7 @@ export default function PaymentDetail() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Invoice</Text>
           <View style={{ width: 24 }} />
@@ -105,7 +107,7 @@ export default function PaymentDetail() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invoice #{invoice.reference || invoice.id}</Text>
         <View style={{ width: 24 }} />
@@ -115,7 +117,7 @@ export default function PaymentDetail() {
         <View style={{ padding: 20 }}>
           <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>{invoice.description || 'Invoice'}</Text>
 
-          <View style={{ backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, marginBottom: 16 }}>
+          <View style={{ backgroundColor: theme.colors.surface, padding: 16, borderRadius: 12, marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={{ color: '#6B7280' }}>Subtotal</Text>
               <Text style={{ fontWeight: '600' }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
@@ -137,7 +139,7 @@ export default function PaymentDetail() {
             <TouchableOpacity onPress={handleGCashPay} style={{ flex: 1, backgroundColor: '#007AFF', padding: 14, borderRadius: 10, alignItems: 'center' }}>
               <Text style={{ color: '#FFF', fontWeight: '700' }}>Pay with GCash</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleCardPay} style={{ flex: 1, backgroundColor: '#10B981', padding: 14, borderRadius: 10, alignItems: 'center' }}>
+            <TouchableOpacity onPress={handleCardPay} style={{ flex: 1, backgroundColor: theme.colors.primary, padding: 14, borderRadius: 10, alignItems: 'center' }}>
               <Text style={{ color: '#FFF', fontWeight: '700' }}>Pay with Card</Text>
             </TouchableOpacity>
           </View>

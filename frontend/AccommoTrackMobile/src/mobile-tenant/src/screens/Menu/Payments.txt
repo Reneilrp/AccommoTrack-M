@@ -5,11 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/Payments.js';
+import { useTheme } from '../../../../contexts/ThemeContext';
 import PaymentService from '../../../../services/PaymentService.js';
 import BookingService from '../../../../services/BookingServices.js';
 import { API_BASE_URL } from '../../../../config';
 
 export default function Payments() {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [payments, setPayments] = useState([]);
   const [stats, setStats] = useState({
@@ -25,7 +27,7 @@ export default function Payments() {
     { id: 1, name: "GCash", icon: "phone-portrait", color: "#007AFF", enabled: true },
     { id: 2, name: "PayMaya", icon: "card", color: "#00D632", enabled: false },
     { id: 3, name: "Bank Transfer", icon: "business", color: "#EF4444", enabled: false },
-    { id: 4, name: "Cash", icon: "cash", color: "#10B981", enabled: true }
+    { id: 4, name: "Cash", icon: "cash", color: theme.colors.primary, enabled: true }
   ];
 
   const handlePaymentMethodPress = (method) => {
@@ -279,7 +281,7 @@ export default function Payments() {
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'Paid': return '#10B981';
+      case 'Paid': return theme.colors.primary;
       case 'Partial Paid': return '#3B82F6';
       case 'Refunded': return '#8B5CF6';
       case 'Pending': return '#F59E0B';
@@ -398,7 +400,7 @@ export default function Payments() {
           <Text style={styles.sectionTitle}>Due Payments</Text>
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#10b981" />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
               <Text style={styles.loadingText}>Loading payments...</Text>
             </View>
           ) : (
@@ -454,7 +456,7 @@ export default function Payments() {
                         </View>
 
                         <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'flex-end' }}>
-                          <TouchableOpacity onPress={() => openCheckout(payment)} style={{ backgroundColor: '#10B981', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
+                          <TouchableOpacity onPress={() => openCheckout(payment)} style={{ backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
                             <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Pay</Text>
                           </TouchableOpacity>
                         </View>
@@ -472,7 +474,7 @@ export default function Payments() {
           <Text style={styles.sectionTitle}>Unpaid Payments</Text>
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#10b981" />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
               <Text style={styles.loadingText}>Loading payments...</Text>
             </View>
           ) : (
@@ -514,7 +516,7 @@ export default function Payments() {
                       </View>
 
                       <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'flex-end' }}>
-                        <TouchableOpacity onPress={() => openCheckout(payment)} style={{ backgroundColor: '#10B981', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
+                        <TouchableOpacity onPress={() => openCheckout(payment)} style={{ backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
                           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Pay</Text>
                         </TouchableOpacity>
                       </View>
@@ -556,7 +558,7 @@ export default function Payments() {
               <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={{ flex: 1, marginRight: 8, padding: 12, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center' }}>
                 <Text style={{ fontWeight: '700' }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={confirmCheckout} style={{ flex: 1, marginLeft: 8, padding: 12, borderRadius: 8, backgroundColor: '#10B981', alignItems: 'center' }}>
+              <TouchableOpacity onPress={confirmCheckout} style={{ flex: 1, marginLeft: 8, padding: 12, borderRadius: 8, backgroundColor: theme.colors.primary, alignItems: 'center' }}>
                 <Text style={{ fontWeight: '700', color: '#fff' }}>Pay</Text>
               </TouchableOpacity>
             </View>

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService from '../../../services/PropertyServices.js';
 import { styles } from '../../../styles/Landlord/Tenants.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const FILTERS = [
   { label: 'All Tenants', value: 'all' },
@@ -44,6 +45,7 @@ const formatCurrency = (value) => {
 };
 
 export default function TenantsScreen({ navigation, route }) {
+  const { theme } = useTheme();
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
 
   const [properties, setProperties] = useState([]);
@@ -304,9 +306,9 @@ export default function TenantsScreen({ navigation, route }) {
   if (loadingProperties && properties.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <View style={styles.centerState}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.centerText}>Loading properties...</Text>
         </View>
       </SafeAreaView>
@@ -315,7 +317,7 @@ export default function TenantsScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
@@ -347,11 +349,11 @@ export default function TenantsScreen({ navigation, route }) {
           renderItem={renderTenantCard}
           ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4CAF50" colors={['#4CAF50']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
           ListEmptyComponent={
-            loadingTenants ? (
+                loadingTenants ? (
               <View style={styles.centerState}>
-                <ActivityIndicator size="large" color="#4CAF50" />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={styles.centerText}>Loading tenants...</Text>
               </View>
             ) : (
@@ -386,13 +388,13 @@ export default function TenantsScreen({ navigation, route }) {
                 </View>
                 <Text style={styles.detailName}>{detailTenant.full_name}</Text>
                 <Text style={styles.detailEmail}>{detailTenant.email}</Text>
-                <View style={styles.detailTags}>
+                  <View style={styles.detailTags}>
                   <View style={styles.detailTag}>
-                    <Ionicons name="call-outline" size={14} color="#16A34A" />
+                    <Ionicons name="call-outline" size={14} color={theme.colors.primary} />
                     <Text style={styles.detailTagText}>{detailTenant.phone || 'No phone'}</Text>
                   </View>
                   <View style={styles.detailTag}>
-                    <Ionicons name="person-outline" size={14} color="#16A34A" />
+                    <Ionicons name="person-outline" size={14} color={theme.colors.primary} />
                     <Text style={styles.detailTagText}>{detailTenant.tenantProfile?.status || 'inactive'}</Text>
                   </View>
                 </View>

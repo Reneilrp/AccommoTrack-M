@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#4CAF50'
+    backgroundColor: '#10b981'
   },
   container: {
     flex: 1,
@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
   },
   // Header
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
@@ -100,7 +100,7 @@ export const styles = StyleSheet.create({
     flex: 1
   },
   dropdownItemTextSelected: {
-    color: '#4CAF50',
+    color: '#10b981',
     fontWeight: '600'
   },
   propertyPicker: {
@@ -136,7 +136,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center'
   },
   timeButtonActive: {
-    backgroundColor: '#4CAF50'
+    backgroundColor: '#10b981'
   },
   timeButtonInactive: {
     backgroundColor: '#F1F5F9',
@@ -284,7 +284,7 @@ export const styles = StyleSheet.create({
   },
   bar: {
     width: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
     minHeight: 4
@@ -336,7 +336,7 @@ export const styles = StyleSheet.create({
   progressBarFill: {
     height: 6,
     borderRadius: 999,
-    backgroundColor: '#4CAF50'
+    backgroundColor: '#10b981'
   },
   roomOccupancy: {
     marginTop: 8,
@@ -407,7 +407,7 @@ export const styles = StyleSheet.create({
   propertyOccupancy: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4CAF50'
+    color: '#10b981'
   },
   propertyRevenue: {
     fontSize: 12,

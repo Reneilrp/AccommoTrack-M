@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6'
   },
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -125,7 +125,7 @@ export const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#4CAF50',
+    color: '#10b981',
     textAlign: 'center',
   },
   statLabel: {
@@ -305,7 +305,7 @@ export const styles = StyleSheet.create({
     color: '#111827',
   },
   inlineAddButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,

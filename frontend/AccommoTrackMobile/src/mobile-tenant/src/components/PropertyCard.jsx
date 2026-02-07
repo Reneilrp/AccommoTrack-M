@@ -3,8 +3,10 @@ import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 import { BASE_URL as API_BASE_URL } from '../../../config';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function PropertyCard({ accommodation, property, onPress }) {
+  const { theme } = useTheme();
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
 
@@ -77,40 +79,40 @@ export default function PropertyCard({ accommodation, property, onPress }) {
           onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
         />
         {/* Type Badge */}
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeBadgeText}>
+        <View style={[styles.typeBadge, { backgroundColor: theme.colors.primary }]}>
+          <Text style={[styles.typeBadgeText, { color: theme.colors.textInverse }]}>
             {propertyType}
           </Text>
         </View>
       </View>
 
       {/* Content Section */}
-      <View style={styles.cardContent}>
+      <View style={[styles.cardContent, { backgroundColor: theme.colors.surface }]}>
         {/* Name/Title */}
-        <Text style={styles.dormName} numberOfLines={2}>
+        <Text style={[styles.dormName, { color: theme.colors.text }]} numberOfLines={2}>
           {item.name || item.title || 'Unnamed Property'}
         </Text>
 
         {/* Location */}
         <View style={styles.locationContainer}>
-          <Ionicons name="location-outline" size={16} color="#757575" />
-          <Text style={styles.locationText} numberOfLines={2}>
+          <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
+          <Text style={[styles.locationText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
             {getFullAddress()}
           </Text>
         </View>
 
         {/* Availability */}
         {availableRooms > 0 ? (
-          <View style={styles.availabilityBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-            <Text style={styles.availabilityText}>
+          <View style={[styles.availabilityBadge, { backgroundColor: theme.colors.primaryLight }]}>
+            <Ionicons name="checkmark-circle" size={14} color={theme.colors.primary} />
+            <Text style={[styles.availabilityText, { color: theme.colors.primary }]}>
               {availableRooms} room{availableRooms !== 1 ? 's' : ''} available
             </Text>
           </View>
         ) : (
-          <View style={[styles.availabilityBadge, { backgroundColor: '#FFE5E5' }]}>
-            <Ionicons name="close-circle" size={14} color="#D32F2F" />
-            <Text style={[styles.availabilityText, { color: '#D32F2F' }]}>
+          <View style={[styles.availabilityBadge, { backgroundColor: theme.colors.errorLight }]}>
+            <Ionicons name="close-circle" size={14} color={theme.colors.error} />
+            <Text style={[styles.availabilityText, { color: theme.colors.error }]}>
               No rooms available
             </Text>
           </View>
@@ -119,13 +121,13 @@ export default function PropertyCard({ accommodation, property, onPress }) {
         {/* View Button */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
-            style={styles.viewButton}
+            style={[styles.viewButton, { backgroundColor: theme.colors.primary }]}
             onPress={(e) => {
               e.stopPropagation();
               onPress(item);
             }}
           >
-            <Text style={styles.viewButtonText}>View More</Text>
+            <Text style={[styles.viewButtonText, { color: theme.colors.textInverse }]}>View More</Text>
           </TouchableOpacity>
         </View>
       </View>

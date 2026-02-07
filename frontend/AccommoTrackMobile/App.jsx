@@ -1,10 +1,14 @@
 import React from 'react';
 import { View, StatusBar } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import AppNavigator from './src/navigation/AppNavigator.jsx';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import AppNavigator from './src/navigation/AppNavigator.jsx';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
+import { queryClient } from './src/config/queryClient.js';
 
-const MyTheme = {
+const MyLightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
@@ -12,15 +16,43 @@ const MyTheme = {
   },
 };
 
-export default function App() {
+const MyDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#111827',
+  },
+};
+
+function AppContent() {
+  const { isDarkMode, isLoading } = useTheme();
+
+  if (isLoading) {
+    return null; // Or a splash screen component
+  }
+
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
-      <SafeAreaProvider>
-        <NavigationContainer theme={MyTheme}>
-          <AppNavigator />
-        </NavigationContainer>
-      </SafeAreaProvider>
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+        backgroundColor={isDarkMode ? "#111827" : "white"} 
+      />
+      <NavigationContainer theme={isDarkMode ? MyDarkTheme : MyLightTheme}>
+        <AppNavigator />
+      </NavigationContainer>
+      <Toast />
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }

@@ -4,24 +4,29 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 import NotificationBadge from './NotificationBadge.jsx';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
 
-const allMenuItems = [
-  { id: 1, title: 'Notifications', icon: 'notifications-outline', color: '#F59E0B' },
-  { id: 2, title: 'My Bookings', icon: 'calendar-outline', color: '#10b981' },
-  { id: 3, title: 'Payments', icon: 'card-outline', color: '#10B981' },
-  { id: 4, title: 'Logout', icon: 'log-out-outline', color: '#EF4444' },
-];
-
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest }) {
+  const { theme } = useTheme();
   const [userName, setUserName] = useState("Guest User");
   const [userEmail, setUserEmail] = useState("guest@example.com");
   const [modalVisible, setModalVisible] = useState(false);
   
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Menu items with theme colors
+  const allMenuItems = [
+    { id: 1, title: 'Dashboard', icon: 'grid-outline', color: theme.colors.primary },
+    { id: 2, title: 'Notifications', icon: 'notifications-outline', color: theme.colors.warning },
+    { id: 3, title: 'My Bookings', icon: 'calendar-outline', color: theme.colors.primary },
+    { id: 4, title: 'Payments', icon: 'wallet-outline', color: theme.colors.primary },
+    { id: 5, title: 'Future UI Demo', icon: 'eye-outline', color: theme.colors.purple },
+    { id: 6, title: 'Logout', icon: 'log-out-outline', color: theme.colors.error },
+  ];
 
   useEffect(() => {
     if (visible) {
@@ -132,42 +137,42 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
             {
               transform: [{ translateX: slideAnim }],
               width: DRAWER_WIDTH,
+              backgroundColor: theme.colors.surface,
             }
           ]}
         >
           {/* Menu Header */}
-          <View style={styles.menuHeader}>
+          <View style={[styles.menuHeader, { backgroundColor: theme.colors.backgroundSecondary, borderBottomColor: theme.colors.border }]}>
             <View style={styles.menuUserInfo}>
-              <View style={styles.menuAvatar}>
-                <Ionicons name="person" size={32} color="#4CAF50" />
+              <View style={[styles.menuAvatar, { backgroundColor: theme.colors.primaryLight }]}>
+                <Ionicons name="person" size={32} color={theme.colors.primary} />
               </View>
               <View>
-                <Text style={styles.menuUserName}>{userName}</Text>
-                <Text style={styles.menuUserEmail}>{userEmail}</Text>
+                <Text style={[styles.menuUserName, { color: theme.colors.text }]}>{userName}</Text>
+                <Text style={[styles.menuUserEmail, { color: theme.colors.textSecondary }]}>{userEmail}</Text>
               </View>
             </View>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
               <TouchableOpacity onPress={handleClose} style={{marginLeft: 8}}>
-                <Ionicons name="close" size={28} color="#111827" />
+                <Ionicons name="close" size={28} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Menu Items */}
-          <ScrollView style={styles.menuItems}>
+          <ScrollView style={[styles.menuItems, { backgroundColor: theme.colors.surface }]}>
             {menuItemsToDisplay.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.menuItem}
-                onPress={() => onMenuItemPress(item.title)}
+                style={[styles.menuItem, { borderBottomColor: theme.colors.borderLight }]}
+                onPress={() => onMenuItemPress(item.title)} // title maps to navigator routes
               >
                 <Ionicons name={item.icon} size={24} color={item.color} />
-                <Text style={styles.menuItemText}>{item.title}</Text>
+                <Text style={[styles.menuItemText, { color: theme.colors.text }]}>{item.title}</Text>
                 {/* Render compact badge for specific menu items */}
                 {item.title === 'Payments' && <NotificationBadge type="payments" compact={true} />}
-                {item.title ==='Notifications'}
                 {item.title === 'My Bookings' && <NotificationBadge type="bookings" compact={true} />}
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
               </TouchableOpacity>
             ))}
           </ScrollView>

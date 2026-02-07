@@ -7,9 +7,13 @@ import { styles } from '../../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../../services/BookingServices.js';
 import { Alert } from 'react-native';
 import { BASE_URL as API_BASE_URL } from '../../../../config';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { BookingCardSkeleton } from '../../../../components/Skeletons';
+import BottomNavigation from '../../components/BottomNavigation.jsx';
 
 export default function MyBookings() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,8 +152,8 @@ export default function MyBookings() {
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'Confirmed': return '#10B981';
-      case 'Completed': return '#10B981';
+      case 'Confirmed': return theme.colors.primary;
+      case 'Completed': return theme.colors.primary;
       case 'Pending': return '#F59E0B';
       case 'Partial': return '#3B82F6';
       case 'Partial Complete': return '#3B82F6';
@@ -159,30 +163,37 @@ export default function MyBookings() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Bookings</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {loading ? (
-          <View style={styles.emptyState}>
-            <ActivityIndicator size="large" color="#10b981" />
-            <Text style={styles.emptyText}>Loading bookings...</Text>
+      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+          <View style={{ width: 40 }} />
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Bookings</Text>
           </View>
-        ) : bookings.length > 0 ? (
-          bookings.map((booking) => (
+          <View style={{ width: 40 }} />
+        </View>
+      </SafeAreaView>
+
+      {/* Content Area */}
+      <View style={{ flex: 1 }}>
+        <ScrollView 
+          style={[styles.content, { backgroundColor: theme.colors.background }]} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+          }
+        >
+          {loading ? (
+            <>
+              <BookingCardSkeleton />
+              <BookingCardSkeleton />
+              <BookingCardSkeleton />
+              <BookingCardSkeleton />
+            </>
+          ) : bookings.length > 0 ? (
+            bookings.map((booking) => (
             <TouchableOpacity key={booking.id} style={styles.bookingCard}>
               <Image source={booking.image} style={styles.bookingImage} />
               <View style={styles.bookingInfo}>
@@ -225,7 +236,7 @@ export default function MyBookings() {
                   <View style={styles.paymentStatusRow}>
                     <Text style={styles.paymentStatusLabel}>Payment:</Text>
                     <Text style={[styles.paymentStatusText, { 
-                      color: booking.paymentStatus === 'paid' ? '#10b981' : 
+                       color: booking.paymentStatus === 'paid' ? theme.colors.primary : 
                              booking.paymentStatus === 'partial' ? '#3B82F6' : 
                              booking.paymentStatus === 'refunded' ? '#8B5CF6' : '#EF4444'
                     }]}>
@@ -247,19 +258,25 @@ export default function MyBookings() {
                   </View>
                 )}
               </View>
-            </TouchableOpacity>
-          ))
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No Bookings Yet</Text>
-            <Text style={styles.emptyText}>Start exploring accommodations to make your first booking!</Text>
-            <TouchableOpacity style={styles.exploreButton} onPress={() => navigation.navigate('TenantHome')}>
-              <Text style={styles.exploreButtonText}>Explore Now</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={[styles.emptyState, { backgroundColor: theme.colors.surface }]}>
+              <Ionicons name="calendar-outline" size={64} color={theme.colors.textTertiary} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Bookings Yet</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Start exploring accommodations to make your first booking!</Text>
+              <TouchableOpacity style={[styles.exploreButton, { backgroundColor: theme.colors.primary }]} onPress={() => navigation.navigate('TenantHome')}>
+                <Text style={styles.exploreButtonText}>Explore Now</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Bottom Navigation */}
+      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
+        <BottomNavigation />
+      </SafeAreaView>
+    </View>
   );
 }

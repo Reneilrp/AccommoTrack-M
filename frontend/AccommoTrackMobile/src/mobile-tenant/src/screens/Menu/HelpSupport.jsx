@@ -4,9 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/HelpSupport.js';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function HelpSupport() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState(null);
   const [message, setMessage] = useState('');
 
@@ -38,36 +40,38 @@ export default function HelpSupport() {
     }
   ];
 
-  const contactOptions = [
+  const getContactOptions = () => [
     {
       id: 1,
       icon: 'mail',
       title: 'Email Support',
       subtitle: 'support@accommodtrack.com',
-      color: '#3B82F6'
+      color: theme.colors.info
     },
     {
       id: 2,
       icon: 'call',
       title: 'Phone Support',
       subtitle: '+63 123 456 7890',
-      color: '#10B981'
+      color: theme.colors.primary
     },
     {
       id: 3,
       icon: 'logo-facebook',
       title: 'Facebook',
       subtitle: '@AccommoTrack',
-      color: '#1877F2'
+      color: theme.colors.info
     },
     {
       id: 4,
       icon: 'chatbubbles',
       title: 'Live Chat',
       subtitle: 'Available 24/7',
-      color: '#F59E0B'
+      color: theme.colors.warning
     }
   ];
+  
+  const contactOptions = getContactOptions();
 
   const toggleFAQ = (id) => {
     setExpandedFAQ(expandedFAQ === id ? null : id);
@@ -83,22 +87,22 @@ export default function HelpSupport() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={28} color={theme.colors.textInverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Help & Support</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <Ionicons name="help-circle" size={64} color="#F59E0B" />
-          <Text style={styles.welcomeTitle}>How can we help you?</Text>
-          <Text style={styles.welcomeSubtitle}>
+          <Ionicons name="help-circle" size={64} color={theme.colors.warning} />
+          <Text style={[styles.welcomeTitle, { color: theme.colors.text }]}>How can we help you?</Text>
+          <Text style={[styles.welcomeSubtitle, { color: theme.colors.textSecondary }]}>
             Find answers to common questions or contact our support team
           </Text>
         </View>
@@ -133,15 +137,15 @@ export default function HelpSupport() {
               onPress={() => toggleFAQ(faq.id)}
             >
               <View style={styles.faqHeader}>
-                <Text style={styles.faqQuestion}>{faq.question}</Text>
+                <Text style={[styles.faqQuestion, { color: theme.colors.text }]}>{faq.question}</Text>
                 <Ionicons
                   name={expandedFAQ === faq.id ? 'chevron-up' : 'chevron-down'}
                   size={24}
-                  color="#6B7280"
+                  color={theme.colors.textSecondary}
                 />
               </View>
               {expandedFAQ === faq.id && (
-                <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                <Text style={[styles.faqAnswer, { color: theme.colors.textSecondary }]}>{faq.answer}</Text>
               )}
             </TouchableOpacity>
           ))}
@@ -152,18 +156,18 @@ export default function HelpSupport() {
           <Text style={styles.sectionTitle}>Send us a message</Text>
           <View style={styles.messageCard}>
             <TextInput
-              style={styles.messageInput}
+              style={[styles.messageInput, { color: theme.colors.text, backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
               placeholder="Type your message here..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.colors.textTertiary}
               multiline
               numberOfLines={4}
               value={message}
               onChangeText={setMessage}
               textAlignVertical="top"
             />
-            <TouchableOpacity style={styles.sendButton} onPress={handleSubmit}>
-              <Ionicons name="send" size={20} color="#FFFFFF" />
-              <Text style={styles.sendButtonText}>Send Message</Text>
+            <TouchableOpacity style={[styles.sendButton, { backgroundColor: theme.colors.primary }]} onPress={handleSubmit}>
+              <Ionicons name="send" size={20} color={theme.colors.textInverse} />
+              <Text style={[styles.sendButtonText, { color: theme.colors.textInverse }]}>Send Message</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -171,31 +175,31 @@ export default function HelpSupport() {
         {/* Additional Resources */}
         <View style={[styles.section, { marginBottom: 40 }]}>
           <Text style={styles.sectionTitle}>Additional Resources</Text>
-          <TouchableOpacity style={styles.resourceCard}>
-            <Ionicons name="document-text" size={24} color="#10b981" />
+          <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
+            <Ionicons name="document-text" size={24} color={theme.colors.primary} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.resourceTitle}>User Guide</Text>
-              <Text style={styles.resourceSubtitle}>Learn how to use AccommoTrack</Text>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>User Guide</Text>
+              <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Learn how to use AccommoTrack</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.resourceCard}>
-            <Ionicons name="shield-checkmark" size={24} color="#3B82F6" />
+          <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
+            <Ionicons name="shield-checkmark" size={24} color={theme.colors.info} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.resourceTitle}>Privacy Policy</Text>
-              <Text style={styles.resourceSubtitle}>How we protect your data</Text>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Privacy Policy</Text>
+              <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>How we protect your data</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.resourceCard}>
-            <Ionicons name="newspaper" size={24} color="#F59E0B" />
+          <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
+            <Ionicons name="newspaper" size={24} color={theme.colors.warning} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.resourceTitle}>Terms of Service</Text>
-              <Text style={styles.resourceSubtitle}>Our terms and conditions</Text>
+              <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Terms of Service</Text>
+              <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Our terms and conditions</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textTertiary} />
           </TouchableOpacity>
         </View>
       </ScrollView>

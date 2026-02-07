@@ -5,9 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function PaymentHistory() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +47,7 @@ export default function PaymentHistory() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payment History</Text>
         <View style={{ width: 24 }} />
@@ -63,7 +65,7 @@ export default function PaymentHistory() {
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#10b981" />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
               <Text style={styles.loadingText}>Loading payments...</Text>
             </View>
           ) : payments.length > 0 ? (
@@ -71,7 +73,7 @@ export default function PaymentHistory() {
               <TouchableOpacity key={payment.id} style={styles.paymentCard} onPress={() => navigation.navigate('PaymentDetail', { invoiceId: payment.id })}>
                 <View style={styles.paymentHeader}>
                   <View style={styles.paymentIcon}>
-                    <Ionicons name="receipt-outline" size={24} color="#10b981" />
+                    <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
                   </View>
                   <View style={styles.paymentInfo}>
                     <Text style={styles.propertyName}>{payment.propertyName}</Text>

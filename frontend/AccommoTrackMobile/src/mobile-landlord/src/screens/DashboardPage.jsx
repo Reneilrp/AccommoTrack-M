@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/DashboardPage.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 import MenuDrawer from '../components/MenuDrawer';
 import PropertyService from '../../../services/PropertyServices';
@@ -78,6 +79,17 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const [firstProperty, setFirstProperty] = useState(null);
   const [loadingProperty, setLoadingProperty] = useState(true);
   const isMountedRef = useRef(true);
+
+  const { theme } = useTheme();
+
+  const quickActions = [
+    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'MyProperties' },
+    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement' },
+    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants' },
+    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings' },
+    { id: 5, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics' },
+    { id: 6, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' }
+  ];
 
   // Reset mounted ref on each mount
   useEffect(() => {
@@ -216,7 +228,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
       subtitle: 'Room 101 • 2 hours ago',
       amount: 5000,
       icon: 'checkmark-circle',
-      iconColor: '#16A34A'
+      iconColor: '#10b981'
     },
     {
       id: 2,
@@ -239,7 +251,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const quickActions = [
     { id: 1, title: 'Properties', 
       icon: 'business', 
-      color: '#16A34A', 
+      color: '#10b981', 
       screen: 'MyProperties' },
     { id: 2, 
       title: 'Rooms', 
@@ -264,7 +276,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     { id: 6, 
       title: 'Messages', 
       icon: 'chatbubbles', 
-      color: '#10B981', 
+      color: '#10b981', 
       screen: 'Messages' }
   ];
 
@@ -303,8 +315,8 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   if (dashboardLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
-        <ActivityIndicator size="large" color="#16a34a" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Loading dashboard...</Text>
       </SafeAreaView>
     );
@@ -313,7 +325,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   if (dashboardError && !dashboardLoading) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <Ionicons name="warning" size={48} color="#F87171" />
         <Text style={styles.errorTitle}>Unable to load dashboard</Text>
         <Text style={styles.errorMessage}>{dashboardError}</Text>
@@ -327,7 +339,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
       {/* Menu Drawer */}
       <MenuDrawer
@@ -368,8 +380,8 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#16a34a']}
-            tintColor="#16a34a"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
@@ -383,8 +395,8 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
               </View>
               <Text style={styles.statValue}>{stats?.properties?.total ?? 0}</Text>
               <Text style={styles.statLabel}>Total Properties</Text>
-              <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                <Text style={[styles.statBadgeText, { color: '#16A34A' }]}>
+                <View style={[styles.statBadge, { backgroundColor: theme.colors.successLight }]}>
+                <Text style={[styles.statBadgeText, { color: theme.colors.primary }]}>
                   {stats?.properties?.active ?? 0} Active
                 </Text>
               </View>
@@ -392,8 +404,8 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
 
             {/* Total Rooms */}
             <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="home" size={24} color="#10B981" />
+              <View style={[styles.statIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+                <Ionicons name="home" size={24} color={theme.colors.primary} />
               </View>
               <Text style={styles.statValue}>{stats?.rooms?.total ?? 0}</Text>
               <Text style={styles.statLabel}>Total Rooms</Text>
@@ -418,11 +430,11 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
                   </Text>
                 </View>
               ) : (
-                <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#16A34A' }]}>
-                    {stats?.bookings?.confirmed ?? 0} Confirmed
-                  </Text>
-                </View>
+                <View style={[styles.statBadge, { backgroundColor: theme.colors.successLight }]}>
+                    <Text style={[styles.statBadgeText, { color: theme.colors.primary }]}>
+                      {stats?.bookings?.confirmed ?? 0} Confirmed
+                    </Text>
+                  </View>
               )}
             </View>
 
@@ -433,9 +445,9 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
               </View>
               <Text style={styles.statValue}>₱{(stats?.revenue?.monthly ?? 0).toLocaleString()}</Text>
               <Text style={styles.statLabel}>Monthly Revenue</Text>
-              <View style={[styles.statBadge, { backgroundColor: '#DCFCE7', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                <Ionicons name="trending-up" size={12} color="#16A34A" />
-                <Text style={[styles.statBadgeText, { color: '#16A34A' }]}>This Month</Text>
+              <View style={[styles.statBadge, { backgroundColor: theme.colors.successLight, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                <Ionicons name="trending-up" size={12} color={theme.colors.primary} />
+                <Text style={[styles.statBadgeText, { color: theme.colors.primary }]}>This Month</Text>
               </View>
             </View>
           </View>
@@ -575,7 +587,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
 
           {loadingProperty ? (
             <View style={{ padding: 16, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color="#10b981" />
+              <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
           ) : firstProperty ? (
             <Button
@@ -594,11 +606,11 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
               </View>
               <View style={styles.propertyStats}>
                 <View style={styles.propertyStatItem}>
-                  <Ionicons name="bed" size={20} color="#16A34A" />
+                  <Ionicons name="bed" size={20} color={theme.colors.primary} />
                   <Text style={styles.propertyStatText}>{totalRooms || 0} Rooms</Text>
                 </View>
                 <View style={styles.propertyStatItem}>
-                  <Ionicons name="people" size={20} color="#16A34A" />
+                  <Ionicons name="people" size={20} color={theme.colors.primary} />
                   <Text style={styles.propertyStatText}>{tenantCount} Tenants</Text>
                 </View>
               </View>

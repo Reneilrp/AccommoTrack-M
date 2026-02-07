@@ -544,17 +544,49 @@ viewButtonText: {
   fontWeight: '600',
 },
 
-  // BOTTOM NAVIGATION - Green Bar
+  // BOTTOM NAVIGATION - Theme-aware with 5 tabs
   bottomNav: {
     flexDirection: 'row',
-    backgroundColor: '#10b981',
-    paddingVertical: 12,
+    borderTopWidth: 1,
+    paddingVertical: 8,
+    paddingBottom: 4,
+    elevation: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
     shadowRadius: 8,
-    elevation: 10,
   },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingTop: 6,
+    marginBottom: 24,
+  },
+  fabContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: -32,
+  },
+  fabButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    marginBottom: 4,
+  },
+  tabLabel: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  // Legacy styles kept for backward compatibility (can be removed if not used elsewhere)
   navItem: {
     flex: 1,
     alignItems: 'center',

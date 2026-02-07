@@ -17,6 +17,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService from '../../../services/PropertyServices';
 import { styles } from '../../../styles/Landlord/AddProperty.js';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const PROPERTY_TYPES = [
   { label: 'Dormitory', value: 'dormitory' },
@@ -56,6 +57,7 @@ const initialForm = {
 };
 
 export default function AddProperty({ navigation }) {
+  const { theme } = useTheme();
   const [form, setForm] = useState(initialForm);
   const [selectedImages, setSelectedImages] = useState([]);
   const [newRule, setNewRule] = useState('');
@@ -279,7 +281,7 @@ export default function AddProperty({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4CAF50" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
@@ -348,7 +350,7 @@ export default function AddProperty({ navigation }) {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Location</Text>
-            {loadingAddress && <ActivityIndicator size="small" color="#16A34A" />}
+            {loadingAddress && <ActivityIndicator size="small" color={theme.colors.primary} />}
           </View>
           <Text style={styles.helperText}>Tap the map to drop a pin and auto-fill the address.</Text>
           <View style={styles.mapContainer}>
@@ -425,7 +427,7 @@ export default function AddProperty({ navigation }) {
             onSubmitEditing={addCustomAmenity}
           />
           <TouchableOpacity style={styles.pill} onPress={addCustomAmenity}>
-            <Text style={[styles.pillText, { color: '#16A34A' }]}>Add Amenity</Text>
+            <Text style={[styles.pillText, { color: theme.colors.primary }]}>Add Amenity</Text>
           </TouchableOpacity>
         </View>
 
@@ -439,7 +441,7 @@ export default function AddProperty({ navigation }) {
             onSubmitEditing={addRule}
           />
           <TouchableOpacity style={styles.pill} onPress={addRule}>
-            <Text style={[styles.pillText, { color: '#16A34A' }]}>Add Rule</Text>
+            <Text style={[styles.pillText, { color: theme.colors.primary }]}>Add Rule</Text>
           </TouchableOpacity>
 
           {form.rules.map((rule, index) => (

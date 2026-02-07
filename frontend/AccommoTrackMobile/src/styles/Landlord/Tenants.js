@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     paddingBottom: 16,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10b981',
   },
   headerTitle: {
     fontSize: 20,
@@ -150,7 +150,7 @@ export const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#4CAF50',
+    color: '#10b981',
     marginTop: 6,
     textAlign: 'center',
   },

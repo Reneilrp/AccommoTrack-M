@@ -21,9 +21,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Tenant/PropertyDetailsScreen';
 import PropertyService from '../../../services/PropertyServices';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const { accommodation } = route.params;
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -119,13 +121,13 @@ export default function PropertyDetailsScreen({ route }) {
   const getStatusColor = (status) => {
     switch (status) {
       case 'available':
-        return '#10b981';
+        return theme.colors.success;
       case 'occupied':
-        return '#ef4444';
+        return theme.colors.error;
       case 'maintenance':
-        return '#f59e0b';
+        return theme.colors.warning;
       default:
-        return '#6b7280';
+        return theme.colors.textTertiary;
     }
   };
 
@@ -395,7 +397,7 @@ export default function PropertyDetailsScreen({ route }) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#10b981"]} tintColor="#10b981" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
         }
         nestedScrollEnabled={true}
       >
@@ -422,9 +424,9 @@ export default function PropertyDetailsScreen({ route }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address</Text>
             <View style={styles.addressContainer}>
-              <Ionicons name="location" size={20} color="#10b981" />
+              <Ionicons name="location" size={20} color={theme.colors.primary} />
               <View style={styles.addressTextContainer}>
-                <Text style={styles.addressText}>{getFullAddress()}</Text>
+                <Text style={[styles.addressText, { color: theme.colors.text }]}>{getFullAddress()}</Text>
                 {active && active.nearby_landmarks && (
                   <Text style={styles.landmarksText}>
                     <Text style={styles.landmarksLabel}>Nearby: </Text>
@@ -446,14 +448,14 @@ export default function PropertyDetailsScreen({ route }) {
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Ionicons name="bed-outline" size={24} color="#10b981" />
-              <Text style={styles.statNumber}>{(active && (active.availableRooms || active.available_rooms)) || 0}</Text>
-              <Text style={styles.statLabel}>Available Rooms</Text>
+              <Ionicons name="bed-outline" size={24} color={theme.colors.primary} />
+              <Text style={[styles.statNumber, { color: theme.colors.text }]}>{(active && (active.availableRooms || active.available_rooms)) || 0}</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Available Rooms</Text>
             </View>
             <View style={styles.statItem}>
-              <Ionicons name="pricetag-outline" size={24} color="#10b981" />
-              <Text style={styles.statNumber}>{active && active.priceRange}</Text>
-              <Text style={styles.statLabel}>Price Range</Text>
+              <Ionicons name="pricetag-outline" size={24} color={theme.colors.primary} />
+              <Text style={[styles.statNumber, { color: theme.colors.text }]}>{active && active.priceRange}</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Price Range</Text>
             </View>
           </View>
 
@@ -463,8 +465,8 @@ export default function PropertyDetailsScreen({ route }) {
               <Text style={styles.sectionTitle}>Amenities</Text>
               {active.amenities.map((amenity, index) => (
                 <View key={index} style={styles.ruleItem}>
-                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                  <Text style={styles.ruleText}>{amenity}</Text>
+                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>{amenity}</Text>
                 </View>
               ))}
             </View>
@@ -476,8 +478,8 @@ export default function PropertyDetailsScreen({ route }) {
               <View style={styles.mapHeader}>
                 <Text style={styles.sectionTitle}>Location</Text>
                 <TouchableOpacity onPress={openMaps} style={styles.openMapsButton}>
-                  <Ionicons name="open-outline" size={16} color="#10b981" />
-                  <Text style={styles.openMapsText}>Open in Maps</Text>
+                  <Ionicons name="open-outline" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.openMapsText, { color: theme.colors.primary }]}>Open in Maps</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.mapContainer}>
@@ -493,8 +495,8 @@ export default function PropertyDetailsScreen({ route }) {
                     nestedScrollEnabled={true}
                     renderLoading={() => (
                       <View style={styles.mapLoadingContainer}>
-                        <ActivityIndicator size="large" color="#10b981" />
-                        <Text style={styles.mapLoadingText}>Loading map...</Text>
+                        <ActivityIndicator size="large" color={theme.colors.primary} />
+                        <Text style={[styles.mapLoadingText, { color: theme.colors.text }]}>Loading map...</Text>
                       </View>
                     )}
                   />
@@ -514,17 +516,17 @@ export default function PropertyDetailsScreen({ route }) {
               <Text style={styles.sectionTitle}>Property Rules</Text>
               {getPropertyRules().map((rule, index) => (
                 <View key={index} style={styles.ruleItem}>
-                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                  <Text style={styles.ruleText}>{rule}</Text>
+                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>{rule}</Text>
                 </View>
               ))}
             </View>
           )}
 
           {/* Contact Landlord Button */}
-          <TouchableOpacity style={styles.contactButton} onPress={handleContactLandlord}>
-            <Ionicons name="chatbubble-outline" size={18} color="#ffffff" />
-            <Text style={styles.contactButtonText}>Contact Landlord</Text>
+          <TouchableOpacity style={[styles.contactButton, { backgroundColor: theme.colors.primary }]} onPress={handleContactLandlord}>
+            <Ionicons name="chatbubble-outline" size={18} color={theme.colors.textInverse} />
+            <Text style={[styles.contactButtonText, { color: theme.colors.textInverse }]}>Contact Landlord</Text>
           </TouchableOpacity>
 
           {/* Embedded Room List */}
@@ -569,14 +571,14 @@ export default function PropertyDetailsScreen({ route }) {
 
             {roomsLoading ? (
               <View style={styles.roomsLoadingContainer}>
-                <ActivityIndicator size="small" color="#10b981" />
-                <Text style={styles.roomsLoadingText}>Loading rooms...</Text>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={[styles.roomsLoadingText, { color: theme.colors.textSecondary }]}>Loading rooms...</Text>
               </View>
             ) : filteredRooms.length === 0 ? (
               <View style={styles.emptyRoomsContainer}>
-                <Ionicons name="bed-outline" size={48} color="#d1d5db" />
-                <Text style={styles.emptyRoomsTitle}>No rooms found</Text>
-                <Text style={styles.emptyRoomsSubtitle}>
+                <Ionicons name="bed-outline" size={48} color={theme.colors.textTertiary} />
+                <Text style={[styles.emptyRoomsTitle, { color: theme.colors.text }]}>No rooms found</Text>
+                <Text style={[styles.emptyRoomsSubtitle, { color: theme.colors.textSecondary }]}>
                   Try refreshing or adjusting your filter.
                 </Text>
               </View>
@@ -666,10 +668,10 @@ export default function PropertyDetailsScreen({ route }) {
                           style={styles.viewDetailsButton}
                           onPress={() => handleRoomPress(room)}
                         >
-                          <Text style={styles.viewDetailsText} numberOfLines={1}>
+                          <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]} numberOfLines={1}>
                             View Details
                           </Text>
-                          <Ionicons name="arrow-forward" size={14} color="#10b981" />
+                          <Ionicons name="arrow-forward" size={14} color={theme.colors.primary} />
                         </TouchableOpacity>
                       </View>
                     </View>

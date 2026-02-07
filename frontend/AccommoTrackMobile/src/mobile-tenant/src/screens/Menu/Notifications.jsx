@@ -14,13 +14,14 @@ import { StyleSheet } from 'react-native';
 
 import BookingServices from '../../../../services/BookingServices.js';
 import PaymentService from '../../../../services/PaymentService.js';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
-const notificationTypeMap = {
-  booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
-  payment: { icon: 'card-outline', color: '#4CAF50', bg: '#DCFCE7' },
-  message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
-  default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
-};
+const getNotificationTypeMap = (theme) => ({
+  booking: { icon: 'calendar', color: theme.colors.info, bg: theme.colors.infoLight },
+  payment: { icon: 'card-outline', color: theme.colors.success, bg: theme.colors.successLight },
+  message: { icon: 'chatbubble-outline', color: theme.colors.purple, bg: theme.colors.purpleLight },
+  default: { icon: 'notifications-outline', color: theme.colors.textTertiary, bg: theme.colors.backgroundTertiary },
+});
 
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) return '';
@@ -38,6 +39,8 @@ const formatRelativeTime = (timestamp) => {
 };
 
 export default function TenantNotifications({ navigation }) {
+  const { theme } = useTheme();
+  const notificationTypeMap = getNotificationTypeMap(theme);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,41 +121,41 @@ export default function TenantNotifications({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#10b981" />
-        <ActivityIndicator size="large" color="#10b981" />
-        <Text style={styles.loadingText}>Loading notifications...</Text>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading notifications...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[ 'top' ]}>
-      <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={[ 'top' ]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Notifications</Text>
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={() => setNotifications((prev) => prev.map(n => ({...n, read: true})))} style={styles.markAllButton}>
-            <Text style={styles.markAllText}>Mark all read</Text>
+          <TouchableOpacity onPress={() => setNotifications((prev) => prev.map(n => ({...n, read: true})))} style={[styles.markAllButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <Text style={[styles.markAllText, { color: theme.colors.textInverse }]}>Mark all read</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Filter bar: type + date range */}
-      <View style={styles.filterBar}>
-        <View style={styles.segmented}> 
-          <TouchableOpacity onPress={() => setFilterType('all')} style={[styles.segmentButton, filterType === 'all' && styles.segmentButtonActive]}>
-            <Text style={[styles.segmentText, filterType === 'all' && styles.segmentTextActive]}>All</Text>
+      <View style={[styles.filterBar, { backgroundColor: theme.colors.backgroundSecondary, borderBottomColor: theme.colors.border }]}>
+        <View style={[styles.segmented, { backgroundColor: theme.colors.surface }]}> 
+          <TouchableOpacity onPress={() => setFilterType('all')} style={[styles.segmentButton, filterType === 'all' && { backgroundColor: theme.colors.primary }]}>
+            <Text style={[styles.segmentText, { color: filterType === 'all' ? theme.colors.textInverse : theme.colors.textSecondary }]}>All</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setFilterType('bookings')} style={[styles.segmentButton, filterType === 'bookings' && styles.segmentButtonActive]}>
-            <Text style={[styles.segmentText, filterType === 'bookings' && styles.segmentTextActive]}>Bookings</Text>
+          <TouchableOpacity onPress={() => setFilterType('bookings')} style={[styles.segmentButton, filterType === 'bookings' && { backgroundColor: theme.colors.primary }]}>
+            <Text style={[styles.segmentText, { color: filterType === 'bookings' ? theme.colors.textInverse : theme.colors.textSecondary }]}>Bookings</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setFilterType('payments')} style={[styles.segmentButton, filterType === 'payments' && styles.segmentButtonActive]}>
-            <Text style={[styles.segmentText, filterType === 'payments' && styles.segmentTextActive]}>Payments</Text>
+          <TouchableOpacity onPress={() => setFilterType('payments')} style={[styles.segmentButton, filterType === 'payments' && { backgroundColor: theme.colors.primary }]}>
+            <Text style={[styles.segmentText, { color: filterType === 'payments' ? theme.colors.textInverse : theme.colors.textSecondary }]}>Payments</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -163,14 +166,14 @@ export default function TenantNotifications({ navigation }) {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[ '#10b981' ]} tintColor="#10b981" />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
         }
       >
         {displayedNotifications.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No notifications</Text>
-            <Text style={styles.emptySubtitle}>You're all caught up!</Text>
+            <Ionicons name="notifications-off-outline" size={64} color={theme.colors.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No notifications</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>You're all caught up!</Text>
           </View>
         ) : (
           displayedNotifications.map((notification) => {
@@ -178,7 +181,7 @@ export default function TenantNotifications({ navigation }) {
             return (
               <TouchableOpacity
                 key={notification.id}
-                style={[styles.notificationItem, !notification.read && styles.notificationUnread]}
+                style={[styles.notificationItem, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }, !notification.read && { backgroundColor: theme.colors.successLight }]}
                 onPress={() => markAsRead(notification.id)}
                 activeOpacity={0.7}
               >
@@ -186,11 +189,11 @@ export default function TenantNotifications({ navigation }) {
                   <Ionicons name={typeConfig.icon} size={22} color={typeConfig.color} />
                 </View>
                 <View style={styles.notificationContent}>
-                  <Text style={[styles.notificationTitle, !notification.read && styles.unreadText]}>{notification.title}</Text>
-                  <Text style={styles.notificationMessage}>{notification.message}</Text>
-                  <Text style={styles.notificationTime}>{formatRelativeTime(notification.timestamp)}</Text>
+                  <Text style={[styles.notificationTitle, { color: theme.colors.text }, !notification.read && { fontWeight: '700', color: theme.colors.text }]}>{notification.title}</Text>
+                  <Text style={[styles.notificationMessage, { color: theme.colors.textSecondary }]}>{notification.message}</Text>
+                  <Text style={[styles.notificationTime, { color: theme.colors.textTertiary }]}>{formatRelativeTime(notification.timestamp)}</Text>
                 </View>
-                {!notification.read && <View style={styles.unreadDot} />}
+                {!notification.read && <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />}
               </TouchableOpacity>
             );
           })
@@ -204,7 +207,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' },
   loadingText: { marginTop: 12, fontSize: 16, color: '#6B7280' },
-  header: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#10b981', paddingHorizontal: 16, paddingVertical: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   backButton: { padding: 4 },
   headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#FFFFFF', marginLeft: 12 },
   markAllButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16 },
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
   unreadText: { fontWeight: '700', color: '#111827' },
   notificationMessage: { fontSize: 13, color: '#6B7280', marginTop: 2 },
   notificationTime: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
-  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#10b981', marginLeft: 8 },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
   filterBar: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -243,7 +246,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentButtonActive: {
-    backgroundColor: '#10b981',
   },
   segmentText: {
     fontSize: 13,
