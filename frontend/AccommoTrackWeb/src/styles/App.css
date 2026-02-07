@@ -84,10 +84,11 @@ body,
   font-size: var(--text-base);
 }
 
-.font-scaled h1 { font-size: var(--text-3xl); }
-.font-scaled h2 { font-size: var(--text-2xl); }
-.font-scaled h3 { font-size: var(--text-xl); }
-.font-scaled h4 { font-size: var(--text-lg); }
+/* Headings inside .font-scaled — skip elements explicitly opted-out via .no-scale */
+.font-scaled h1:not(.no-scale) { font-size: var(--text-3xl); }
+.font-scaled h2:not(.no-scale) { font-size: var(--text-2xl); }
+.font-scaled h3:not(.no-scale) { font-size: var(--text-xl); }
+.font-scaled h4:not(.no-scale) { font-size: var(--text-lg); }
 
 /* Button and input text scaling */
 .font-scaled button,
@@ -115,6 +116,11 @@ body,
 .font-scaled .text-xs {
   font-size: clamp(0.65rem, var(--text-xs), 1rem);
 }
+
+/* Reset scaling for elements explicitly opted-out via .no-scale inside .font-scaled */
+/* No explicit overrides here — use :not(.no-scale) on the global rules so
+   elements with the `no-scale` class can use their own utility sizes (e.g. Tailwind's
+   `text-[clamp(...)]`) without being overridden by the global scaling. */
 
 @keyframes slide-up {
   from {

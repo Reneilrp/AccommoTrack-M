@@ -44,6 +44,17 @@ export default function LandlordLayout({
         </svg>
       )
     },
+    {
+      path: '/tenants',
+      label: 'Tenants',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+      )
+      ,
+      onlyCaretaker: true
+    },
     
     { 
       path: '/bookings', 
@@ -96,6 +107,7 @@ export default function LandlordLayout({
   const caretakerAllowedPaths = new Set([
     caretakerPermissions.rooms ? '/rooms' : null,
     caretakerPermissions.bookings ? '/bookings' : null,
+    caretakerPermissions.tenants ? '/tenants' : null,
     caretakerPermissions.messages ? '/messages' : null,
     '/settings',
   ].filter(Boolean));
@@ -104,7 +116,9 @@ export default function LandlordLayout({
     ? landlordMenu.filter((item) => caretakerAllowedPaths.has(item.path))
     : landlordMenu.filter((item) => item.path === '/settings');
 
-  const menuItems = isCaretaker ? caretakerMenu : landlordMenu;
+  const menuItems = isCaretaker
+    ? caretakerMenu
+    : landlordMenu.filter((item) => !item.onlyCaretaker);
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);

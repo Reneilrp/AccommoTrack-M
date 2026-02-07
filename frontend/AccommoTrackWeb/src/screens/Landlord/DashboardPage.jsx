@@ -77,6 +77,27 @@ export default function DashboardPage() {
       const chartData = chartRes.data;
       const performanceData = performanceRes.data;
 
+      // Fetch landlord properties so we can detect approved/active listings
+      let propertiesList = [];
+      try {
+        const propsRes = await api.get('/landlord/properties');
+        propertiesList = propsRes.data || [];
+      } catch (e) {
+        // ignore - properties are optional for notification generation
+        console.warn('Failed to fetch landlord properties for notifications', e);
+      }
+
+      // Ensure we have up-to-date verification status for notification logic
+      let currentVerification = verificationStatus;
+      if (!currentVerification) {
+        try {
+          const vRes = await api.get('/landlord/my-verification');
+          currentVerification = vRes.data;
+        } catch (e) {
+          // ignore
+        }
+      }
+
       setStats(statsData);
       setActivities(activitiesData);
       setUpcomingPayments(paymentsData);
@@ -158,6 +179,37 @@ export default function DashboardPage() {
           actionLabel: 'View Bookings',
           actionPath: '/bookings'
         });
+      }
+
+      // If landlord account is verified AND at least one property is approved/active,
+      // show a combined success notification on the dashboard.
+      try {
+        const isVerified = currentVerification && (currentVerification.status === 'approved' || currentVerification.user?.is_verified === true || currentVerification.is_verified === true);
+        const hasApprovedProperty = Array.isArray(propertiesList) && propertiesList.some(p => {
+          const status = (p.current_status || '').toLowerCase();
+          return status === 'active' || status === 'approved' || (p.approval_status || '').toLowerCase() === 'approved';
+        });
+
+        if (isVerified && hasApprovedProperty) {
+          // Count how many approved/active properties
+          const approvedCount = propertiesList.filter(p => {
+            const status = (p.current_status || '').toLowerCase();
+            return status === 'active' || status === 'approved' || (p.approval_status || '').toLowerCase() === 'approved';
+          }).length;
+
+          generatedNotifications.push({
+            id: 'account-and-property-approved',
+            type: 'success',
+            icon: 'property',
+            title: 'Account & Listing Approved',
+            message: `Your account is verified and ${approvedCount} propert${approvedCount > 1 ? 'ies are' : 'y is'} approved and live.`,
+            time: 'Now',
+            actionLabel: 'View Properties',
+            actionPath: '/properties'
+          });
+        }
+      } catch (e) {
+        console.warn('Error generating verification/property notification', e);
       }
 
       setNotifications(generatedNotifications);

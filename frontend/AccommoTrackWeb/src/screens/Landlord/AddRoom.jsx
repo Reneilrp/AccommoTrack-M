@@ -432,7 +432,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Room Type {!isApartment && <span className="text-xs text-gray-500 dark:text-gray-400">(auto capacity unless Bed Spacer)</span>}
+                Room Type <span className="text-red-500 ml-1">*</span>
               </label>
               <select
                 value={formData.roomType}

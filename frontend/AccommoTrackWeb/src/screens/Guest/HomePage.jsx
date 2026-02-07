@@ -112,7 +112,7 @@ const HomePage = ({ onGetStarted }) => {
           <div data-aos="fade-up" className="text-center max-w-[900px] z-10 mb-auto">
             <h1 className="no-scale text-[clamp(40px,5vw,64px)] font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
               Find Your Next Home <br />
-              <span className="no-scale text-green-600">in Zamboanga City.</span>
+              <span className="no-scale text-green-600 inline-block mb-[25px]">in Zamboanga City.</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-10 leading-relaxed">
               Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.

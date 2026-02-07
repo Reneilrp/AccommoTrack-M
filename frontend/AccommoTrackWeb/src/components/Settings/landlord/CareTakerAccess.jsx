@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function CareTakerAccess({
   caretakers,
@@ -19,6 +19,12 @@ export default function CareTakerAccess({
   handlePermissionToggle
 }) {
   const [roomPermissionPrompt, setRoomPermissionPrompt] = useState(false);
+
+  useEffect(() => {
+    if (typeof fetchCaretakers === 'function') {
+      fetchCaretakers();
+    }
+  }, []);
   const CARETAKER_PERMISSION_FIELDS = [
     {
       key: 'bookings',
@@ -63,6 +69,16 @@ export default function CareTakerAccess({
     setRoomPermissionPrompt(false);
   };
 
+  const handleRegister = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setCaretakerState(prev => ({ ...prev, error: '', message: '' }));
+    try {
+      await handleCreateCaretaker();
+    } catch (err) {
+      setCaretakerState(prev => ({ ...prev, error: err?.message || 'Failed to register caretaker.' }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 border-gray-100 dark:border-gray-700">
@@ -70,6 +86,59 @@ export default function CareTakerAccess({
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Caretaker Access</h2>
         </div>
         <div className="mt-4">
+          <label className="block font-medium mb-1 dark:text-gray-200">Caretaker details</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="First name"
+              value={caretakerForm.first_name}
+              onChange={(e) => setCaretakerForm(f => ({ ...f, first_name: e.target.value }))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            />
+            <input
+              type="text"
+              placeholder="Last name"
+              value={caretakerForm.last_name}
+              onChange={(e) => setCaretakerForm(f => ({ ...f, last_name: e.target.value }))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={caretakerForm.email}
+              onChange={(e) => setCaretakerForm(f => ({ ...f, email: e.target.value }))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            />
+            <input
+              type="text"
+              placeholder="Phone (optional)"
+              value={caretakerForm.phone}
+              onChange={(e) => setCaretakerForm(f => ({ ...f, phone: e.target.value }))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={caretakerForm.password}
+              onChange={(e) => setCaretakerForm(f => ({ ...f, password: e.target.value }))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            />
+            <input
+              type="password"
+              placeholder="Confirm password"
+              value={caretakerForm.password_confirmation}
+              onChange={(e) => setCaretakerForm(f => ({ ...f, password_confirmation: e.target.value }))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            />
+          </div>
+          {/* show state messages */}
+          {caretakerState.error && (
+            <div className="mb-3 text-sm text-red-700 bg-red-50 p-2 rounded">{caretakerState.error}</div>
+          )}
+          {caretakerState.message && (
+            <div className="mb-3 text-sm text-green-700 bg-green-50 p-2 rounded">{caretakerState.message}</div>
+          )}
+
           <label className="block font-medium mb-1 dark:text-gray-200">Allowed modules</label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {CARETAKER_PERMISSION_FIELDS.map((field) => (
@@ -142,8 +211,9 @@ export default function CareTakerAccess({
             <div className="mt-6 flex gap-3">
               <button
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
-                onClick={handleCreateCaretaker}
+                onClick={handleRegister}
                 disabled={caretakerState.loading}
+                type="button"
               >
                 {caretakerState.loading ? 'Adding...' : 'Add Caretaker'}
               </button>
@@ -165,20 +235,37 @@ export default function CareTakerAccess({
               <div className="text-gray-500">No caretakers added yet.</div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {caretakers.map((c) => (
-                  <li key={c.assignment_id || c.id} className="flex items-center justify-between py-3">
-                    <div>
-                      <span className="font-medium text-gray-900">{c.caretaker_name || c.name}</span>
-                      <span className="ml-2 text-xs text-gray-500">{c.caretaker_email || c.email}</span>
-                    </div>
-                    <button
-                      className="px-3 py-1 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-xs"
-                      onClick={() => handleRevokeCaretaker(c.assignment_id || c.id)}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
+                {caretakers.map((c) => {
+                  const caretakerObj = c.caretaker || {};
+                  const name = (caretakerObj.first_name || caretakerObj.last_name)
+                    ? `${caretakerObj.first_name || ''} ${caretakerObj.last_name || ''}`.trim()
+                    : (c.caretaker_name || c.name || 'Unknown');
+                  const email = caretakerObj.email || c.caretaker_email || c.email || '';
+                  const assigned = c.assigned_properties || c.assignedProperties || [];
+                  const assignedDisplay = Array.isArray(assigned) && assigned.length > 0
+                    ? assigned.map(p => p.name || p.title || p.id).join(', ')
+                    : '';
+
+                  return (
+                    <li key={c.assignment_id || c.id} className="flex items-center justify-between py-3">
+                      <div>
+                        <div className="font-medium text-gray-900">{name}</div>
+                        <div className="mt-0.5 text-xs text-gray-500">
+                          {email && <span>{email}</span>}
+                          {assignedDisplay && (
+                            <span className="ml-2">• {assignedDisplay}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        className="px-3 py-1 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-xs"
+                        onClick={() => handleRevokeCaretaker(c.assignment_id || c.id)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

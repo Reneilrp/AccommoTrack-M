@@ -227,7 +227,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     try {
       setCaretakerState((prev) => ({ ...prev, loading: true, error: preserveNotice ? prev.error : '', message: preserveNotice ? prev.message : '' }));
       const { data } = await api.get('/landlord/caretakers');
-      setCaretakers(data.assignments || []);
+      setCaretakers(data.caretakers || []);
+      setLandlordProperties(data.landlord_properties || []);
       setCaretakerState((prev) => ({ ...prev, loading: false }));
     } catch (error) {
       setCaretakerState((prev) => ({ ...prev, loading: false, error: 'Failed to fetch caretakers.' }));
@@ -509,24 +510,28 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                   <Receipt className="w-4 h-4" />
                   Billing
                 </button> */}
-                <button
-                  onClick={() => handleTabChange('payments')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                    activeTab === 'payments' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <CreditCard className="w-4 h-4" />
-                  Payment Methods
-                </button>
-                <button
-                  onClick={() => handleTabChange('verification')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                    activeTab === 'verification' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  Verification Status
-                </button>
+                {normalizedRole === 'landlord' && (
+                  <>
+                    <button
+                      onClick={() => handleTabChange('payments')}
+                      className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                        activeTab === 'payments' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Payment Methods
+                    </button>
+                    <button
+                      onClick={() => handleTabChange('verification')}
+                      className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                        activeTab === 'verification' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Verification Status
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => handleTabChange('appearance')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
@@ -598,8 +603,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
               />
             )}
             {/* {activeTab === 'billing' && <Billing />} */}
-            {activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
-            {activeTab === 'verification' && <VerificationStatus />}
+            {normalizedRole === 'landlord' && activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
+            {normalizedRole === 'landlord' && activeTab === 'verification' && <VerificationStatus />}
             {activeTab === 'appearance' && <AppearanceTab />}
           </div>
         </div>
