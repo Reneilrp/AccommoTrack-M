@@ -134,7 +134,28 @@ export default function Analytics({ user }) {
   };
 
   const PIE_COLORS = [COLORS.primary, COLORS.secondary, COLORS.warning, COLORS.danger];
+  
+  // Payment chart data derived from backend analytics if available.
+  const paymentCounts = analytics?.payments || null;
+  const totalPaymentCount = paymentCounts
+    ? (Number(paymentCounts.paid || 0) + Number(paymentCounts.unpaid || 0) + Number(paymentCounts.partial || 0) + Number(paymentCounts.overdue || 0))
+    : 0;
 
+  const ghostPaymentData = [
+    { name: 'Paid', value: 20, fill: '#d1d5db' },
+    { name: 'Pending', value: 10, fill: '#e5e7eb' },
+    { name: 'Partial', value: 5, fill: '#c7d2fe' },
+    { name: 'Overdue', value: 2, fill: '#fca5a5' }
+  ];
+
+  const realPaymentData = [
+    { name: 'Paid', value: Number(paymentCounts?.paid || 0), fill: COLORS.primary },
+    { name: 'Pending', value: Number(paymentCounts?.unpaid || 0), fill: COLORS.warning },
+    { name: 'Partial', value: Number(paymentCounts?.partial || 0), fill: COLORS.secondary },
+    { name: 'Overdue', value: Number(paymentCounts?.overdue || 0), fill: COLORS.danger }
+  ];
+
+  const paymentChartData = totalPaymentCount === 0 ? ghostPaymentData : realPaymentData;
   // Skeleton loading state for full page
   const AnalyticsSkeleton = () => (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -263,7 +284,7 @@ export default function Analytics({ user }) {
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="green" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-philippine-peso-icon lucide-philippine-peso"><path d="M20 11H4"/><path d="M20 7H4"/><path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7"/></svg>                  </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="green" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-philippine-peso-icon lucide-philippine-peso"><path d="M20 11H4"/><path d="M20 7H4"/><path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7"/></svg>                  </div>
                   <span className="text-green-600 text-sm font-semibold">
                     {analytics.overview.monthly_revenue > 0 ? '↑' : '→'} 
                     {analytics.revenue.collection_rate}%
@@ -364,91 +385,48 @@ export default function Analytics({ user }) {
             {/* Payment Status */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Payment Status</h2>
-              {analytics.payments.payment_rate === 0 ? (
-                // Ghost Chart: faint, grayed-out healthy chart as a preview
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart 
-                    data={[ 
-                      { name: 'Paid', value: 20, fill: '#d1d5db' },
-                      { name: 'Pending', value: 10, fill: '#e5e7eb' },
-                      { name: 'Partial', value: 5, fill: '#c7d2fe' },
-                      { name: 'Overdue', value: 2, fill: '#fca5a5' }
-                    ]}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis type="number" stroke="#d1d5db" style={{ fontSize: '12px' }} />
-                    <YAxis type="category" dataKey="name" stroke="#d1d5db" style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#6b7280' }}
-                      formatter={(value) => [value, 'Count']}
-                    />
-                    <Bar dataKey="value" radius={[0, 8, 8, 0]} opacity={0.4}>
-                      {[
-                        { name: 'Paid', fill: '#d1d5db' },
-                        { name: 'Pending', fill: '#e5e7eb' },
-                        { name: 'Partial', fill: '#c7d2fe' },
-                        { name: 'Overdue', fill: '#fca5a5' }
-                      ].map((entry, index) => (
-                        <Cell key={`ghost-cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart 
-                    data={[ 
-                      { name: 'Paid', value: analytics.payments.paid, fill: COLORS.primary },
-                      { name: 'Pending', value: analytics.payments.unpaid, fill: COLORS.warning },
-                      { name: 'Partial', value: analytics.payments.partial, fill: COLORS.secondary },
-                      { name: 'Overdue', value: analytics.payments.overdue, fill: COLORS.danger }
-                    ]}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis type="number" stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <YAxis type="category" dataKey="name" stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                      formatter={(value) => [value, 'Count']}
-                    />
-                    <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                      {[
-                        { name: 'Paid', fill: COLORS.primary },
-                        { name: 'Pending', fill: COLORS.warning },
-                        { name: 'Partial', fill: COLORS.secondary },
-                        { name: 'Overdue', fill: COLORS.danger }
-                      ].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart 
+                  data={paymentChartData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={totalPaymentCount === 0 ? '#f3f4f6' : '#f0f0f0'} />
+                  <XAxis type="number" stroke={totalPaymentCount === 0 ? '#d1d5db' : '#6b7280'} style={{ fontSize: '12px' }} />
+                  <YAxis type="category" dataKey="name" stroke={totalPaymentCount === 0 ? '#d1d5db' : '#6b7280'} style={{ fontSize: '12px' }} />
+                  <Tooltip 
+                    contentStyle={ totalPaymentCount === 0 ? { backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#6b7280' } : { backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    formatter={(value) => [value, 'Count']}
+                  />
+                  <Bar dataKey="value" radius={[0, 8, 8, 0]} opacity={totalPaymentCount === 0 ? 0.4 : 1}>
+                    {paymentChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              
               <div className="grid grid-cols-4 gap-4 mt-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{analytics.payments.paid}</p>
+                  <p className="text-2xl font-bold text-green-600">{paymentCounts?.paid ?? 0}</p>
                   <p className="text-xs text-gray-600">Paid</p>
                 </div>
                 <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">{analytics.payments.unpaid}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{paymentCounts?.unpaid ?? 0}</p>
                   <p className="text-xs text-gray-600">Pending</p>
                 </div>
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{analytics.payments.partial}</p>
+                  <p className="text-2xl font-bold text-blue-600">{paymentCounts?.partial ?? 0}</p>
                   <p className="text-xs text-gray-600">Partial</p>
                 </div>
                 <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">{analytics.payments.overdue}</p>
+                  <p className="text-2xl font-bold text-red-600">{paymentCounts?.overdue ?? 0}</p>
                   <p className="text-xs text-gray-600">Overdue</p>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <p className="text-sm text-gray-600 dark:text-gray-300">Payment Collection Rate</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.payments.payment_rate}%</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{paymentCounts?.payment_rate ?? 0}%</p>
               </div>
             </div>
 

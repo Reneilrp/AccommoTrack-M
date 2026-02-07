@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 /**
  * @property int $id
@@ -416,6 +417,16 @@ class Room extends Model
     }
 
     /**
+     * Scope: Get rooms belonging to a landlord (via property)
+     */
+    public function scopeForLandlord($query, int $landlordId)
+    {
+        return $query->whereHas('property', function ($q) use ($landlordId) {
+            $q->where('landlord_id', $landlordId);
+        });
+    }
+
+    /**
      * Scope: Get rooms with capacity greater than or equal to specified value
      */
     public function scopeWithMinCapacity($query, $minCapacity)
@@ -538,6 +549,58 @@ class Room extends Model
                 'days_charge' => round($daysCharge, 2),
             ],
             'method' => $method,
+        ];
+    }
+
+    /**
+     * Calculate price for a booking period using actual calendar months.
+     * This treats full calendar-month segments as whole months (no prorate)
+     * and charges any remaining days according to the room's billing policy.
+     *
+     * @param Carbon|string $startDate
+     * @param Carbon|string $endDate
+     * @return array
+     */
+    public function calculatePriceForPeriod($startDate, $endDate)
+    {
+        $start = $startDate instanceof Carbon ? $startDate->copy() : Carbon::parse($startDate);
+        $end = $endDate instanceof Carbon ? $endDate->copy() : Carbon::parse($endDate);
+
+        $days = max(1, $start->diffInDays($end) + 1);
+        $monthly = (float) $this->monthly_rate;
+        $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
+        $policy = $this->billing_policy ?? 'monthly';
+
+        // If billing is strictly daily, use daily rate
+        if ($policy === 'daily') {
+            $ratePerDay = $daily ?? ($monthly / 30);
+            $total = round($days * $ratePerDay, 2);
+            return [
+                'total' => $total,
+                'breakdown' => [
+                    'months' => 0,
+                    'remaining_days' => $days,
+                    'month_charge' => 0.00,
+                    'days_charge' => round($days * $ratePerDay, 2),
+                ],
+                'method' => 'daily',
+            ];
+        }
+
+        // For monthly-based billing (no prorate): count units as 30-day chunks and round up
+        $units = (int) ceil($days / 30);
+        $monthCharge = $units * $monthly;
+        $total = round($monthCharge, 2);
+
+        return [
+            'total' => $total,
+            'breakdown' => [
+                'months' => $units,
+                'remaining_days' => $days % 30,
+                'month_charge' => round($monthCharge, 2),
+                'days_charge' => 0.00,
+            ],
+            'method' => 'monthly_30day',
         ];
     }
 

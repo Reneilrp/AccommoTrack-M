@@ -27,14 +27,25 @@ class AnalyticsService
             return $this->getEmptyAnalytics();
         }
 
+        $overview = $this->calculateOverviewStats($landlordId, $propertyId);
+        $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange);
+        $payments = $this->calculatePaymentAnalytics($landlordId, $propertyId);
+        $tenants = $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange);
+        $properties = $this->calculatePropertyComparison($landlordId);
+
         return [
-            'overview' => $this->calculateOverviewStats($landlordId, $propertyId),
-            'revenue' => $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange),
+            'overview' => $overview,
+            'revenue' => [
+                'expected_monthly' => $revenue['expected_monthly'] ?? 0,
+                'actual_monthly' => $revenue['actual_monthly'] ?? 0,
+                'collection_rate' => $revenue['collection_rate'] ?? 0,
+                'monthly_trend' => $revenue['monthly_trend'] ?? [],
+            ],
             'occupancy' => $this->calculateOccupancyAnalytics($landlordId, $propertyId),
             'roomTypes' => $this->calculateRoomTypeAnalytics($landlordId, $propertyId),
-            'properties' => $this->calculatePropertyComparison($landlordId),
-            'tenants' => $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange),
-            'payments' => $this->calculatePaymentAnalytics($landlordId, $propertyId),
+            'properties' => $properties,
+            'tenants' => $tenants,
+            'payments' => $payments,
             'bookings' => $this->calculateBookingAnalytics($landlordId, $propertyId, $dateRange),
         ];
     }
@@ -182,17 +193,26 @@ class AnalyticsService
                 'revenue' => (float) $item->revenue,
             ]);
 
-        // Potential vs actual revenue
-        $potentialRevenue = $this->calculatePotentialRevenue($landlordId, $propertyId);
-        $actualRevenue = $query->sum('total_amount');
+        // Expected (potential) vs actual revenue for current month
+        $expectedMonthly = $this->calculatePotentialRevenue($landlordId, $propertyId);
+        $actualMonthlyQuery = Booking::forLandlord($landlordId)
+            ->confirmed()
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year);
+        if ($propertyId) {
+            $actualMonthlyQuery->where('property_id', $propertyId);
+        }
+        $actualMonthly = $actualMonthlyQuery->sum('total_amount');
+        $collectionRate = $expectedMonthly > 0
+            ? round(($actualMonthly / $expectedMonthly) * 100, 1)
+            : 0;
 
         return [
             'monthly_trend' => $monthlyTrend,
-            'total_revenue' => round($actualRevenue, 2),
-            'potential_revenue' => round($potentialRevenue, 2),
-            'revenue_efficiency' => $potentialRevenue > 0
-                ? round(($actualRevenue / $potentialRevenue) * 100, 1)
-                : 0,
+            'total_revenue' => round($query->sum('total_amount'), 2),
+            'expected_monthly' => round($expectedMonthly, 2),
+            'actual_monthly' => round($actualMonthly, 2),
+            'collection_rate' => $collectionRate,
         ];
     }
 
@@ -264,16 +284,22 @@ class AnalyticsService
      */
     public function calculatePropertyComparison(int $landlordId): array
     {
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
         return Property::where('landlord_id', $landlordId)
             ->withCount([
                 'rooms',
                 'rooms as occupied_rooms' => fn($q) => $q->where('status', 'occupied'),
                 'rooms as available_rooms' => fn($q) => $q->where('status', 'available'),
             ])
-            ->withSum(['bookings as total_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed'])], 'total_amount')
+            ->withSum(['bookings as total_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])], 'total_amount')
+            ->withSum(['bookings as monthly_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                ->whereMonth('created_at', $currentMonth)->whereYear('created_at', $currentYear)], 'total_amount')
             ->get()
             ->map(fn($property) => [
                 'id' => $property->id,
+                'name' => $property->title,
                 'title' => $property->title,
                 'total_rooms' => $property->rooms_count,
                 'occupied_rooms' => $property->occupied_rooms,
@@ -281,6 +307,7 @@ class AnalyticsService
                 'occupancy_rate' => $property->rooms_count > 0
                     ? round(($property->occupied_rooms / $property->rooms_count) * 100, 1)
                     : 0,
+                'monthly_revenue' => round($property->monthly_revenue ?? 0, 2),
                 'total_revenue' => round($property->total_revenue ?? 0, 2),
             ])
             ->toArray();
@@ -304,10 +331,14 @@ class AnalyticsService
             ->selectRaw('AVG(TIMESTAMPDIFF(MONTH, tenant_profiles.move_in_date, tenant_profiles.move_out_date)) as avg_months')
             ->value('avg_months');
 
+        $moveIns = $this->countMoveInsInPeriod($landlordId, $propertyId, $dateRange);
+        $moveOuts = $this->countMoveOutsInPeriod($landlordId, $propertyId, $dateRange);
+
         return [
-            'active_tenants' => $activeTenants,
-            'new_tenants' => $newTenants,
-            'avg_stay_duration_months' => round($avgStayDuration ?? 0, 1),
+            'total' => $activeTenants,
+            'average_stay_months' => round($avgStayDuration ?? 0, 1),
+            'move_ins' => $moveIns,
+            'move_outs' => $moveOuts,
         ];
     }
 
@@ -333,16 +364,18 @@ class AnalyticsService
             )
             ->first();
 
+        $total = $stats->total ?? 0;
+        $paid = (int) ($stats->paid ?? 0);
+        $unpaid = (int) ($stats->unpaid ?? 0);
+        $partial = (int) ($stats->partial ?? 0);
+        $paymentRate = $total > 0 ? round(($paid / $total) * 100, 1) : 0;
+
         return [
-            'total_bookings' => $stats->total ?? 0,
-            'paid_bookings' => $stats->paid ?? 0,
-            'partial_bookings' => $stats->partial ?? 0,
-            'unpaid_bookings' => $stats->unpaid ?? 0,
-            'collected_amount' => round($stats->collected ?? 0, 2),
-            'outstanding_amount' => round($stats->outstanding ?? 0, 2),
-            'collection_rate' => ($stats->total ?? 0) > 0
-                ? round((($stats->paid ?? 0) / $stats->total) * 100, 1)
-                : 0,
+            'paid' => $paid,
+            'unpaid' => $unpaid,
+            'partial' => $partial,
+            'overdue' => 0, // Can be extended later with due-date check
+            'payment_rate' => $paymentRate,
         ];
     }
 
@@ -417,6 +450,44 @@ class AnalyticsService
                 }
             })
             ->count();
+    }
+
+    /**
+     * Helper: Count move-ins in date range (for landlord's properties)
+     */
+    protected function countMoveInsInPeriod(int $landlordId, ?int $propertyId, array $dateRange): int
+    {
+        $q = TenantProfile::query()
+            ->join('bookings', 'tenant_profiles.booking_id', '=', 'bookings.id')
+            ->where('bookings.landlord_id', $landlordId)
+            ->whereNotNull('tenant_profiles.move_in_date')
+            ->whereBetween('tenant_profiles.move_in_date', [
+                $dateRange['start']->format('Y-m-d'),
+                $dateRange['end']->format('Y-m-d'),
+            ]);
+        if ($propertyId) {
+            $q->where('bookings.property_id', $propertyId);
+        }
+        return $q->count();
+    }
+
+    /**
+     * Helper: Count move-outs in date range (for landlord's properties)
+     */
+    protected function countMoveOutsInPeriod(int $landlordId, ?int $propertyId, array $dateRange): int
+    {
+        $q = TenantProfile::query()
+            ->join('bookings', 'tenant_profiles.booking_id', '=', 'bookings.id')
+            ->where('bookings.landlord_id', $landlordId)
+            ->whereNotNull('tenant_profiles.move_out_date')
+            ->whereBetween('tenant_profiles.move_out_date', [
+                $dateRange['start']->format('Y-m-d'),
+                $dateRange['end']->format('Y-m-d'),
+            ]);
+        if ($propertyId) {
+            $q->where('bookings.property_id', $propertyId);
+        }
+        return $q->count();
     }
 
     /**

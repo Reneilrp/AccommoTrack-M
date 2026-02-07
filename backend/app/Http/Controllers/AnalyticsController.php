@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AnalyticsController extends Controller
 {
@@ -22,6 +23,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
 
@@ -33,6 +37,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getDashboardAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch analytics',
                 'error' => $e->getMessage()
@@ -47,6 +52,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculateOverviewStats(
@@ -56,6 +64,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getOverviewStats error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch overview stats',
                 'error' => $e->getMessage()
@@ -70,6 +79,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
@@ -82,6 +94,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getRevenueAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch revenue analytics',
                 'error' => $e->getMessage()
@@ -96,6 +109,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculateOccupancyAnalytics(
@@ -105,6 +121,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getOccupancyAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch occupancy analytics',
                 'error' => $e->getMessage()
@@ -119,6 +136,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculateRoomTypeAnalytics(
@@ -128,6 +148,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getRoomTypeAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch room type analytics',
                 'error' => $e->getMessage()
@@ -142,11 +163,15 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
 
             $data = $this->analyticsService->calculatePropertyComparison($landlordId);
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getPropertyComparison error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch property comparison',
                 'error' => $e->getMessage()
@@ -161,6 +186,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
@@ -173,6 +201,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getTenantAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch tenant analytics',
                 'error' => $e->getMessage()
@@ -187,6 +216,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculatePaymentAnalytics(
@@ -196,6 +228,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getPaymentAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch payment analytics',
                 'error' => $e->getMessage()
@@ -210,6 +243,9 @@ class AnalyticsController extends Controller
     {
         try {
             $landlordId = Auth::id();
+            if (is_null($landlordId)) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
@@ -222,6 +258,7 @@ class AnalyticsController extends Controller
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
+            Log::error('Analytics getBookingAnalytics error', ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to fetch booking analytics',
                 'error' => $e->getMessage()

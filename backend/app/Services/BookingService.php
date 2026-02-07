@@ -34,8 +34,8 @@ class BookingService
             throw new \Exception("Minimum stay is {$minStay} days");
         }
 
-        // Calculate pricing
-        $priceResult = $room->calculatePriceForDays($days);
+        // Calculate pricing (use calendar-period-aware calculation)
+        $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
         $totalAmount = $priceResult['total'];
         $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
 
