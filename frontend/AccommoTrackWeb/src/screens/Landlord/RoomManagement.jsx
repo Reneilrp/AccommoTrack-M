@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
+import toast from 'react-hot-toast';
 import AddRoomModal from './AddRoom';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
@@ -33,6 +34,12 @@ export default function RoomManagement() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [selectedRoomImages, setSelectedRoomImages] = useState([]);
+  const [selectedRoomNewImages, setSelectedRoomNewImages] = useState([]);
+  const [selectedRoomAmenities, setSelectedRoomAmenities] = useState([]);
+  const [newAmenityInput, setNewAmenityInput] = useState('');
+  const [selectedRoomRules, setSelectedRoomRules] = useState([]);
+
   const handleBackClick = () => {
     if (isFromProperty && selectedPropertyId) {
       navigate(`/properties/${selectedPropertyId}`);
@@ -40,16 +47,15 @@ export default function RoomManagement() {
       navigate(-1);
     }
   };
+
   const [error, setError] = useState(null);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ show: false, room: null });
   const [deleting, setDeleting] = useState(false);
 
-  // Load properties (once)
   useEffect(() => {
     const loadInitialData = async () => {
-      // parse query param first so we can hide the dropdown immediately when present
       const params = new URLSearchParams(location.search || '');
       const incomingPropertyId = params.get('property') ? Number(params.get('property')) : null;
 
@@ -64,13 +70,8 @@ export default function RoomManagement() {
         const data = res.data;
         setProperties(data);
 
-        // If we didn't have an incoming param, pick the first accessible property
-        if (!incomingPropertyId) {
-          if (data.length > 0) setSelectedPropertyId(data[0].id);
-        } else {
-          // If incoming param exists but is not in accessible list, keep it as selectedPropertyId
-          // (we already set it above) — this allows the page to remain property-scoped even if
-          // the accessible list doesn't include it immediately.
+        if (!incomingPropertyId && data.length > 0) {
+          setSelectedPropertyId(data[0].id);
         }
       } catch (err) {
         setError('Failed to load properties');
@@ -78,54 +79,23 @@ export default function RoomManagement() {
         setLoadingProperties(false);
       }
     };
-
     loadInitialData();
   }, [location.search]);
 
-  // Load rooms and stats when property changes
   useEffect(() => {
     if (!selectedPropertyId) return;
-
-    const loadRooms = async () => {
-      try {
-        setLoadingRooms(true);
-        setError(null);
-
-        const [roomsRes, statsRes] = await Promise.all([
-          api.get(`/rooms/property/${selectedPropertyId}?t=${Date.now()}`),
-          api.get(`/rooms/property/${selectedPropertyId}/stats?t=${Date.now()}`)
-        ]);
-
-        const roomsData = roomsRes.data;
-        const statsData = statsRes.data;
-        setRooms(roomsData);
-        setStats(statsData);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoadingRooms(false);
-      }
-    };
-
-    loadRooms();
+    fetchRooms();
   }, [selectedPropertyId]);
 
-  // Get rooms
   const fetchRooms = async () => {
-    if (!selectedPropertyId) return;
     try {
       setLoadingRooms(true);
-      setError(null);
-
       const [roomsRes, statsRes] = await Promise.all([
         api.get(`/rooms/property/${selectedPropertyId}?t=${Date.now()}`),
         api.get(`/rooms/property/${selectedPropertyId}/stats?t=${Date.now()}`)
       ]);
-
-      const roomsData = roomsRes.data;
-      const statsData = statsRes.data;
-      setRooms(roomsData);
-      setStats(statsData);
+      setRooms(roomsRes.data);
+      setStats(statsRes.data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -133,214 +103,149 @@ export default function RoomManagement() {
     }
   };
 
-  const handleRoomAdded = () => {
-    fetchRooms();
-  };
+  const handleRoomAdded = () => fetchRooms();
 
   const handleAmenityAdded = async () => {
-    // Refresh the property data to get updated amenities
     try {
       const res = await api.get('/properties/accessible');
-      const data = res.data;
-      setProperties(data);
+      setProperties(res.data);
     } catch (err) {
       console.error('Failed to refresh properties:', err);
     }
   };
 
-  // Edit Room
   const handleEditRoom = (room) => {
-    setSelectedRoom({
+    if (!room) return;
+    // Normalize backend snake_case fields to the camelCase properties used by the form
+    const normalizedRoom = {
       ...room,
-      type: room.type_label,
-      roomNumber: room.room_number,
-      price: room.monthly_rate,
-      floor: room.floor_label,
-      dailyRate: room.daily_rate || '',
-      billingPolicy: room.billing_policy || 'monthly'
+      roomNumber: room.roomNumber ?? room.room_number ?? room.roomNumber,
+      dailyRate: room.daily_rate ?? room.dailyRate ?? undefined,
+      // Normalize monthly/price fields - backend may use `monthly_rate` or `price`
+      price: room.price ?? room.monthly_rate ?? room.monthlyRate ?? room.price,
+      billingPolicy: room.billing_policy ?? room.billingPolicy ?? undefined,
+      type: room.type ?? room.room_type ?? room.type,
+      description: room.description ?? room.desc ?? room.description,
+      status: room.status ?? room.room_status ?? room.status,
+    };
+
+    setSelectedRoom(normalizedRoom);
+    const existing = (room.images || []).map((img) => {
+      if (typeof img === 'string') return { url: getImageUrl(img) };
+      if (img.url) return img;
+      if (img.path) return { url: getImageUrl(img.path) };
+      return img;
     });
-    setShowEditModal(true);
+
+    setSelectedRoomImages(existing);
+    setSelectedRoomNewImages([]);
+    setSelectedRoomAmenities(room.amenities || []);
+    const rulesFromRoom = room.rules || room.room_rules || [];
+    const rulesArray = Array.isArray(rulesFromRoom) ? rulesFromRoom : (typeof rulesFromRoom === 'string' ? rulesFromRoom.split('\n').map(s => s.trim()).filter(Boolean) : []);
+    setSelectedRoomRules(rulesArray);
     setError(null);
+    setShowEditModal(true);
   };
 
-  // Update Room
   const handleUpdateRoom = async () => {
+    if (!selectedRoom) return;
+    setError(null);
     try {
-      setError(null);
+      if (selectedRoomNewImages && selectedRoomNewImages.length > 0) {
+        const fd = new FormData();
+        fd.append('_method', 'PUT');
+        fd.append('room_number', selectedRoom.roomNumber ?? selectedRoom.room_number ?? '');
+        fd.append('type', selectedRoom.type ?? '');
+        fd.append('price', selectedRoom.price ?? '');
+        fd.append('floor', selectedRoom.floor ?? '');
+        fd.append('capacity', selectedRoom.capacity ?? '');
+        if (selectedRoom.dailyRate !== undefined) fd.append('daily_rate', selectedRoom.dailyRate);
+        fd.append('billing_policy', selectedRoom.billingPolicy ?? 'monthly');
+        fd.append('status', selectedRoom.status ?? 'available');
+        fd.append('description', selectedRoom.description ?? '');
+        (selectedRoomRules || []).forEach(r => fd.append('rules[]', r));
+        (selectedRoomAmenities || []).forEach(a => fd.append('amenities[]', a));
+        selectedRoomNewImages.forEach((f) => fd.append('images[]', f, f.name || 'image.jpg'));
 
-      const roomTypeMap = {
-        'Single Room': 'single',
-        'Double Room': 'double',
-        'Quad Room': 'quad',
-        'Bed Spacer': 'bedSpacer'
-      };
-
-      const floorNumber = parseInt(selectedRoom.floor.match(/\d+/)[0]);
-
-      const updateData = {
-        room_number: selectedRoom.roomNumber,
-        room_type: roomTypeMap[selectedRoom.type] || 'single',
-        floor: floorNumber,
-        monthly_rate: parseFloat(selectedRoom.price),
-        // include optional short-stay pricing fields
-        daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
-        billing_policy: selectedRoom.billingPolicy || null,
-        capacity: parseInt(selectedRoom.capacity),
-        status: selectedRoom.status,
-        description: selectedRoom.description || null
-      };
-
-      const response = await api.put(`/landlord/rooms/${selectedRoom.id}`, updateData);
-      // axios throws on non-2xx so no manual ok check needed
-
-      await fetchRooms();
+        await api.post(`/landlord/rooms/${selectedRoom.id}`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        const payload = {
+          room_number: selectedRoom.roomNumber ?? selectedRoom.room_number ?? '',
+          type: selectedRoom.type ?? '',
+          price: selectedRoom.price ?? '',
+          floor: selectedRoom.floor ?? '',
+          capacity: selectedRoom.capacity ?? '',
+          daily_rate: selectedRoom.dailyRate ?? null,
+          billing_policy: selectedRoom.billingPolicy ?? 'monthly',
+          status: selectedRoom.status ?? 'available',
+          description: selectedRoom.description ?? '',
+          rules: selectedRoomRules || [],
+          amenities: selectedRoomAmenities || [],
+          images: (selectedRoomImages || []).map(i => i.id || i.url || i.path || i.preview).filter(Boolean),
+        };
+        await api.put(`/landlord/rooms/${selectedRoom.id}`, payload);
+      }
+      toast.success('Room updated');
       setShowEditModal(false);
-      setSelectedRoom(null);
-    } catch (error) {
-      console.error('Failed to update room:', error);
-      setError(error.message);
+      await fetchRooms();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update room');
     }
   };
 
-  // Delete Room
   const handleDeleteRoom = async (roomId) => {
     try {
       setDeleting(true);
-      setError(null);
       await api.delete(`/landlord/rooms/${roomId}`);
       await fetchRooms();
       setDeleteConfirmModal({ show: false, room: null });
       setShowEditModal(false);
-      setSelectedRoom(null);
       return true;
     } catch (error) {
-      console.error('Failed to delete room:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Failed to delete room. Please try again.';
-      setError(errorMsg);
+      setError(error.response?.data?.message || 'Failed to delete room');
       return false;
     } finally {
       setDeleting(false);
     }
   };
 
-  // Open delete confirmation modal
-  const openDeleteConfirm = (room) => {
-    if (room.occupied && room.occupied > 0) {
-      setError('Cannot delete room with active tenants. Please evict or reassign occupants first.');
-      return;
-    }
-    setDeleteConfirmModal({ show: true, room });
-  };
-
-  const handleDeleteFromModal = () => {
-    if (!selectedRoom) return;
-    // Open confirmation modal instead of directly deleting
-    openDeleteConfirm(selectedRoom);
-  };
-
-  // Status Room
   const handleStatusChange = async (roomId, newStatus) => {
     try {
-      const res = await api.patch(`/rooms/${roomId}/status`, { status: newStatus });
-      const updatedRoom = res.data;
-
-      // Update the room in state
-      setRooms(prev => prev.map(r =>
-      r.id === roomId
-        ? { ...r, status: updatedRoom.status, tenant: updatedRoom.tenant }
-        : r
-    ));
-
-      // Update stats
-      const oldStatus = rooms.find(r => r.id === roomId)?.status;
-    setStats(prev => {
-      const delta = (from, to) => (from === to ? 0 : -1) + (newStatus === to ? 1 : 0);
-      return {
-        available: prev.available + delta(oldStatus, 'available'),
-        occupied: prev.occupied + delta(oldStatus, 'occupied'),
-        maintenance: prev.maintenance + delta(oldStatus, 'maintenance'),
-      };
-    });
-
+      await api.patch(`/rooms/${roomId}/status`, { status: newStatus });
+      fetchRooms();
     } catch (error) {
-      setError('Failed to update room status. Please try again.');
+      setError('Failed to update room status.');
     }
   };
 
-  // Filtering & UI helpers
-  const filteredRooms = filterStatus === 'all'
-    ? rooms
-    : rooms.filter(room => room.status === filterStatus);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'occupied': return 'bg-red-100 text-red-800';
-      case 'available': return 'bg-green-100 text-green-800';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Render
-  // if (properties.length === 0) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-  //         <h3 className="text-lg font-medium text-gray-900 mb-2">No Properties Found</h3>
-  //         <p className="text-gray-500 mb-4">Please add a property first before managing rooms.</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  const filteredRooms = filterStatus === 'all' ? rooms : rooms.filter(room => room.status === filterStatus);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
-          {/* absolute back arrow - upper-left */}
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
-            <button
-              onClick={handleBackClick}
-              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              aria-label="Back to property"
-            >
+            <button onClick={handleBackClick} className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600">
               <ArrowLeft className="w-5 h-5 text-green-600" />
             </button>
           </div>
-
-          {/* centered title and subtitle */}
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Room Management</h1>
             <h3 className="text-sm text-gray-600 dark:text-gray-400 mt-1">Manage all rooms in your properties</h3>
           </div>
-
-          {/* right-side actions */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
             {!isFromProperty && (
               <select
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                 value={selectedPropertyId || ''}
                 onChange={(e) => setSelectedPropertyId(Number(e.target.value))}
-                disabled={loadingProperties}
               >
-                {loadingProperties ? (
-                  <option>Loading Properties...</option>
-                ) : (
-                  properties.map(property => (
-                    <option key={property.id} value={property.id}>
-                      {property.title}
-                    </option>
-                  ))
-                )}
+                {loadingProperties ? <option>Loading...</option> : properties.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
             )}
-
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
-            >
+            <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2">
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">Add Room</span>
             </button>
@@ -349,153 +254,68 @@ export default function RoomManagement() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
+            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div className="flex-1">
               <p className="text-red-800 font-medium">Error</p>
               <p className="text-red-700 text-sm">{error}</p>
             </div>
-            <button onClick={() => setError(null)} className="ml-auto text-red-600 hover:text-red-800">
-              <X className="w-5 h-5" />
-            </button>
+            <button onClick={() => setError(null)}><X className="w-5 h-5 text-red-600" /></button>
           </div>
         )}
 
-        {/* Stats */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <Home className="w-6 h-6 text-blue-600" />
-              </div>
+              <div><p className="text-sm text-gray-500">Total Rooms</p><p className="text-2xl font-bold dark:text-white">{stats.total}</p></div>
+              <Home className="w-6 h-6 text-blue-600" />
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Occupied</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">{stats.occupied}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-red-600" />
-              </div>
+              <div><p className="text-sm text-gray-500">Occupied</p><p className="text-2xl font-bold text-red-600">{stats.occupied}</p></div>
+              <Users className="w-6 h-6 text-red-600" />
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Available</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{stats.available}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
+              <div><p className="text-sm text-gray-500">Available</p><p className="text-2xl font-bold text-green-600">{stats.available}</p></div>
+              <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Maintenance</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.maintenance}</p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
-                <Wrench className="w-6 h-6 text-yellow-600" />
-              </div>
+              <div><p className="text-sm text-gray-500">Maintenance</p><p className="text-2xl font-bold text-yellow-600">{stats.maintenance}</p></div>
+              <Wrench className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </div>
 
-        {/* Filter */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilterStatus('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'all'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-            >
-              All Rooms ({stats.total})
-            </button>
-            <button
-              onClick={() => setFilterStatus('occupied')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'occupied'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-            >
-              Occupied ({stats.occupied})
-            </button>
-            <button
-              onClick={() => setFilterStatus('available')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'available'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-            >
-              Available ({stats.available})
-            </button>
-            <button
-              onClick={() => setFilterStatus('maintenance')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'maintenance'
-                ? 'bg-yellow-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-            >
-              Maintenance ({stats.maintenance})
-            </button>
+        {/* Filter Bar */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 border border-gray-100 dark:border-gray-700">
+          <div className="flex flex-wrap gap-2">
+            {['all', 'occupied', 'available', 'maintenance'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2 rounded-lg font-medium capitalize ${filterStatus === status ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+              >
+                {status} ({status === 'all' ? stats.total : stats[status]})
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Rooms Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loadingRooms ? (
-            // SKELETON CARDS (same size as RoomCard)
-            [...Array(3)].map((_, i) => (
-              <div key={i} className="h-full">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-pulse flex flex-col h-full">
-                  <div className="relative h-48 bg-gray-200 dark:bg-gray-700" />
-                  <div className="p-4 flex flex-col h-full">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2"></div>
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
-                      </div>
-                      <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
-                    </div>
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                    </div>
-                    <div className="flex gap-1 mb-3">
-                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                    </div>
-                    <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
-                      <div className="flex-1 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
+            [...Array(3)].map((_, i) => <div key={i} className="h-64 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-xl" />)
           ) : filteredRooms.length > 0 ? (
             filteredRooms.map((room) => (
               <RoomCard
                 key={room.id}
-                className="h-full"
                 room={room}
                 onEdit={handleEditRoom}
                 onClick={() => { setSelectedRoomDetails(room); setShowRoomDetails(true); }}
@@ -503,104 +323,70 @@ export default function RoomManagement() {
               />
             ))
           ) : (
-            <div className="col-span-full px-2">
-              <div className="text-center py-12 mx-auto max-w-xl">
-                <Building2 className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No rooms found</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding a new room.</p>
-                <div className="mt-6">
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                  >
-                    <Plus className="-ml-1 mr-2 h-5 w-5" />
-                    Add Room
-                  </button>
-                </div>
-              </div>
+            <div className="col-span-full text-center py-12">
+              <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium dark:text-white">No rooms found</h3>
             </div>
           )}
         </div>
       </div>
 
-      {/* Add Room Modal */}
-      <AddRoomModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        propertyId={selectedPropertyId}
-        onRoomAdded={handleRoomAdded}
-        onAmenityAdded={handleAmenityAdded}
-        propertyType={properties.find(p => p.id === selectedPropertyId)?.property_type}
-        propertyAmenities={properties.find(p => p.id === selectedPropertyId)?.amenities || properties.find(p => p.id === selectedPropertyId)?.property_rules?.amenities || []}
-      />
-
       {/* Edit Room Modal */}
       {showEditModal && selectedRoom && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Room {selectedRoom.roomNumber}</h2>
-              <button
-                onClick={() => { setShowEditModal(false); setSelectedRoom(null); setError(null); }}
-                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                aria-label="Close edit"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+              <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            {error && (
-              <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800 text-sm">{error}</p>
-              </div>
-            )}
-
-            <div className="p-6 space-y-4">
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Basic Info Grid */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Number</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Room Number</label>
                   <input
                     type="text"
-                    value={selectedRoom.roomNumber}
+                    value={selectedRoom.roomNumber || ''}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, roomNumber: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Room Type</label>
                   <select
-                    value={selectedRoom.type}
+                    value={selectedRoom.type || ''}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, type: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                   >
                     <option>Single Room</option>
                     <option>Double Room</option>
                     <option>Quad Room</option>
-                    {properties.find(p => p.id === selectedPropertyId)?.property_type?.toLowerCase() !== 'apartment' && (
-                      <option>Bed Spacer</option>
-                    )}
+                    <option>Bed Spacer</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Price (₱/month)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Price (₱/month)</label>
                   <input
                     type="number"
-                    value={selectedRoom.price}
+                    value={selectedRoom.price || ''}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Floor</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Floor</label>
                   <select
-                    value={selectedRoom.floor}
+                    value={selectedRoom.floor || ''}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, floor: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                   >
                     <option>1st Floor</option>
                     <option>2nd Floor</option>
@@ -611,96 +397,124 @@ export default function RoomManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capacity</label>
-                <input
-                  type="number"
-                  value={selectedRoom.capacity}
-                  onChange={(e) => setSelectedRoom({ ...selectedRoom, capacity: parseInt(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  min="1"
-                />
-              </div>
-
-              {/* Short-stay / Daily pricing for edit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Rate (₱/day)</label>
-                  <input
-                    type="number"
-                    value={selectedRoom.dailyRate || ''}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing Policy</label>
-                  <select
-                    value={selectedRoom.billingPolicy || 'monthly'}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, billingPolicy: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="monthly">Monthly Rate</option>
-                    <option value="monthly_with_daily">Monthly + Daily</option>
-                    <option value="daily">Daily Rate</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Short-stay options simplified: billing policy and daily rate are handled above. */}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-                <select
-                  value={selectedRoom.status}
-                  onChange={(e) => setSelectedRoom({ ...selectedRoom, status: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="available">Available</option>
-                  <option value="occupied">Occupied</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
                 <textarea
                   value={selectedRoom.description || ''}
                   onChange={(e) => setSelectedRoom({ ...selectedRoom, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                   rows="3"
                   placeholder="Add room description..."
                 />
               </div>
+
+              {/* Room Amenities Section - Standardized Spacing */}
+              <div className="pt-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Room Amenities</label>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {(properties.find(p => p.id === selectedPropertyId)?.amenities || []).map((amenity) => (
+                    <button
+                      key={amenity}
+                      type="button"
+                      onClick={() => setSelectedRoomAmenities(prev => prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity])}
+                      className={`px-3 py-2.5 rounded-lg border-2 text-left text-sm transition-all ${selectedRoomAmenities.includes(amenity) ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={newAmenityInput}
+                    onChange={(e) => setNewAmenityInput(e.target.value)}
+                    placeholder="Add new amenity"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!newAmenityInput.trim()) return;
+                      try {
+                        await api.post(`/landlord/properties/${selectedPropertyId}/amenities`, { amenity: newAmenityInput.trim() });
+                        handleAmenityAdded();
+                        setSelectedRoomAmenities(prev => [...prev, newAmenityInput.trim()]);
+                        setNewAmenityInput('');
+                      } catch (err) { toast.error('Failed to add amenity'); }
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Room Rules Section - Standardized Spacing */}
+              <div className="pt-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Room Rules (optional)</label>
+                <textarea
+                  value={(selectedRoomRules || []).join('\n')}
+                  onChange={(e) => setSelectedRoomRules(e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Add rules (e.g., no smoking, no pets)"
+                />
+              </div>
+
+              {/* Images Section - Standardized Spacing */}
+              <div className="pt-2 pb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Images</label>
+                <div className="grid grid-cols-4 gap-4 mb-4">
+                  {[...selectedRoomImages, ...selectedRoomNewImages].map((img, idx) => (
+                    <div key={idx} className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                      <img src={img.url || img.path || img.preview} alt="" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => {
+                          if (idx < selectedRoomImages.length) {
+                            setSelectedRoomImages(prev => prev.filter((_, i) => i !== idx));
+                          } else {
+                            const newIdx = idx - selectedRoomImages.length;
+                            setSelectedRoomNewImages(prev => prev.filter((_, i) => i !== newIdx));
+                          }
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-white/90 dark:bg-gray-800/90 rounded-full shadow hover:text-red-600 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="file"
+                    id="edit-room-images"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []).map(f => Object.assign(f, { preview: URL.createObjectURL(f) }));
+                      setSelectedRoomNewImages(prev => [...prev, ...files]);
+                    }}
+                  />
+                  <label htmlFor="edit-room-images" className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 font-medium">
+                    Add Images
+                  </label>
+                  <span className="text-xs text-gray-500">PNG, JPG up to 10MB</span>
+                </div>
+              </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between">
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between bg-gray-50 dark:bg-gray-800/50">
               <button
-                onClick={handleDeleteFromModal}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                title={selectedRoom?.occupied > 0 ? 'Cannot delete room with tenants' : 'Delete Room'}
-                disabled={selectedRoom?.occupied > 0}
+                onClick={() => setDeleteConfirmModal({ show: true, room: selectedRoom })}
+                className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 flex items-center gap-2 transition-colors font-medium"
               >
                 <Trash2 className="w-4 h-4" />
-                Delete
+                Delete Room
               </button>
               <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setSelectedRoom(null);
-                    setError(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
+                <button onClick={() => setShowEditModal(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white hover:bg-white dark:hover:bg-gray-700 transition-colors">
                   Cancel
                 </button>
-                <button
-                  onClick={handleUpdateRoom}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
+                <button onClick={handleUpdateRoom} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
                   Update Room
                 </button>
               </div>
@@ -709,99 +523,21 @@ export default function RoomManagement() {
         </div>
       )}
 
-      {/* Room Details Modal */}
+      {/* Add Modal and Details Components */}
+      <AddRoomModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        propertyId={selectedPropertyId}
+        onRoomAdded={handleRoomAdded}
+        onAmenityAdded={handleAmenityAdded}
+        propertyAmenities={properties.find(p => p.id === selectedPropertyId)?.amenities || []}
+      />
+
       <RoomDetails
         room={selectedRoomDetails}
         isOpen={showRoomDetails}
         onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
-        onExtend={async ({ roomId, days, months, tenantId }) => {
-          if (!roomId) return;
-          try {
-            // prefer days if provided, otherwise months
-            const payload = {};
-            if (days) payload.days = days;
-            if (months) payload.months = months;
-            if (tenantId) payload.tenant_id = tenantId;
-            // call backend API - endpoint should be implemented server-side
-            await api.post(`/rooms/${roomId}/extend`, payload);
-
-            // refresh rooms list
-            await fetchRooms();
-
-            // fetch the updated room details so the modal reflects new stays immediately
-            try {
-              const res = await api.get(`/rooms/${roomId}`);
-              setSelectedRoomDetails(res.data);
-            } catch (fetchErr) {
-              // Non-fatal: if fetching details fails, we still refreshed rooms above
-              console.warn('Failed to fetch updated room details', fetchErr);
-            }
-
-          } catch (err) {
-            console.error('Failed to extend stay', err);
-            setError(err.response?.data?.message || err.message || 'Failed to extend stay');
-            throw err;
-          }
-        }}
       />
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmModal.show && deleteConfirmModal.room && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Delete Room</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
-              </div>
-            </div>
-            
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to delete <span className="font-semibold">Room {deleteConfirmModal.room.room_number || deleteConfirmModal.room.roomNumber}</span>? 
-              All data associated with this room will be permanently removed.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setDeleteConfirmModal({ show: false, room: null });
-                  setError(null);
-                }}
-                disabled={deleting}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDeleteRoom(deleteConfirmModal.room.id)}
-                disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    Delete Room
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

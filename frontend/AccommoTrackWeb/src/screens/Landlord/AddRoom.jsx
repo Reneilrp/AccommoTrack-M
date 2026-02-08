@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   X,
   Upload,
@@ -33,6 +33,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     capacity: isBedSpacerProperty ? '1' : '1',
     pricingModel: initialPricingModel,
     description: '',
+    rules: [],
     amenities: [],
     images: []
   });
@@ -46,13 +47,40 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   const replaceInputRef = useState(null)[0];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [isFormValid, setIsFormValid] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
+  const [propertyRules, setPropertyRules] = useState([]);
+  const [newRule, setNewRule] = useState('');
+
+  const roomNumberRef = useRef(null);
+  const monthlyRateRef = useRef(null);
+  const dailyRateRef = useRef(null);
+  const capacityRef = useRef(null);
+  const minStayRef = useRef(null);
 
   // Use property amenities directly
   const amenitiesList = Array.isArray(propertyAmenities) && propertyAmenities.length > 0
     ? propertyAmenities
     : [];
+
+  // Load property-level rules when modal opens
+  useEffect(() => {
+    if (!isOpen || !propertyId) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await api.get(`/properties/${propertyId}`);
+        const p = res.data || {};
+        const rules = p.rules || p.property_rules || p.rules_list || [];
+        if (mounted) setPropertyRules(Array.isArray(rules) ? rules : []);
+      } catch (err) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, [isOpen, propertyId]);
 
   const allRoomTypes = [
     { value: 'single', label: 'Single Room' },
@@ -118,6 +146,86 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     
     setFormData(updated);
     if (error) setError('');
+    // run validation on change to update inline errors and button state
+    const { valid, errors } = validateForm(updated);
+    setFieldErrors(errors);
+    setIsFormValid(valid);
+  };
+
+  // Centralized validation helper
+  const validateForm = (data) => {
+    const errors = {};
+    // Room number
+    if (!data.roomNumber || !String(data.roomNumber).trim()) {
+      errors.roomNumber = 'Room number is required';
+    }
+
+    // Billing policy / rates
+    const bp = data.billingPolicy || 'monthly';
+    if (bp === 'monthly' || bp === 'monthly_with_daily') {
+      const m = parseFloat(data.monthlyRate);
+      if (!Number.isFinite(m) || m <= 0) {
+        errors.monthlyRate = 'Enter a valid monthly rate greater than 0';
+      }
+    }
+    if (bp === 'daily' || bp === 'monthly_with_daily') {
+      const d = parseFloat(data.dailyRate);
+      if (!Number.isFinite(d) || d <= 0) {
+        errors.dailyRate = 'Enter a valid daily rate greater than 0';
+      }
+    }
+
+    // Capacity
+    const cap = parseInt(data.capacity, 10);
+    if (!Number.isFinite(cap) || cap < 1) {
+      errors.capacity = 'Capacity must be 1 or more';
+    } else if (cap > 10) {
+      errors.capacity = 'Capacity cannot exceed 10';
+    }
+
+    // Min stay
+    const ms = parseInt(data.minStayDays, 10);
+    if (!Number.isFinite(ms) || ms < 1) {
+      errors.minStayDays = 'Minimum stay must be at least 1 day';
+    }
+
+    // Pricing model for bed spacer
+    if (data.roomType === 'bedSpacer' && data.pricingModel !== 'per_bed') {
+      errors.pricingModel = 'Bed Spacer must use per-bed pricing';
+    }
+
+    // Images count check
+    if (Array.isArray(data.images) && data.images.length > 10) {
+      errors.images = 'Maximum 10 images allowed';
+    }
+
+    // Determine first invalid field for focusing
+    const priority = ['roomNumber', 'monthlyRate', 'dailyRate', 'capacity', 'minStayDays', 'images', 'pricingModel'];
+    const firstInvalidField = priority.find(f => errors[f]);
+
+    return { valid: Object.keys(errors).length === 0, errors, firstInvalidField };
+  };
+
+  // Map server-side error keys (snake_case) to front-end field names (camelCase)
+  const mapServerErrors = (serverErrors) => {
+    if (!serverErrors || typeof serverErrors !== 'object') return {};
+    const mapping = {
+      room_number: 'roomNumber',
+      room_type: 'roomType',
+      monthly_rate: 'monthlyRate',
+      daily_rate: 'dailyRate',
+      capacity: 'capacity',
+      min_stay_days: 'minStayDays',
+      pricing_model: 'pricingModel',
+      images: 'images'
+    };
+    const result = {};
+    Object.keys(serverErrors).forEach((key) => {
+      const target = mapping[key] || key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      const val = serverErrors[key];
+      result[target] = Array.isArray(val) ? val.join(', ') : String(val);
+    });
+    return result;
   };
 
   // Note: removed the toggle handler — dormitory/boarding properties will
@@ -130,6 +238,31 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         ? prev.amenities.filter(a => a !== amenity)
         : [...prev.amenities, amenity]
     }));
+  };
+
+  const toggleRule = (rule) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.includes(rule) ? prev.rules.filter(r => r !== rule) : [...prev.rules, rule]
+    }));
+  };
+
+  const addNewRule = async () => {
+    if (!newRule.trim() || !propertyId) return;
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await api.post(`/landlord/properties/${propertyId}/rules`, { rule: newRule.trim() }, { headers });
+      // refresh local list and select it
+      setPropertyRules(prev => [...prev, newRule.trim()]);
+      setFormData(prev => ({ ...prev, rules: [...prev.rules, newRule.trim()] }));
+      setNewRule('');
+      if (onAmenityAdded) onAmenityAdded();
+      toast.success('Rule added');
+    } catch (err) {
+      toast.error('Failed to add rule');
+    }
   };
 
   const addNewAmenity = async () => {
@@ -168,24 +301,42 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length + formData.images.length > 10) {
-      setError('Maximum 10 images allowed');
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+
+    // Validate files individually
+    const validatedFiles = [];
+    for (const f of files) {
+      if (!allowedTypes.includes(f.type)) {
+        toast.error(`${f.name}: unsupported file type`);
+        continue;
+      }
+      if (f.size > MAX_SIZE) {
+        toast.error(`${f.name}: file too large (max 10 MB)`);
+        continue;
+      }
+      validatedFiles.push(f);
+    }
+
+    if (validatedFiles.length + formData.images.length > 10) {
+      toast.error('Maximum 10 images allowed');
       return;
     }
-    
-    const newPreviews = files.map(f => URL.createObjectURL(f));
+
+    const newPreviews = validatedFiles.map(f => URL.createObjectURL(f));
     setPreviewImages(prev => [...prev, ...newPreviews]);
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...files]
+      images: [...prev.images, ...validatedFiles]
     }));
-    // Clear the input so selecting the same file again will trigger change
-    try {
-      e.target.value = '';
-    } catch (err) {
-      // ignore - some browsers may not allow setting value in certain contexts
-    }
+    try { e.target.value = ''; } catch (err) { }
+    // re-validate after adding images
+    const { valid, errors } = validateForm({ ...formData, images: [...formData.images, ...validatedFiles] });
+    setFieldErrors(errors);
+    setIsFormValid(valid);
   };
 
   const moveImage = (index, direction) => {
@@ -233,8 +384,19 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     input.onchange = (ev) => {
       const file = ev.target.files && ev.target.files[0];
       if (!file) return;
+      const MAX_SIZE = 10 * 1024 * 1024;
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Unsupported file type');
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error('File too large (max 10 MB)');
+        return;
+      }
       setPreviewImages(prev => {
         const arr = [...prev];
+        try { URL.revokeObjectURL(arr[index]); } catch (e) {}
         arr[index] = URL.createObjectURL(file);
         return arr;
       });
@@ -270,18 +432,19 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       setError('Property ID is missing. Please refresh the page.');
       return;
     }
-    if (!formData.roomNumber) {
-      setError('Room number is required');
-      return;
-    }
-    // Validate rates based on billing policy
-    const bp = formData.billingPolicy || 'monthly';
-    if ((bp === 'monthly' || bp === 'monthly_with_daily') && (!formData.monthlyRate || parseFloat(formData.monthlyRate) <= 0)) {
-      setError('Valid monthly rate is required for the selected billing policy');
-      return;
-    }
-    if ((bp === 'daily' || bp === 'monthly_with_daily') && (!formData.dailyRate || parseFloat(formData.dailyRate) <= 0)) {
-      setError('Valid daily rate is required for the selected billing policy');
+
+    const { valid, errors, firstInvalidField } = validateForm(formData);
+    if (!valid) {
+      setFieldErrors(errors);
+      setError('Please fix highlighted errors');
+      const firstMessage = errors[firstInvalidField] || Object.values(errors)[0];
+      if (firstMessage) toast.error(firstMessage);
+      // focus first invalid field
+      if (firstInvalidField === 'roomNumber') roomNumberRef.current?.focus();
+      else if (firstInvalidField === 'monthlyRate') monthlyRateRef.current?.focus();
+      else if (firstInvalidField === 'dailyRate') dailyRateRef.current?.focus();
+      else if (firstInvalidField === 'capacity') capacityRef.current?.focus();
+      else if (firstInvalidField === 'minStayDays') minStayRef.current?.focus();
       return;
     }
 
@@ -291,6 +454,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     try {
       const token = localStorage.getItem('auth_token');
       const payload = new FormData(); 
+      const bp = formData.billingPolicy || 'monthly';
 
       // Append non-file fields
       payload.append('property_id', propertyId);
@@ -320,9 +484,12 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         payload.append(`amenities[${idx}]`, amenity);
       });
 
-      // Append image files
-      formData.images.forEach((file, idx) => {
-        payload.append(`images[${idx}]`, file);
+      // Append rules (array style)
+      (formData.rules || []).forEach((r) => payload.append('rules[]', r));
+
+      // Append image files (use images[] array style)
+      formData.images.forEach((file) => {
+        payload.append('images[]', file);
       });
 
       const headers = {
@@ -360,12 +527,35 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
       }, 1200);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Failed to add room';
+      // If server returned field errors, map them
+      const serverErrors = err.response?.data?.errors;
+      if (serverErrors && typeof serverErrors === 'object') {
+        const mapped = mapServerErrors(serverErrors);
+        setFieldErrors(mapped);
+      }
       setError(msg);
       try { toast.error(msg); } catch (e) { /* ignore toast errors */ }
     } finally {
       setLoading(false);
     }
   };
+
+  // Revoke preview URLs when modal closes or unmounts to prevent memory leaks
+  useEffect(() => {
+    if (!isOpen) {
+      try {
+        previewImages.forEach(u => { if (u && typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u); });
+      } catch (e) { }
+      setPreviewImages([]);
+      // clear any staged files
+      setFormData(prev => ({ ...prev, images: [] }));
+    }
+    return () => {
+      try {
+        previewImages.forEach(u => { if (u && typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u); });
+      } catch (e) { }
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -387,6 +577,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        {error && (
+          <div className="px-4 py-2 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
+            {error}
+          </div>
+        )}
         {successMessage && (
           <div className="px-4 py-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
             {successMessage}
@@ -406,13 +601,17 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Room Number <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g., 301"
-                value={formData.roomNumber}
-                onChange={(e) => handleInputChange('roomNumber', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-              />
+                <input
+                  type="text"
+                  placeholder="e.g., 301"
+                  ref={roomNumberRef}
+                  value={formData.roomNumber}
+                  onChange={(e) => handleInputChange('roomNumber', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                />
+                {fieldErrors.roomNumber && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.roomNumber}</p>
+                )}
             </div>
 
             <div>
@@ -469,16 +668,20 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   <span className="text-red-500 ml-1">*</span>
                 ) : null}
               </label>
-              <input
-                type="number"
-                placeholder="e.g., 5000"
-                value={formData.monthlyRate}
-                onChange={(e) => handleInputChange('monthlyRate', e.target.value)}
-                className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${formData.billingPolicy === 'daily' ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
-                min="0"
-                step="0.01"
-                disabled={formData.billingPolicy === 'daily'}
-              />
+                <input
+                  type="number"
+                  placeholder="e.g., 5000"
+                  ref={monthlyRateRef}
+                  value={formData.monthlyRate}
+                  onChange={(e) => handleInputChange('monthlyRate', e.target.value)}
+                  className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${formData.billingPolicy === 'daily' ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
+                  min="0"
+                  step="0.01"
+                  disabled={formData.billingPolicy === 'daily'}
+                />
+                {fieldErrors.monthlyRate && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.monthlyRate}</p>
+                )}
             </div>
 
             <div>
@@ -488,16 +691,20 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   <span className="text-red-500 ml-1">*</span>
                 ) : null}
               </label>
-              <input
-                type="number"
-                placeholder="e.g., 300"
-                value={formData.dailyRate}
-                onChange={(e) => handleInputChange('dailyRate', e.target.value)}
-                className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
-                min="0"
-                step="0.01"
-                disabled={!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily')}
-              />
+                <input
+                  type="number"
+                  placeholder="e.g., 300"
+                  ref={dailyRateRef}
+                  value={formData.dailyRate}
+                  onChange={(e) => handleInputChange('dailyRate', e.target.value)}
+                  className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
+                  min="0"
+                  step="0.01"
+                  disabled={!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily')}
+                />
+                {fieldErrors.dailyRate && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.dailyRate}</p>
+                )}
             </div>
           </div>
 
@@ -531,15 +738,21 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 const capacityDisabled = (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && !isBedSpacerProperty;
                 const displayValue = capacityDisabled ? '1' : formData.capacity;
                 return (
-                  <input
-                    type="number"
-                    value={displayValue}
-                    onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${capacityDisabled ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''}`}
-                    min="1"
-                    max="10"
-                    disabled={capacityDisabled}
-                  />
+                  <>
+                    <input
+                      type="number"
+                      ref={capacityRef}
+                      value={displayValue}
+                      onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
+                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${capacityDisabled ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''}`}
+                      min="1"
+                      max="10"
+                      disabled={capacityDisabled}
+                    />
+                    {fieldErrors.capacity && (
+                      <p className="text-sm text-red-600 mt-1">{fieldErrors.capacity}</p>
+                    )}
+                  </>
                 );
               })()}
             </div>
@@ -566,6 +779,9 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </p>
             
             <div className="space-y-2">
+                  {fieldErrors.minStayDays && (
+                    <p className="text-sm text-red-600 mt-1">{fieldErrors.minStayDays}</p>
+                  )}
               {/* Full Room Price - NOT shown for bedSpacer */}
               {formData.roomType !== 'bedSpacer' && (
                 <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
@@ -631,6 +847,45 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none dark:bg-gray-700 dark:text-white"
             />
+          </div>
+          
+          {/* Room Rules (optional) - placed after Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Rules (optional)</label>
+            <div className="mb-4">
+              <div className="grid grid-cols-3 gap-3">
+                {(propertyRules || []).map((rule) => (
+                  <button
+                    key={rule}
+                    type="button"
+                    onClick={() => toggleRule(rule)}
+                    className={`px-4 py-3 rounded-lg border-2 text-left text-sm transition-all ${formData.rules.includes(rule) ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'}`}
+                  >
+                    {rule}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Add new rule (e.g., no smoking)"
+                value={newRule}
+                onChange={(e) => setNewRule(e.target.value)}
+                onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNewRule(); } }}
+                className="flex-1 px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={addNewRule}
+                disabled={!newRule.trim()}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Select rules to include for this room or add a new rule to the property.</p>
           </div>
         </div>
 
@@ -764,7 +1019,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         </button>
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || !isFormValid}
           className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
         >
           {loading ? (
