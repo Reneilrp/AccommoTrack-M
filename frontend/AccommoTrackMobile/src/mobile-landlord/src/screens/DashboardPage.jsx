@@ -247,38 +247,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
       iconColor: '#FF9800'
     }
   ]);
-
-  const quickActions = [
-    { id: 1, title: 'Properties', 
-      icon: 'business', 
-      color: '#10b981', 
-      screen: 'MyProperties' },
-    { id: 2, 
-      title: 'Rooms', 
-      icon: 'bed', 
-      color: '#8B5CF6', 
-      screen: 'RoomManagement' },
-    { id: 3, 
-      title: 'Tenants', 
-      icon: 'people', 
-      color: '#2196F3', 
-      screen: 'Tenants' },
-    { id: 4, 
-      title: 'Bookings', 
-      icon: 'calendar', 
-      color: '#FF9800', 
-      screen: 'Bookings' },
-    { id: 5, 
-      title: 'Analytics', 
-      icon: 'bar-chart', 
-      color: '#9C27B0', 
-      screen: 'Analytics' },
-    { id: 6, 
-      title: 'Messages', 
-      icon: 'chatbubbles', 
-      color: '#10b981', 
-      screen: 'Messages' }
-  ];
+ 
 
   const stats = dashboardData.stats;
   const activities = dashboardData.activities || [];

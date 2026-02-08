@@ -1,4 +1,4 @@
-export const IP_ADDRESS = '192.168.110.13';
+export const IP_ADDRESS = '192.168.43.142';
 
 export const PORT = '8000';
 export const WEB_PORT = '5173';
