@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { WebView } from 'react-native-webview';
 import PaymentService from '../../../../services/PaymentService';
 
@@ -28,12 +29,12 @@ export default function PaymentCardWebview({ route, navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={homeStyles.flex1}>
       <WebView
         source={{ uri: tokenizeUrl }}
         onMessage={onMessage}
         startInLoadingState
-        renderLoading={() => <ActivityIndicator size="large" style={{flex:1}}/>}
+        renderLoading={() => <ActivityIndicator size="large" style={homeStyles.flex1}/>}
       />
     </View>
   );

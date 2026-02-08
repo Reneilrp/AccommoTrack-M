@@ -7,6 +7,7 @@ import { styles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function PaymentDetail() {
   const route = useRoute();
@@ -117,17 +118,17 @@ export default function PaymentDetail() {
         <View style={{ padding: 20 }}>
           <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>{invoice.description || 'Invoice'}</Text>
 
-          <View style={{ backgroundColor: theme.colors.surface, padding: 16, borderRadius: 12, marginBottom: 16 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+          <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface }]}>
+            <View style={homeStyles.rowBetween}>
               <Text style={{ color: '#6B7280' }}>Subtotal</Text>
               <Text style={{ fontWeight: '600' }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
               <Text style={{ color: '#6B7280' }}>Tax</Text>
               <Text style={{ fontWeight: '600' }}>₱{((invoice.tax_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
             <View style={{ height: 1, backgroundColor: '#F3F4F6', marginVertical: 8 }} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View style={homeStyles.rowBetween}>
               <Text style={{ fontSize: 16, fontWeight: '700' }}>Total</Text>
               <Text style={{ fontSize: 16, fontWeight: '700' }}>₱{((invoice.total_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
@@ -136,10 +137,10 @@ export default function PaymentDetail() {
           <Text style={{ color: '#6B7280', marginBottom: 8 }}>Status: <Text style={{ color: '#111827', fontWeight: '600' }}>{invoice.status}</Text></Text>
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity onPress={handleGCashPay} style={{ flex: 1, backgroundColor: '#007AFF', padding: 14, borderRadius: 10, alignItems: 'center' }}>
+            <TouchableOpacity onPress={handleGCashPay} style={[homeStyles.buttonFlex, { backgroundColor: '#007AFF', padding: 14, borderRadius: 10 }]}>
               <Text style={{ color: '#FFF', fontWeight: '700' }}>Pay with GCash</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleCardPay} style={{ flex: 1, backgroundColor: theme.colors.primary, padding: 14, borderRadius: 10, alignItems: 'center' }}>
+            <TouchableOpacity onPress={handleCardPay} style={[homeStyles.buttonFlex, { backgroundColor: theme.colors.primary, padding: 14, borderRadius: 10 }]}>
               <Text style={{ color: '#FFF', fontWeight: '700' }}>Pay with Card</Text>
             </TouchableOpacity>
           </View>

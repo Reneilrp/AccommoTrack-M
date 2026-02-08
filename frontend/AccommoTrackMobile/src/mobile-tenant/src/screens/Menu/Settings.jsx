@@ -9,6 +9,7 @@ import { WEB_BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { ListItemSkeleton } from '../../../../components/Skeletons';
 import BottomNavigation from '../../components/BottomNavigation.jsx';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
@@ -54,14 +55,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
   const handleSettingPress = (label) => {
     switch(label) {
-      case "Edit Profile":
+      case "Profile":
         navigation.navigate('Profile');
         break;
-      case "Change Password":
-        Alert.alert('Change Password', 'This feature will be implemented soon');
+      case "Notification Preferences":
+        navigation.navigate('NotificationPreferences');
         break;
-      case "Privacy Settings":
-        Alert.alert('Privacy Settings', 'This feature will be implemented soon');
+      case "Account Security":
+        navigation.navigate('UpdatePassword');
         break;
       case "Help Center":
         navigation.navigate('HelpSupport');
@@ -169,20 +170,12 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   // Settings sections - different for guests vs logged in users
   const getSettingSections = () => {
     if (isGuestMode) {
-      // Guest mode - show limited options + login/landlord options
       return [
         {
           title: "Account",
           items: [
             { id: 1, label: "Login / Sign Up", icon: "log-in-outline", arrow: true, highlight: true },
             { id: 2, label: "Become a Landlord", icon: "business-outline", arrow: true },
-          ]
-        },
-        {
-          title: "App Settings",
-          items: [
-            { id: 10, label: "Location Services", icon: "location-outline", toggle: true, value: locationServices, onChange: setLocationServices },
-            { id: 11, label: "App Version", icon: "information-circle-outline", value: "1.0.0" },
           ]
         },
         {
@@ -202,24 +195,15 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       {
         title: "Account",
         items: [
-          { id: 1, label: "Edit Profile", icon: "person-outline", arrow: true },
-          { id: 2, label: "Change Password", icon: "lock-closed-outline", arrow: true },
-          { id: 3, label: "Privacy Settings", icon: "shield-checkmark-outline", arrow: true },
+          { id: 1, label: "Profile", icon: "person-outline", arrow: true },
+          { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
           { id: 4, label: "Become a Landlord", icon: "business-outline", arrow: true },
         ]
       },
       {
         title: "Notifications",
         items: [
-          { id: 7, label: "Push Notifications", icon: "notifications-outline", toggle: true, value: pushNotifications, onChange: setPushNotifications },
-          { id: 8, label: "Email Notifications", icon: "mail-outline", toggle: true, value: emailNotifications, onChange: setEmailNotifications },
-        ]
-      },
-      {
-        title: "App Settings",
-        items: [
-          { id: 10, label: "Location Services", icon: "location-outline", toggle: true, value: locationServices, onChange: setLocationServices },
-          { id: 11, label: "App Version", icon: "information-circle-outline", value: "1.0.0" },
+          { id: 7, label: "Notification Preferences", icon: "notifications-outline", arrow: true },
         ]
       },
       {
@@ -238,21 +222,21 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <View style={{ width: 40 }} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Settings & Profile</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
+          {/* Header (green, same height/font as other screens) */}
+          <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={["top"]}>
+            <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+              <View style={homeStyles.headerSide} />
+                <View style={homeStyles.headerCenter}>
+                <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Settings</Text>
+              </View>
+                <View style={homeStyles.headerSide} />
+            </View>
+          </SafeAreaView>
 
       {/* Content Area */}
-      <View style={{ flex: 1 }}>
+      <View style={homeStyles.flex1}>
         {loading ? (
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={homeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
             <ListItemSkeleton />
             <ListItemSkeleton />
             <ListItemSkeleton />
@@ -264,7 +248,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           <ScrollView 
             style={styles.content} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+            contentContainerStyle={homeStyles.contentContainerPadding}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -342,7 +326,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
       {/* Bottom Navigation */}
       <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation />
+        <BottomNavigation isGuest={isGuest} onAuthRequired={onLoginPress} />
       </SafeAreaView>
     </View>
   );

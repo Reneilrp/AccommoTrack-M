@@ -22,6 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { ListItemSkeleton } from '../../../../components/Skeletons';
 import { showError } from '../../../../utils/toast';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 const { width } = Dimensions.get('window');
 
@@ -514,8 +515,8 @@ export default function WalletScreen() {
 
       {/* Checkout Modal */}
       <Modal visible={checkoutVisible} animationType="slide" transparent onRequestClose={() => setCheckoutVisible(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}>
-          <View style={{ backgroundColor: theme.colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, padding: 16, maxHeight: '70%' }}>
+        <View style={[homeStyles.flex1, { justifyContent: 'flex-end', backgroundColor: '#00000066' }] }>
+          <View style={[homeStyles.modalContentBase, { backgroundColor: theme.colors.surface }]}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8, color: theme.colors.text }}>Checkout</Text>
             {checkoutItem ? (
               <View style={{ marginBottom: 12 }}>
@@ -526,9 +527,9 @@ export default function WalletScreen() {
             ) : null}
 
             <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, color: theme.colors.text }}>Choose payment method</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+            <View style={[homeStyles.rowBetween, { marginBottom: 16 }]}>
               {paymentMethods.map((m, i) => (
-                <TouchableOpacity key={m.key} onPress={() => setCheckoutMethod(m.key)} style={{ flex: 1, marginRight: i === paymentMethods.length - 1 ? 0 : 8, padding: 12, borderRadius: 8, backgroundColor: checkoutMethod === m.key ? theme.colors.primary : theme.colors.backgroundSecondary, alignItems: 'center' }}>
+                <TouchableOpacity key={m.key} onPress={() => setCheckoutMethod(m.key)} style={[homeStyles.buttonFlex, { marginRight: i === paymentMethods.length - 1 ? 0 : 8, backgroundColor: checkoutMethod === m.key ? theme.colors.primary : theme.colors.backgroundSecondary }]}>
                   <Text style={{ fontWeight: '700', color: checkoutMethod === m.key ? '#fff' : theme.colors.text }}>{m.name}</Text>
                   <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>{m.key === 'gcash' ? 'Pay via GCash (online)' : 'Pay with cash upon arrival'}</Text>
                 </TouchableOpacity>
@@ -536,10 +537,10 @@ export default function WalletScreen() {
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={{ flex: 1, marginRight: 8, padding: 12, borderRadius: 8, backgroundColor: theme.colors.backgroundSecondary, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={[homeStyles.buttonFlex, { marginRight: 8, backgroundColor: theme.colors.backgroundSecondary }]}>
                 <Text style={{ fontWeight: '700', color: theme.colors.text }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={confirmCheckout} style={{ flex: 1, marginLeft: 8, padding: 12, borderRadius: 8, backgroundColor: theme.colors.primary, alignItems: 'center' }}>
+              <TouchableOpacity onPress={confirmCheckout} style={[homeStyles.buttonFlex, { marginLeft: 8, backgroundColor: theme.colors.primary }]}>
                 {processingPayment ? <ActivityIndicator color="#fff" /> : <Text style={{ fontWeight: '700', color: '#fff' }}>Pay</Text>}
               </TouchableOpacity>
             </View>
