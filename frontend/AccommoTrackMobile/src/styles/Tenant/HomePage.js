@@ -1,6 +1,7 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const sideWidth = Math.max(56, Math.round(width * 0.05));
 
 export const styles = StyleSheet.create({
   container: {
@@ -8,12 +9,14 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  // HEADER STYLES - Green Bar
+  // HEADER STYLES
   header: {
     backgroundColor: '#10b981',
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 15,
+    paddingHorizontal: 0,
+    paddingTop: 8,
+    paddingBottom: 8,
+    minHeight: 56,  
+    marginTop: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -21,11 +24,66 @@ export const styles = StyleSheet.create({
   headerIcon: {
     padding: 8,
   },
+  headerSide: {
+    width: sideWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flex1: {
+    flex: 1,
+  },
+  flex1MarginLeft12: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  buttonFlex: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contentContainerPadding: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  surfaceCardSmall: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  surfaceCardMedium: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  modalContentBase: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    padding: 16,
+    maxHeight: '70%',
+  },
+  rowSpaceBetweenCenter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
+    height: 40,
+    textAlignVertical: 'center',
     flex: 1,
   },
 
@@ -101,8 +159,10 @@ export const styles = StyleSheet.create({
   // SEARCH BAR STYLES
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 5,
+    paddingVertical: 6,
     backgroundColor: '#FFFFFF',
+    height: 72,
+    justifyContent: 'center',
   },
   searchBar: {
     backgroundColor: '#FFFFFF',
@@ -110,7 +170,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
-    paddingVertical: 5,
+    height: 48,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     shadowColor: '#000',
@@ -138,11 +198,12 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
   filterButtonsRow: {
-  marginTop: 10,
-  marginBottom: 15,
+  marginTop: 8,
+  marginBottom: 12,
+  height: 56,
   },
   filterButton: {
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 16,
     backgroundColor: '#f0f0f0',
     borderRadius: 20,
@@ -163,6 +224,7 @@ export const styles = StyleSheet.create({
   flexDirection: 'row',
   paddingHorizontal: 10,
   gap: 8,
+  alignItems: 'center',
 },
   filterButtonActive: {
   backgroundColor: '#10b981',
@@ -228,6 +290,7 @@ export const styles = StyleSheet.create({
   cardsContainer: {
     paddingHorizontal: 20,
     paddingTop: 10,
+    minHeight: height - 260,
   },
 
   // CARD STYLES - Vertical Card with Image on Top
@@ -340,9 +403,9 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Horizontal card layout (alternative)
+  // Horizontal card layout
   cardRow: {
-    flexDirection: 'column', // Changed to column for vertical layout
+    flexDirection: 'column',
     width: '100%',
   },
   cardHeader: {
@@ -548,8 +611,8 @@ viewButtonText: {
   bottomNav: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    paddingVertical: 8,
-    paddingBottom: 4,
+    paddingVertical: 6,
+    paddingBottom: 0,
     elevation: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -559,15 +622,15 @@ viewButtonText: {
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingTop: 6,
-    marginBottom: 24,
+    paddingVertical: 6,
+    paddingTop: 4,
+    marginBottom: 6,
   },
   fabContainer: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    marginTop: -32,
+    paddingVertical: 6,
+    marginTop: -24,
   },
   fabButton: {
     width: 56,
@@ -586,7 +649,7 @@ viewButtonText: {
     fontSize: 11,
     marginTop: 4,
   },
-  // Legacy styles kept for backward compatibility (can be removed if not used elsewhere)
+  // Legacy styles kept for backward compatibility
   navItem: {
     flex: 1,
     alignItems: 'center',

@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { styles } from '../../../../styles/Tenant/ProfilePage.js';
 import { API_BASE_URL as API_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
@@ -325,12 +326,16 @@ export default function ProfilePage() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" />
-        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
-          <View style={{ width: 50 }} />
+        <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+          <View style={homeStyles.headerSide}>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
+          </View>
+          <View style={homeStyles.headerSide} />
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -345,33 +350,37 @@ export default function ProfilePage() {
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={() => {
-            if (isEditing) {
-              handleSave();
-            } else {
-              setIsEditing(true);
-            }
-          }}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.editButtonText}>
-              {isEditing ? 'Save' : 'Edit'}
-            </Text>
-          )}
-        </TouchableOpacity>
+      <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+        <View style={homeStyles.headerSide}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
+        </View>
+        <View style={homeStyles.headerSide}>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => {
+              if (isEditing) {
+                handleSave();
+              } else {
+                setIsEditing(true);
+              }
+            }}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={theme.colors.textInverse} />
+            ) : (
+              <Ionicons name={isEditing ? "save-outline" : "create-outline"} size={20} color={theme.colors.textInverse} />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

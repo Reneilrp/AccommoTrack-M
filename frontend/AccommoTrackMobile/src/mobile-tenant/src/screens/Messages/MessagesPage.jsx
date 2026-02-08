@@ -19,10 +19,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import createEcho from '../../utils/echo';
 import { styles } from '../../../../styles/Tenant/MessagesPage';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import BottomNavigation from '../../components/BottomNavigation.jsx';
 import { API_BASE_URL as API_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { ConversationSkeleton, DashboardStatSkeleton } from '../../../../components/Skeletons';
+import MenuDrawer from '../../components/MenuDrawer.jsx';
 
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
@@ -41,6 +43,7 @@ export default function MessagesPage({ navigation, route }) {
 
     const scrollViewRef = useRef(null);
     const echoRef = useRef(null);
+    const [menuModalVisible, setMenuModalVisible] = useState(false);
 
     const getAuthHeaders = async () => {
         const token = await AsyncStorage.getItem('auth_token');
@@ -55,25 +58,27 @@ export default function MessagesPage({ navigation, route }) {
     useEffect(() => {
         const getUserId = async () => {
             const stored = await AsyncStorage.getItem('user_id');
+
             if (!stored) {
                 setCurrentUserId(null);
-                return (
-            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading conversations...</Text>
-            </SafeAreaView>
-        );
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(stored);
+                if (parsed && (parsed.id || parsed.id === 0)) {
                     setCurrentUserId(parsed.id);
                     return;
                 }
             } catch (e) {
-                // stored value was not JSON, fall back
+                // stored value was not JSON, fall back to primitive parse
             }
 
             // Fallback: try to parse as a primitive id
             const maybeId = parseInt(stored, 10);
             setCurrentUserId(Number.isNaN(maybeId) ? null : maybeId);
         };
+
         getUserId();
         fetchConversations();
     }, []);
@@ -241,6 +246,48 @@ export default function MessagesPage({ navigation, route }) {
         }
     };
 
+    const handleMenuItemPress = async (itemTitle) => {
+        setMenuModalVisible(false);
+
+        switch (itemTitle) {
+            case 'Dashboard':
+                navigation.navigate('Dashboard');
+                break;
+            case 'Future UI Demo':
+                navigation.navigate('DemoUI');
+                break;
+            case 'Notifications':
+                navigation.navigate('Notifications');
+                break;
+            case 'My Bookings':
+                navigation.navigate('MyBookings');
+                break;
+            case 'Favorites':
+                navigation.navigate('Favorites');
+                break;
+            case 'Payments':
+                navigation.navigate('Payments');
+                break;
+            case 'Settings':
+                navigation.navigate('Settings');
+                break;
+            case 'Help & Support':
+                navigation.navigate('HelpSupport');
+                break;
+            case 'Logout':
+                try {
+                    await AsyncStorage.removeItem('auth_token');
+                    await AsyncStorage.removeItem('user_id');
+                } catch (err) {
+                    console.error('Logout cleanup failed', err);
+                }
+                navigation.navigate('TenantHome');
+                break;
+            default:
+                console.log('Menu item pressed:', itemTitle);
+        }
+    };
+
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedChat) return;
 
@@ -350,16 +397,25 @@ export default function MessagesPage({ navigation, route }) {
     // Chat List Screen
     const renderChatList = () => (
         <>
-            {/* Header */}
-            <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-                <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-                    <View style={{ width: 40 }} />
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Messages</Text>
+            {/* Header (match Explore header appearance) */}
+            <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={["top"]}>
+                <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+                    <View style={homeStyles.headerSide}>
+                        <TouchableOpacity style={homeStyles.headerIcon} onPress={() => setMenuModalVisible(true)}>
+                            <Ionicons name="menu" size={22} color={theme.colors.textInverse} />
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.headerIcon}>
-                        <Ionicons name="create-outline" size={24} color={theme.colors.text} />
-                    </TouchableOpacity>
+
+                    {/* Absolute-centered title so it remains visually centered between left/right icons */}
+                    <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }} pointerEvents="none">
+                        <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Messages</Text>
+                    </View>
+
+                    <View style={homeStyles.headerSide}>
+                        <TouchableOpacity style={homeStyles.headerIcon}>
+                            <Ionicons name="create-outline" size={22} color={theme.colors.textInverse} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </SafeAreaView>
 
@@ -458,6 +514,12 @@ export default function MessagesPage({ navigation, route }) {
             </View>
 
             {/* Bottom Navigation */}
+            <MenuDrawer
+                visible={menuModalVisible}
+                onClose={() => setMenuModalVisible(false)}
+                onMenuItemPress={handleMenuItemPress}
+                isGuest={false}
+            />
             <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
                 <BottomNavigation
                     activeTab={activeNavTab}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import { useTheme } from '../../../../contexts/ThemeContext';
@@ -14,6 +14,21 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
   };
 
   const handleMenuItemPress = (title) => {
+    // If guest, protect certain routes and prompt to sign in
+    const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
+    if (isGuest && protectedItems.includes(title)) {
+      navigation.goBack();
+      Alert.alert(
+        'Sign In Required',
+        `You need to sign in to access ${title}.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => { if (onAuthRequired) onAuthRequired(); } }
+        ]
+      );
+      return;
+    }
+
     // Close modal first
     navigation.goBack();
 
