@@ -10,6 +10,8 @@ import { BASE_URL as API_BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { BookingCardSkeleton } from '../../../../components/Skeletons';
 import BottomNavigation from '../../components/BottomNavigation.jsx';
+import Header from '../../components/Header.jsx';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function MyBookings() {
   const navigation = useNavigation();
@@ -165,22 +167,14 @@ export default function MyBookings() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <View style={{ width: 40 }} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Bookings</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
+      <Header onMenuPress={() => navigation.navigate('MenuModal')} onProfilePress={() => navigation.navigate('Profile')} />
 
       {/* Content Area */}
-      <View style={{ flex: 1 }}>
+      <View style={homeStyles.flex1}>
         <ScrollView 
           style={[styles.content, { backgroundColor: theme.colors.background }]} 
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          contentContainerStyle={homeStyles.contentContainerPadding}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
           }

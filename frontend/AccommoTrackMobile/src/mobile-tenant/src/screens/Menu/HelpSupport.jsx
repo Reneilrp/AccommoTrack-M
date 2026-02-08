@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function HelpSupport() {
   const navigation = useNavigation();
@@ -89,12 +90,17 @@ export default function HelpSupport() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color={theme.colors.textInverse} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Help & Support</Text>
-        <View style={{ width: 28 }} />
+      <StatusBar barStyle="light-content" />
+      <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+        <View style={homeStyles.headerSide}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+          </TouchableOpacity>
+        </View>
+        <View style={homeStyles.headerCenter}>
+          <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Help & Support</Text>
+        </View>
+        <View style={homeStyles.headerSide} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -177,7 +183,7 @@ export default function HelpSupport() {
           <Text style={styles.sectionTitle}>Additional Resources</Text>
           <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
             <Ionicons name="document-text" size={24} color={theme.colors.primary} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={homeStyles.flex1MarginLeft12}>
               <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>User Guide</Text>
               <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Learn how to use AccommoTrack</Text>
             </View>
@@ -186,7 +192,7 @@ export default function HelpSupport() {
 
           <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
             <Ionicons name="shield-checkmark" size={24} color={theme.colors.info} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={homeStyles.flex1MarginLeft12}>
               <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Privacy Policy</Text>
               <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>How we protect your data</Text>
             </View>
@@ -195,7 +201,7 @@ export default function HelpSupport() {
 
           <TouchableOpacity style={[styles.resourceCard, { backgroundColor: theme.colors.surface }]}>
             <Ionicons name="newspaper" size={24} color={theme.colors.warning} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={homeStyles.flex1MarginLeft12}>
               <Text style={[styles.resourceTitle, { color: theme.colors.text }]}>Terms of Service</Text>
               <Text style={[styles.resourceSubtitle, { color: theme.colors.textSecondary }]}>Our terms and conditions</Text>
             </View>
