@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../../styles/Tenant/HomePage.js';
+import homeStyles from '../../../styles/Tenant/HomePage.js';
 import NotificationBadge from './NotificationBadge.jsx';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -11,6 +13,7 @@ const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest }) {
   const { theme } = useTheme();
+  
   const [userName, setUserName] = useState("Guest User");
   const [userEmail, setUserEmail] = useState("guest@example.com");
   const [modalVisible, setModalVisible] = useState(false);
@@ -20,11 +23,9 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
 
   // Menu items with theme colors
   const allMenuItems = [
-    { id: 1, title: 'Dashboard', icon: 'grid-outline', color: theme.colors.primary },
+    { id: 1, title: 'Settings', icon: 'settings-outline', color: theme.colors.primary },
     { id: 2, title: 'Notifications', icon: 'notifications-outline', color: theme.colors.warning },
-    { id: 3, title: 'My Bookings', icon: 'calendar-outline', color: theme.colors.primary },
     { id: 4, title: 'Payments', icon: 'wallet-outline', color: theme.colors.primary },
-    { id: 5, title: 'Future UI Demo', icon: 'eye-outline', color: theme.colors.purple },
     { id: 6, title: 'Logout', icon: 'log-out-outline', color: theme.colors.error },
   ];
 
@@ -91,9 +92,11 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
     }
   };
 
-  const menuItemsToDisplay = isGuest
-    ? allMenuItems.filter(item => item.title !== 'Logout')
-    : allMenuItems;
+  // Always keep the logout item out of the main scroll list so it can be
+  // rendered separately and anchored to the bottom for better UX.
+  const logoutItem = allMenuItems.find(item => item.title === 'Logout');
+  const settingsItem = allMenuItems.find(item => item.title === 'Settings');
+  const menuItemsToDisplay = allMenuItems.filter(item => item.title !== 'Logout' && item.title !== 'Settings');
 
   const handleClose = () => {
     onClose();
@@ -152,8 +155,8 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
                 <Text style={[styles.menuUserEmail, { color: theme.colors.textSecondary }]}>{userEmail}</Text>
               </View>
             </View>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <TouchableOpacity onPress={handleClose} style={{marginLeft: 8}}>
+            <View style={homeStyles.headerSide}>
+              <TouchableOpacity onPress={handleClose} style={homeStyles.headerIcon}>
                 <Ionicons name="close" size={28} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
@@ -176,6 +179,29 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          {/* Footer actions: show Settings (always) and Logout (only when logged in) */}
+          <SafeAreaView edges={["bottom"]} style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingVertical: 8, paddingHorizontal: 12 }}>
+            {settingsItem && (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}
+                onPress={() => onMenuItemPress(settingsItem.title)}
+              >
+                <Ionicons name={settingsItem.icon} size={20} color={settingsItem.color} />
+                <Text style={[styles.menuItemText, { color: theme.colors.text, marginLeft: 12 }]}>Settings</Text>
+              </TouchableOpacity>
+            )}
+
+            {!isGuest && logoutItem && (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}
+                onPress={() => onMenuItemPress(logoutItem.title)}
+              >
+                <Ionicons name={logoutItem.icon} size={20} color={logoutItem.color} />
+                <Text style={[styles.menuItemText, { color: logoutItem.color, marginLeft: 12 }]}>Logout</Text>
+              </TouchableOpacity>
+            )}
+          </SafeAreaView>
         </Animated.View>
       </View>
     </Modal>

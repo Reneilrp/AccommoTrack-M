@@ -87,14 +87,8 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
   };
 
   return (
-    <View style={[styles.bottomNav, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-      {/* Floating menu button to open global MenuDrawer modal */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate('MenuModal')}
-        style={{ position: 'absolute', left: 12, top: -28, zIndex: 999 }}
-      >
-        <Ionicons name="menu" size={28} color={theme.colors.textTertiary} />
-      </TouchableOpacity>
+    <View style={[styles.bottomNav, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}> 
+      {/* Removed redundant floating menu button (header already has a menu icon) */}
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         

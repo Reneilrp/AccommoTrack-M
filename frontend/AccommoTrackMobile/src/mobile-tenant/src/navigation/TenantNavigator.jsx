@@ -5,6 +5,8 @@ import TenantHomePage from '../screens/TenantHomePage/ExploreScreen.jsx';
 import MessagesPage from '../screens/Messages/MessagesPage.jsx';
 import AccommodationDetails from '../components/PropertyDetailsScreen.jsx';
 import ProfilePage from '../screens/Profile/ProfilePage.jsx';
+import UpdatePassword from '../screens/Profile/UpdatePassword.jsx';
+import NotificationPreferences from '../screens/Menu/NotificationPreferences.jsx';
 import MyBookings from '../screens/Menu/MyBookings.jsx';
 import WalletScreen from '../screens/Menu/WalletScreen.jsx';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
@@ -43,7 +45,16 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
         )}
       </Stack.Screen>
       {/* Menu modal accessible from bottom nav */}
-      <Stack.Screen name="MenuModal" component={TenantMenuModal} options={{ presentation: 'transparentModal', animation: 'none' }} />
+      <Stack.Screen name="MenuModal" options={{ presentation: 'transparentModal', animation: 'none' }}>
+        {(props) => (
+          <TenantMenuModal
+            {...props}
+            isGuest={isGuest}
+            onAuthRequired={onAuthRequired}
+            onLogout={onLogout}
+          />
+        )}
+      </Stack.Screen>
       
       <Stack.Screen name="AccommodationDetails" options={{ animation: 'none' }}>
         {(props) => (
@@ -94,9 +105,10 @@ export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequi
           <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ animation: 'none' }} />
           <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
           <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
+          <Stack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
+          <Stack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
           <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
           <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
-          {/* Keep route name as 'Payments' but render the WalletScreen component */}
           <Stack.Screen name="Payments" component={WalletScreen} options={{ animation: 'none' }} />
           <Stack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
           <Stack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
