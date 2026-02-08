@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SkeletonNotificationsTab } from '../../Shared/Skeleton';
+import { loadPrefsWeb, savePrefsWeb, DEFAULT_PREFS } from '../../../shared/notificationPrefs';
+
+const PREF_KEYS = {
+		email_booking_updates: 'notif_email_booking',
+		email_payment_reminders: 'notif_email_payment',
+		email_maintenance: 'notif_email_maintenance',
+	push_messages: 'notif_push_messages',
+	push_booking_updates: 'notif_push_booking_updates',
+};
 
 const NotificationsTab = ({ loading = false }) => {
 	const [isEditing, setIsEditing] = useState(false);
@@ -7,12 +16,52 @@ const NotificationsTab = ({ loading = false }) => {
 	const [savedSettings, setSavedSettings] = useState({
 		email_booking_updates: true,
 		email_payment_reminders: true,
-		email_marketing: false,
+		email_maintenance: false,
 		push_messages: true,
 		push_booking_updates: true,
 	});
-  
+
 	const [settings, setSettings] = useState(savedSettings);
+
+	const UI_TO_CANON = {
+		email_booking_updates: 'email_booking',
+		email_payment_reminders: 'email_payment',
+		email_maintenance: 'email_maintenance',
+		push_messages: 'push_messages',
+		push_booking_updates: 'push_booking_updates',
+	};
+
+	// initialize from shared storage keys
+	useEffect(() => {
+		try {
+			const canonical = loadPrefsWeb();
+			const next = { ...savedSettings };
+			Object.keys(UI_TO_CANON).forEach((uiKey) => {
+				const canon = UI_TO_CANON[uiKey];
+				next[uiKey] = canonical[canon] !== undefined ? canonical[canon] : DEFAULT_PREFS[canon];
+			});
+			setSavedSettings(next);
+			setSettings(next);
+		} catch (e) {
+			console.warn('Failed to load prefs (web)', e);
+		}
+	}, []);
+
+	// load persisted prefs from localStorage (web) on mount
+	useEffect(() => {
+		try {
+			const next = { ...savedSettings };
+			Object.keys(PREF_KEYS).forEach((k) => {
+				const storageKey = PREF_KEYS[k];
+				const v = localStorage.getItem(storageKey);
+				if (v !== null) next[k] = v === '1' || v === 'true';
+			});
+			setSavedSettings(next);
+			setSettings(next);
+		} catch (e) {
+			console.warn('Failed to load notification prefs', e);
+		}
+	}, []);
 
 	const handleToggle = (key) => {
 		if (!isEditing) return;
@@ -32,6 +81,17 @@ const NotificationsTab = ({ loading = false }) => {
 	const handleSave = () => {
 		setSaving(true);
 		setTimeout(() => {
+			try {
+				const canonicalToSave = {};
+				Object.keys(UI_TO_CANON).forEach((uiKey) => {
+					const canon = UI_TO_CANON[uiKey];
+					canonicalToSave[canon] = settings[uiKey];
+				});
+				savePrefsWeb(canonicalToSave);
+			} catch (e) {
+				console.warn('Failed to save notification prefs (web)', e);
+			}
+
 			setSavedSettings(settings);
 			setIsEditing(false);
 			setSaving(false);
@@ -74,11 +134,11 @@ const NotificationsTab = ({ loading = false }) => {
 							onChange={() => handleToggle('email_payment_reminders')}
 						/>
 						 <ToggleItem 
-							label="Marketing & Promos"
-							description="Receive news about new properties and features."
-							checked={settings.email_marketing}
+							label="Maintenance requests"
+							description="Receive updates about maintenance requests."
+							checked={settings.email_maintenance}
 							disabled={!isEditing}
-							onChange={() => handleToggle('email_marketing')}
+							onChange={() => handleToggle('email_maintenance')}
 						/>
 					</div>
 				</div>
@@ -157,3 +217,4 @@ const ToggleItem = ({ label, description, checked, disabled, onChange }) => (
 );
 
 export default NotificationsTab;
+

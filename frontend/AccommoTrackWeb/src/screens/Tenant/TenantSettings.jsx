@@ -9,7 +9,7 @@ const TenantSettings = ({ user }) => {
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
-    { id: 'profile', label: 'Edit Profile', icon: 'User' },
+    { id: 'profile', label: 'Profile', icon: 'User' },
     { id: 'preferences', label: 'Preferences & Lifestyle', icon: 'Sliders' },
     { id: 'account', label: 'Account Security', icon: 'Shield' },
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
