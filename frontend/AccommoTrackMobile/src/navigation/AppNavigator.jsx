@@ -7,7 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
 import LandlordNavigator from '../mobile-landlord/src/navigation/LandlordNavigator.jsx';
-import TenantNavigator from '../mobile-tenant/src/navigation/TenantNavigator.jsx';
+import TenantShell from '../mobile-tenant/src/navigation/TenantShell.jsx';
 import { styles } from '../styles/AppNavigator.js';
 
 const Stack = createNativeStackNavigator();
@@ -110,9 +110,9 @@ export default function AppNavigator() {
 
   // If user is logged in as tenant or running as guest, render TenantNavigator
   if (userRole === 'tenant' || userRole === 'guest') {
-    console.log(' Rendering TenantNavigator (isGuest =', userRole === 'guest', ')');
+    console.log(' Rendering TenantShell (isGuest =', userRole === 'guest', ')');
     return (
-      <TenantNavigator
+      <TenantShell
         onLogout={handleLogout}
         isGuest={userRole === 'guest'}
         onAuthRequired={handleAuthRequired}

@@ -76,6 +76,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant Addon Requests
         Route::post('/addons/request', [TenantDashboardController::class, 'requestAddon']);
         Route::delete('/addons/{addonId}/cancel', [TenantDashboardController::class, 'cancelAddonRequest']);
+        // Tenant: list available addons for active booking
+        Route::get('/addons/available', [TenantDashboardController::class, 'getAvailableAddons']);
+        // Tenant: list current booking addon requests (active/pending)
+        Route::get('/addons/requests', [TenantDashboardController::class, 'getAddonRequests']);
         
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);

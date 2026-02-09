@@ -14,6 +14,7 @@ import {
     RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenLayout from '../../components/ScreenLayout.jsx';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -396,32 +397,9 @@ export default function MessagesPage({ navigation, route }) {
 
     // Chat List Screen
     const renderChatList = () => (
-        <>
-            {/* Header (match Explore header appearance) */}
-            <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={["top"]}>
-                <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
-                    <View style={homeStyles.headerSide}>
-                        <TouchableOpacity style={homeStyles.headerIcon} onPress={() => setMenuModalVisible(true)}>
-                            <Ionicons name="menu" size={22} color={theme.colors.textInverse} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Absolute-centered title so it remains visually centered between left/right icons */}
-                    <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }} pointerEvents="none">
-                        <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Messages</Text>
-                    </View>
-
-                    <View style={homeStyles.headerSide}>
-                        <TouchableOpacity style={homeStyles.headerIcon}>
-                            <Ionicons name="create-outline" size={22} color={theme.colors.textInverse} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </SafeAreaView>
-
-            {/* Content Area */}
-            <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-                <View style={styles.container}>
+        <ScreenLayout onMenuPress={() => setMenuModalVisible(true)} onProfilePress={() => { navigation.navigate('Profile'); }}>
+          <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+            <View style={styles.container}>
 
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
@@ -513,20 +491,14 @@ export default function MessagesPage({ navigation, route }) {
                 </View>
             </View>
 
-            {/* Bottom Navigation */}
+            {/* Bottom Navigation and Drawer handled by ScreenLayout */}
             <MenuDrawer
                 visible={menuModalVisible}
                 onClose={() => setMenuModalVisible(false)}
                 onMenuItemPress={handleMenuItemPress}
                 isGuest={false}
             />
-            <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-                <BottomNavigation
-                    activeTab={activeNavTab}
-                    onTabPress={setActiveNavTab}
-                />
-            </SafeAreaView>
-        </>
+    </ScreenLayout>
     );
 
     // Chat Screen

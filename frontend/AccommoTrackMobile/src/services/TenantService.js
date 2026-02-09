@@ -146,13 +146,18 @@ class TenantService {
         };
       }
 
+      const body = { addon_id: addonId, quantity };
+      if (note) body.note = note;
+
+      // support optional bookingId passed via note parameter or as fourth arg
+      if (arguments.length >= 4) {
+        const bookingId = arguments[3];
+        if (bookingId) body.booking_id = bookingId;
+      }
+
       const response = await axios.post(
         `${API_URL}/tenant/addons/request`,
-        {
-          addon_id: addonId,
-          quantity,
-          note
-        },
+        body,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -283,6 +288,126 @@ class TenantService {
         success: false,
         error: error.response?.data?.message || 'Failed to fetch addon requests'
       };
+    }
+  }
+
+  /**
+   * Submit a maintenance request (supports JSON or FormData when sending images)
+   * payload: object or FormData
+   * isForm: boolean - true when payload is FormData
+   */
+  async submitMaintenanceRequest(payload, isForm = false) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) {
+        return { success: false, error: 'Authentication required' };
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      };
+
+      if (isForm) {
+        headers['Content-Type'] = 'multipart/form-data';
+      } else {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      // Endpoint: prefer tenant-scoped if available, otherwise fallback
+      const endpoint = `${API_URL}/tenant/maintenance-requests`;
+
+      const response = await axios.post(endpoint, payload, { headers });
+
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error('Error submitting maintenance request:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to submit maintenance request' };
+    }
+  }
+
+  /**
+   * Submit a review/rating for a property (tenant-only)
+   * payload: { booking_id, property_id, rating, comment }
+   */
+  async submitReview(payload) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.post(
+        `${API_URL}/tenant/reviews`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to submit review' };
+    }
+  }
+
+  /**
+   * Get tenant's own reviews
+   */
+  async getTenantReviews() {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.get(`${API_URL}/tenant/reviews`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+
+      return { success: true, data: response.data || response.data.data || [] };
+    } catch (error) {
+      console.error('Error fetching tenant reviews:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch reviews' };
+    }
+  }
+
+  /**
+   * Update an existing review (tenant)
+   */
+  async updateReview(reviewId, payload) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.put(`${API_URL}/tenant/reviews/${reviewId}`, payload, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' }
+      });
+
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error('Error updating review:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to update review' };
+    }
+  }
+
+  /**
+   * Delete a review (tenant)
+   */
+  async deleteReview(reviewId) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.delete(`${API_URL}/tenant/reviews/${reviewId}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to delete review' };
     }
   }
 }

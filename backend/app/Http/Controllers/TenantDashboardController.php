@@ -464,6 +464,103 @@ class TenantDashboardController extends Controller
     }
 
     /**
+     * Get available addons for current active booking (tenant)
+     */
+    public function getAvailableAddons()
+    {
+        try {
+            $tenantId = Auth::id();
+            $today = now();
+
+            $booking = Booking::where('tenant_id', $tenantId)
+                ->where('status', 'confirmed')
+                ->where('start_date', '<=', $today)
+                ->where('end_date', '>=', $today)
+                ->first();
+
+            if (!$booking) {
+                return response()->json(['message' => 'No active booking found'], 404);
+            }
+
+            $requestedAddonIds = $booking->addons->pluck('id')->toArray();
+            $availableAddons = Addon::where('property_id', $booking->property_id)
+                ->where('is_active', true)
+                ->whereNotIn('id', $requestedAddonIds)
+                ->get()
+                ->map(function ($addon) {
+                    return [
+                        'id' => $addon->id,
+                        'name' => $addon->name,
+                        'description' => $addon->description,
+                        'price' => (float) $addon->price,
+                        'price_type' => $addon->price_type,
+                        'addon_type' => $addon->addon_type,
+                        'has_stock' => $addon->hasStock(),
+                        'stock' => $addon->stock
+                    ];
+                });
+
+            return response()->json(['available' => $availableAddons], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch available addons', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get addon requests (pending/active) for current active booking
+     */
+    public function getAddonRequests()
+    {
+        try {
+            $tenantId = Auth::id();
+            $today = now();
+
+            $booking = Booking::where('tenant_id', $tenantId)
+                ->where('status', 'confirmed')
+                ->where('start_date', '<=', $today)
+                ->where('end_date', '>=', $today)
+                ->with(['addons'])
+                ->first();
+
+            if (!$booking) {
+                return response()->json(['message' => 'No active booking found'], 404);
+            }
+
+            $pending = $booking->addons
+                ->where('pivot.status', 'pending')
+                ->map(function ($addon) {
+                    return [
+                        'id' => $addon->id,
+                        'pivot_id' => $addon->pivot->id,
+                        'name' => $addon->name,
+                        'quantity' => $addon->pivot->quantity,
+                        'price' => (float) $addon->pivot->price_at_booking,
+                        'request_note' => $addon->pivot->request_note,
+                        'requested_at' => $addon->pivot->created_at
+                    ];
+                })->values();
+
+            $active = $booking->addons
+                ->whereIn('pivot.status', ['active', 'approved'])
+                ->map(function ($addon) {
+                    return [
+                        'id' => $addon->id,
+                        'pivot_id' => $addon->pivot->id,
+                        'name' => $addon->name,
+                        'quantity' => $addon->pivot->quantity,
+                        'price' => (float) $addon->pivot->price_at_booking,
+                        'status' => $addon->pivot->status,
+                        'approved_at' => $addon->pivot->approved_at
+                    ];
+                })->values();
+
+            return response()->json(['pending' => $pending, 'active' => $active], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch addon requests', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Request an addon for the current booking
      */
     public function requestAddon(Request $request)

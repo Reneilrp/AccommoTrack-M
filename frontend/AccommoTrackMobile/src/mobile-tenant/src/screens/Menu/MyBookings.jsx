@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// SafeAreaView handled by shared ScreenLayout
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/MyBookings.js';
@@ -9,8 +9,7 @@ import { Alert } from 'react-native';
 import { BASE_URL as API_BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { BookingCardSkeleton } from '../../../../components/Skeletons';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
-import Header from '../../components/Header.jsx';
+// ScreenLayout moved to TenantShell to keep header/footer mounted once
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function MyBookings() {
@@ -89,6 +88,7 @@ export default function MyBookings() {
           return {
             id: booking.id,
             name: booking.propertyTitle || 'Unknown Property',
+            propertyId: booking.property?.id || null,
             image: imageUri,
             location: location,
             roomLabel,
@@ -165,20 +165,15 @@ export default function MyBookings() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <Header onMenuPress={() => navigation.navigate('MenuModal')} onProfilePress={() => navigation.navigate('Profile')} />
-
-      {/* Content Area */}
-      <View style={homeStyles.flex1}>
-        <ScrollView 
-          style={[styles.content, { backgroundColor: theme.colors.background }]} 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={homeStyles.contentContainerPadding}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
-          }
-        >
+    <View style={homeStyles.flex1}>
+      <ScrollView 
+        style={[styles.content, { backgroundColor: theme.colors.background }]} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={homeStyles.contentContainerPadding}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+        }
+      >
           {loading ? (
             <>
               <BookingCardSkeleton />
@@ -188,7 +183,7 @@ export default function MyBookings() {
             </>
           ) : bookings.length > 0 ? (
             bookings.map((booking) => (
-            <TouchableOpacity key={booking.id} style={styles.bookingCard}>
+            <TouchableOpacity key={booking.id} style={styles.bookingCard} onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.propertyId })}>
               <Image source={booking.image} style={styles.bookingImage} />
               <View style={styles.bookingInfo}>
                 <View style={styles.bookingHeader}>
@@ -240,14 +235,10 @@ export default function MyBookings() {
                     </Text>
                   </View>
                 )}
-                {/* Cancel button for pending or confirmed bookings */}
-                {(booking.statusRaw === 'pending' || booking.statusRaw === 'confirmed') && (
-                  <View style={styles.cancelContainer}>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => handleCancel(booking.id)}
-                    >
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                {booking.statusRaw === 'completed' && (
+                  <View style={{ marginTop: 8 }}>
+                    <TouchableOpacity onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: booking.propertyId })} style={{ padding: 8, borderRadius: 8, backgroundColor: theme.colors.primary }}>
+                      <Text style={{ color: theme.colors.textInverse, fontWeight: '600' }}>Leave Review</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -264,13 +255,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
           )}
-        </ScrollView>
-      </View>
-
-      {/* Bottom Navigation */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation />
-      </SafeAreaView>
+      </ScrollView>
     </View>
   );
 }

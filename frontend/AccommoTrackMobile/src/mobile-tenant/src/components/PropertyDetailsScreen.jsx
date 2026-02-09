@@ -529,6 +529,12 @@ export default function PropertyDetailsScreen({ route }) {
             <Text style={[styles.contactButtonText, { color: theme.colors.textInverse }]}>Contact Landlord</Text>
           </TouchableOpacity>
 
+          {/* Report Maintenance Button */}
+          <TouchableOpacity style={[styles.contactButton, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10 }]} onPress={() => navigation.navigate('CreateMaintenanceRequest', { propertyId: active.id })}>
+            <Ionicons name="construct-outline" size={18} color={theme.colors.primary} />
+            <Text style={[styles.contactButtonText, { color: theme.colors.primary }]}>Report Maintenance</Text>
+          </TouchableOpacity>
+
           {/* Embedded Room List */}
           <View style={styles.roomsSection}>
             <View style={styles.roomsHeader}>

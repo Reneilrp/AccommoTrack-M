@@ -40,6 +40,11 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 10,
+        // Ensure no green outline shows through: force a white border and remove elevation/shadow
+        borderWidth: 1,
+        borderColor: '#FFFFFF',
+        shadowColor: 'transparent',
+        elevation: 0,
     },
     searchInput: {
         flex: 1,

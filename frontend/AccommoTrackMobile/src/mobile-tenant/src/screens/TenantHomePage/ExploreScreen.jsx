@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { View, ScrollView, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// ScreenLayout moved to TenantShell to keep header/footer mounted once
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
-import Header from '../../components/Header.jsx';
+// Header/BottomNavigation provided by ScreenLayout
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import PropertyCard from '../../components/PropertyCard.jsx';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
 import { PropertyCardSkeleton } from '../../../../components/Skeletons';
 
 import PropertyService from '../../../../services/PropertyServices.js';
@@ -292,13 +291,8 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
   if (loading && properties.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle="light-content" />
-        <Header
-          onMenuPress={() => setMenuModalVisible(true)}
-          onProfilePress={handleProfilePress}
-          isGuest={isGuest}
-        />
         {/* Keep SearchBar and filter row visible during loading to reserve layout space */}
         <SearchBar
           searchQuery={searchQuery}
@@ -350,81 +344,12 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
           onMenuItemPress={handleMenuItemPress}
           isGuest={isGuest}
         />
-        <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-          <BottomNavigation
-            activeTab={activeNavTab}
-            onTabPress={setActiveNavTab}
-            isGuest={isGuest}
-            onAuthRequired={onAuthRequired}
-          />
-        </SafeAreaView>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* Fixed header + search + filters outside the scrollable content to prevent layout jumps */}
-      <Header
-        onMenuPress={() => setMenuModalVisible(true)}
-        onProfilePress={handleProfilePress}
-        isGuest={isGuest}
-      />
-
-      <SearchBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSearchPress={handleSearch}
-        selectedFilter={selectedFilter}
-        onClearFilter={handleClearFilter}
-        properties={properties}
-        userRole={isGuest ? 'guest' : 'authenticated'}
-        onSelectProperty={(data) => {
-          if (data && data.property) {
-            handleAccommodationPress(data.property);
-          }
-        }}
-      />
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterButtonsRow}
-        contentContainerStyle={styles.filterButtonsContainer}
-      >
-        {filterOptions.map((filter) => (
-          <TouchableOpacity
-            key={filter.value}
-            style={[
-              styles.filterButton,
-              selectedFilter === filter.value && { backgroundColor: theme.colors.primary }
-            ]}
-            onPress={() => handleFilterSelect(filter.value)}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              selectedFilter === filter.value && styles.filterButtonTextActive
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
-          />
-        }
-      >
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         {isGuest && (
           <TouchableOpacity
             style={styles.guestBanner}
@@ -488,7 +413,6 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
 
         <MenuDrawer
           visible={menuModalVisible}
@@ -496,14 +420,6 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
           onMenuItemPress={handleMenuItemPress}
           isGuest={isGuest}
         />
-        <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-          <BottomNavigation
-            activeTab={activeNavTab}
-            onTabPress={setActiveNavTab}
-            isGuest={isGuest}
-            onAuthRequired={onAuthRequired}
-          />
-        </SafeAreaView>
-      </View>
-      );
+    </View>
+  );
 }

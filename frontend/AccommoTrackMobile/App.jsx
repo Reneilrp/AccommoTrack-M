@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StatusBar } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { navigationRef } from './src/navigation/RootNavigation';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -37,7 +38,7 @@ function AppContent() {
         barStyle={isDarkMode ? "light-content" : "dark-content"} 
         backgroundColor={isDarkMode ? "#111827" : "white"} 
       />
-      <NavigationContainer theme={isDarkMode ? MyDarkTheme : MyLightTheme}>
+      <NavigationContainer ref={navigationRef} theme={isDarkMode ? MyDarkTheme : MyLightTheme}>
         <AppNavigator />
       </NavigationContainer>
       <Toast />
