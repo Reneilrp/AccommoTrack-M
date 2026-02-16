@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -72,15 +72,15 @@ export default function PaymentDetail() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Invoice</Text>
           <View style={{ width: 24 }} />
         </View>
-        <View style={{ padding: 20 }}>
+        <View style={styles.detailContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
@@ -89,25 +89,25 @@ export default function PaymentDetail() {
 
   if (!invoice) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Invoice</Text>
           <View style={{ width: 24 }} />
         </View>
-        <View style={{ padding: 20 }}>
-          <Text style={{ color: '#6B7280' }}>Invoice not found.</Text>
+        <View style={styles.detailContainer}>
+          <Text style={[styles.statusLabel, { color: theme.colors.textSecondary }]}>Invoice not found.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invoice #{invoice.reference || invoice.id}</Text>
@@ -115,33 +115,33 @@ export default function PaymentDetail() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={{ padding: 20 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>{invoice.description || 'Invoice'}</Text>
+        <View style={styles.detailContainer}>
+          <Text style={[styles.invoiceTitle, { color: theme.colors.text }]}>{invoice.description || 'Invoice'}</Text>
 
           <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface }]}>
             <View style={homeStyles.rowBetween}>
-              <Text style={{ color: '#6B7280' }}>Subtotal</Text>
-              <Text style={{ fontWeight: '600' }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
+              <Text style={{ color: theme.colors.textSecondary }}>Subtotal</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
             <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-              <Text style={{ color: '#6B7280' }}>Tax</Text>
-              <Text style={{ fontWeight: '600' }}>₱{((invoice.tax_cents ?? 0)/100).toLocaleString()}</Text>
+              <Text style={{ color: theme.colors.textSecondary }}>Tax</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.tax_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
-            <View style={{ height: 1, backgroundColor: '#F3F4F6', marginVertical: 8 }} />
+            <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
             <View style={homeStyles.rowBetween}>
-              <Text style={{ fontSize: 16, fontWeight: '700' }}>Total</Text>
-              <Text style={{ fontSize: 16, fontWeight: '700' }}>₱{((invoice.total_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
+              <Text style={[styles.totalText, { color: theme.colors.text }]}>Total</Text>
+              <Text style={[styles.totalText, { color: theme.colors.text }]}>₱{((invoice.total_cents ?? invoice.amount_cents ?? 0)/100).toLocaleString()}</Text>
             </View>
           </View>
 
-          <Text style={{ color: '#6B7280', marginBottom: 8 }}>Status: <Text style={{ color: '#111827', fontWeight: '600' }}>{invoice.status}</Text></Text>
+          <Text style={[styles.statusRow, { color: theme.colors.textSecondary }]}>Status: <Text style={[styles.statusValue, { color: theme.colors.text }]}>{invoice.status}</Text></Text>
 
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity onPress={handleGCashPay} style={[homeStyles.buttonFlex, { backgroundColor: '#007AFF', padding: 14, borderRadius: 10 }]}>
-              <Text style={{ color: '#FFF', fontWeight: '700' }}>Pay with GCash</Text>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity onPress={handleGCashPay} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF' }]}>
+              <Text style={styles.payBtnText}>Pay with GCash</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleCardPay} style={[homeStyles.buttonFlex, { backgroundColor: theme.colors.primary, padding: 14, borderRadius: 10 }]}>
-              <Text style={{ color: '#FFF', fontWeight: '700' }}>Pay with Card</Text>
+            <TouchableOpacity onPress={handleCardPay} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary }]}>
+              <Text style={styles.payBtnText}>Pay with Card</Text>
             </TouchableOpacity>
           </View>
         </View>

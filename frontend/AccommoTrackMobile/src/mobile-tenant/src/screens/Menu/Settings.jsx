@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, RefreshControl, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, RefreshControl, Linking, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,8 +7,8 @@ import { styles } from '../../../../styles/Menu/Settings.js';
 import { WEB_BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { ListItemSkeleton } from '../../../../components/Skeletons';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import Header from '../../components/Header.jsx';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
@@ -33,8 +32,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       return;
     }
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-      setIsGuestMode(!token);
+      const userJson = await AsyncStorage.getItem('user');
+      setIsGuestMode(!userJson);
     } catch (error) {
       console.error('Error checking guest mode:', error);
     }
@@ -221,17 +220,15 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const settingSections = getSettingSections();
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {/* Header (green, same height/font as other screens) */}
-          <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={["top"]}>
-            <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
-              <View style={homeStyles.headerSide} />
-                <View style={homeStyles.headerCenter}>
-                <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Settings</Text>
-              </View>
-                <View style={homeStyles.headerSide} />
-            </View>
-          </SafeAreaView>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Standard Header component handles its own SafeAreaView */}
+      <Header 
+        title="Settings"
+        onBack={navigation.canGoBack() ? () => navigation.goBack() : null}
+        showProfile={false}
+      />
 
       {/* Content Area */}
       <View style={homeStyles.flex1}>
@@ -258,27 +255,29 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
               />
             }
           >
+
         {settingSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.settingsCard}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{section.title}</Text>
+            <View style={[styles.settingsCard, { backgroundColor: theme.colors.surface }]}>
               {section.items.map((item, itemIndex) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
                     styles.settingItem,
-                    itemIndex !== section.items.length - 1 && styles.settingItemBorder,
-                    item.highlight && styles.settingItemHighlight
+                    itemIndex !== section.items.length - 1 && [styles.settingItemBorder, { borderBottomColor: theme.colors.border }],
+                    item.highlight && styles.settingItemHighlight,
+                    item.highlight && { backgroundColor: theme.colors.primary + '10' }
                   ]}
                   disabled={item.toggle || item.label === "App Version"}
                   onPress={() => handleSettingPress(item.label)}
                   activeOpacity={item.toggle ? 1 : 0.7}
                 >
                   <View style={styles.settingLeft}>
-                    <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight]}>
+                    <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight, item.highlight && { backgroundColor: theme.colors.primary }]}>
                       <Ionicons name={item.icon} size={22} color={item.highlight ? "#FFFFFF" : theme.colors.primary} />
                     </View>
-                    <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight]}>{item.label}</Text>
+                    <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight, item.highlight && { color: theme.colors.primary }, { color: theme.colors.text }]}>{item.label}</Text>
                   </View>
                   
                   <View style={styles.settingRight}>
@@ -292,7 +291,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                     ) : (
                       <>
                         {item.value && (
-                          <Text style={styles.settingValue}>{item.value}</Text>
+                          <Text style={[styles.settingValue, { color: theme.colors.textSecondary }]}>{item.value}</Text>
                         )}
                         {item.arrow && (
                           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -310,24 +309,21 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         {!isGuestMode && (
           <View style={styles.section}>
             <TouchableOpacity 
-              style={styles.dangerButton}
+              style={[styles.dangerButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.error + '20' }]}
               onPress={handleLogout}
             >
-              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <Text style={styles.dangerButtonText}>Logout</Text>
+              <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+              <Text style={[styles.dangerButtonText, { color: theme.colors.error }]}>Logout</Text>
             </TouchableOpacity>
           </View>
         )}
 
-            <View style={{ height: 40 }} />
+            <View style={homeStyles.spacer} />
           </ScrollView>
         )}
       </View>
 
-      {/* Bottom Navigation */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation isGuest={isGuest} onAuthRequired={onLoginPress} />
-      </SafeAreaView>
+      {/* Bottom navigation is provided by TenantNavigator/TenantMain - remove local nav */}
     </View>
   );
 }

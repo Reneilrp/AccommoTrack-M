@@ -148,25 +148,18 @@ export default function Security({
               <p className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Add an extra layer of security</p>
             </div>
-            {isEditingSecurity ? (
-              <button
-                type="button"
-                onClick={() => setSecurity({...security, twoFactorAuth: !security.twoFactorAuth})}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  security.twoFactorAuth ? 'bg-green-600' : 'bg-gray-300'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  security.twoFactorAuth ? 'translate-x-6' : 'translate-x-1'
-                }`} />
-              </button>
-            ) : (
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                security.twoFactorAuth ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
-              }`}>
-                {security.twoFactorAuth ? 'Enabled' : 'Disabled'}
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={() => isEditingSecurity && setSecurity({...security, twoFactorAuth: !security.twoFactorAuth})}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                security.twoFactorAuth ? 'bg-green-600' : 'bg-gray-300'
+              } ${!isEditingSecurity ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={!isEditingSecurity}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                security.twoFactorAuth ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
           </div>
           <div className={`flex items-center justify-between p-4 rounded-lg transition-all ${
             isEditingSecurity ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700'
@@ -175,25 +168,18 @@ export default function Security({
               <p className="font-medium text-gray-900 dark:text-white">Login Alerts</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Get notified of new logins</p>
             </div>
-            {isEditingSecurity ? (
-              <button
-                type="button"
-                onClick={() => setSecurity({...security, loginAlerts: !security.loginAlerts})}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  security.loginAlerts ? 'bg-green-600' : 'bg-gray-300'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  security.loginAlerts ? 'translate-x-6' : 'translate-x-1'
-                }`} />
-              </button>
-            ) : (
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                security.loginAlerts ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
-              }`}>
-                {security.loginAlerts ? 'Enabled' : 'Disabled'}
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={() => isEditingSecurity && setSecurity({...security, loginAlerts: !security.loginAlerts})}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                security.loginAlerts ? 'bg-green-600' : 'bg-gray-300'
+              } ${!isEditingSecurity ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={!isEditingSecurity}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                security.loginAlerts ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
           </div>
         </div>
         {isEditingSecurity && (

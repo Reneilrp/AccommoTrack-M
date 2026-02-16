@@ -59,7 +59,7 @@ function createMemoryHistory(options = {}) {
 		},
 		createHref: createHref2,
 		createURL(to) {
-			return new URL(createHref2(to), "http://localhost");
+			return new URL(createHref2(to), "http://192.168.43.142");
 		},
 		encodeLocation(to) {
 			let path = typeof to === "string" ? parsePath(to) : to;
@@ -301,7 +301,7 @@ function getUrlBasedHistory(getLocation, createHref2, validateLocation, options 
 	return history;
 }
 function createBrowserURLImpl(to, isAbsolute = false) {
-	let base = "http://localhost";
+	let base = "http://192.168.43.142";
 	if (typeof window !== "undefined") base = window.location.origin !== "null" ? window.location.origin : window.location.href;
 	invariant(base, "No window.location.(origin|href) available to create URL");
 	let href$1 = typeof to === "string" ? to : createPath(to);
@@ -7607,7 +7607,7 @@ function createHref(to) {
 function encodeLocation(to) {
 	let href$1 = typeof to === "string" ? to : createPath(to);
 	href$1 = href$1.replace(/ $/, "%20");
-	let encoded = ABSOLUTE_URL_REGEX3.test(href$1) ? new URL(href$1) : new URL(href$1, "http://localhost");
+	let encoded = ABSOLUTE_URL_REGEX3.test(href$1) ? new URL(href$1) : new URL(href$1, "http://192.168.43.142");
 	return {
 		pathname: encoded.pathname,
 		search: encoded.search,

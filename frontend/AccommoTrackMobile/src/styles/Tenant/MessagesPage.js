@@ -29,9 +29,9 @@ export const styles = StyleSheet.create({
 
     // Search
     searchContainer: {
-        backgroundColor: '#10b981',
+        backgroundColor: 'transparent',
         paddingHorizontal: 16,
-        paddingBottom: 16,
+        paddingVertical: 6,
     },
     searchBar: {
         backgroundColor: '#FFFFFF',
@@ -40,7 +40,6 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 10,
-        // Ensure no green outline shows through: force a white border and remove elevation/shadow
         borderWidth: 1,
         borderColor: '#FFFFFF',
         shadowColor: 'transparent',
@@ -95,7 +94,7 @@ export const styles = StyleSheet.create({
         borderBottomColor: '#F3F4F6',
     },
     newConversation: {
-        backgroundColor: '#E0F2F1', // A light green color
+        backgroundColor: '#E0F2F1', 
     },
     avatarContainer: {
         marginRight: 12,
@@ -158,10 +157,13 @@ export const styles = StyleSheet.create({
     // Chat Header
     chatScreenHeader: {
         backgroundColor: '#10b981',
-        paddingHorizontal: 8,
-        paddingVertical: 12,
+        paddingHorizontal: 0,
+        paddingTop: 8,
+        paddingBottom: 8,
+        minHeight: 56,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
     },
     backButton: {
         padding: 8,
@@ -261,7 +263,6 @@ export const styles = StyleSheet.create({
     theirMessageWrapper: {
         justifyContent: 'flex-start',
     },
-    // Column container that holds the bubble and the timestamp
     messageContent: {
         flexDirection: 'column',
         maxWidth: '92%',
@@ -304,12 +305,6 @@ export const styles = StyleSheet.create({
         marginTop: 6,
         color: '#9CA3AF',
     },
-    myMessageTime: {
-        // kept for potential overrides; timestamp color handled by messageTime
-    },
-    theirMessageTime: {
-        // kept for potential overrides; timestamp color handled by messageTime
-    },
 
     // Input
     inputContainer: {
@@ -347,6 +342,25 @@ export const styles = StyleSheet.create({
     sendButtonDisabled: {
         backgroundColor: '#9CA3AF',
     },
+
+    // Skeletons & Spacing
+    skeletonHeader: {
+        flexDirection: 'row', 
+        gap: 12, 
+        marginBottom: 16
+    },
+    skeletonSpacer: {
+        height: 16
+    },
+    scrollContent: {
+        padding: 16
+    },
+    listContent: {
+        paddingBottom: 16
+    },
+    placeholder: {
+        width: 40
+    }
 });
 
 export default styles;

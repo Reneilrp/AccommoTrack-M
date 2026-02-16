@@ -18,8 +18,6 @@ const TenantSettings = ({ user }) => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Settings</h1>
-      
       <div className="flex flex-col md:flex-row gap-8">
         {/* Settings Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0">
