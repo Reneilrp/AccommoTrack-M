@@ -8,11 +8,7 @@ export function getDefaultLandingRoute(user) {
   }
 
   if (user.role === 'caretaker') {
-    const permissions = user.caretaker_permissions || {};
-    if (permissions.bookings) return '/bookings';
-    if (permissions.tenants) return '/tenants';
-    if (permissions.messages) return '/messages';
-    return '/settings';
+    return '/dashboard';
   }
 
   return '/dashboard';
