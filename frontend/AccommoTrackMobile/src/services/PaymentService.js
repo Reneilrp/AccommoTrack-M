@@ -5,11 +5,16 @@ import { API_BASE_URL as API_URL } from '../config';
 class PaymentService {
   async getAuthToken() {
     try {
-      // Check both possible token keys for compatibility
-      let token = await AsyncStorage.getItem('auth_token');
-      if (!token) {
-        token = await AsyncStorage.getItem('token');
+      // Prefer token stored on the user object
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          if (user?.token) return user.token;
+        } catch (e) {}
       }
+      // Fallback to legacy `token` key
+      const token = await AsyncStorage.getItem('token');
       return token;
     } catch (error) {
       console.error('Error getting auth token:', error);

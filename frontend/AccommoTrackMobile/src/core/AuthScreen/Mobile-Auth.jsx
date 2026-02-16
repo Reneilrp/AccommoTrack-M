@@ -135,16 +135,19 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       const data = await response.json();
 
       if (response.ok) {
-        // Save token under both keys for consistency across the app
-        await AsyncStorage.setItem('auth_token', data.token);
-        await AsyncStorage.setItem('token', data.token);
+        // Persist token inside the user object for standardized access across the app
+        const userObj = { ...(data.user || {}), token: data.token || (data.user && data.user.token) };
+        await AsyncStorage.setItem('user', JSON.stringify(userObj));
+        // Keep legacy `token` key for backward compatibility
+        if (data.token) {
+          await AsyncStorage.setItem('token', data.token);
+        }
         await AsyncStorage.setItem('user_id', String(data.user.id));
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
         await AsyncStorage.setItem('hasLaunched', 'true');
 
         
         console.log('✅ Login successful! Role:', data.user.role);
-        console.log('✅ Token saved as auth_token');
+        console.log('✅ Token saved');
         console.log('✅ User ID saved:', data.user.id);
         
         if (onLoginSuccess) {

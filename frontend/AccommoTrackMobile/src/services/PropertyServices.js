@@ -6,14 +6,19 @@ const STORAGE_URL = `${BASE_URL}/storage`;
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
 
 const getAuthToken = async () => {
-    const token =
-        (await AsyncStorage.getItem('auth_token')) ||
-        (await AsyncStorage.getItem('token'));
-
+    // Prefer token stored inside the persisted `user` object
+    const userJson = await AsyncStorage.getItem('user');
+    if (userJson) {
+        try {
+            const user = JSON.parse(userJson);
+            const t = user?.token;
+            if (t) return t;
+        } catch (e) {}
+    }
+    const token = (await AsyncStorage.getItem('token'));
     if (!token) {
         throw new Error('No authentication token found');
     }
-
     return token;
 };
 

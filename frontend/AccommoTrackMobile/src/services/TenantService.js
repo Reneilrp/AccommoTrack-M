@@ -5,7 +5,14 @@ import { API_BASE_URL as API_URL } from '../config';
 class TenantService {
   async getAuthToken() {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          if (user?.token) return user.token;
+        } catch (e) {}
+      }
+      const token = await AsyncStorage.getItem('token');
       return token;
     } catch (error) {
       console.error('Error getting auth token:', error);
@@ -323,6 +330,25 @@ class TenantService {
     } catch (error) {
       console.error('Error submitting maintenance request:', error);
       return { success: false, error: error.response?.data?.message || 'Failed to submit maintenance request' };
+    }
+  }
+
+  /**
+   * Get tenant's maintenance requests (list)
+   */
+  async getMyMaintenanceRequests(page = 1) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.get(`${API_URL}/tenant/maintenance-requests?page=${page}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error('Error fetching maintenance requests:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch maintenance requests' };
     }
   }
 
