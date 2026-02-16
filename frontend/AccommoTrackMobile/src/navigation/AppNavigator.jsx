@@ -7,7 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
 import LandlordNavigator from '../mobile-landlord/src/navigation/LandlordNavigator.jsx';
-import TenantShell from '../mobile-tenant/src/navigation/TenantShell.jsx';
+import TenantLayout from '../mobile-tenant/src/navigation/TenantLayout.jsx';
 import { styles } from '../styles/AppNavigator.js';
 
 const Stack = createNativeStackNavigator();
@@ -20,7 +20,6 @@ export default function AppNavigator() {
   const handleLogout = async () => {
     try {
       // Remove auth-related data and guest flag, keep hasLaunched
-      await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('user_id');
@@ -63,12 +62,11 @@ export default function AppNavigator() {
   const checkAppState = async () => {
     try {
       const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-      // Check both auth_token (new) and token (legacy) for backward compatibility
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('token');
+      // Prefer persisted user info to determine logged-in state
       const userString = await AsyncStorage.getItem('user');
       const isGuest = await AsyncStorage.getItem('isGuest');
 
-      if (token && userString) {
+      if (userString) {
         const user = JSON.parse(userString);
         console.log('👤 User role:', user.role);
         setAuthContext(null);
@@ -110,9 +108,9 @@ export default function AppNavigator() {
 
   // If user is logged in as tenant or running as guest, render TenantNavigator
   if (userRole === 'tenant' || userRole === 'guest') {
-    console.log(' Rendering TenantShell (isGuest =', userRole === 'guest', ')');
+    console.log(' Rendering TenantLayout (isGuest =', userRole === 'guest', ')');
     return (
-      <TenantShell
+      <TenantLayout
         onLogout={handleLogout}
         isGuest={userRole === 'guest'}
         onAuthRequired={handleAuthRequired}

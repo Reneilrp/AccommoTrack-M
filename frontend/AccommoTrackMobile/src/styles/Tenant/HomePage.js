@@ -13,9 +13,8 @@ export const styles = StyleSheet.create({
   header: {
     backgroundColor: '#10b981',
     paddingHorizontal: 0,
-    paddingTop: 8,
-    paddingBottom: 8,
-    minHeight: 56,  
+    // Use a fixed app-bar height so SafeArea inset + header padding don't stack
+    height: 56,
     marginTop: 0,
     flexDirection: 'row',
     alignItems: 'center',
@@ -82,9 +81,8 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
-    height: 40,
-    textAlignVertical: 'center',
-    flex: 1,
+    // avoid fixed height or flex here; let container control vertical centering
+    paddingHorizontal: 8,
   },
 
   // MENU DRAWER STYLES
@@ -290,7 +288,6 @@ export const styles = StyleSheet.create({
   cardsContainer: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    minHeight: height - 260,
   },
 
   // CARD STYLES - Vertical Card with Image on Top

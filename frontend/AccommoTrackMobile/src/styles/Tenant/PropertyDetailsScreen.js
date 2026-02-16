@@ -20,6 +20,32 @@ export const styles = StyleSheet.create({
   backButton: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
   placeholder: { width: 40 },
+  // Local header used by screens when global header is excluded
+  localHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#fff',
+  },
+  localHeaderLeft: {
+    width: 40,
+    alignItems: 'flex-start',
+  },
+  localHeaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  localHeaderRight: {
+    width: 40,
+  },
+  localHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
 
   infoSection: {
     paddingHorizontal: 16,

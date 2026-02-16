@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, SafeAreaView } from 'react-native';
+import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 import TenantHomePage from '../screens/TenantHomePage/ExploreScreen.jsx';
 import MessagesPage from '../screens/Messages/MessagesPage.jsx';
-import BottomNavigation from '../components/BottomNavigation.jsx';
+import ChatScreen from '../screens/Messages/ChatScreen.jsx';
 import AccommodationDetails from '../components/PropertyDetailsScreen.jsx';
 import ProfilePage from '../screens/Profile/ProfilePage.jsx';
 import UpdatePassword from '../screens/Profile/UpdatePassword.jsx';
@@ -13,7 +13,6 @@ import NotificationPreferences from '../screens/Menu/NotificationPreferences.jsx
 import MyBookings from '../screens/Menu/MyBookings.jsx';
 import WalletScreen from '../screens/Menu/WalletScreen.jsx';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
-import DemoUIScreen from '../screens/Demo/DemoUIScreen.jsx';
 import Notifications from '../screens/Menu/Notifications.jsx';
 import TenantMenuModal from '../screens/TenantHomePage/TenantMenuModal.jsx';
 import PaymentDetail from '../screens/Menu/PaymentDetail.jsx';
@@ -26,6 +25,7 @@ import RoomListScreen from '../components/RoomListScreen.jsx';
 import RoomDetailsScreen from '../components/RoomDetailsScreen.jsx';
 import CreateRequest from '../screens/Maintenance/CreateRequest.jsx';
 import AddonsScreen from '../screens/Addons/AddonsScreen.jsx';
+import MyRequests from '../screens/Maintenance/MyRequests.jsx';
 import LeaveReview from '../screens/Reviews/LeaveReview.jsx';
 import MyReviews from '../screens/Reviews/MyReviews.jsx';
 import BookingDetails from '../screens/Menu/BookingDetails.jsx';
@@ -97,19 +97,32 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
           )}
         </MainStack.Screen>
 
-        {/* Demo UI - Available for all users */}
-        <MainStack.Screen name="DemoUI" component={DemoUIScreen} options={{ animation: 'none' }} />
-
         {/* Protected Routes - Only for authenticated users */}
         {!isGuest && (
           <>
-            <MainStack.Screen name="Dashboard" component={DashboardScreen} options={{ animation: 'none' }} />
+            <MainStack.Screen name="Dashboard" options={{ animation: 'none' }}>
+              {(props) => (
+                <DashboardScreen {...props} />
+              )}
+            </MainStack.Screen>
             <MainStack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
             <MainStack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
             <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
             <MainStack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
-            <MainStack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
-            <MainStack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
+            <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
+              {(props) => (
+                <MessagesPage {...props} />
+              )}
+            </MainStack.Screen>
+
+            {/* Chat route - full screen, no bottom nav or header */}
+            <MainStack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none', headerShown: false }} />
+
+            <MainStack.Screen name="MyBookings" options={{ animation: 'none' }}>
+              {(props) => (
+                <MyBookings {...props} />
+              )}
+            </MainStack.Screen>
             <MainStack.Screen name="Payments" component={WalletScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
@@ -118,6 +131,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
             <MainStack.Screen name="CreateMaintenanceRequest" component={CreateRequest} options={{ animation: 'none' }} />
             <MainStack.Screen name="Addons" component={AddonsScreen} options={{ animation: 'none' }} />
+            <MainStack.Screen name="MyMaintenanceRequests" component={MyRequests} options={{ animation: 'none' }} />
             <MainStack.Screen name="BookingDetails" component={BookingDetails} options={{ animation: 'none' }} />
             <MainStack.Screen name="LeaveReview" component={LeaveReview} options={{ animation: 'none' }} />
             <MainStack.Screen name="MyReviews" component={MyReviews} options={{ animation: 'none' }} />
@@ -125,9 +139,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
         )}
       </MainStack.Navigator>
 
-      <SafeAreaView edges={["bottom"]} style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation isGuest={isGuest} onAuthRequired={onAuthRequired} />
-      </SafeAreaView>
+      {/* BottomNavigation moved to TenantLayout so it can be hidden per-route */}
     </View>
   );
 }
