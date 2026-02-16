@@ -37,7 +37,7 @@ class LandlordResubmittedNotification extends Notification implements ShouldQueu
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $adminUrl = config('app.frontend_url', 'http://localhost:5173') . '/admin/landlord-approval';
+        $adminUrl = config('app.frontend_url', 'http://192.168.43.142:5173') . '/admin/landlord-approval';
         $landlordName = trim($this->landlord->first_name . ' ' . $this->landlord->last_name);
 
         return (new MailMessage)

@@ -7,20 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../contexts/ThemeContext';
-
-const notificationTypeMap = {
-  booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
-  payment: { icon: 'cash-outline', color: '#10b981', bg: '#DCFCE7' },
-  message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
-  maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
-  alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
-  default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
-};
+import { API_BASE_URL } from '../../../config';
 
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) return '';
@@ -45,56 +39,62 @@ export default function NotificationsScreen({ navigation }) {
 
   const notificationTypeMap = {
     booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
-    payment: { icon: 'cash-outline', color: theme.colors.primary, bg: theme.colors.successLight },
+    payment: { icon: 'cash-outline', color: '#10b981', bg: '#DCFCE7' },
     message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
     maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
     alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
+    'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#10b981', bg: '#DCFCE7' },
+    'App\\Notifications\\LandlordRejectedNotification': { icon: 'close-circle', color: '#EF4444', bg: '#FEE2E2' },
     default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
   };
 
-  // Placeholder data - replace with actual API call
-  const fetchNotifications = useCallback(async () => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    // Sample notifications
-    const sampleNotifications = [
-      {
-        id: 1,
-        type: 'booking',
-        title: 'New Booking Request',
-        message: 'John Doe requested to book Room 101',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        read: false,
-      },
-      {
-        id: 2,
-        type: 'payment',
-        title: 'Payment Received',
-        message: 'You received ₱5,000 from Sarah Williams',
-        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-        read: false,
-      },
-      {
-        id: 3,
-        type: 'message',
-        title: 'New Message',
-        message: 'Mike Johnson sent you a message',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        read: true,
-      },
-      {
-        id: 4,
-        type: 'maintenance',
-        title: 'Maintenance Request',
-        message: 'Room 203 reported a plumbing issue',
-        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        read: true,
-      },
-    ];
+  const getAuthHeaders = async () => {
+    try {
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        const token = user?.token || (await AsyncStorage.getItem('token'));
+        return {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        };
+      }
+    } catch (e) {}
+    const fallbackToken = await AsyncStorage.getItem('token');
+    return {
+      'Authorization': `Bearer ${fallbackToken}`,
+      'Accept': 'application/json',
+    };
+  };
 
-    setNotifications(sampleNotifications);
-    setLoading(false);
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/notifications`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Handle pagination structure (data.data) or simple array
+        const list = data.data || data || [];
+        setNotifications(list.map(n => ({
+            id: n.id,
+            type: n.type, // or logic to map backend type to simple type
+            title: n.data?.title || 'Notification',
+            message: n.data?.message || n.data?.description || '',
+            timestamp: n.created_at,
+            read: !!n.read_at,
+        })));
+      } else {
+        console.error('Failed to fetch notifications');
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -107,14 +107,36 @@ export default function NotificationsScreen({ navigation }) {
     setRefreshing(false);
   }, [fetchNotifications]);
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
+    // Optimistic update
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+
+    try {
+        const headers = await getAuthHeaders();
+        await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+            method: 'PATCH',
+            headers,
+        });
+    } catch (error) {
+        console.error('Error marking as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    // Optimistic update
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+
+    try {
+        const headers = await getAuthHeaders();
+        await fetch(`${API_BASE_URL}/notifications/read-all`, {
+            method: 'PATCH',
+            headers,
+        });
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -166,7 +188,16 @@ export default function NotificationsScreen({ navigation }) {
           </View>
         ) : (
           notifications.map((notification) => {
-            const typeConfig = notificationTypeMap[notification.type] || notificationTypeMap.default;
+            // Map backend types if complex
+            let simpleType = 'default';
+            if (notification.type.includes('Approved')) simpleType = 'App\\Notifications\\LandlordApprovedNotification';
+            else if (notification.type.includes('Rejected')) simpleType = 'App\\Notifications\\LandlordRejectedNotification';
+            else if (notification.type.toLowerCase().includes('booking')) simpleType = 'booking';
+            else if (notification.type.toLowerCase().includes('payment')) simpleType = 'payment';
+            else if (notification.type.toLowerCase().includes('message')) simpleType = 'message';
+            
+            const typeConfig = notificationTypeMap[simpleType] || notificationTypeMap[notification.type] || notificationTypeMap.default;
+            
             return (
               <TouchableOpacity
                 key={notification.id}

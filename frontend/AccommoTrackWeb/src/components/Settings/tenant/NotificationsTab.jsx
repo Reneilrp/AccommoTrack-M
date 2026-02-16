@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { SkeletonNotificationsTab } from '../../Shared/Skeleton';
-import { loadPrefsWeb, savePrefsWeb, DEFAULT_PREFS } from '../../../shared/notificationPrefs';
+import { tenantService } from '../../../services/tenantService';
+import { useUIState } from '../../../contexts/UIStateContext';
+import toast from 'react-hot-toast';
 
-const PREF_KEYS = {
-		email_booking_updates: 'notif_email_booking',
-		email_payment_reminders: 'notif_email_payment',
-		email_maintenance: 'notif_email_maintenance',
-	push_messages: 'notif_push_messages',
-	push_booking_updates: 'notif_push_booking_updates',
-};
+const NotificationsTab = ({ loading: initialLoading = false }) => {
+	const { uiState, updateData } = useUIState();
+	const cachedProfile = uiState.data?.profile;
 
-const NotificationsTab = ({ loading = false }) => {
 	const [isEditing, setIsEditing] = useState(false);
 	const [saving, setSaving] = useState(false);
+	const [loading, setLoading] = useState(!cachedProfile && (initialLoading || true));
+	
 	const [savedSettings, setSavedSettings] = useState({
 		email_booking_updates: true,
 		email_payment_reminders: true,
@@ -23,45 +22,37 @@ const NotificationsTab = ({ loading = false }) => {
 
 	const [settings, setSettings] = useState(savedSettings);
 
-	const UI_TO_CANON = {
-		email_booking_updates: 'email_booking',
-		email_payment_reminders: 'email_payment',
-		email_maintenance: 'email_maintenance',
-		push_messages: 'push_messages',
-		push_booking_updates: 'push_booking_updates',
+	// Load prefs from backend on mount
+	useEffect(() => {
+		if (cachedProfile) {
+			mapDataToSettings(cachedProfile);
+		}
+		loadPrefs();
+	}, []); // Run once on mount
+
+	const mapDataToSettings = (profile) => {
+		if (profile.notification_preferences) {
+			const backendPrefs = profile.notification_preferences;
+			const merged = { ...savedSettings, ...backendPrefs };
+			setSavedSettings(merged);
+			setSettings(merged);
+		}
 	};
 
-	// initialize from shared storage keys
-	useEffect(() => {
+	const loadPrefs = async () => {
 		try {
-			const canonical = loadPrefsWeb();
-			const next = { ...savedSettings };
-			Object.keys(UI_TO_CANON).forEach((uiKey) => {
-				const canon = UI_TO_CANON[uiKey];
-				next[uiKey] = canonical[canon] !== undefined ? canonical[canon] : DEFAULT_PREFS[canon];
-			});
-			setSavedSettings(next);
-			setSettings(next);
-		} catch (e) {
-			console.warn('Failed to load prefs (web)', e);
-		}
-	}, []);
+			if (!cachedProfile) setLoading(true);
+			const profile = await tenantService.getProfile();
+			
+			mapDataToSettings(profile);
+			updateData('profile', profile);
 
-	// load persisted prefs from localStorage (web) on mount
-	useEffect(() => {
-		try {
-			const next = { ...savedSettings };
-			Object.keys(PREF_KEYS).forEach((k) => {
-				const storageKey = PREF_KEYS[k];
-				const v = localStorage.getItem(storageKey);
-				if (v !== null) next[k] = v === '1' || v === 'true';
-			});
-			setSavedSettings(next);
-			setSettings(next);
-		} catch (e) {
-			console.warn('Failed to load notification prefs', e);
+		} catch (error) {
+			console.error('Failed to load notification prefs', error);
+		} finally {
+			setLoading(false);
 		}
-	}, []);
+	};
 
 	const handleToggle = (key) => {
 		if (!isEditing) return;
@@ -78,24 +69,35 @@ const NotificationsTab = ({ loading = false }) => {
 		setSettings(savedSettings);
 	};
 
-	const handleSave = () => {
+	const handleSave = async () => {
 		setSaving(true);
-		setTimeout(() => {
-			try {
-				const canonicalToSave = {};
-				Object.keys(UI_TO_CANON).forEach((uiKey) => {
-					const canon = UI_TO_CANON[uiKey];
-					canonicalToSave[canon] = settings[uiKey];
-				});
-				savePrefsWeb(canonicalToSave);
-			} catch (e) {
-				console.warn('Failed to save notification prefs (web)', e);
-			}
+		try {
+			const formData = new FormData();
+			// Send as JSON string (or individual fields if backend expects array, but we configured cast 'array')
+			// Since we use FormData for the endpoint, and the backend expects 'notification_preferences' as array/json.
+			// Laravel's $casts to array handles JSON string automatically if passed correctly? 
+			// Actually, with FormData, sending nested arrays/objects can be tricky.
+			// Let's iterate and send as array or just send individual keys if we mapped them.
+			// But we added 'notification_preferences' column.
+			// Best to send: notification_preferences[key] = value
+			
+			// Strategy: Loop keys and append `notification_preferences[key]`
+			Object.keys(settings).forEach(key => {
+				// Convert boolean to 1/0 or string 'true'/'false'
+				formData.append(`notification_preferences[${key}]`, settings[key] ? '1' : '0');
+			});
 
+			await tenantService.updateProfile(formData);
+			
 			setSavedSettings(settings);
 			setIsEditing(false);
+			toast.success('Preferences saved successfully');
+		} catch (error) {
+			console.error('Failed to save notification prefs', error);
+			toast.error('Failed to save preferences');
+		} finally {
 			setSaving(false);
-		}, 800);
+		}
 	};
 
 	return (
@@ -217,4 +219,3 @@ const ToggleItem = ({ label, description, checked, disabled, onChange }) => (
 );
 
 export default NotificationsTab;
-
