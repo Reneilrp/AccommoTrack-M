@@ -250,10 +250,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
   const addNewRule = async () => {
     if (!newRule.trim() || !propertyId) return;
     try {
-      const token = localStorage.getItem('auth_token');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      await api.post(`/landlord/properties/${propertyId}/rules`, { rule: newRule.trim() }, { headers });
+      await api.post(`/landlord/properties/${propertyId}/rules`, { rule: newRule.trim() });
       // refresh local list and select it
       setPropertyRules(prev => [...prev, newRule.trim()]);
       setFormData(prev => ({ ...prev, rules: [...prev.rules, newRule.trim()] }));
@@ -270,14 +267,8 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     
     try {
       // Add amenity to property first
-      const token = localStorage.getItem('auth_token');
       await api.post(`/landlord/properties/${propertyId}/amenities`, {
         amenity: newAmenity.trim()
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
       });
       
       // Update local amenities list
@@ -452,7 +443,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     setError('');
 
     try {
-      const token = localStorage.getItem('auth_token');
       const payload = new FormData(); 
       const bp = formData.billingPolicy || 'monthly';
 
@@ -492,12 +482,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         payload.append('images[]', file);
       });
 
-      const headers = {
-        'Accept': 'application/json'
-      };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const result = await api.post('/landlord/rooms', payload, { headers });
+      const result = await api.post('/landlord/rooms', payload);
       const newRoom = result.data;
       
       setFormData({

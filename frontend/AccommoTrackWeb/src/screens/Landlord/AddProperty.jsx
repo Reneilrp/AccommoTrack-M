@@ -331,23 +331,16 @@ export default function AddProperty({ onBack, onSave }) {
     setLoading(true);
     setError('');
 
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      setError('Authentication token missing');
-      setLoading(false);
-      return;
-    }
-
     // Use FormData (multipart/form-data)
-    const payload = new FormData();  // ← Renamed to avoid confusion
+    const payload = new FormData();
 
     // Append text fields
     const mapped = mapPropertyToBackend(isDraft);
     Object.entries(mapped).forEach(([key, value]) => {
       if (key === 'is_published' || key === 'is_available') {
-        payload.append(key, value ? '1' : '0');  // Send as '1' or '0'
+        payload.append(key, value ? '1' : '0');
       } else if (value !== null && value !== undefined) {
-        payload.append(key, value.toString());  // Ensure everything is string
+        payload.append(key, value.toString());
       }
     });
 

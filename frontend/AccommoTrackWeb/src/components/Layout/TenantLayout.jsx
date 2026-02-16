@@ -4,6 +4,7 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
+import NotificationDropdown from '../Shared/NotificationDropdown';
 
 export default function TenantLayout({ user, onLogout, children }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -41,7 +42,7 @@ export default function TenantLayout({ user, onLogout, children }) {
     },
     {
       path: '/wallet',
-      label: 'Wallet',
+      label: 'Payments',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -60,6 +61,14 @@ export default function TenantLayout({ user, onLogout, children }) {
     
   ];
 
+
+  const getPageTitle = () => {
+    const item = tenantMenu.find(m => m.path === location.pathname);
+    if (item) return item.label;
+    if (location.pathname === '/settings') return 'Settings';
+    if (location.pathname.startsWith('/property/')) return 'Property Details';
+    return 'AccommoTrack';
+  };
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -190,13 +199,16 @@ export default function TenantLayout({ user, onLogout, children }) {
         {/* Top Header - Simplified (No Menu Button) */}
         <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center justify-between px-4 lg:px-8">
           <span className="text-lg font-semibold text-gray-900 dark:text-white">
-            {tenantMenu.find(m => m.path === location.pathname)?.label || 'AccommoTrack'}
+            {getPageTitle()}
           </span>
-          <div className="w-10" /> {/* Spacer */}
+          <NotificationDropdown />
         </header>
 
         {/* Page Content */}
-        <div className={`flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 ${location.pathname.startsWith('/property/') ? '' : 'p-4 lg:p-8'}`}>
+        <div 
+          className={`flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 ${location.pathname.startsWith('/property/') ? '' : 'p-4 lg:p-8'}`}
+          style={{ scrollbarGutter: 'stable' }}
+        >
           {children}
         </div>
       </main>

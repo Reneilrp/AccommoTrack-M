@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Calendar, Check, Info, Users, BedDouble, DollarSign, Layers, Shield, ArrowLeft } from 'lucide-react';
 import api from '../../utils/api';
+import bookingServiceDefault from '../../services/bookingService';
 
-export default function RoomDetailsModal({ room, property, onClose, isAuthenticated, onLoginRequired }) {
-  const [viewMode, setViewMode] = useState('details'); // 'details' | 'booking'
+export default function RoomDetailsModal({ room, property, onClose, isAuthenticated, onLoginRequired, initialView, onBookingSuccess, bookingService }) {
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState(initialView || 'details'); // 'details' | 'booking'
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -11,6 +14,8 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
   const [totalPrice, setTotalPrice] = useState(0);
   const [duration, setDuration] = useState(null);
   const [agreedToRules, setAgreedToRules] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
+  const [autoNavTimer, setAutoNavTimer] = useState(null);
 
   // Initialize dates
   useEffect(() => {
@@ -128,45 +133,62 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
       return;
     }
 
-    // Strict check: Start date must be within current month
-    // Note: We use the helper but need to be careful with timezones in JS Date
-    // For simplicity, we'll trust the input value string
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     const startMonth = start.getMonth();
     const startYear = start.getFullYear();
 
     if (startMonth !== currentMonth || startYear !== currentYear) {
-       // Allow if it's future days of current month
-       // Actually the requirement is "within current month".
-       // If today is Jan 31, and user picks Feb 1, that's next month.
-       // The mobile logic says: isStartWithinCurrentMonth.
-       if (!isStartWithinCurrentMonth(startDate)) {
-         alert('Check-in must be within the current month.');
-         return;
-       }
+      if (!isStartWithinCurrentMonth(startDate)) {
+        alert('Check-in must be within the current month.');
+        return;
+      }
     }
 
+    // Submit booking to server (use shared /bookings endpoint)
     setIsSubmitting(true);
     try {
       const payload = {
         room_id: room.id,
         start_date: startDate,
         end_date: endDate,
-        notes: notes,
-        total_amount: totalPrice
+        notes: notes || ''
       };
 
-      await api.post('/tenant/bookings', payload);
-      alert('Booking request sent successfully!');
-      onClose();
+      const svc = bookingService || bookingServiceDefault;
+      // bookingService.createBooking throws on error; returns data on success
+      const res = await svc.createBooking(payload);
+      // res may be the full response object or data depending on service
+      const bookingObj = res?.booking || res?.data || res;
+      // show confirmation panel with booking id/status
+      setBookingResult(bookingObj);
+      // Inform parent to optimistically mark the room as occupied and reserved by current user
+      try {
+        if (typeof onBookingSuccess === 'function') {
+          onBookingSuccess({ ...room, status: 'occupied', reserved_by_me: true, reservation: bookingObj });
+        }
+      } catch (e) {
+        console.warn('onBookingSuccess handler failed', e);
+      }
+      // Auto-navigate to bookings after short delay to let user see confirmation
+      const t = setTimeout(() => {
+        if (navigate) navigate('/bookings');
+      }, 3000);
+      setAutoNavTimer(t);
     } catch (error) {
-      console.error('Booking failed', error);
-      alert(error.response?.data?.message || 'Failed to submit booking request.');
+      console.error('Booking failed', error?.response?.data || error);
+      const errMsg = error?.response?.data?.message || error?.message || 'Failed to submit booking request.';
+      alert(errMsg);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (autoNavTimer) clearTimeout(autoNavTimer);
+    };
+  }, [autoNavTimer]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -198,12 +220,16 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                       <div className="absolute top-3 right-3">
-                        <span className={`
-                          px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
-                          ${room.status === 'available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
-                        `}>
-                          {room.status}
-                        </span>
+                        {room.reserved_by_me ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">Reserved by you (Pending)</span>
+                        ) : (
+                          <span className={`
+                            px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
+                            ${(room.status || '').toString().toLowerCase() === 'available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
+                          `}>
+                            {(room.status || '').toString()}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -333,132 +359,148 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-xl mx-auto space-y-6">
-                
-                {/* Price Card Summary */}
-                <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-sm text-green-800 font-medium">Monthly Rate</p>
-                      <p className="text-2xl font-bold text-green-700">₱{Number(room.monthly_rate).toLocaleString()}</p>
+              {bookingResult ? (
+                <div className="max-w-xl mx-auto space-y-6">
+                  <div className="bg-green-50 border border-green-100 p-6 rounded-xl text-center">
+                    <h3 className="text-lg font-bold text-green-800 mb-2">Booking Submitted</h3>
+                    <p className="text-sm text-gray-700">Booking ID: <span className="font-mono font-semibold">{bookingResult.id || bookingResult.booking_id || bookingResult.reference || 'N/A'}</span></p>
+                    <p className="text-sm text-gray-700">This is your booking for <span className="font-medium">Room {room?.room_number || room?.id}</span> — current status: <span className="font-medium">{(bookingResult.status || bookingResult.booking_status || 'pending').toLowerCase()}</span></p>
+                    <p className="text-xs text-gray-500 mt-2">You won't be charged yet. The landlord will review your request.</p>
+                    <div className="mt-4 flex justify-center gap-3">
+                      <button onClick={() => { if (autoNavTimer) clearTimeout(autoNavTimer); navigate('/bookings'); }} className="px-4 py-2 bg-green-600 text-white rounded-lg">View My Bookings</button>
+                      <button onClick={() => { setBookingResult(null); if (autoNavTimer) clearTimeout(autoNavTimer); onClose(); }} className="px-4 py-2 bg-white border border-gray-200 rounded-lg">Close</button>
                     </div>
-                    {room.daily_rate && (
-                      <div className="text-right">
-                        <p className="text-xs text-green-600">Daily Rate</p>
-                        <p className="text-lg font-semibold text-green-700">₱{Number(room.daily_rate).toLocaleString()}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-xl mx-auto space-y-6">
+
+                  {/* Price Card Summary */}
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-sm text-green-800 font-medium">Monthly Rate</p>
+                        <p className="text-2xl font-bold text-green-700">₱{Number(room.monthly_rate).toLocaleString()}</p>
+                      </div>
+                      {room.daily_rate && (
+                        <div className="text-right">
+                          <p className="text-xs text-green-600">Daily Rate</p>
+                          <p className="text-lg font-semibold text-green-700">₱{Number(room.daily_rate).toLocaleString()}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Date Selection */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                        <input 
+                          type="date" 
+                          value={startDate}
+                          onChange={handleStartDateChange}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Must be within the current month</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                        <input 
+                          type="date" 
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          min={startDate}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duration Summary */}
+                  {duration && (
+                    <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Duration:</span>
+                        <span className="font-medium text-gray-900">
+                          {duration.days} days ({duration.months} months, {duration.extraDays} days)
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-200">
+                        <span>Total Estimated Cost:</span>
+                        <span className="font-bold text-xl text-green-600">₱{totalPrice.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests / Notes</label>
+                    <textarea 
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none"
+                      placeholder="Any specific requirements..."
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    {isAuthenticated && room.status === 'available' && (
+                      <div className="mb-4">
+                        <label className="flex items-start gap-2 cursor-pointer group">
+                          <div className="relative flex items-center">
+                            <input 
+                              type="checkbox"
+                              checked={agreedToRules}
+                              onChange={(e) => setAgreedToRules(e.target.checked)}
+                              className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 transition-all checked:border-green-600 checked:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                            />
+                            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transform scale-50 peer-checked:scale-100 transition-all">
+                              <Check className="h-3.5 w-3.5 font-bold" />
+                            </div>
+                          </div>
+                          <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+                            I have read and agree to the <span className="font-medium text-green-700">House Rules</span> and policies.
+                          </span>
+                        </label>
                       </div>
                     )}
+
+                    {isAuthenticated ? (
+                      <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting || room.status !== 'available' || !agreedToRules}
+                        className={`
+                          w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all
+                          ${isSubmitting || room.status !== 'available' || !agreedToRules
+                            ? 'bg-gray-400 cursor-not-allowed opacity-70' 
+                            : 'bg-green-600 hover:bg-green-700 hover:shadow-lg transform hover:-translate-y-0.5'}
+                        `}
+                      >
+                        {isSubmitting ? 'Processing...' : 'Confirm Booking Request'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={onLoginRequired}
+                        className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-md"
+                      >
+                        Login to Book
+                      </button>
+                    )}
+                    <p className="text-xs text-center text-gray-500 mt-3">
+                      You won't be charged yet. The landlord will review your request.
+                    </p>
                   </div>
+
                 </div>
-
-                {/* Date Selection */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                      <input 
-                        type="date" 
-                        value={startDate}
-                        onChange={handleStartDateChange}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Must be within the current month</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                      <input 
-                        type="date" 
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        min={startDate}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Duration Summary */}
-                {duration && (
-                  <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-600">
-                      <span>Duration:</span>
-                      <span className="font-medium text-gray-900">
-                        {duration.days} days ({duration.months} months, {duration.extraDays} days)
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-200">
-                      <span>Total Estimated Cost:</span>
-                      <span className="font-bold text-xl text-green-600">₱{totalPrice.toLocaleString()}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests / Notes</label>
-                  <textarea 
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none"
-                    placeholder="Any specific requirements..."
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="mt-6 pt-6 border-t border-gray-100">
-                  {isAuthenticated && room.status === 'available' && (
-                    <div className="mb-4">
-                      <label className="flex items-start gap-2 cursor-pointer group">
-                        <div className="relative flex items-center">
-                          <input 
-                            type="checkbox"
-                            checked={agreedToRules}
-                            onChange={(e) => setAgreedToRules(e.target.checked)}
-                            className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 transition-all checked:border-green-600 checked:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
-                          />
-                          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transform scale-50 peer-checked:scale-100 transition-all">
-                            <Check className="h-3.5 w-3.5 font-bold" />
-                          </div>
-                        </div>
-                        <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
-                          I have read and agree to the <span className="font-medium text-green-700">House Rules</span> and policies.
-                        </span>
-                      </label>
-                    </div>
-                  )}
-
-                  {isAuthenticated ? (
-                    <button
-                      onClick={handleSubmit}
-                      disabled={isSubmitting || room.status !== 'available' || !agreedToRules}
-                      className={`
-                        w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all
-                        ${isSubmitting || room.status !== 'available' || !agreedToRules
-                          ? 'bg-gray-400 cursor-not-allowed opacity-70' 
-                          : 'bg-green-600 hover:bg-green-700 hover:shadow-lg transform hover:-translate-y-0.5'}
-                      `}
-                    >
-                      {isSubmitting ? 'Processing...' : 'Confirm Booking Request'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={onLoginRequired}
-                      className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-md"
-                    >
-                      Login to Book
-                    </button>
-                  )}
-                  <p className="text-xs text-center text-gray-500 mt-3">
-                    You won't be charged yet. The landlord will review your request.
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}

@@ -25,7 +25,9 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
   const allMenuItems = [
     { id: 1, title: 'Settings', icon: 'settings-outline', color: theme.colors.primary },
     { id: 2, title: 'Notifications', icon: 'notifications-outline', color: theme.colors.warning },
-    { id: 4, title: 'Payments', icon: 'wallet-outline', color: theme.colors.primary },
+    { id: 3, title: 'My Maintenance Requests', icon: 'construct-outline', color: theme.colors.primary },
+    { id: 4, title: 'My Addon Requests', icon: 'cube-outline', color: theme.colors.primary },
+    { id: 5, title: 'Payments', icon: 'wallet-outline', color: theme.colors.primary },
     { id: 6, title: 'Logout', icon: 'log-out-outline', color: theme.colors.error },
   ];
 

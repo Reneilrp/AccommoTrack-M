@@ -3,6 +3,7 @@ import { View, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLogout }) {
   const navigation = useNavigation();
@@ -40,6 +41,13 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
       case 'My Bookings':
         navigation.navigate('MyBookings');
         break;
+      case 'My Maintenance Requests':
+        navigation.navigate('MyMaintenanceRequests');
+        break;
+      case 'My Addon Requests':
+        // Open addons screen which now shows tenant requests at top
+        navigation.navigate('Addons');
+        break;
       case 'Notifications':
         navigation.navigate('Notifications');
         break;
@@ -64,7 +72,7 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+    <View style={homeStyles.flex1}>
       <MenuDrawer
         visible={true}
         onClose={handleClose}

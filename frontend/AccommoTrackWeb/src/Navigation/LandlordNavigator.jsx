@@ -16,6 +16,7 @@ import Messages from '../screens/Landlord/Messages.jsx';
 import Analytics from '../screens/Landlord/Analytics.jsx';
 import Settings from '../screens/Landlord/Settings.jsx';
 import MyProperties from '../screens/Landlord/MyProperties.jsx';
+import CaretakerDashboard from '../screens/Landlord/CaretakerDashboard.jsx';
 
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
@@ -26,6 +27,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
         <LandlordLayout user={user} onLogout={onLogout} accessRole="caretaker">
           <Routes>
             <Route path="/" element={<Navigate to={caretakerHome} replace />} />
+            <Route path="/dashboard" element={<CaretakerDashboard user={user} />} />
             {caretakerPermissions.rooms && (
               <Route path="/rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
             )}

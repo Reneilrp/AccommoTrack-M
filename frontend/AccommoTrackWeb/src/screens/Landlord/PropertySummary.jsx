@@ -8,6 +8,8 @@ import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
 import { useSidebar } from '../../contexts/SidebarContext';
+import { useUIState } from '../../contexts/UIStateContext';
+import { cacheManager } from '../../utils/cache';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, Keyboard, A11y } from 'swiper/modules';
@@ -18,11 +20,23 @@ import 'swiper/css/pagination';
 export default function PropertySummary() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { uiState, updateData } = useUIState();
+  
+  // Use a stable cache key
+  const cacheKey = `property_summary_${id}`;
+  
+  // Get cached data once during render to use for initial state
+  // Using a memo or lazy initialization might be safer to ensure it only runs once per mount/id change
+  const getCachedData = () => {
+    return uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
+  };
 
-  const [property, setProperty] = useState(null);
-  const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [property, setProperty] = useState(() => getCachedData()?.property || null);
+  const [rooms, setRooms] = useState(() => getCachedData()?.rooms || []);
+  const [loading, setLoading] = useState(!property);
+  const [roomsLoading, setRoomsLoading] = useState(rooms.length === 0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [error, setError] = useState(null);
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
@@ -30,68 +44,86 @@ export default function PropertySummary() {
   const [images, setImages] = useState([]);
   const [idx, setIdx] = useState(0);
   const [swiperInstance, setSwiperInstance] = useState(null);
-  const [imageAspects, setImageAspects] = useState({}); // map index -> aspect (h / w)
+  const [imageAspects, setImageAspects] = useState({});
   const [currentAspect, setCurrentAspect] = useState(null);
   const galleryRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(null);
 
   useEffect(() => {
     if (!id) return;
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await api.get(`/landlord/properties/${id}`);
-        const data = res.data;
-        setProperty(data);
-
-        const imgs = (data.images || []).map((it) => {
-          if (!it) return null;
-          if (typeof it === 'string') return getImageUrl(it);
-          if (it.image_url) return getImageUrl(it.image_url);
-          if (it.url) return getImageUrl(it.url);
-          return null;
-        }).filter(Boolean);
-
-        setImages(imgs);
-        setIdx(0);
-      } catch (err) {
-        console.error('Failed to fetch property', err);
-        setError(err.response?.data?.message || err.message || 'Failed to load property');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-  }, [id]);
-
-  // measure gallery container width for responsive height calculation
-  useEffect(() => {
-    const measure = () => {
-      if (galleryRef.current) setContainerWidth(galleryRef.current.clientWidth);
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
-
-  useEffect(() => {
-    if (!id) return;
-    const loadRooms = async () => {
-      try {
-        setRoomsLoading(true);
-        const res = await api.get(`/rooms/property/${id}`);
-        setRooms(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch rooms', err);
-      } finally {
-        setRoomsLoading(false);
-      }
-    };
-
+    
+    // Check if we need to sync based on if we have data or not
+    loadProperty();
     loadRooms();
   }, [id]);
+
+  // Update local state if cache changes (e.g. from MyProperties background fetch)
+  useEffect(() => {
+    const cached = getCachedData();
+    if (cached?.property && !property) {
+      setProperty(cached.property);
+      setLoading(false);
+    }
+    if (cached?.rooms && rooms.length === 0) {
+      setRooms(cached.rooms);
+      setRoomsLoading(false);
+    }
+  }, [uiState.data?.[cacheKey]]);
+
+  // Update images when property data changes (from cache or API)
+  useEffect(() => {
+    if (property?.images) {
+      const imgs = (property.images || []).map((it) => {
+        if (!it) return null;
+        if (typeof it === 'string') return getImageUrl(it);
+        if (it.image_url) return getImageUrl(it.image_url);
+        if (it.url) return getImageUrl(it.url);
+        return null;
+      }).filter(Boolean);
+      setImages(imgs);
+    }
+  }, [property]);
+
+  const loadProperty = async () => {
+    try {
+      if (!property) setLoading(true);
+      else setIsSyncing(true);
+      
+      setError(null);
+      const res = await api.get(`/landlord/properties/${id}?t=${Date.now()}`);
+      const data = res.data;
+      setProperty(data);
+      
+      const newState = { ...uiState.data?.[cacheKey], property: data };
+      updateData(cacheKey, newState);
+      cacheManager.set(cacheKey, newState);
+    } catch (err) {
+      console.error('Failed to fetch property', err);
+      if (!property) {
+        setError(err.response?.data?.message || err.message || 'Failed to load property');
+      }
+    } finally {
+      setLoading(false);
+      setIsSyncing(false);
+    }
+  };
+
+  const loadRooms = async () => {
+    try {
+      if (rooms.length === 0) setRoomsLoading(true);
+      const res = await api.get(`/rooms/property/${id}?t=${Date.now()}`);
+      const data = res.data || [];
+      setRooms(data);
+      
+      const newState = { ...uiState.data?.[cacheKey], rooms: data };
+      updateData(cacheKey, newState);
+      cacheManager.set(cacheKey, newState);
+    } catch (err) {
+      console.error('Failed to fetch rooms', err);
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
 
   const prev = () => setIdx((s) => (s - 1 + images.length) % images.length);
   const next = () => setIdx((s) => (s + 1) % images.length);
@@ -168,55 +200,56 @@ export default function PropertySummary() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
-          {/* left: back arrow */}
-          <button
-            onClick={handleBackClick}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center"
-            aria-label="Back to properties"
-          >
-            <ArrowLeft className="w-5 h-5 text-green-600" />
-          </button>
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-center relative min-h-[40px]">
+            {/* Left: Back button */}
+            <div className="absolute left-0 flex items-center">
+              <button
+                onClick={handleBackClick}
+                className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border dark:border-gray-700 hover:scale-110 transition-all flex-shrink-0"
+                title="Go Back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            </div>
 
-          {/* center: title */}
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{property.title || 'Untitled Property'}</h1>
-          </div>
+            {/* Center: Property Name */}
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate max-w-[500px]">
+                {property.title || 'Untitled Property'}
+              </h1>
+            </div>
 
-          {/* right: tenants icon (edit moved into details card) */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            <button
-              onClick={() => setShowActivityLogs(true)}
-              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              title="Activity logs"
-              aria-label="Activity logs"
-            >
-              <List className="w-5 h-5 text-green-600" />
-            </button>
-
-            <button
-              onClick={() => navigate(`/rooms?property=${id}`)}
-              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              title="Room management"
-              aria-label="Room management"
-            >
-              <Building2 className="w-5 h-5 text-green-600" />
-            </button>
-
-            <button
-              onClick={() => navigate(`/tenants?property=${id}`)}
-              className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              title="View tenants"
-              aria-label="View tenants"
-            >
-              <Users className="w-5 h-5 text-green-600" />
-            </button>
+            {/* Right: Navigation Icons */}
+            <div className="absolute right-0 flex items-center gap-2">
+              <button
+                onClick={() => setShowActivityLogs(true)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Activity logs"
+              >
+                <List className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate(`/rooms?property=${id}`)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Room management"
+              >
+                <Building2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate(`/tenants?property=${id}`)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Tenant management"
+              >
+                <Users className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
       {/* Two-column layout: gallery left (50%), details right (50%) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
           <div className="mb-4 text-center">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Property Details & Information</h2>

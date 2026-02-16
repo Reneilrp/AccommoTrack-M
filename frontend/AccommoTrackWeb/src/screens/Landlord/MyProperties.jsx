@@ -14,16 +14,21 @@ import {
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 import { Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
+import { useUIState } from '../../contexts/UIStateContext';
+import { cacheManager } from '../../utils/cache';
 
 export default function MyProperties({ user }) {
+  const { uiState, updateData } = useUIState();
+  const cachedProperties = uiState.data?.landlord_properties || cacheManager.get('landlord_properties');
+
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState('list');
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
   const navigate = useNavigate();
   const { collapse, setIsSidebarOpen, open } = useSidebar();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState(cachedProperties || []);
+  const [loading, setLoading] = useState(!cachedProperties);
   const [error, setError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, property: null });
   const [passwordModal, setPasswordModal] = useState({ show: false, property: null });
@@ -35,6 +40,10 @@ export default function MyProperties({ user }) {
   useEffect(() => {
     fetchProperties();
     checkVerificationStatus();
+
+    const handleOpenAdd = () => setCurrentView('add');
+    window.addEventListener('open-add-property', handleOpenAdd);
+    return () => window.removeEventListener('open-add-property', handleOpenAdd);
   }, []);
 
   const checkVerificationStatus = async () => {
@@ -48,13 +57,32 @@ export default function MyProperties({ user }) {
 
   const fetchProperties = async () => {
     try {
-      setLoading(true);
+      if (!cachedProperties) setLoading(true);
       setError(null);
 
       // Using the axios instance
       const response = await api.get('/landlord/properties');
-      console.log('📦 Properties fetched:', response.data);
-      setProperties(response.data);
+      const data = response.data;
+      setProperties(data);
+      updateData('landlord_properties', data);
+      cacheManager.set('landlord_properties', data);
+
+      // Pre-cache individual property summaries to enable instant transition to PropertySummary
+      if (Array.isArray(data)) {
+        data.forEach(prop => {
+          const summaryKey = `property_summary_${prop.id}`;
+          const existingSummary = uiState.data?.[summaryKey] || cacheManager.get(summaryKey);
+          
+          // Only update if summary doesn't exist or we want to refresh the basic property info
+          const updatedSummary = {
+            ...(existingSummary || {}),
+            property: prop // Update the property object with latest from list
+          };
+          
+          updateData(summaryKey, updatedSummary);
+          cacheManager.set(summaryKey, updatedSummary);
+        });
+      }
       
     } catch (err) {
       console.error('Error fetching properties:', err);
@@ -224,27 +252,6 @@ export default function MyProperties({ user }) {
           </div>
         </div>
       )}
-
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center">
-            <div className="w-full text-center">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Properties</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage and track all your property listings</p>
-            </div>
-            <div className="mt-4 lg:mt-0">
-              <button
-                onClick={() => setCurrentView('add')}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium w-40 justify-center whitespace-nowrap"
-              >
-                <Plus className="w-5 h-5" />
-                Add Property
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   X,
@@ -12,6 +13,8 @@ import {
   Save,
   GripVertical,
   Star,
+  Home,
+  Users,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '../../utils/api';
@@ -58,6 +61,7 @@ const greenMarkerIcon = new L.Icon({
 });
 
 export default function DormProfileSettings({ propertyId, onBack, onDeleteRequested }) {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -681,7 +685,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="grid grid-cols-3 items-center">
             {/* Left: Back button */}
@@ -699,7 +703,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             {/* Center: Title */}
             <div className="text-center">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Property Profile & Settings</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your property information</p>
             </div>
 
             {/* Right: Actions */}

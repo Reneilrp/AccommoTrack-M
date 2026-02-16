@@ -14,29 +14,8 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
       setLoading(true);
       setError(null);
       try {
-        // Prefer the dashboard endpoints your backend exposes to avoid 404 noise.
-        // These return recent activities (we'll filter client-side for the property).
-        const tries = [
-          `/landlord/dashboard/recent-activities`,
-          `/dashboard/recent-activities`,
-          // fallback generic activity endpoints
-          `/activity`,
-          `/activity?property=${propertyId}`
-        ];
-
-        let res = null;
-        for (const path of tries) {
-          try {
-            res = await api.get(path);
-            if (res && res.status >= 200 && res.status < 300) break;
-          } catch (e) {
-            // ignore and try next
-          }
-        }
-
-        if (!res) throw new Error('No activity endpoint found');
-
-        // Some endpoints return an object/array of activities; normalize to array
+        // Use the updated dashboard endpoint that supports filtering by property_id
+        const res = await api.get(`/landlord/dashboard/recent-activities?property_id=${propertyId}`);
         const data = res.data || [];
         setLogs(Array.isArray(data) ? data : (data.activities || data.items || []));
       } catch (err) {

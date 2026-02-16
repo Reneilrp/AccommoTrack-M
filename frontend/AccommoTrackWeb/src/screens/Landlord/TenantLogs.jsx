@@ -2,19 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CreditCard, MessageSquare, Inbox, ArrowLeft } from 'lucide-react';
 import api from '../../utils/api';
+import { useUIState } from '../../contexts/UIStateContext';
+import { cacheManager } from '../../utils/cache';
 
 export default function TenantLogs() {
   const { id } = useParams();
+  const { uiState, updateData } = useUIState();
+  const cacheKey = `landlord_tenant_logs_${id}`;
+  const cachedData = uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
+
   const location = window.location;
   const urlParams = new URLSearchParams(location.search);
   const searchParam = urlParams.get('search');
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [tenant, setTenant] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [previousPayments, setPreviousPayments] = useState([]);
-  const [dueAmount, setDueAmount] = useState(0);
-  const [currentRoom, setCurrentRoom] = useState(null);
+  const [loading, setLoading] = useState(!cachedData);
+  const [tenant, setTenant] = useState(cachedData?.tenant || null);
+  const [payments, setPayments] = useState(cachedData?.payments || []);
+  const [previousPayments, setPreviousPayments] = useState(cachedData?.previousPayments || []);
+  const [dueAmount, setDueAmount] = useState(cachedData?.dueAmount || 0);
+  const [currentRoom, setCurrentRoom] = useState(cachedData?.currentRoom || null);
   // `searchResults` holds either tenant search results (when multiple matches)
   // or message-like objects if we extend this later. Renamed for clarity.
   const [searchResults, setSearchResults] = useState([]);
@@ -27,7 +33,7 @@ export default function TenantLogs() {
   useEffect(() => {
     const load = async () => {
       try {
-        setLoading(true);
+        if (!cachedData) setLoading(true);
         setError(null);
 
         let tenantId = id || null;
@@ -119,6 +125,17 @@ export default function TenantLogs() {
         // Messages/searchResults: no dedicated messages route on this backend.
         // Leave search results empty when we have a single tenant loaded.
         setSearchResults([]);
+
+        // Update cache
+        const combined = { 
+          tenant: tenantData, 
+          payments: payList, 
+          previousPayments: paid, 
+          dueAmount: dueSumCents / 100, 
+          currentRoom: tenantData?.room || null 
+        };
+        updateData(cacheKey, combined);
+        cacheManager.set(cacheKey, combined);
       } catch (err) {
         console.error('Failed to load tenant logs', err);
         setError(err.response?.data?.message || err.message || 'Failed to load tenant');
@@ -219,17 +236,21 @@ export default function TenantLogs() {
   const groupedDue = groupPayments(displayedDue, paymentGroup);
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <button onClick={() => navigate(-1)} className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-2 gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            Back
+    <div className="space-y-6">
+      {/* Controls Bar */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all" title="Go Back">
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center w-full">Tenant Logs</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-center w-full">Logs and payment history for {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || 'Tenant'}</p>
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+          <span className="text-sm font-bold text-gray-700 dark:text-white">
+            Logs for {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant'}
+          </span>
         </div>
+      </div>
 
+      <div className="min-h-0">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center w-full">User Profile</h3>

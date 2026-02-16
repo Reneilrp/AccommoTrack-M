@@ -4,6 +4,9 @@ import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import api, { getImageUrl } from '../../utils/api';
+import NotificationDropdown from '../Shared/NotificationDropdown';
+import { useUIState } from '../../contexts/UIStateContext';
+import { Plus } from 'lucide-react';
 
 export default function LandlordLayout({
   user,
@@ -13,6 +16,7 @@ export default function LandlordLayout({
 }) {
 
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
+  const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [caretakerProperties, setCaretakerProperties] = useState([]);
   const [selectedCaretakerProperty, setSelectedCaretakerProperty] = useState(() => {
@@ -91,16 +95,6 @@ export default function LandlordLayout({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       )
-    },
-    { 
-      path: '/settings', 
-      label: 'Settings', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      )
     }
   ];
 
@@ -153,6 +147,26 @@ export default function LandlordLayout({
   const confirmLogout = () => {
     setShowLogoutModal(false);
     onLogout();
+  };
+
+  const getPageTitle = () => {
+    const item = landlordMenu.find(m => m.path === location.pathname);
+    if (item) return item.label;
+    if (location.pathname === '/settings') return 'Settings';
+    
+    // Dynamic Property Title
+    if (location.pathname.startsWith('/properties/')) {
+      const parts = location.pathname.split('/');
+      const propId = parts[2];
+      if (propId && propId !== 'new') {
+        const propData = uiState.data?.landlord_property_details?.[propId]?.property;
+        if (propData?.title) return propData.title;
+      }
+      return 'Property Details';
+    }
+
+    if (location.pathname.startsWith('/tenants/')) return 'Tenant Logs';
+    return 'AccommoTrack';
   };
 
   return (
@@ -231,10 +245,10 @@ export default function LandlordLayout({
             </div>
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={`${user?.first_name} ${user?.last_name}`}>
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={user?.email}>{user?.email}</p>
                 {isCaretaker && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">Caretaker Access</p>
                 )}
@@ -256,11 +270,12 @@ export default function LandlordLayout({
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 } ${!isSidebarOpen && 'justify-center'}`
               }
+              title={!isSidebarOpen ? item.label : ''}
             >
               {item.icon}
               {isSidebarOpen && (
                 <>
-                  <span className="flex-1 text-left font-medium">{item.label}</span>
+                  <span className="flex-1 text-left font-medium truncate" title={item.label}>{item.label}</span>
                   {item.badge && (
                     <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                       {item.badge}
@@ -284,7 +299,10 @@ export default function LandlordLayout({
 
             <div className="mb-2">
               <div className="text-xs text-gray-500 dark:text-gray-400">Monitoring</div>
-              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1">
+              <div 
+                className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1 truncate"
+                title={selectedCaretakerProperty ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`) : ''}
+              >
                 {selectedCaretakerProperty
                   ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`)
                   : 'No assigned property'}
@@ -329,8 +347,21 @@ export default function LandlordLayout({
           </div>
         )}
 
-        {/* Logout */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto space-y-2">
+          <button
+            onClick={() => navigate('/settings')}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors ${
+              !isSidebarOpen && 'justify-center'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {isSidebarOpen && <span className="font-medium">Settings</span>}
+          </button>
+
           <button
             onClick={handleLogoutClick}
             className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
@@ -340,14 +371,64 @@ export default function LandlordLayout({
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            {isSidebarOpen && <span className="font-medium">Logout</span>}
+            {isSidebarOpen && <span className="font-medium">Log out</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto transition-all ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
-        {children}
+      <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
+        {/* Top Header - Excluded on specific pages */}
+        {!(
+          (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
+          location.pathname === '/rooms' ||
+          location.pathname.startsWith('/rooms/') ||
+          location.pathname === '/tenants' ||
+          location.pathname.startsWith('/tenants/')
+        ) && (
+          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+              {getPageTitle()}
+            </h1>
+            <div className="absolute right-4 lg:right-8 flex items-center gap-4">
+              {location.pathname === '/properties' && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Property</span>
+                </button>
+              )}
+              {location.pathname === '/bookings' && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-booking'))}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Booking</span>
+                </button>
+              )}
+              {location.pathname === '/dashboard' && <NotificationDropdown />}
+            </div>
+          </header>
+        )}
+
+        {/* Page Content */}
+        <div 
+          className={`flex-1 overflow-y-auto ${
+            (
+              (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
+              location.pathname === '/rooms' ||
+              location.pathname.startsWith('/rooms/') ||
+              location.pathname === '/tenants' ||
+              location.pathname.startsWith('/tenants/')
+            ) ? 'p-0' : 'p-4 lg:p-8'
+          }`}
+          style={{ scrollbarGutter: 'stable' }}
+        >
+          {children}
+        </div>
       </main>
 
       {/* Logout Confirmation Modal */}

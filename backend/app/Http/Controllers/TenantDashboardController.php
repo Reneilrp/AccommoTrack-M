@@ -197,6 +197,7 @@ class TenantDashboardController extends Controller
                     'property.landlord',
                     'property.images',
                     'landlord',
+                    'review',
                     'addons' => function ($query) {
                         $query->wherePivotIn('status', ['approved', 'active', 'pending']);
                     },
@@ -310,6 +311,7 @@ class TenantDashboardController extends Controller
                     'monthlyRent' => (float) $booking->monthly_rent,
                     'totalAmount' => (float) $booking->total_amount,
                     'paymentStatus' => $booking->payment_status,
+                    'hasReview' => (bool) $booking->review,
                     'daysRemaining' => $today->diffInDays($booking->end_date),
                     'monthsRemaining' => $today->diffInMonths($booking->end_date)
                 ],
@@ -395,7 +397,8 @@ class TenantDashboardController extends Controller
                         $query->wherePivotIn('status', ['active', 'completed']);
                     },
                     'payments',
-                    'invoices'
+                    'invoices',
+                    'review'
                 ])
                 ->orderBy('end_date', 'desc')
                 ->paginate(10);
@@ -442,7 +445,8 @@ class TenantDashboardController extends Controller
                         ];
                     }),
                     'cancelledAt' => $booking->cancelled_at,
-                    'cancellationReason' => $booking->cancellation_reason
+                    'cancellationReason' => $booking->cancellation_reason,
+                    'review' => $booking->review ? ['id' => $booking->review->id, 'rating' => $booking->review->rating] : null
                 ];
             });
 
