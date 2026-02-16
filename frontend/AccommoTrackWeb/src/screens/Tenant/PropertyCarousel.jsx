@@ -61,15 +61,19 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 className="w-full h-full object-cover transform group-hover/card:scale-105 transition-transform duration-500"
                 loading="lazy"
               />
-              <span
-                className={`absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm ${
-                  room.status === 'Occupied'
-                    ? 'bg-red-50 text-red-700 border border-red-100'
-                    : 'bg-green-50 text-green-700 border border-green-100'
-                }`}
-              >
-                {room.status}
-              </span>
+              {room.reserved_by_me ? (
+                <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm bg-amber-50 text-amber-800 border border-amber-100">
+                  Reserved by you (Pending)
+                </span>
+              ) : (
+                <span
+                  className={`absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm ${
+                    (room.status || '').toString().toLowerCase() === 'occupied' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'
+                  }`}
+                >
+                  {(room.status || '').toString().charAt(0).toUpperCase() + (room.status || '').toString().slice(1)}
+                </span>
+              )}
             </div>
 
             <div className="p-5 flex-1 flex flex-col">

@@ -1,4 +1,9 @@
 import api from '../utils/api';
+import { cacheManager } from '../utils/cache';
+
+const CACHE_KEYS = {
+    PROFILE: 'tenant_profile'
+};
 
 export const tenantService = {
     /**
@@ -101,7 +106,15 @@ export const tenantService = {
      */
     async getProfile() {
         try {
+            // Try cache first
+            const cachedProfile = cacheManager.get(CACHE_KEYS.PROFILE);
+            if (cachedProfile) return cachedProfile;
+
             const response = await api.get('/tenant/profile');
+            
+            // Save to cache (5 mins)
+            cacheManager.set(CACHE_KEYS.PROFILE, response.data);
+            
             return response.data;
         } catch (error) {
             console.error('Error fetching profile:', error);
@@ -121,6 +134,10 @@ export const tenantService = {
                     'Content-Type': 'multipart/form-data',
                 },
             });
+
+            // Invalidate cache so next fetch gets fresh data
+            cacheManager.invalidate(CACHE_KEYS.PROFILE);
+
             return response.data;
         } catch (error) {
             console.error('Error updating profile:', error);

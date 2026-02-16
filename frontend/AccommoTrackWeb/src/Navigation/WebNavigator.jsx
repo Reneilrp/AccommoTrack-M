@@ -5,9 +5,9 @@ import LandlordNavigator from './LandlordNavigator.jsx';
 import TenantNavigator from './TenantNavigator.jsx';
 
 // IMPORT THE NEW COMPONENT
-import PropertyDetails from '../screens/Guest/PropertyDetails.jsx';
+import PropertyDetails from '../screens/Tenant/PropertyDetails.jsx';
 import LandingPage from '../screens/Guest/LandingPage.jsx';
-import BrowsingPropertyPage from '../screens/Guest/BrowsingPropertyPage.jsx';
+import BrowsingPropertyPage from '../screens/Tenant/ExploreProperties.jsx';
 
 // --- WRAPPER FOR DETAILS PAGE ---
 // This wrapper is needed to extract the ID from the URL and pass it to your component

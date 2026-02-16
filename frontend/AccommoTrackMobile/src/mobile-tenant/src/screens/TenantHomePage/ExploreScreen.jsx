@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-// ScreenLayout moved to TenantShell to keep header/footer mounted once
+import { View, ScrollView, FlatList, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
-// Header/BottomNavigation provided by ScreenLayout
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import PropertyCard from '../../components/PropertyCard.jsx';
 import { PropertyCardSkeleton } from '../../../../components/Skeletons';
+import Header from '../../components/Header.jsx';
 
 import PropertyService from '../../../../services/PropertyServices.js';
 
@@ -253,7 +252,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   };
 
   const handleAccommodationPress = (accommodation) => {
-    navigation.navigate('AccommodationDetails', { accommodation });
+    navigation.navigate('AccommodationDetails', { accommodation, hideLayout: true });
   };
 
   const handleLikePress = async (id) => {
@@ -291,9 +290,8 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
   if (loading && properties.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <StatusBar barStyle="light-content" />
-        {/* Keep SearchBar and filter row visible during loading to reserve layout space */}
         <SearchBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -349,7 +347,16 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchPress={handleSearch}
+          properties={properties}
+          userRole={isGuest ? 'guest' : 'authenticated'}
+          onSelectProperty={handleAccommodationPress}
+        />
+
         {isGuest && (
           <TouchableOpacity
             style={styles.guestBanner}
@@ -374,17 +381,20 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
           </View>
         )}
 
-        <View style={styles.cardsContainer}>
-          {filteredProperties.length > 0 ? (
-            filteredProperties.map((accommodation) => (
-              <PropertyCard
-                key={accommodation.id}
-                accommodation={accommodation}
-                onPress={handleAccommodationPress}
-                onLikePress={handleLikePress}
-              />
-            ))
-          ) : !loading ? (
+        <FlatList
+          data={filteredProperties}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <PropertyCard
+              accommodation={item}
+              onPress={handleAccommodationPress}
+              onLikePress={handleLikePress}
+            />
+          )}
+          contentContainerStyle={styles.contentContainerPadding}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={!loading ? (
             <View style={styles.noResultsContainer}>
               <Text style={styles.noResultsText}>
                 {searchQuery.trim()
@@ -399,7 +409,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
               )}
             </View>
           ) : null}
-        </View>
+        />
 
         {filteredProperties.length > 0 && filteredProperties.length >= 10 && (
           <View style={styles.loadMoreContainer}>
