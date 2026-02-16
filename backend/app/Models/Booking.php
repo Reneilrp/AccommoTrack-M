@@ -191,6 +191,22 @@ class Booking extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    /**
+     * Relationship: Booking has many Maintenance Requests
+     */
+    public function maintenanceRequests()
+    {
+        return $this->hasMany(MaintenanceRequest::class);
+    }
+
+    /**
+     * Relationship: Booking has one Review
+     */
+    public function review()
+    {
+        return $this->hasOne(Review::class);
+    }
+
     // ====================================================================
     // QUERY SCOPES
     // ====================================================================

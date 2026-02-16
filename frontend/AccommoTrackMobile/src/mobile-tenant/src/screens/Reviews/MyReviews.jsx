@@ -5,6 +5,7 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import tenantService from '../../../../services/TenantService';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { styles } from '../../../../styles/Tenant/ReviewStyles';
 
 export default function MyReviews() {
   const { theme } = useTheme();
@@ -59,39 +60,47 @@ export default function MyReviews() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={{ padding: 12, backgroundColor: theme.colors.surface, borderRadius: 8, marginBottom: 8 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
-          <Text style={{ fontWeight: '600', color: theme.colors.text }}>{item.property_title || 'Property'}</Text>
-          {item.property_location ? <Text style={{ color: theme.colors.textSecondary }}>{item.property_location}</Text> : null}
+    <View style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}>
+      <View style={styles.cardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.propertyName, { color: theme.colors.text }]}>{item.property_title || 'Property'}</Text>
+          {item.property_location ? <Text style={[styles.propertyLocation, { color: theme.colors.textSecondary }]}>{item.property_location}</Text> : null}
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontWeight: '600', color: theme.colors.text }}>{item.rating} ★</Text>
-          <Text style={{ color: theme.colors.textSecondary }}>{item.time_ago || ''}</Text>
+        <View style={styles.ratingContainer}>
+          <Text style={[styles.ratingText, { color: theme.colors.text }]}>{item.rating} ★</Text>
+          <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>{item.time_ago || ''}</Text>
         </View>
       </View>
-      {item.comment ? <Text style={{ marginTop: 8, color: theme.colors.text }}>{item.comment}</Text> : null}
+      {item.comment ? <Text style={[styles.commentText, { color: theme.colors.text }]}>{item.comment}</Text> : null}
 
-      <View style={{ flexDirection: 'row', marginTop: 10 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('LeaveReview', { reviewId: item.id, initialRating: item.rating, initialComment: item.comment, propertyId: item.property_id })} style={{ padding: 8, borderRadius: 8, backgroundColor: theme.colors.primary, marginRight: 8 }}>
-          <Text style={{ color: theme.colors.textInverse }}>Edit</Text>
+      <View style={styles.actionRow}>
+        <TouchableOpacity 
+            onPress={() => navigation.navigate('LeaveReview', { 
+                reviewId: item.id, 
+                initialRating: item.rating, 
+                initialComment: item.comment, 
+                propertyId: item.property_id 
+            })} 
+            style={[styles.editBtn, { backgroundColor: theme.colors.primary }]}
+        >
+          <Text style={[styles.btnText, { color: theme.colors.textInverse }]}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={{ padding: 8, borderRadius: 8, backgroundColor: '#EF4444' }}>
-          {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff' }}>Delete</Text>}
+        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
+          {deletingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
         </TouchableOpacity>
       </View>
     </View>
   );
 
   if (loading) return (
-    <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+    <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
       <ActivityIndicator />
     </SafeAreaView>
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 12, backgroundColor: theme.colors.background }}>
-      <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text, marginBottom: 12 }}>My Reviews</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>My Reviews</Text>
       <FlatList data={reviews} keyExtractor={(i) => String(i.id)} renderItem={renderItem} />
     </SafeAreaView>
   );

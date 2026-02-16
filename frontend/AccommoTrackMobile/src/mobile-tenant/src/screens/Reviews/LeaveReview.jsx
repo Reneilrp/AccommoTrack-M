@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import tenantService from '../../../../services/TenantService';
+import { styles } from '../../../../styles/Tenant/ReviewStyles';
 
 export default function LeaveReview() {
   const route = useRoute();
@@ -52,21 +53,27 @@ export default function LeaveReview() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
-      <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text, marginBottom: 12 }}>Leave a Review</Text>
-      <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Leave a Review</Text>
+      <View style={styles.starsContainer}>
         {stars.map((s) => (
-          <TouchableOpacity key={s} onPress={() => setRating(s)} style={{ marginRight: 8 }}>
+          <TouchableOpacity key={s} onPress={() => setRating(s)} style={styles.starBtn}>
             <Ionicons name={s <= rating ? 'star' : 'star-outline'} size={32} color={s <= rating ? '#F59E0B' : theme.colors.textTertiary} />
           </TouchableOpacity>
         ))}
       </View>
 
-      <TextInput value={comment} onChangeText={setComment} placeholder="Write your review..." multiline style={{ minHeight: 120, backgroundColor: theme.colors.surface, padding: 12, borderRadius: 8, color: theme.colors.text }} />
+      <TextInput 
+        value={comment} 
+        onChangeText={setComment} 
+        placeholder="Write your review..." 
+        multiline 
+        style={[styles.textInput, { backgroundColor: theme.colors.surface, color: theme.colors.text }]} 
+      />
 
-      <View style={{ marginTop: 16 }}>
-        <TouchableOpacity onPress={submit} disabled={submitting} style={{ padding: 12, borderRadius: 8, backgroundColor: theme.colors.primary, alignItems: 'center' }}>
-          {submitting ? <ActivityIndicator color={theme.colors.textInverse} /> : <Text style={{ color: theme.colors.textInverse, fontWeight: '600' }}>Submit Review</Text>}
+      <View style={styles.submitBtnContainer}>
+        <TouchableOpacity onPress={submit} disabled={submitting} style={[styles.submitBtn, { backgroundColor: theme.colors.primary }]}>
+          {submitting ? <ActivityIndicator color={theme.colors.textInverse} /> : <Text style={[styles.submitBtnText, { color: theme.colors.textInverse }]}>Submit Review</Text>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

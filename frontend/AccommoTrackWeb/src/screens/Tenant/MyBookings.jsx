@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../services/tenantService';
 import { getImageUrl } from '../../utils/api';
 import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
+import ReviewModal from '../../components/Modals/ReviewModal';
+import { useUIState } from "../../contexts/UIStateContext";
 import { 
   Home, 
   Calendar, 
@@ -14,36 +16,71 @@ import {
   Mail,
   MapPin,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Star
 } from 'lucide-react';
 
 const MyBookings = () => {
-  const [activeTab, setActiveTab] = useState('current'); // 'current', 'financials', 'history'
-  const [currentStay, setCurrentStay] = useState(null);
-  const [history, setHistory] = useState({ bookings: [], pagination: null });
-  const [loading, setLoading] = useState(true);
+  const { uiState, updateScreenState, updateData } = useUIState();
+  const activeTab = uiState.bookings?.activeTab || 'current';
+  
+  // Use cached data for instant mount
+  const cachedData = uiState.data?.bookings;
+
+  const [currentStay, setCurrentStay] = useState(cachedData?.currentStay || null);
+  const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
+  const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
+  
+  // Only show initial loader if we have NO cached data at all
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [requestingAddon, setRequestingAddon] = useState(null);
+  
+  // Review Modal State
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
 
   useEffect(() => {
     fetchData();
   }, [activeTab]);
 
   const fetchData = async () => {
-    setLoading(true);
+    // Only set loading true if we don't have data for the current tab already
+    const hasDataForTab = (activeTab === 'history' ? (history?.bookings?.length > 0) : currentStay !== null);
+    if (!hasDataForTab) setLoading(true);
+    
     setError(null);
     try {
       if (activeTab === 'current' || activeTab === 'financials') {
         const data = await tenantService.getCurrentStay();
         setCurrentStay(data);
+        
+        // Also fetch tenant bookings to detect pending bookings
+        let pending = [];
+        try {
+          const bookingsResp = await tenantService.getBookings();
+          const bookingsList = bookingsResp?.bookings || bookingsResp || [];
+          pending = bookingsList.filter(b => String(b.status).toLowerCase() === 'pending');
+          setPendingBookings(pending);
+        } catch (e) {
+          console.warn('Failed to fetch tenant bookings for pending detection', e);
+        }
+
+        // Update cache
+        updateData('bookings', { ...cachedData, currentStay: data, pendingBookings: pending });
+
       } else if (activeTab === 'history') {
         const data = await tenantService.getHistory();
         setHistory(data);
+        
+        // Update cache
+        updateData('bookings', { ...cachedData, history: data });
       }
     } catch (err) {
-      setError('Failed to load data. Please try again.');
-      console.error(err);
+      const serverMessage = err?.response?.data?.message || err?.message || 'Failed to load data.';
+      setError(serverMessage);
+      console.error('MyBookings fetchData error:', err?.response?.data || err);
     } finally {
       setLoading(false);
     }
@@ -75,6 +112,11 @@ const MyBookings = () => {
     }
   };
 
+  const handleReview = (booking) => {
+    setSelectedBookingForReview(booking);
+    setShowReviewModal(true);
+  };
+
   const tabs = [
     { id: 'current', label: 'My Stay', icon: Home },
     { id: 'financials', label: 'Financials', icon: DollarSign },
@@ -83,18 +125,12 @@ const MyBookings = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">My Bookings</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your current stay, payments, and add-ons</p>
-      </div>
-
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700 pb-2 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => updateScreenState('bookings', { activeTab: tab.id })}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-green-600 text-white shadow-md'
@@ -125,16 +161,22 @@ const MyBookings = () => {
         <>
           {activeTab === 'current' && (
             <CurrentStayTab 
-              data={currentStay} 
+              data={currentStay}
+              pendingBookings={pendingBookings}
               onRequestAddon={() => setShowAddonModal(true)}
               onCancelAddon={handleCancelAddonRequest}
+              onReview={handleReview}
             />
           )}
           {activeTab === 'financials' && (
             <FinancialsTab data={currentStay} />
           )}
           {activeTab === 'history' && (
-            <HistoryTab data={history} onLoadMore={() => {}} />
+            <HistoryTab 
+              data={history} 
+              onLoadMore={() => {}} 
+              onReview={handleReview}
+            />
           )}
         </>
       )}
@@ -148,13 +190,48 @@ const MyBookings = () => {
           requestingId={requestingAddon}
         />
       )}
+
+      {/* Review Modal */}
+      {showReviewModal && selectedBookingForReview && (
+        <ReviewModal
+          booking={selectedBookingForReview}
+          onClose={() => {
+            setShowReviewModal(false);
+            setSelectedBookingForReview(null);
+          }}
+          onSuccess={() => {
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
+const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAddon, onReview }) => {
   if (!data?.hasActiveStay) {
+    // If there are pending bookings, show them here so tenant sees their pending request
+    if (pendingBookings && pendingBookings.length > 0) {
+      const pb = pendingBookings[0];
+      const startDate = pb?.start_date ? new Date(pb.start_date) : null;
+      const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+      return (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+          <Home className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">No Active Stay</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">You don't have an active booking at the moment.</p>
+          <div className="inline-block bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-4 py-2 rounded-lg">
+            <Calendar className="w-5 h-5 inline mr-2" />
+            Pending Booking: {pb?.property?.title || pb?.property || 'Property'} - {pb?.room?.roomNumber || pb?.room || 'Room'}
+            <br />
+            {daysUntil !== null && <span className="text-sm">Starts in {daysUntil} days</span>}
+            <div className="mt-2 text-xs text-amber-700">Status: {String(pb.status).toLowerCase()}</div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
         <Home className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
@@ -186,19 +263,38 @@ const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
               alt={property.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-              <h2 className="text-xl font-bold text-white">{property.title}</h2>
-              <p className="text-white/80 text-sm flex items-center">
-                <MapPin className="w-4 h-4 mr-1" />
-                {property.address}
-              </p>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 flex justify-between items-end">
+              <div>
+                <h2 className="text-xl font-bold text-white">{property.title}</h2>
+                <p className="text-white/80 text-sm flex items-center">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  {property.address}
+                </p>
+              </div>
+              {!booking.hasReview && (
+                <button 
+                  onClick={() => onReview({ ...booking, property })}
+                  className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border border-white/20"
+                >
+                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                  Review Property
+                </button>
+              )}
             </div>
           </div>
           <div className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard label="Room" value={room.roomNumber} icon="🚪" />
               <StatCard label="Monthly Rent" value={`₱${booking.monthlyRent.toLocaleString()}`} icon="💰" />
-              <StatCard label="Days Left" value={booking.daysRemaining} icon="📅" />
+              <StatCard
+                label="Days Left"
+                value={
+                  booking?.daysRemaining == null
+                    ? '-'
+                    : Math.max(0, Math.ceil(Number(booking.daysRemaining)))
+                }
+                icon="📅"
+              />
               <StatCard 
                 label="Status" 
                 value={booking.paymentStatus} 
@@ -276,19 +372,23 @@ const CurrentStayTab = ({ data, onRequestAddon, onCancelAddon }) => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Landlord Contact</h3>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <span className="text-xl">{landlord.name.charAt(0).toUpperCase()}</span>
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">{landlord.name}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Property Owner</p>
-            </div>
+                <span className="text-xl">{(landlord?.name && landlord.name.charAt(0).toUpperCase()) || '?'}</span>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">{landlord?.name || 'Property Owner'}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Property Owner</p>
+              </div>
           </div>
           <div className="space-y-2">
-            <a href={`mailto:${landlord.email}`} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400">
-              <Mail className="w-4 h-4" />
-              {landlord.email}
-            </a>
-            {landlord.phone && (
+            {landlord?.email ? (
+              <a href={`mailto:${landlord.email}`} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400">
+                <Mail className="w-4 h-4" />
+                {landlord.email}
+              </a>
+            ) : (
+              <div className="text-sm text-gray-500 dark:text-gray-400">No email available</div>
+            )}
+            {landlord?.phone && (
               <a href={`tel:${landlord.phone}`} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400">
                 <Phone className="w-4 h-4" />
                 {landlord.phone}
@@ -424,7 +524,7 @@ const FinancialsTab = ({ data }) => {
 };
 
 // ==================== History Tab ====================
-const HistoryTab = ({ data, onLoadMore }) => {
+const HistoryTab = ({ data, onLoadMore, onReview }) => {
   const { bookings, pagination } = data;
 
   if (!bookings || bookings.length === 0) {
@@ -461,7 +561,21 @@ const HistoryTab = ({ data, onLoadMore }) => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Paid</p>
                 <p className="font-semibold text-green-600 dark:text-green-400">₱{booking.financials.totalPaid.toLocaleString()}</p>
               </div>
-              <StatusBadge status={booking.status} />
+              <div className="flex flex-col items-end gap-2">
+                <StatusBadge status={booking.status} />
+                {booking.status === 'completed' && !booking.has_review && (
+                  <button 
+                    onClick={() => onReview(booking)}
+                    className="flex items-center gap-1 text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 underline underline-offset-2"
+                  >
+                    <Star className="w-3 h-3 fill-current" />
+                    Leave Review
+                  </button>
+                )}
+                {booking.has_review && (
+                  <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic">Reviewed</span>
+                )}
+              </div>
             </div>
           </div>
           {booking.addons.length > 0 && (
