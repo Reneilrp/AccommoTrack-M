@@ -15,7 +15,8 @@ class AuthController extends Controller
     public function checkEmail(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            // Use email:rfc,dns to validate syntax and DNS/MX records
+            'email' => 'required|email:rfc,dns',
         ]);
         $exists = User::where('email', $request->email)->exists();
         return response()->json([
@@ -29,12 +30,14 @@ class AuthController extends Controller
             'first_name' => 'required|string|max:100',
             'middle_name' => 'nullable|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => 'required|string|email|max:255|unique:users',
+            // Require RFC syntax and DNS/MX check during registration
+            'email' => 'required|string|email:rfc,dns|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:landlord,tenant',
             'phone' => 'nullable|string|max:20',
         ], [
             'email.unique' => 'This email is already taken. Please use a different email address.',
+            'email.email' => 'Email address is not valid or cannot receive mail.',
         ]);
 
         $user = User::create([
