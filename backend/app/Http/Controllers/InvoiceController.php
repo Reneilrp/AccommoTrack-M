@@ -19,6 +19,35 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
+        // Auto-generate missing invoices for confirmed bookings for this landlord
+        // This ensures that the payments list is always up-to-date with current occupancy
+        $uninvoicedBookings = \App\Models\Booking::where('landlord_id', $context['landlord_id'])
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            ->whereDoesntHave('invoices')
+            ->get();
+
+        foreach ($uninvoicedBookings as $booking) {
+            try {
+                $reference = 'INV-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+                Invoice::create([
+                    'reference' => $reference,
+                    'landlord_id' => $booking->landlord_id,
+                    'property_id' => $booking->property_id,
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'description' => 'Initial invoice for booking ' . $booking->booking_reference,
+                    'amount_cents' => (int) round($booking->total_amount * 100),
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => $booking->created_at,
+                    'due_date' => \Carbon\Carbon::parse($booking->start_date)->addDays(3),
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to auto-generate invoice for booking ' . $booking->id . ': ' . $e->getMessage());
+            }
+        }
 
         $query = Invoice::query()->where('landlord_id', $context['landlord_id']);
 
@@ -26,7 +55,9 @@ class InvoiceController extends Controller
         if ($request->has('tenant_id')) $query->where('tenant_id', $request->query('tenant_id'));
         if ($request->has('property_id')) $query->where('property_id', $request->query('property_id'));
 
-        $invoices = $query->with('transactions')->orderBy('created_at', 'desc')->paginate(20);
+        $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(50);
         return response()->json($invoices, 200);
     }
 
@@ -88,6 +119,8 @@ class InvoiceController extends Controller
     public function charge(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+        
         $invoice = Invoice::findOrFail($id);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);

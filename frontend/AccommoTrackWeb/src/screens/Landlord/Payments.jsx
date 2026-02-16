@@ -1,16 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { Loader2, Search, Calendar, Receipt } from 'lucide-react';
+import { Loader2, Search, Calendar, Receipt, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
+import { useUIState } from '../../contexts/UIStateContext';
 
 export default function Payments() {
-  const [loading, setLoading] = useState(true);
-  const [invoices, setInvoices] = useState([]);
+  const { uiState, updateData } = useUIState();
+  const cachedData = uiState.data?.landlord_payments;
+
+  const [invoices, setInvoices] = useState(cachedData?.invoices || []);
+  const [bookingsMap, setBookingsMap] = useState(cachedData?.bookingsMap || {});
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [bookingsMap, setBookingsMap] = useState({});
   const [paymentFilter, setPaymentFilter] = useState('all');
   const navigate = useNavigate();
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -22,18 +26,23 @@ export default function Payments() {
 
   const loadInvoices = async () => {
     try {
-      setLoading(true);
+      if (!cachedData) setLoading(true);
       setError(null);
       const res = await api.get(`/invoices?t=${Date.now()}`);
       const list = Array.isArray(res.data) ? res.data : (res.data?.data || res.data || []);
-      // if invoices reference bookings, fetch booking details first so UI can render tenant/property/room immediately
+      
+      let finalBookingsMap = { ...bookingsMap };
       const bookingIds = Array.from(new Set(list.map(i => i.booking_id).filter(Boolean)));
       if (bookingIds.length > 0) {
         const fetched = await loadBookingDetails(bookingIds);
-        // merge fetched bookings into map
-        setBookingsMap(prev => ({ ...prev, ...fetched }));
+        finalBookingsMap = { ...finalBookingsMap, ...fetched };
+        setBookingsMap(finalBookingsMap);
       }
       setInvoices(list);
+
+      // Update global context
+      updateData('landlord_payments', { invoices: list, bookingsMap: finalBookingsMap });
+
     } catch (e) {
       console.error('Failed to load invoices', e);
       // If error is 404 or network, treat as no invoices yet
@@ -64,6 +73,8 @@ export default function Payments() {
 
             // derive room label from common shapes
             const roomCandidates = [
+              booking.roomNumber,
+              booking.room?.room_number,
               booking.room?.number,
               booking.room?.name,
               booking.room_number,
@@ -162,12 +173,16 @@ export default function Payments() {
     const property = bookingFromMap?.property?.title || inv.booking?.property?.title || inv.property?.title || inv.property_title || '—';
 
     const roomCandidates = [
+      bookingFromMap?.roomNumber,
+      bookingFromMap?.room?.room_number,
       bookingFromMap?.room?.number,
       bookingFromMap?.room?.name,
       bookingFromMap?.room_number,
       bookingFromMap?.room_name,
       bookingFromMap?.rooms?.[0]?.number,
       bookingFromMap?.rooms?.[0]?.name,
+      inv.booking?.roomNumber,
+      inv.booking?.room?.room_number,
       inv.booking?.room?.number,
       inv.booking?.room?.name,
       inv.booking?.room_number,
@@ -209,7 +224,7 @@ export default function Payments() {
           </span>
         </td>
         <td className="px-6 py-4 text-sm">
-                          {inv.booking_id ? (
+          {inv.booking_id ? (
             <button
               onClick={() => { setSelectedInvoice(inv); setShowInvoiceModal(true); }}
               className="text-green-600 hover:text-green-800 font-medium"
@@ -295,15 +310,6 @@ export default function Payments() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center w-full">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Payments</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage invoices and update booking payment statuses.</p>
-          </div>
-        </div>
-      </header>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
@@ -371,24 +377,72 @@ export default function Payments() {
           </div>
         </div>
 
-        {/* Invoice Details Modal */}
+        {/* Manage Payment Modal */}
         {showInvoiceModal && selectedInvoice && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <h3 className="text-lg font-semibold dark:text-white">Invoice Details</h3>
-                <button onClick={() => setShowInvoiceModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Close</button>
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full overflow-hidden shadow-2xl">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold dark:text-white text-gray-900">Manage Payment</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedInvoice.reference || `INV-${selectedInvoice.id}`}</p>
+                </div>
+                <button onClick={() => setShowInvoiceModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
               </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Invoice JSON</p>
-                <pre className="bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs overflow-auto dark:text-gray-200" style={{maxHeight: '40vh'}}>{JSON.stringify(selectedInvoice, null, 2)}</pre>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Fetched Booking (if any)</p>
-                  <pre className="bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs overflow-auto dark:text-gray-200" style={{maxHeight: '40vh'}}>{JSON.stringify(bookingsMap[selectedInvoice.booking_id] || null, null, 2)}</pre>
+              
+              <div className="p-6 space-y-6">
+                {/* Summary Info */}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <p className="text-gray-500 dark:text-gray-400 mb-1">Tenant</p>
+                    <p className="font-semibold dark:text-white text-gray-900">
+                      {selectedInvoice.tenant?.first_name 
+                        ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` 
+                        : (selectedInvoice.tenant?.name || '—')}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <p className="text-gray-500 dark:text-gray-400 mb-1">Amount</p>
+                    <p className="font-bold text-green-600 dark:text-green-400">
+                      <PriceRow amount={selectedInvoice.amount_cents ? selectedInvoice.amount_cents/100 : selectedInvoice.amount} />
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Update Payment Status</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'unpaid', label: 'Unpaid', color: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
+                      { id: 'partial', label: 'Partial', color: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
+                      { id: 'paid', label: 'Paid', color: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
+                      { id: 'refunded', label: 'Refunded', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
+                    ].map((status) => (
+                      <button
+                        key={status.id}
+                        onClick={async () => {
+                          if (selectedInvoice.booking_id) {
+                            await updateBookingPayment(selectedInvoice.booking_id, status.id);
+                            setShowInvoiceModal(false);
+                          }
+                        }}
+                        className={`flex items-center justify-center py-3 px-4 rounded-xl border text-sm font-bold transition-all ${status.color}`}
+                      >
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-right">
-                <button onClick={() => setShowInvoiceModal(false)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-white rounded">Close</button>
+
+              <div className="p-6 bg-gray-50 dark:bg-gray-700/30 text-right">
+                <button 
+                  onClick={() => setShowInvoiceModal(false)} 
+                  className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

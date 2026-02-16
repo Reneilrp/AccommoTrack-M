@@ -132,6 +132,30 @@ class BookingService
             ]
         );
 
+        // Auto-generate initial invoice if it doesn't exist
+        $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
+        if (!$existingInvoice) {
+            $reference = 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+            \App\Models\Invoice::create([
+                'reference' => $reference,
+                'landlord_id' => $booking->landlord_id,
+                'property_id' => $booking->property_id,
+                'booking_id' => $booking->id,
+                'tenant_id' => $booking->tenant_id,
+                'description' => 'Initial invoice for booking ' . $booking->booking_reference,
+                'amount_cents' => (int) round($booking->total_amount * 100),
+                'currency' => 'PHP',
+                'status' => 'pending',
+                'issued_at' => now(),
+                'due_date' => Carbon::parse($booking->start_date)->addDays(3), // Due shortly after move-in
+            ]);
+
+            Log::info('Auto-generated invoice for confirmed booking', [
+                'booking_id' => $booking->id,
+                'reference' => $reference
+            ]);
+        }
+
         Log::info('Booking confirmed - Tenant assigned to room', [
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id,
@@ -220,6 +244,12 @@ class BookingService
         }
 
         $booking->save();
+
+        // Synchronize with invoices
+        $booking->invoices()->update(['status' => $paymentStatus]);
+        if ($paymentStatus === 'paid') {
+            $booking->invoices()->update(['paid_at' => now()]);
+        }
 
         return [
             'booking' => $booking,

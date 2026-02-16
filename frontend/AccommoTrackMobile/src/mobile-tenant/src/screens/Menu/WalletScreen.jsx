@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
   RefreshControl,
   Dimensions,
   Modal,
@@ -23,6 +22,7 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import { ListItemSkeleton } from '../../../../components/Skeletons';
 import { showError } from '../../../../utils/toast';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import { styles } from '../../../../styles/Tenant/WalletStyles';
 
 const { width } = Dimensions.get('window');
 
@@ -291,13 +291,15 @@ export default function WalletScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Payments</Text>
+        <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Payments</Text>
+        </View>
 
-        <View style={{ width: 24 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -496,15 +498,9 @@ export default function WalletScreen() {
                 {isPayable(payment) && (
                   <TouchableOpacity
                     onPress={() => openCheckout(payment)}
-                    style={{
-                      marginTop: 8,
-                      backgroundColor: theme.colors.primary,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                    }}
+                    style={[styles.payBtn, { backgroundColor: theme.colors.primary }]}
                   >
-                    <Text style={{ color: '#fff', fontWeight: '600' }}>Pay</Text>
+                    <Text style={styles.payBtnText}>Pay</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -515,33 +511,42 @@ export default function WalletScreen() {
 
       {/* Checkout Modal */}
       <Modal visible={checkoutVisible} animationType="slide" transparent onRequestClose={() => setCheckoutVisible(false)}>
-        <View style={[homeStyles.flex1, { justifyContent: 'flex-end', backgroundColor: '#00000066' }] }>
-          <View style={[homeStyles.modalContentBase, { backgroundColor: theme.colors.surface }]}>
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8, color: theme.colors.text }}>Checkout</Text>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Checkout</Text>
             {checkoutItem ? (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontWeight: '700', color: theme.colors.text }}>{checkoutItem.propertyName || checkoutItem.description || `Payment #${checkoutItem.id}`}</Text>
-                <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>{checkoutItem.roomId ? `Room ${checkoutItem.roomId}` : ''}</Text>
-                <Text style={{ marginTop: 8, fontSize: 16, fontWeight: '700', color: theme.colors.text }}>₱{Number(checkoutItem.amount || 0).toLocaleString()}</Text>
+              <View style={styles.checkoutInfo}>
+                <Text style={[styles.checkoutPropName, { color: theme.colors.text }]}>{checkoutItem.propertyName || checkoutItem.description || `Payment #${checkoutItem.id}`}</Text>
+                <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary }]}>{checkoutItem.roomId ? `Room ${checkoutItem.roomId}` : ''}</Text>
+                <Text style={[styles.checkoutAmount, { color: theme.colors.text }]}>₱{Number(checkoutItem.amount || 0).toLocaleString()}</Text>
               </View>
             ) : null}
 
-            <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, color: theme.colors.text }}>Choose payment method</Text>
-            <View style={[homeStyles.rowBetween, { marginBottom: 16 }]}>
+            <Text style={[styles.methodTitle, { color: theme.colors.text }]}>Choose payment method</Text>
+            <View style={styles.methodsRow}>
               {paymentMethods.map((m, i) => (
-                <TouchableOpacity key={m.key} onPress={() => setCheckoutMethod(m.key)} style={[homeStyles.buttonFlex, { marginRight: i === paymentMethods.length - 1 ? 0 : 8, backgroundColor: checkoutMethod === m.key ? theme.colors.primary : theme.colors.backgroundSecondary }]}>
-                  <Text style={{ fontWeight: '700', color: checkoutMethod === m.key ? '#fff' : theme.colors.text }}>{m.name}</Text>
-                  <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>{m.key === 'gcash' ? 'Pay via GCash (online)' : 'Pay with cash upon arrival'}</Text>
+                <TouchableOpacity 
+                    key={m.key} 
+                    onPress={() => setCheckoutMethod(m.key)} 
+                    style={[
+                        styles.methodBtn, 
+                        { backgroundColor: checkoutMethod === m.key ? theme.colors.primary : theme.colors.backgroundSecondary }
+                    ]}
+                >
+                  <Text style={[styles.methodName, { color: checkoutMethod === m.key ? '#fff' : theme.colors.text }]}>{m.name}</Text>
+                  <Text style={[styles.methodDesc, { color: checkoutMethod === m.key ? 'rgba(255,255,255,0.8)' : theme.colors.textSecondary }]}>
+                      {m.key === 'gcash' ? 'Pay via GCash (online)' : 'Pay with cash upon arrival'}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={[homeStyles.buttonFlex, { marginRight: 8, backgroundColor: theme.colors.backgroundSecondary }]}>
-                <Text style={{ fontWeight: '700', color: theme.colors.text }}>Cancel</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={[styles.cancelBtn, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                <Text style={[styles.btnText, { color: theme.colors.text }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={confirmCheckout} style={[homeStyles.buttonFlex, { marginLeft: 8, backgroundColor: theme.colors.primary }]}>
-                {processingPayment ? <ActivityIndicator color="#fff" /> : <Text style={{ fontWeight: '700', color: '#fff' }}>Pay</Text>}
+              <TouchableOpacity onPress={confirmCheckout} style={[styles.confirmBtn, { backgroundColor: theme.colors.primary }]}>
+                {processingPayment ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Pay Now</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -551,197 +556,3 @@ export default function WalletScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTextContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  chartCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  chartHeader: {
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  timeRangeContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  timeRangeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  timeRangeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  noDataContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  noDataText: {
-    fontSize: 14,
-    marginTop: 12,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  listCard: {
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  paymentItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  paymentLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  paymentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  paymentInfo: {
-    flex: 1,
-  },
-  paymentTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  paymentDate: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  paymentRight: {
-    alignItems: 'flex-end',
-  },
-  paymentAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 14,
-    marginTop: 12,
-  },
-});
