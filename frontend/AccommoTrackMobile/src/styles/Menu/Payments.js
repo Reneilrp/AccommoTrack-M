@@ -245,4 +245,41 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
+  detailContainer: {
+    padding: 20,
+  },
+  invoiceTitle: {
+    fontSize: 16, 
+    fontWeight: '600', 
+    marginBottom: 8,
+  },
+  separator: {
+    height: 1, 
+    marginVertical: 8,
+  },
+  totalText: {
+    fontSize: 16, 
+    fontWeight: '700',
+  },
+  statusRow: {
+    marginBottom: 8,
+  },
+  statusLabel: {
+    color: '#6B7280',
+  },
+  statusValue: {
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row', 
+    gap: 12,
+  },
+  payBtn: {
+    padding: 14, 
+    borderRadius: 10,
+  },
+  payBtnText: {
+    color: '#FFF', 
+    fontWeight: '700',
+  }
 });

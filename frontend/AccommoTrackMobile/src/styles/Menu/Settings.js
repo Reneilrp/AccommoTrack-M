@@ -107,4 +107,15 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#EF4444',
   },
+  cardInner: {
+    padding: 12,
+  },
+  cardTitle: {
+    fontSize: 16, 
+    fontWeight: '700', 
+    marginBottom: 8,
+  },
+  switchRow: {
+    paddingVertical: 8,
+  }
 });

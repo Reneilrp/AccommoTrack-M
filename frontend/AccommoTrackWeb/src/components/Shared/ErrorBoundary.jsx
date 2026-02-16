@@ -1,10 +1,5 @@
 import React, { Component } from 'react';
 
-/**
- * Error Boundary Component
- * Catches JavaScript errors anywhere in the child component tree,
- * logs those errors, and displays a fallback UI.
- */
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
