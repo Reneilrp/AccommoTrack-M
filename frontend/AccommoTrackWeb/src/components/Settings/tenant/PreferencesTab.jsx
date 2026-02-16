@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../../services/tenantService';
 import { SkeletonPreferencesTab } from '../../Shared/Skeleton';
+import { useUIState } from '../../../contexts/UIStateContext';
 
 const PreferencesTab = () => {
-	const [loading, setLoading] = useState(true);
+	const { uiState, updateData } = useUIState();
+	const cachedProfile = uiState.data?.profile;
+
+	const [loading, setLoading] = useState(!cachedProfile);
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState({ type: '', text: '' });
 	const [isEditing, setIsEditing] = useState(false);
@@ -22,34 +26,44 @@ const PreferencesTab = () => {
 	});
 
 	useEffect(() => {
+		if (cachedProfile) {
+			mapDataToForm(cachedProfile);
+		}
 		fetchPreferences();
 	}, []);
 
+	const mapDataToForm = (data) => {
+		let prefs = data.tenant_profile?.preference || {};
+
+		if (typeof prefs === 'string') {
+			try {
+				prefs = JSON.parse(prefs);
+			} catch (e) {
+				prefs = {};
+			}
+		}
+
+		setFormData({
+			room_preference: prefs.room_preference || '',
+			budget_range: prefs.budget_range || '',
+			attitude: prefs.attitude || '',
+			behavior: prefs.behavior || '',
+			lifestyle: prefs.lifestyle || (prefs.lifestyle_notes || ''),
+			quiet_environment: !!(prefs.quiet_environment || prefs.quiet_env || false),
+			pet_friendly: !!(prefs.pet_friendly || prefs.pet || false),
+			no_smoking: !!(prefs.no_smoking || prefs.no_smoke || false),
+			cooking_allowed: !!(prefs.cooking_allowed || prefs.cooking || false),
+		});
+	};
+
 	const fetchPreferences = async () => {
 		try {
-			setLoading(true);
+			if (!cachedProfile) setLoading(true);
 			const data = await tenantService.getProfile();
-			let prefs = data.tenant_profile?.preference || {};
-
-			if (typeof prefs === 'string') {
-				try {
-					prefs = JSON.parse(prefs);
-				} catch (e) {
-					prefs = {};
-				}
-			}
-
-			setFormData({
-				room_preference: prefs.room_preference || '',
-				budget_range: prefs.budget_range || '',
-				attitude: prefs.attitude || '',
-				behavior: prefs.behavior || '',
-				lifestyle: prefs.lifestyle || (prefs.lifestyle_notes || ''),
-				quiet_environment: !!(prefs.quiet_environment || prefs.quiet_env || false),
-				pet_friendly: !!(prefs.pet_friendly || prefs.pet || false),
-				no_smoking: !!(prefs.no_smoking || prefs.no_smoke || false),
-				cooking_allowed: !!(prefs.cooking_allowed || prefs.cooking || false),
-			});
+			
+			mapDataToForm(data);
+			updateData('profile', data);
+			
 		} catch (error) {
 			console.error('Failed to load preferences', error);
 			setMessage({ type: 'error', text: 'Failed to load preferences.' });
@@ -90,6 +104,7 @@ const PreferencesTab = () => {
 
 			await tenantService.updateProfile(data);
 			setMessage({ type: 'success', text: 'Preferences updated successfully!' });
+			setIsEditing(false);
 		} catch (error) {
 			console.error('Update failed', error);
 			setMessage({ type: 'error', text: 'Failed to update preferences.' });
@@ -213,6 +228,69 @@ const PreferencesTab = () => {
 					</div>
 				</div>
 
+				<div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+					<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Lifestyle Preferences</h3>
+					<p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Choose your living preferences to help landlords match you better.</p>
+
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{/* Quiet Environment */}
+						<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+							<div>
+								<p className="font-medium text-gray-900 dark:text-white">Quiet Environment</p>
+								<p className="text-sm text-gray-500 dark:text-gray-400">I prefer a peaceful place</p>
+							</div>
+							<div>
+								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
+									<input type="checkbox" className="sr-only" checked={formData.quiet_environment} onChange={() => handleToggle('quiet_environment')} disabled={!isEditing} />
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.quiet_environment ? 'bg-brand-600' : ''}`}></span>
+								</label>
+							</div>
+						</div>
+
+						{/* Pet Friendly */}
+						<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+							<div>
+								<p className="font-medium text-gray-900 dark:text-white">Pet Friendly</p>
+								<p className="text-sm text-gray-500 dark:text-gray-400">I have or plan to have pets</p>
+							</div>
+							<div>
+								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
+									<input type="checkbox" className="sr-only" checked={formData.pet_friendly} onChange={() => handleToggle('pet_friendly')} disabled={!isEditing} />
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.pet_friendly ? 'bg-brand-600' : ''}`}></span>
+								</label>
+							</div>
+						</div>
+
+						{/* No Smoking */}
+						<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+							<div>
+								<p className="font-medium text-gray-900 dark:text-white">No Smoking</p>
+								<p className="text-sm text-gray-500 dark:text-gray-400">I prefer smoke-free areas</p>
+							</div>
+							<div>
+								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
+									<input type="checkbox" className="sr-only" checked={formData.no_smoking} onChange={() => handleToggle('no_smoking')} disabled={!isEditing} />
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.no_smoking ? 'bg-brand-600' : ''}`}></span>
+								</label>
+							</div>
+						</div>
+
+						{/* Cooking Allowed */}
+						<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+							<div>
+								<p className="font-medium text-gray-900 dark:text-white">Cooking Allowed</p>
+								<p className="text-sm text-gray-500 dark:text-gray-400">I like to cook my own meals</p>
+							</div>
+							<div>
+								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
+									<input type="checkbox" className="sr-only" checked={formData.cooking_allowed} onChange={() => handleToggle('cooking_allowed')} disabled={!isEditing} />
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.cooking_allowed ? 'bg-brand-600' : ''}`}></span>
+								</label>
+							</div>
+						</div>
+					</div>
+				</div>
+
 				{isEditing && (
 					<div className="flex justify-end pt-4 gap-3">
 						<button
@@ -233,70 +311,6 @@ const PreferencesTab = () => {
 					</div>
 				)}
 			</form>
-
-			{/* Lifestyle Preference Toggles (mobile parity) */}
-			<div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Lifestyle Preferences</h3>
-				<p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Choose your living preferences to help landlords match you better.</p>
-
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-					{/* Quiet Environment */}
-					<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-						<div>
-							<p className="font-medium text-gray-900 dark:text-white">Quiet Environment</p>
-							<p className="text-sm text-gray-500 dark:text-gray-400">I prefer a peaceful place</p>
-						</div>
-						<div>
-							<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
-								<input type="checkbox" className="sr-only" checked={formData.quiet_environment} onChange={() => handleToggle('quiet_environment')} disabled={!isEditing} />
-								<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.quiet_environment ? 'bg-brand-600' : ''}`}></span>
-							</label>
-						</div>
-					</div>
-
-					{/* Pet Friendly */}
-					<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-						<div>
-							<p className="font-medium text-gray-900 dark:text-white">Pet Friendly</p>
-							<p className="text-sm text-gray-500 dark:text-gray-400">I have or plan to have pets</p>
-						</div>
-						<div>
-							<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
-								<input type="checkbox" className="sr-only" checked={formData.pet_friendly} onChange={() => handleToggle('pet_friendly')} disabled={!isEditing} />
-								<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.pet_friendly ? 'bg-brand-600' : ''}`}></span>
-							</label>
-						</div>
-					</div>
-
-					{/* No Smoking */}
-					<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-						<div>
-							<p className="font-medium text-gray-900 dark:text-white">No Smoking</p>
-							<p className="text-sm text-gray-500 dark:text-gray-400">I prefer smoke-free areas</p>
-						</div>
-						<div>
-							<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
-								<input type="checkbox" className="sr-only" checked={formData.no_smoking} onChange={() => handleToggle('no_smoking')} disabled={!isEditing} />
-								<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.no_smoking ? 'bg-brand-600' : ''}`}></span>
-							</label>
-						</div>
-					</div>
-
-					{/* Cooking Allowed */}
-					<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-						<div>
-							<p className="font-medium text-gray-900 dark:text-white">Cooking Allowed</p>
-							<p className="text-sm text-gray-500 dark:text-gray-400">I like to cook my own meals</p>
-						</div>
-						<div>
-							<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
-								<input type="checkbox" className="sr-only" checked={formData.cooking_allowed} onChange={() => handleToggle('cooking_allowed')} disabled={!isEditing} />
-								<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.cooking_allowed ? 'bg-brand-600' : ''}`}></span>
-							</label>
-						</div>
-					</div>
-				</div>
-			</div>
 		</div>
 	);
 };

@@ -21,7 +21,7 @@ class TenantSettingsController extends Controller
             // Get user directly
             $user = User::select([
                 'id', 'first_name', 'middle_name', 'last_name', 'email', 'phone', 
-                'profile_image', 'is_verified', 'is_active'
+                'profile_image', 'is_verified', 'is_active', 'notification_preferences'
             ])->findOrFail($userId);
 
             // Get tenant profile directly
@@ -30,7 +30,7 @@ class TenantSettingsController extends Controller
                     'move_in_date', 'move_out_date', 'status', 'notes',
                     'emergency_contact_name', 'emergency_contact_phone', 
                     'emergency_contact_relationship', 'current_address', 
-                    'preference', 'date_of_birth'
+                    'preference', 'date_of_birth', 'gender'
                 ])
                 ->first();
 
@@ -57,10 +57,11 @@ class TenantSettingsController extends Controller
                 'profile_image'  => $profileImage,
                 'is_verified'    => $user->is_verified,
                 'is_active'      => $user->is_active,
+                'notification_preferences' => $user->notification_preferences,
                 'age'            => $age,
                 'tenant_profile' => $tenantProfile ? [
-                    'move_in_date'                => $tenantProfile->move_in_date,
-                    'move_out_date'               => $tenantProfile->move_out_date,
+                    'move_in_date'                => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
+                    'move_out_date'               => $tenantProfile->move_out_date ? $tenantProfile->move_out_date->format('Y-m-d') : null,
                     'status'                      => $tenantProfile->status,
                     'notes'                       => $tenantProfile->notes,
                     'emergency_contact_name'      => $tenantProfile->emergency_contact_name,
@@ -68,7 +69,8 @@ class TenantSettingsController extends Controller
                     'emergency_contact_relationship' => $tenantProfile->emergency_contact_relationship,
                     'current_address'             => $tenantProfile->current_address,
                     'preference'                  => $tenantProfile->preference,
-                    'date_of_birth'               => $tenantProfile->date_of_birth,
+                    'date_of_birth'               => $tenantProfile->date_of_birth ? $tenantProfile->date_of_birth->format('Y-m-d') : null,
+                    'gender'                      => $tenantProfile->gender,
                 ] : null
             ], 200);
         } catch (\Exception $e) {
@@ -92,9 +94,11 @@ class TenantSettingsController extends Controller
                 'email'                         => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
                 'phone'                         => 'nullable|string|max:20',
                 'profile_image'                 => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'notification_preferences'      => 'nullable',
 
                 // TenantProfile fields
                 'date_of_birth'                 => 'nullable|date',
+                'gender'                        => 'nullable|string|max:50',
                 'emergency_contact_name'        => 'nullable|string|max:255',
                 'emergency_contact_phone'       => 'nullable|string|max:20',
                 'emergency_contact_relationship'=> 'nullable|string|max:100',
@@ -115,6 +119,7 @@ class TenantSettingsController extends Controller
             if ($request->has('last_name')) $userData['last_name'] = $validated['last_name'];
             if ($request->has('email')) $userData['email'] = $validated['email'];
             if ($request->has('phone')) $userData['phone'] = $validated['phone'];
+            if ($request->has('notification_preferences')) $userData['notification_preferences'] = $validated['notification_preferences'];
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {
@@ -134,7 +139,7 @@ class TenantSettingsController extends Controller
             $tenantProfile = TenantProfile::firstOrNew(['user_id' => $userId]);
             
             $profileFields = [
-                'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone',
+                'date_of_birth', 'gender', 'emergency_contact_name', 'emergency_contact_phone',
                 'emergency_contact_relationship', 'current_address', 'notes',
                 'move_in_date', 'move_out_date', 'status'
             ];

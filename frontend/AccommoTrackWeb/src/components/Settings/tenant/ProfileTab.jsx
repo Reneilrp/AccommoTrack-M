@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../../services/tenantService';
 import { getImageUrl } from '../../../utils/api';
 import { SkeletonProfileTab } from '../../Shared/Skeleton';
+import { useUIState } from '../../../contexts/UIStateContext';
 
 const ProfileTab = () => {
-  const [loading, setLoading] = useState(true);
+  const { uiState, updateData } = useUIState();
+  const cachedProfile = uiState.data?.profile;
+
+  const [loading, setLoading] = useState(!cachedProfile);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [imagePreview, setImagePreview] = useState(null);
@@ -32,47 +36,55 @@ const ProfileTab = () => {
   });
 
   useEffect(() => {
+    if (cachedProfile) {
+      mapDataToForm(cachedProfile);
+    }
     fetchProfile();
   }, []);
 
+  const mapDataToForm = (data) => {
+    // Extract gender from preferences
+    let prefs = data.tenant_profile?.preference || {};
+    if (typeof prefs === 'string') {
+      try { prefs = JSON.parse(prefs); } catch (e) { prefs = {}; }
+    }
+
+    const backendGender = data.tenant_profile?.gender || prefs.gender || '';
+    let initialMode = '';
+    if (backendGender === 'Male' || backendGender === 'Female') {
+      initialMode = backendGender;
+    } else if (backendGender) {
+      initialMode = 'Others';
+    }
+
+    setGenderMode(initialMode);
+
+    setFormData({
+      first_name: data.first_name || '',
+      middle_name: data.middle_name || '',
+      last_name: data.last_name || '',
+      phone: data.phone || '',
+      date_of_birth: data.tenant_profile?.date_of_birth || '',
+      gender: backendGender,
+      current_address: data.tenant_profile?.current_address || '',
+      emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
+      emergency_contact_phone: data.tenant_profile?.emergency_contact_phone || '',
+      emergency_contact_relationship: data.tenant_profile?.emergency_contact_relationship || '',
+    });
+    
+    if (data.profile_image) {
+      setImagePreview(getImageUrl(data.profile_image));
+    }
+  };
+
   const fetchProfile = async () => {
     try {
-      setLoading(true);
+      if (!cachedProfile) setLoading(true);
       const data = await tenantService.getProfile();
       
-      // Extract gender from preferences
-      let prefs = data.tenant_profile?.preference || {};
-      if (typeof prefs === 'string') {
-        try { prefs = JSON.parse(prefs); } catch (e) { prefs = {}; }
-      }
-
-      const backendGender = prefs.gender || '';
-      let initialMode = '';
-      if (backendGender === 'Male' || backendGender === 'Female') {
-        initialMode = backendGender;
-      } else if (backendGender) {
-        initialMode = 'Others';
-      }
-
-      setGenderMode(initialMode);
-
-      setFormData(prev => ({
-        ...prev,
-        first_name: data.first_name || '',
-        middle_name: data.middle_name || '',
-        last_name: data.last_name || '',
-        phone: data.phone || '',
-        date_of_birth: data.tenant_profile?.date_of_birth || '',
-        gender: backendGender,
-        current_address: data.tenant_profile?.current_address || '',
-        emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
-        emergency_contact_phone: data.tenant_profile?.emergency_contact_phone || '',
-        emergency_contact_relationship: data.tenant_profile?.emergency_contact_relationship || '',
-      }));
+      mapDataToForm(data);
+      updateData('profile', data);
       
-      if (data.profile_image) {
-        setImagePreview(getImageUrl(data.profile_image));
-      }
     } catch (error) {
       console.error('Failed to load profile', error);
       setMessage({ type: 'error', text: 'Failed to load profile data.' });
@@ -121,20 +133,21 @@ const ProfileTab = () => {
       Object.keys(formData).forEach(key => {
         if (key === 'profile_image' && typeof formData[key] === 'string') return; // Skip if it's the url string
         
-        // Handle Gender specially (store in preference)
+        // Handle Gender directly (since it has its own column now)
         if (key === 'gender') {
-            if (formData[key]) data.append('preference[gender]', formData[key]);
+            if (formData[key]) data.append('gender', formData[key]);
             return;
         }
 
-        if (formData[key] !== null && formData[key] !== undefined) {
+        // Only append fields that have values
+        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
              data.append(key, formData[key]);
         }
       });
       
       await tenantService.updateProfile(data);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-      
+      setIsEditing(false);
     } catch (error) {
       console.error('Update failed', error);
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
@@ -264,7 +277,10 @@ const ProfileTab = () => {
               value={formData.date_of_birth}
               onChange={handleChange}
               disabled={!isEditing}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+              max={new Date().toISOString().split('T')[0]}
+              onKeyDown={(e) => e.preventDefault()}
+              onClick={(e) => isEditing && e.target.showPicker?.()}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 cursor-pointer"
             />
           </div>
           

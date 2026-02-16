@@ -8,13 +8,17 @@ import {
   Image,
   StatusBar,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../../styles/Tenant/ProfilePage.js';
 import { API_BASE_URL as API_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
@@ -26,6 +30,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     firstName: '',
@@ -50,12 +55,20 @@ export default function ProfilePage() {
   }, []);
 
   const getAuthHeaders = async () => {
-    let token = await AsyncStorage.getItem('auth_token');
-    if (!token) {
-      token = await AsyncStorage.getItem('token');
-    }
+    try {
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        const token = user?.token || (await AsyncStorage.getItem('token'));
+        return {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        };
+      }
+    } catch (e) {}
+    const fallbackToken = await AsyncStorage.getItem('token');
     return {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${fallbackToken}`,
       'Accept': 'application/json',
     };
   };
@@ -76,6 +89,12 @@ export default function ProfilePage() {
         const fullName = [data.first_name, data.middle_name, data.last_name]
           .filter(Boolean)
           .join(' ');
+        
+        // Calculate age from DOB if age is missing but DOB exists
+        let calculatedAge = data.age ? String(data.age) : '';
+        if (!calculatedAge && data.tenant_profile?.date_of_birth) {
+            calculatedAge = String(calculateAge(new Date(data.tenant_profile.date_of_birth)));
+        }
 
         setProfileData(prev => ({
           ...prev,
@@ -85,7 +104,7 @@ export default function ProfilePage() {
           lastName: data.last_name || '',
           email: data.email || '',
           phone: data.phone || '',
-          age: data.age ? String(data.age) : '',
+          age: calculatedAge,
           dateOfBirth: data.tenant_profile?.date_of_birth || '',
           bio: data.tenant_profile?.notes || '',
           profileImage: data.profile_image || null,
@@ -113,6 +132,37 @@ export default function ProfilePage() {
       Alert.alert('Error', 'Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateAge = (dob) => {
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || (profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : new Date());
+    setShowDatePicker(Platform.OS === 'ios');
+    
+    if (event.type === 'set' || Platform.OS === 'ios') {
+        const age = calculateAge(currentDate);
+        if (age < 18) {
+             Alert.alert('Age Restriction', 'You must be at least 18 years old.');
+             return;
+        }
+        
+        const formattedDate = currentDate.toISOString().split('T')[0];
+        setProfileData(prev => ({
+            ...prev,
+            dateOfBirth: formattedDate,
+            age: String(age)
+        }));
     }
   };
 
@@ -162,9 +212,8 @@ export default function ProfilePage() {
 
       if (response.ok) {
         const result = await response.json();
-        Alert.alert('Success', 'Profile updated successfully!', [
-          { text: 'OK', onPress: () => setIsEditing(false) }
-        ]);
+        setIsEditing(false); // Disable editing mode immediately
+        Alert.alert('Success', 'Profile updated successfully!');
         
         // Update local storage with new user data
         if (result.user) {
@@ -255,10 +304,11 @@ export default function ProfilePage() {
       // Get file extension from URI
       const uriParts = imageAsset.uri.split('.');
       const fileType = uriParts[uriParts.length - 1];
+      const cleanName = (profileData.name || 'user').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
 
       formData.append('profile_image', {
         uri: imageAsset.uri,
-        name: `profile_${Date.now()}.${fileType}`,
+        name: `profile_${cleanName}_${Date.now()}.${fileType}`,
         type: `image/${fileType}`,
       });
 
@@ -324,79 +374,83 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle="light-content" />
-        <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
-          <View style={homeStyles.headerSide}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
-            </TouchableOpacity>
+        <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={['top']}>
+          <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+            <View style={homeStyles.headerSide}>
+              <TouchableOpacity style={homeStyles.headerIcon} onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+              </TouchableOpacity>
+            </View>
+            <View style={homeStyles.headerCenter}>
+              <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
+            </View>
+            <View style={homeStyles.headerSide} />
           </View>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
-          </View>
-          <View style={homeStyles.headerSide} />
-        </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        </SafeAreaView>
+        <View style={localStyles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={{ marginTop: 12, color: theme.colors.textSecondary }}>Loading profile...</Text>
+          <Text style={[localStyles.loadingText, { color: theme.colors.textSecondary }]}>Loading profile...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
 
-      {/* Header */}
-      <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
-        <View style={homeStyles.headerSide}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
-          </TouchableOpacity>
+      {/* Header wrapped in its own SafeAreaView to ensure full width and correct positioning */}
+      <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={['top']}>
+        <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+          <View style={homeStyles.headerSide}>
+            <TouchableOpacity 
+              style={homeStyles.headerIcon}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+          </View>
+          <View style={homeStyles.headerCenter}>
+            <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
+          </View>
+          <View style={homeStyles.headerSide}>
+            <TouchableOpacity 
+              style={homeStyles.headerIcon}
+              onPress={() => {
+                if (isEditing) {
+                  handleSave();
+                } else {
+                  setIsEditing(true);
+                }
+              }}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={theme.colors.textInverse} />
+              ) : (
+                <Ionicons name={isEditing ? "save-outline" : "create-outline"} size={22} color={theme.colors.textInverse} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
-        </View>
-        <View style={homeStyles.headerSide}>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => {
-              if (isEditing) {
-                handleSave();
-              } else {
-                setIsEditing(true);
-              }
-            }}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={theme.colors.textInverse} />
-            ) : (
-              <Ionicons name={isEditing ? "save-outline" : "create-outline"} size={20} color={theme.colors.textInverse} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Photo Section */}
-        <View style={styles.photoSection}>
+        <View style={[styles.photoSection, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
           <View style={styles.photoContainer}>
             {getProfileImageSource() ? (
-              <Image source={getProfileImageSource()} style={styles.profilePhoto} />
+              <Image source={getProfileImageSource()} style={[styles.profilePhoto, { borderColor: theme.colors.primary }]} />
             ) : (
-              <View style={[styles.profilePhoto, { backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
+              <View style={[styles.profilePhoto, { backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center', borderColor: theme.colors.primary }]}>
                 <Ionicons name="person" size={60} color={theme.colors.primary} />
               </View>
             )}
             {isEditing && (
               <TouchableOpacity 
-                style={[styles.changePhotoButton, { backgroundColor: theme.colors.primary }]}
+                style={[styles.changePhotoButton, { backgroundColor: theme.colors.primary, borderColor: theme.colors.surface }]}
                 onPress={handleChangePhoto}
                 disabled={saving}
               >
@@ -409,7 +463,7 @@ export default function ProfilePage() {
             )}
           </View>
           {!isEditing && (
-            <Text style={styles.userName}>{profileData.name}</Text>
+            <Text style={[styles.userName, { color: theme.colors.text }]}>{profileData.name}</Text>
           )}
         </View>
 
@@ -417,8 +471,8 @@ export default function ProfilePage() {
         <View style={styles.formSection}>
           {/* Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Full Name</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
               <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
@@ -433,8 +487,8 @@ export default function ProfilePage() {
 
           {/* Email */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <View style={[styles.inputContainer, styles.inputDisabled]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Email</Text>
+            <View style={[styles.inputContainer, styles.inputDisabled, { borderColor: theme.colors.border }]}>
               <Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
@@ -446,18 +500,39 @@ export default function ProfilePage() {
             <Text style={styles.helperText}>Email cannot be changed</Text>
           </View>
 
-          {/* Age */}
+          {/* Date of Birth & Age */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Age</Text>
-            <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
-              <Ionicons name="calendar-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <Text style={[styles.label, { color: theme.colors.text }]}>Date of Birth</Text>
+            <TouchableOpacity
+              onPress={() => isEditing && setShowDatePicker(true)}
+              style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}
+              disabled={!isEditing}
+            >
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+              <Text style={[styles.input, { color: theme.colors.text, paddingTop: Platform.OS === 'ios' ? 0 : 4 }]}>
+                {profileData.dateOfBirth ? profileData.dateOfBirth : 'Select Date of Birth'}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+                <DateTimePicker
+                    value={profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateChange}
+                    maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                />
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Age</Text>
+            <View style={[styles.inputContainer, styles.inputDisabled, { borderColor: theme.colors.border }]}>
+              <Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 value={profileData.age}
-                onChangeText={(text) => handleInputChange('age', text)}
-                editable={isEditing}
-                keyboardType="numeric"
-                placeholder="Enter your age"
+                editable={false}
+                placeholder="Age"
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
@@ -465,11 +540,11 @@ export default function ProfilePage() {
 
           {/* Phone */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
-              <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <Text style={[styles.label, { color: theme.colors.text }]}>Phone Number</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
+              <Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 value={profileData.phone}
                 onChangeText={(text) => handleInputChange('phone', text)}
                 editable={isEditing}
@@ -482,10 +557,10 @@ export default function ProfilePage() {
 
           {/* Bio */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>About Me</Text>
-            <View style={[styles.textAreaContainer, !isEditing && styles.inputDisabled]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>About Me</Text>
+            <View style={[styles.textAreaContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
               <TextInput
-                style={styles.textArea}
+                style={[styles.textArea, { color: theme.colors.text }]}
                 value={profileData.bio}
                 onChangeText={(text) => handleInputChange('bio', text)}
                 editable={isEditing}
@@ -499,102 +574,89 @@ export default function ProfilePage() {
 
           {/* Preferences */}
           <View style={styles.preferencesSection}>
-            <Text style={styles.sectionTitle}>Preferences</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Preferences</Text>
             
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('quiet')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="volume-mute" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>Quiet Environment</Text>
-                  <Text style={styles.preferenceDescription}>I prefer a peaceful place</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>Quiet Environment</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I prefer a peaceful place</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.quiet && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.quiet && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.quiet}
+                onValueChange={() => handlePreferenceToggle('quiet')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.quiet ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('petFriendly')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="paw" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>Pet Friendly</Text>
-                  <Text style={styles.preferenceDescription}>I have or plan to have pets</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>Pet Friendly</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I have or plan to have pets</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.petFriendly && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.petFriendly && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.petFriendly}
+                onValueChange={() => handlePreferenceToggle('petFriendly')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.petFriendly ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('smoking')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="ban" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>No Smoking</Text>
-                  <Text style={styles.preferenceDescription}>I prefer smoke-free areas</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>No Smoking</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I prefer smoke-free areas</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.smoking && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.smoking && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.smoking}
+                onValueChange={() => handlePreferenceToggle('smoking')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.smoking ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('cooking')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="restaurant" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>Cooking Allowed</Text>
-                  <Text style={styles.preferenceDescription}>I like to cook my own meals</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>Cooking Allowed</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I like to cook my own meals</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.cooking && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.cooking && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.cooking}
+                onValueChange={() => handlePreferenceToggle('cooking')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.cooking ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+    },
+});
