@@ -49,6 +49,7 @@ class Message extends Model
         'receiver_id',
         'room_id',
         'message',
+        'image_url',
         'is_read',
         'read_at',
     ];
