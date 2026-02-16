@@ -6,40 +6,30 @@ import {
   TrendingUp,
   LucidePhilippinePeso,
   AlertCircle,
-  Loader2,
   Building2,
   XCircle,
-  Bell,
-  X,
-  CheckCircle,
   Clock,
-  CreditCard,
-  LogOut,
   ShieldAlert,
   FileWarning,
 } from 'lucide-react';
 import api from '../../utils/api';
+import { useUIState } from '../../contexts/UIStateContext';
+import { cacheManager } from '../../utils/cache';
 
-export default function DashboardPage() {
+export default function DashboardPage({ user }) {
   const navigate = useNavigate();
-  const [stats, setStats] = useState(null);
-  const [activities, setActivities] = useState([]);
+  const { uiState, updateData } = useUIState();
+  const isCaretaker = user?.role === 'caretaker';
+  const dashboardKey = isCaretaker ? 'caretaker_dashboard' : 'landlord_dashboard';
+  const cachedData = uiState.data?.[dashboardKey] || cacheManager.get(dashboardKey);
+
+  const [stats, setStats] = useState(cachedData?.stats || null);
+  const [activities, setActivities] = useState(cachedData?.activities || []);
   const [verificationStatus, setVerificationStatus] = useState(null);
-  
-  const [upcomingPayments, setUpcomingPayments] = useState({ upcomingCheckouts: [], unpaidBookings: [] });
-  const [revenueChart, setRevenueChart] = useState({ labels: [], data: [] });
-  const [propertyPerformance, setPropertyPerformance] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [upcomingPayments, setUpcomingPayments] = useState(cachedData?.upcomingPayments || { upcomingCheckouts: [], unpaidBookings: [] });
+  const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [dismissedNotifications, setDismissedNotifications] = useState([]);
-  const [archivedNotifications, setArchivedNotifications] = useState([]);
-  const [notificationView, setNotificationView] = useState('active');
-  const [seenNotificationIds, setSeenNotificationIds] = useState(() => {
-    const saved = localStorage.getItem('seenNotificationIds');
-    return saved ? JSON.parse(saved) : [];
-  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -51,7 +41,6 @@ export default function DashboardPage() {
       const res = await api.get('/landlord/my-verification');
       setVerificationStatus(res.data);
     } catch (err) {
-      // If 404, user might not have submitted verification yet
       if (err.response?.status === 404) {
         setVerificationStatus({ status: 'not_submitted' });
       }
@@ -60,172 +49,36 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
+      if (!cachedData) setLoading(true);
       setError('');
 
-      const [statsRes, activitiesRes, paymentsRes, chartRes, performanceRes] = await Promise.all([
+      const [statsRes, activitiesRes, paymentsRes, performanceRes] = await Promise.all([
         api.get('/landlord/dashboard/stats'),
         api.get('/landlord/dashboard/recent-activities'),
         api.get('/landlord/dashboard/upcoming-payments'),
-        api.get('/landlord/dashboard/revenue-chart'),
         api.get('/landlord/dashboard/property-performance')
       ]);
 
       const statsData = statsRes.data;
       const activitiesData = activitiesRes.data;
       const paymentsData = paymentsRes.data;
-      const chartData = chartRes.data;
       const performanceData = performanceRes.data;
-
-      // Fetch landlord properties so we can detect approved/active listings
-      let propertiesList = [];
-      try {
-        const propsRes = await api.get('/landlord/properties');
-        propertiesList = propsRes.data || [];
-      } catch (e) {
-        // ignore - properties are optional for notification generation
-        console.warn('Failed to fetch landlord properties for notifications', e);
-      }
-
-      // Ensure we have up-to-date verification status for notification logic
-      let currentVerification = verificationStatus;
-      if (!currentVerification) {
-        try {
-          const vRes = await api.get('/landlord/my-verification');
-          currentVerification = vRes.data;
-        } catch (e) {
-          // ignore
-        }
-      }
 
       setStats(statsData);
       setActivities(activitiesData);
       setUpcomingPayments(paymentsData);
-      setRevenueChart(chartData);
       setPropertyPerformance(performanceData);
 
-      // Generate notifications from dashboard data
-      const generatedNotifications = [];
-      
-      // Pending bookings notification
-      if (statsData?.bookings?.pending > 0) {
-        generatedNotifications.push({
-          id: 'pending-bookings',
-          type: 'warning',
-          icon: 'calendar',
-          title: 'Pending Bookings',
-          message: `You have ${statsData.bookings.pending} booking${statsData.bookings.pending > 1 ? 's' : ''} waiting for confirmation.`,
-          time: 'Just now',
-          actionLabel: 'Review Bookings',
-          actionPath: '/bookings'
-        });
-      }
+      const dashboardState = {
+        stats: statsData,
+        activities: activitiesData,
+        upcomingPayments: paymentsData,
+        propertyPerformance: performanceData
+      };
 
-      // Unpaid bookings notification
-      if (paymentsData?.unpaidBookings?.length > 0) {
-        const totalUnpaid = paymentsData.unpaidBookings.reduce((sum, b) => sum + (b.amount || 0), 0);
-        generatedNotifications.push({
-          id: 'unpaid-bookings',
-          type: 'error',
-          icon: 'payment',
-          title: 'Unpaid Bookings',
-          message: `${paymentsData.unpaidBookings.length} booking${paymentsData.unpaidBookings.length > 1 ? 's' : ''} with pending payment totaling ₱${totalUnpaid.toLocaleString()}.`,
-          time: 'Today',
-          actionLabel: 'View Payments',
-          actionPath: '/bookings'
-        });
-      }
+      updateData(dashboardKey, dashboardState);
+      cacheManager.set(dashboardKey, dashboardState);
 
-      // Upcoming checkouts notification
-      const urgentCheckouts = paymentsData?.upcomingCheckouts?.filter(c => c.urgency === 'high') || [];
-      if (urgentCheckouts.length > 0) {
-        generatedNotifications.push({
-          id: 'urgent-checkouts',
-          type: 'warning',
-          icon: 'checkout',
-          title: 'Upcoming Checkouts',
-          message: `${urgentCheckouts.length} tenant${urgentCheckouts.length > 1 ? 's' : ''} checking out within 3 days.`,
-          time: 'Today',
-          actionLabel: 'View Details',
-          actionPath: '/tenants'
-        });
-      }
-
-      // Low occupancy warning
-      const lowOccupancyProperties = performanceData?.filter(p => p.occupancyRate < 50) || [];
-      if (lowOccupancyProperties.length > 0) {
-        generatedNotifications.push({
-          id: 'low-occupancy',
-          type: 'info',
-          icon: 'property',
-          title: 'Low Occupancy Alert',
-          message: `${lowOccupancyProperties.length} propert${lowOccupancyProperties.length > 1 ? 'ies have' : 'y has'} less than 50% occupancy.`,
-          time: 'This week',
-          actionLabel: 'View Properties',
-          actionPath: '/properties'
-        });
-      }
-
-      // New bookings today
-      const todayBookings = activitiesData?.filter(a => a.type === 'booking' && a.status === 'confirmed') || [];
-      if (todayBookings.length > 0) {
-        generatedNotifications.push({
-          id: 'new-bookings',
-          type: 'success',
-          icon: 'calendar',
-          title: 'New Confirmed Bookings',
-          message: `${todayBookings.length} booking${todayBookings.length > 1 ? 's were' : ' was'} confirmed recently.`,
-          time: 'Recently',
-          actionLabel: 'View Bookings',
-          actionPath: '/bookings'
-        });
-      }
-
-      // If landlord account is verified AND at least one property is approved/active,
-      // show a combined success notification on the dashboard.
-      try {
-        const isVerified = currentVerification && (currentVerification.status === 'approved' || currentVerification.user?.is_verified === true || currentVerification.is_verified === true);
-        const hasApprovedProperty = Array.isArray(propertiesList) && propertiesList.some(p => {
-          const status = (p.current_status || '').toLowerCase();
-          return status === 'active' || status === 'approved' || (p.approval_status || '').toLowerCase() === 'approved';
-        });
-
-        if (isVerified && hasApprovedProperty) {
-          // Count how many approved/active properties
-          const approvedCount = propertiesList.filter(p => {
-            const status = (p.current_status || '').toLowerCase();
-            return status === 'active' || status === 'approved' || (p.approval_status || '').toLowerCase() === 'approved';
-          }).length;
-
-          generatedNotifications.push({
-            id: 'account-and-property-approved',
-            type: 'success',
-            icon: 'property',
-            title: 'Account & Listing Approved',
-            message: `Your account is verified and ${approvedCount} propert${approvedCount > 1 ? 'ies are' : 'y is'} approved and live.`,
-            time: 'Now',
-            actionLabel: 'View Properties',
-            actionPath: '/properties'
-          });
-        }
-      } catch (e) {
-        console.warn('Error generating verification/property notification', e);
-      }
-
-      setNotifications(generatedNotifications);
-      
-      // Check for new notifications that haven't been seen
-      const newNotificationIds = generatedNotifications.map(n => n.id);
-      const hasNewNotifications = newNotificationIds.some(id => !seenNotificationIds.includes(id));
-      
-      // Auto-open if there are new notifications
-      if (hasNewNotifications && generatedNotifications.length > 0) {
-        setShowNotifications(true);
-        // Mark all current notifications as seen
-        const updatedSeenIds = [...new Set([...seenNotificationIds, ...newNotificationIds])];
-        setSeenNotificationIds(updatedSeenIds);
-        localStorage.setItem('seenNotificationIds', JSON.stringify(updatedSeenIds));
-      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
@@ -236,115 +89,39 @@ export default function DashboardPage() {
 
   const getActivityIcon = (type) => {
     switch (type) {
-      case 'booking':
-        return <Calendar className="w-5 h-5" />;
-      case 'room':
-        return <Home className="w-5 h-5" />;
-      case 'payment':
-        return <LucidePhilippinePeso className="w-5 h-5" />;
-      default:
-        return <AlertCircle className="w-5 h-5" />;
+      case 'booking': return <Calendar className="w-5 h-5" />;
+      case 'room': return <Home className="w-5 h-5" />;
+      case 'payment': return <LucidePhilippinePeso className="w-5 h-5" />;
+      default: return <AlertCircle className="w-5 h-5" />;
     }
   };
 
   const getActivityColor = (color) => {
     switch (color) {
-      case 'green':
-        return 'bg-green-100 text-green-600';
-      case 'blue':
-        return 'bg-blue-100 text-blue-600';
-      case 'yellow':
-        return 'bg-yellow-100 text-yellow-600';
-      case 'red':
-        return 'bg-red-100 text-red-600';
-      default:
-        return 'bg-gray-100 text-gray-600';
+      case 'green': return 'bg-green-100 text-green-600';
+      case 'blue': return 'bg-blue-100 text-blue-600';
+      case 'yellow': return 'bg-yellow-100 text-yellow-600';
+      case 'red': return 'bg-red-100 text-red-600';
+      default: return 'bg-gray-100 text-gray-600';
     }
   };
 
   const getUrgencyColor = (urgency) => {
     switch (urgency) {
-      case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'high': return 'bg-red-100 text-red-800 border-red-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'low': return 'bg-green-100 text-green-800 border-green-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
-
-  const getNotificationIcon = (icon) => {
-    switch (icon) {
-      case 'calendar':
-        return <Calendar className="w-5 h-5" />;
-      case 'payment':
-        return <CreditCard className="w-5 h-5" />;
-      case 'checkout':
-        return <LogOut className="w-5 h-5" />;
-      case 'property':
-        return <Building2 className="w-5 h-5" />;
-      default:
-        return <Bell className="w-5 h-5" />;
-    }
-  };
-
-  const getNotificationStyle = (type) => {
-    switch (type) {
-      case 'error':
-        return { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', badge: 'bg-red-500' };
-      case 'warning':
-        return { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: 'bg-yellow-100 text-yellow-600', badge: 'bg-yellow-500' };
-      case 'success':
-        return { bg: 'bg-green-50', border: 'border-green-200', icon: 'bg-green-100 text-green-600', badge: 'bg-green-500' };
-      case 'info':
-      default:
-        return { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', badge: 'bg-blue-500' };
-    }
-  };
-
-  const dismissNotification = (id) => {
-    setDismissedNotifications(prev => [...prev, id]);
-  };
-
-  const archiveNotification = (id) => {
-    const notification = notifications.find(n => n.id === id);
-    if (notification) {
-      setArchivedNotifications(prev => [...prev, { ...notification, archivedAt: new Date().toISOString() }]);
-      setDismissedNotifications(prev => [...prev, id]);
-    }
-  };
-
-  const unarchiveNotification = (id) => {
-    setArchivedNotifications(prev => prev.filter(n => n.id !== id));
-    setDismissedNotifications(prev => prev.filter(nId => nId !== id));
-  };
-
-  const deleteArchivedNotification = (id) => {
-    setArchivedNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const clearAllArchived = () => {
-    setArchivedNotifications([]);
-  };
-
-  const handleNotificationAction = (id, path) => {
-    archiveNotification(id);
-    setShowNotifications(false);
-    navigate(path);
-  };
-
-  const activeNotifications = notifications.filter(n => !dismissedNotifications.includes(n.id));
-  const unreadCount = activeNotifications.length;
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
     if (diffHours < 24) return `${diffHours} hours ago`;
@@ -354,92 +131,15 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="bg-gray-50 dark:bg-gray-900" style={{ minHeight: 'calc(100vh - 64px)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-pulse">
-          {/* Header skeleton */}
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-6" />
-
-          {/* Stats skeleton grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg mb-4" />
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2" />
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
-              </div>
-            ))}
-          </div>
-
-          {/* Main content skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4" />
-                <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, idx) => (
-                    <div key={idx} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
-                      <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700" />
-                      <div className="flex-1 min-w-0">
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2" />
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-1" />
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
-                      </div>
-                      <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4" />
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 border-gray-100">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2" />
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4" />
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="p-3 bg-red-50 dark:bg-gray-700 rounded-lg border border-red-200">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2" />
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Property performance skeleton */}
-          <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full mb-3" />
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
-                    </div>
-                    <div>
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto py-8 animate-pulse">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 h-32" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96" />
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96" />
         </div>
       </div>
     );
@@ -447,517 +147,147 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 64px)' }}>
-        <div className="text-center">
-          <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
-          <p className="text-red-600 text-lg font-semibold mb-2">Error loading dashboard</p>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={fetchDashboardData}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="max-w-7xl mx-auto py-20 text-center">
+        <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+        <p className="text-red-600 text-lg font-semibold mb-2">Error loading dashboard</p>
+        <button onClick={fetchDashboardData} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Retry</button>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       {/* Verification Status Banner */}
       {verificationStatus && verificationStatus.status !== 'approved' && verificationStatus.user?.is_verified !== true && (
-        <div className={`border-b ${
-          verificationStatus.status === 'rejected' 
-            ? 'bg-red-50 border-red-200' 
-            : verificationStatus.status === 'pending'
-            ? 'bg-yellow-50 border-yellow-200'
-            : 'bg-orange-50 border-orange-200'
+        <div className={`rounded-xl border p-4 ${
+          verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
+          verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'
         }`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {verificationStatus.status === 'rejected' ? (
-                  <FileWarning className="w-6 h-6 text-red-600" />
-                ) : verificationStatus.status === 'pending' ? (
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                ) : (
-                  <ShieldAlert className="w-6 h-6 text-orange-600" />
-                )}
-                <div>
-                  <h3 className={`font-semibold ${
-                    verificationStatus.status === 'rejected' 
-                      ? 'text-red-800' 
-                      : verificationStatus.status === 'pending'
-                      ? 'text-yellow-800'
-                      : 'text-orange-800'
-                  }`}>
-                    {verificationStatus.status === 'rejected' 
-                      ? 'Verification Rejected' 
-                      : verificationStatus.status === 'pending'
-                      ? 'Verification Pending'
-                      : 'Account Not Verified'}
-                  </h3>
-                  <p className={`text-sm ${
-                    verificationStatus.status === 'rejected' 
-                      ? 'text-red-600' 
-                      : verificationStatus.status === 'pending'
-                      ? 'text-yellow-600'
-                      : 'text-orange-600'
-                  }`}>
-                    {verificationStatus.status === 'rejected' 
-                      ? 'Please review the rejection reason and resubmit your documents.' 
-                      : verificationStatus.status === 'pending'
-                      ? 'Your documents are under review. Properties can only be saved as drafts.'
-                      : 'Complete verification to publish properties.'}
-                  </p>
-                </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {verificationStatus.status === 'rejected' ? <FileWarning className="w-6 h-6 text-red-600" /> : 
+               verificationStatus.status === 'pending' ? <Clock className="w-6 h-6 text-yellow-600" /> : <ShieldAlert className="w-6 h-6 text-orange-600" />}
+              <div>
+                <h3 className="font-semibold text-gray-900">Account Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
+                <p className="text-sm text-gray-600">Please complete your verification in Settings to unlock all features.</p>
               </div>
-              <Link
-                to="/settings"
-                state={{ tab: 'verification' }}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                  verificationStatus.status === 'rejected' 
-                    ? 'bg-red-600 hover:bg-red-700 text-white' 
-                    : verificationStatus.status === 'pending'
-                    ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                    : 'bg-orange-600 hover:bg-orange-700 text-white'
-                }`}
-              >
-                {verificationStatus.status === 'rejected' ? 'Resubmit Documents' : 'View Status'}
-              </Link>
             </div>
+            <Link to="/settings" state={{ tab: 'verification' }} className="px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg text-sm font-medium shadow-sm">View Status</Link>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome back! Here's what's happening today.</p>
-            </div>
-            
-            {/* Notification Bell */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <Bell className="w-6 h-6" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-700">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
-                    <button
-                      onClick={() => setShowNotifications(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Tabs */}
-                  <div className="flex border-b border-gray-200">
-                    <button
-                      onClick={() => setNotificationView('active')}
-                      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                        notificationView === 'active'
-                          ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Active ({activeNotifications.length})
-                    </button>
-                    <button
-                      onClick={() => setNotificationView('archived')}
-                      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                        notificationView === 'archived'
-                          ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Archived ({archivedNotifications.length})
-                    </button>
-                  </div>
-                  
-                  <div className="max-h-96 overflow-y-auto">
-                    {notificationView === 'active' ? (
-                      /* Active Notifications */
-                      activeNotifications.length === 0 ? (
-                        <div className="py-8 text-center text-gray-500">
-                          <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-400" />
-                          <p className="font-medium">All caught up!</p>
-                          <p className="text-sm">No new notifications</p>
-                        </div>
-                      ) : (
-                        activeNotifications.map((notification) => {
-                          const style = getNotificationStyle(notification.type);
-                          return (
-                            <div
-                              key={notification.id}
-                              className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${style.bg}`}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${style.icon}`}>
-                                  {getNotificationIcon(notification.icon)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm font-semibold text-gray-900">{notification.title}</p>
-                                    <div className="flex items-center gap-1 ml-2">
-                                      <button
-                                        onClick={() => archiveNotification(notification.id)}
-                                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
-                                        title="Archive"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                                        </svg>
-                                      </button>
-                                      <button
-                                        onClick={() => dismissNotification(notification.id)}
-                                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
-                                        title="Dismiss"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                                  <div className="flex items-center justify-between mt-2">
-                                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {notification.time}
-                                    </span>
-                                    {notification.actionLabel && notification.actionPath && (
-                                      <button 
-                                        onClick={() => handleNotificationAction(notification.id, notification.actionPath)}
-                                        className="text-xs font-medium text-green-600 hover:text-green-700"
-                                      >
-                                        {notification.actionLabel} →
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )
-                    ) : (
-                      /* Archived Notifications */
-                      archivedNotifications.length === 0 ? (
-                        <div className="py-8 text-center text-gray-500">
-                          <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                          </svg>
-                          <p className="font-medium">No archived notifications</p>
-                          <p className="text-sm">Archived notifications will appear here</p>
-                        </div>
-                      ) : (
-                        archivedNotifications.map((notification) => {
-                          const style = getNotificationStyle(notification.type);
-                          return (
-                            <div
-                              key={notification.id}
-                              className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors bg-gray-50"
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${style.icon} opacity-60`}>
-                                  {getNotificationIcon(notification.icon)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm font-semibold text-gray-700">{notification.title}</p>
-                                    <div className="flex items-center gap-1 ml-2">
-                                      <button
-                                        onClick={() => unarchiveNotification(notification.id)}
-                                        className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-100 rounded"
-                                        title="Restore"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                        </svg>
-                                      </button>
-                                      <button
-                                        onClick={() => deleteArchivedNotification(notification.id)}
-                                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded"
-                                        title="Delete permanently"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
-                                  <span className="text-xs text-gray-400 flex items-center gap-1 mt-2">
-                                    <Clock className="w-3 h-3" />
-                                    Archived {notification.archivedAt ? new Date(notification.archivedAt).toLocaleDateString() : 'recently'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )
-                    )}
-                  </div>
-                  
-                  {notificationView === 'active' && activeNotifications.length > 0 && (
-                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-2">
-                      <button
-                        onClick={() => {
-                          activeNotifications.forEach(n => archiveNotification(n.id));
-                        }}
-                        className="flex-1 text-sm text-center text-gray-600 hover:text-gray-900 font-medium py-1 hover:bg-gray-100 rounded"
-                      >
-                        Archive all
-                      </button>
-                      <button
-                        onClick={() => setDismissedNotifications(notifications.map(n => n.id))}
-                        className="flex-1 text-sm text-center text-gray-600 hover:text-gray-900 font-medium py-1 hover:bg-gray-100 rounded"
-                      >
-                        Dismiss all
-                      </button>
-                    </div>
-                  )}
-                  
-                  {notificationView === 'archived' && archivedNotifications.length > 0 && (
-                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-                      <button
-                        onClick={clearAllArchived}
-                        className="w-full text-sm text-center text-red-600 hover:text-red-700 font-medium py-1 hover:bg-red-50 rounded"
-                      >
-                        Clear all archived
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+      {/* Main Stats Grid */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isCaretaker ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6`}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-blue-600" /></div>
+            <span className="text-xs text-green-600 font-medium">{stats?.properties.active}/{stats?.properties.total} Active</span>
           </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.properties.total}</p>
+          <p className="text-sm text-gray-500">Total Properties</p>
         </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Properties */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-blue-600" />
-              </div>
-              <span className="text-xs text-green-600 font-medium">
-                {stats?.properties.active}/{stats?.properties.total} Active
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.properties.total}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Properties</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Home className="w-6 h-6 text-green-600" /></div>
+            <span className="text-xs text-blue-600 font-medium">{stats?.rooms.occupancyRate}% Occupied</span>
           </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.rooms.total}</p>
+          <p className="text-sm text-gray-500">{stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available</p>
+        </div>
 
-          {/* Total Rooms */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Home className="w-6 h-6 text-green-600" />
-              </div>
-              <span className="text-xs text-blue-600 font-medium">
-                {stats?.rooms.occupancyRate}% Occupied
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.rooms.total}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available
-            </p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"><Calendar className="w-6 h-6 text-purple-600" /></div>
+            {stats?.bookings.pending > 0 && <span className="text-xs text-yellow-600 font-medium">{stats?.bookings.pending} Pending</span>}
           </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
+          <p className="text-sm text-gray-500">Bookings (Confirmed & Pending)</p>
+        </div>
 
-          {/* Bookings */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-purple-600" />
-              </div>
-              {stats?.bookings.pending > 0 && (
-                <span className="text-xs text-yellow-600 font-medium">
-                  {stats?.bookings.pending} Pending
-                </span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {stats?.bookings.confirmed || 0} Confirmed · {stats?.bookings.pending || 0} Pending
-            </p>
-          </div>
-
-          {/* Monthly Revenue */}
+        {!isCaretaker && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                  fill="none" stroke="orange" strokeWidth="2" strokeLinecap="round"
-                  strokeLinejoin="round" className="lucide lucide-philippine-peso-icon lucide-philippine-peso">
-                  <path d="M20 11H4" />
-                  <path d="M20 7H4" />
-                  <path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7" />
-                </svg>
+                 <LucidePhilippinePeso className="w-6 h-6 text-orange-600" />
               </div>
-              <span className="text-xs text-green-600 font-medium">
-                <TrendingUp className="w-4 h-4 inline" />
-              </span>
+              <TrendingUp className="w-4 h-4 text-green-500" />
             </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{stats?.revenue.monthly.toLocaleString()}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Monthly Revenue</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{stats?.revenue?.monthly?.toLocaleString()}</p>
+            <p className="text-sm text-gray-500">Monthly Revenue</p>
+          </div>
+        )}
+      </div>
+
+      {/* Activities and Alerts */}
+      <div className={`grid grid-cols-1 ${isCaretaker ? 'lg:grid-cols-3' : 'lg:grid-cols-3'} gap-6`}>
+        <div className={`${isCaretaker ? 'lg:col-span-2' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6`}>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
+          <div className="space-y-4">
+            {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
+              activities.slice(0, 6).map((activity, index) => (
+                <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.color)}`}>{getActivityIcon(activity.type)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{activity.description}</p>
+                    <p className="text-xs text-gray-400 mt-1">{formatDate(activity.timestamp)}</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${getActivityColor(activity.color)}`}>{activity.status}</span>
+                </div>
+              ))
+            }
           </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activities - Takes 2 columns */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
-              <div className="space-y-4">
-                {activities.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <Clock className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="font-medium">No recent activities</p>
-                    <p className="text-sm">Activities will appear here once you start managing your properties.</p>
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
+            <div className="space-y-3">
+              {upcomingPayments.upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
+                upcomingPayments.upcomingCheckouts.slice(0, 4).map((c) => (
+                  <div key={c.id} className={`p-3 rounded-lg border ${getUrgencyColor(c.urgency)}`}>
+                    <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{c.tenantName}</span><span>{c.daysLeft}d</span></div>
+                    <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">{c.propertyTitle} - Room {c.roomNumber}</p>
                   </div>
-                ) : (
-                  activities.map((activity, index) => (
-                    <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.color)}`}>
-                        {getActivityIcon(activity.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{activity.description}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatDate(activity.timestamp)}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          activity.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                            activity.status === 'available' ? 'bg-green-100 text-green-800' :
-                              activity.status === 'occupied' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                        }`}>
-                        {activity.status}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
+                ))
+              }
             </div>
           </div>
 
-          {/* Upcoming Checkouts & Payments */}
-          <div className="space-y-6">
-            {/* Upcoming Checkouts */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
-              <div className="space-y-3">
-                {upcomingPayments.upcomingCheckouts.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No upcoming checkouts</p>
-                ) : (
-                  upcomingPayments.upcomingCheckouts.slice(0, 5).map((checkout) => (
-                    <div key={checkout.id} className={`p-3 rounded-lg border ${getUrgencyColor(checkout.urgency)}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold">{checkout.tenantName}</p>
-                        <span className="text-xs font-medium">{checkout.daysLeft} days</span>
-                      </div>
-                      <p className="text-xs text-gray-600">{checkout.propertyTitle} - Room {checkout.roomNumber}</p>
-                      <p className="text-xs text-gray-500 mt-1">{checkout.endDate}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Unpaid Bookings */}
+          {!isCaretaker && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Bookings</h2>
               <div className="space-y-3">
-                {upcomingPayments.unpaidBookings.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">All payments up to date!</p>
-                ) : (
-                  upcomingPayments.unpaidBookings.slice(0, 5).map((booking) => (
-                    <div key={booking.id} className="p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold text-gray-900">{booking.tenantName}</p>
-                        <span className="text-xs font-bold text-red-600">₱{booking.amount.toLocaleString()}</span>
-                      </div>
-                      <p className="text-xs text-gray-600">{booking.propertyTitle} - Room {booking.roomNumber}</p>
-                      <span className="text-xs text-red-600 font-medium capitalize">{booking.paymentStatus}</span>
+                {upcomingPayments.unpaidBookings.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">All paid up!</p> :
+                  upcomingPayments.unpaidBookings.slice(0, 4).map((b) => (
+                    <div key={b.id} className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                      <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{b.tenantName}</span><span>₱{b.amount.toLocaleString()}</span></div>
+                      <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">{b.propertyTitle} - Room {b.roomNumber}</p>
                     </div>
                   ))
-                )}
+                }
               </div>
             </div>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Property Performance */}
-        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Performance</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {propertyPerformance.length === 0 ? (
-              <div className="col-span-full text-center py-8 text-gray-500">
-                <Building2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No properties yet</p>
+      {/* Performance Grid */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Performance</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {propertyPerformance.map((p) => (
+            <div key={p.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+              <div className="flex justify-between mb-3"><h3 className="font-semibold text-gray-900 dark:text-white">{p.title}</h3><span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span></div>
+              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${p.occupancyRate}%` }} /></div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Rooms: {p.occupiedRooms}/{p.totalRooms}</span>
+                {!isCaretaker && <span>Rev: ₱{p.actualRevenue?.toLocaleString()}</span>}
               </div>
-            ) : (
-              propertyPerformance.map((property) => (
-                <div key={property.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{property.title}</h3>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${property.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                      {property.status}
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 mb-1">
-                      <span>Occupancy</span>
-                      <span className="font-semibold">{property.occupancyRate}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full transition-all"
-                        style={{ width: `${property.occupancyRate}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400">Occupied</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">{property.occupiedRooms}/{property.totalRooms}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400">Revenue</p>
-                      <p className="font-semibold text-green-600">₱{property.actualRevenue.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

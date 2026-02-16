@@ -3,12 +3,18 @@ import { tenantService } from '../../services/tenantService';
 import { getImageUrl } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
+import { useUIState } from '../../contexts/UIStateContext';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [stayData, setStayData] = useState(null);
-  const [stats, setStats] = useState(null);
+  const { uiState, updateData } = useUIState();
+  
+  // Use cached data from UIState if available
+  const cachedData = uiState.data.dashboard;
+  
+  const [loading, setLoading] = useState(!cachedData);
+  const [stayData, setStayData] = useState(cachedData?.stayData || null);
+  const [stats, setStats] = useState(cachedData?.stats || null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -16,13 +22,20 @@ const TenantDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
+      // Only set loading true if we have no cached data
+      if (!cachedData) setLoading(true);
+      
       const [currentStay, dashboardStats] = await Promise.all([
         tenantService.getCurrentStay(),
         tenantService.getDashboardStats()
       ]);
+      
       setStayData(currentStay);
       setStats(dashboardStats);
+      
+      // Update the global UI State for instant mount next time
+      updateData('dashboard', { stayData: currentStay, stats: dashboardStats });
+      
     } catch (error) {
       console.error('Failed to load dashboard data', error);
     } finally {
@@ -51,9 +64,6 @@ const TenantDashboard = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-40" />
-        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <SkeletonCurrentStay />
@@ -69,10 +79,6 @@ const TenantDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Dashboard</h1>
-      </div>
-
       {/* Active Stay Section */}
       {stayData?.hasActiveStay ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -133,7 +139,14 @@ const TenantDashboard = () => {
                   <p className="text-base font-bold text-gray-800 dark:text-gray-200">{stayData.landlord?.name}</p>
                 </div>
                 <button
-                  onClick={() => navigate('/messages')}
+                  onClick={() => navigate('/messages', { 
+                    state: { 
+                      startConversation: { 
+                        recipient_id: stayData.landlord?.id, 
+                        property_id: stayData.property?.id 
+                      } 
+                    } 
+                  })}
                   className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
                 >
                   Send Message
