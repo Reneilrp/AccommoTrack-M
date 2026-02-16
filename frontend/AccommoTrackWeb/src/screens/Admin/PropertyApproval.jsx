@@ -1,25 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/api';
+import { toast } from 'react-hot-toast';
 
 const PropertyApproval = ({ isEmbedded = false }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
-  const [error, setError] = useState('');
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
 
   const fetchProperties = async (status = 'pending') => {
     setLoading(true);
-    setError('');
     try {
       // Backend endpoints: GET /admin/properties/pending, /approved, /rejected
       const res = await api.get(`/admin/properties/${status}`);
       setProperties(res.data.data || res.data || []);
     } catch (err) {
       console.error(`Failed to fetch ${status} properties`, err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch');
+      toast.error(err.response?.data?.message || err.message || 'Failed to fetch');
     } finally {
       setLoading(false);
     }
@@ -31,13 +30,14 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
   const handleAction = async (propertyId, action) => {
     setActionLoading(propertyId + ':' + action);
-    setError('');
 
     try {
       if (action === 'approve') {
         await api.post(`/admin/properties/${propertyId}/approve`);
+        toast.success('Property approved successfully');
       } else if (action === 'reject') {
         await api.post(`/admin/properties/${propertyId}/reject`);
+        toast.success('Property rejected successfully');
       }
 
       // Remove property from pending list
@@ -46,7 +46,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       setSelectedProperty(null);
     } catch (err) {
       console.error(`Failed to ${action} property`, err);
-      setError(err.response?.data?.message || err.message || `Failed to ${action}`);
+      toast.error(err.response?.data?.message || err.message || `Failed to ${action}`);
     } finally {
       setActionLoading(null);
     }
@@ -65,8 +65,6 @@ const PropertyApproval = ({ isEmbedded = false }) => {
           <p className="text-sm text-gray-600 mb-6">Review and manage property submissions and approvals.</p>
         </>
       )}
-
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
       {/* Filter Buttons */}
       <div className="mb-4 flex gap-2 flex-wrap">
@@ -342,20 +340,24 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               >
                 Close
               </button>
-              <button
-                onClick={() => handleAction(selectedProperty.id, 'reject')}
-                disabled={actionLoading}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading === selectedProperty.id + ':reject' ? 'Rejecting...' : 'Reject Property'}
-              </button>
-              <button
-                onClick={() => handleAction(selectedProperty.id, 'approve')}
-                disabled={actionLoading}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading === selectedProperty.id + ':approve' ? 'Approving...' : 'Approve Property'}
-              </button>
+              {selectedProperty.current_status === 'pending' && (
+                <>
+                  <button
+                    onClick={() => handleAction(selectedProperty.id, 'reject')}
+                    disabled={actionLoading}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading === selectedProperty.id + ':reject' ? 'Rejecting...' : 'Reject Property'}
+                  </button>
+                  <button
+                    onClick={() => handleAction(selectedProperty.id, 'approve')}
+                    disabled={actionLoading}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading === selectedProperty.id + ':approve' ? 'Approving...' : 'Approve Property'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

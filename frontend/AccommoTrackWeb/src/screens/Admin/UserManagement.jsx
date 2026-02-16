@@ -1,25 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/api';
+import { toast } from 'react-hot-toast';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
-  const [error, setError] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
-    setError('');
     try {
       // Backend endpoint: GET /admin/users
       const res = await api.get('/admin/users');
       setUsers(res.data.data || res.data || []);
     } catch (err) {
       console.error('Failed to fetch users', err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch users');
+      toast.error(err.response?.data?.message || err.message || 'Failed to fetch users');
     } finally {
       setLoading(false);
     }
@@ -31,18 +30,19 @@ const UserManagement = () => {
 
   const handleBlock = async (userId, block = true) => {
     setActionLoading(userId + ':' + (block ? 'block' : 'unblock'));
-    setError('');
     try {
       if (block) {
         await api.post(`/admin/users/${userId}/block`);
+        toast.success('User blocked successfully');
       } else {
         await api.post(`/admin/users/${userId}/unblock`);
+        toast.success('User unblocked successfully');
       }
 
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_active: !block } : u)));
     } catch (err) {
       console.error('Failed to update user block status', err);
-      setError(err.response?.data?.message || err.message || 'User action failed');
+      toast.error(err.response?.data?.message || err.message || 'User action failed');
     } finally {
       setActionLoading(null);
     }
@@ -50,13 +50,13 @@ const UserManagement = () => {
 
   const handleApprove = async (userId) => {
     setActionLoading(userId + ':approve');
-    setError('');
     try {
       await api.post(`/admin/users/${userId}/approve`);
+      toast.success('User approved successfully');
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_verified: true } : u)));
     } catch (err) {
       console.error('Failed to approve user', err);
-      setError(err.response?.data?.message || err.message || 'Failed to approve');
+      toast.error(err.response?.data?.message || err.message || 'Failed to approve');
     } finally {
       setActionLoading(null);
     }
@@ -76,8 +76,6 @@ const UserManagement = () => {
     <div className="w-full max-w-full px-6 py-6">
       <h2 className="text-2xl font-bold mb-2 text-gray-800">User Management</h2>
       <p className="text-sm text-gray-600 mb-6">Manage registered users. View information or block/unblock users.</p>
-
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
       {/* Filter Buttons */}
       <div className="mb-4 flex gap-2 flex-wrap">
@@ -140,6 +138,7 @@ const UserManagement = () => {
                 <tr>
                   <th className="px-6 py-3 text-left font-semibold">Name</th>
                   <th className="px-6 py-3 text-left font-semibold">Email</th>
+                  <th className="px-6 py-3 text-left font-semibold">Gender</th>
                   <th className="px-6 py-3 text-left font-semibold">Role</th>
                   <th className="px-6 py-3 text-left font-semibold">Status</th>
                   <th className="px-6 py-3 text-center font-semibold">Actions</th>
@@ -150,6 +149,7 @@ const UserManagement = () => {
                   <tr key={u.id} className="bg-white even:bg-gray-50 hover:bg-emerald-50/40 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900">{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.name || '—'}</td>
                     <td className="px-6 py-4 text-gray-700">{u.email}</td>
+                    <td className="px-6 py-4 text-gray-700 capitalize">{u.gender || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 capitalize">{u.role}</td>
                     <td className="px-6 py-4 text-gray-700">
                       {u.role === 'landlord' ? (
@@ -235,6 +235,10 @@ const UserManagement = () => {
                   <div>
                     <p className="text-sm text-gray-600">Email</p>
                     <p className="font-semibold text-gray-900">{selectedUser.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Gender</p>
+                    <p className="font-semibold text-gray-900 capitalize">{selectedUser.gender || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Role</p>
