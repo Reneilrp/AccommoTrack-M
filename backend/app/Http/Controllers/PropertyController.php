@@ -9,12 +9,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\User;
 use App\Models\Room;
 
 
 class PropertyController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     // ====================================================================
     // PUBLIC ROUTES (No auth needed - for tenants)
     // ====================================================================
@@ -361,6 +364,9 @@ class PropertyController extends Controller
 
     public function store(Request $request)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -604,7 +610,10 @@ class PropertyController extends Controller
 
     public function update(Request $request, $id)
     {
-        $property = Property::where('landlord_id', Auth::id())->findOrFail($id);
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
+        $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
@@ -823,11 +832,14 @@ class PropertyController extends Controller
      */
     public function verifyPassword(Request $request)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $request->validate([
             'password' => 'required|string',
         ]);
 
-        $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail($context['user']->id);
 
         if (!Hash::check($request->password, $user->password)) {
             return response()->json([
@@ -847,11 +859,14 @@ class PropertyController extends Controller
      */
     public function addAmenity(Request $request, $id)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $request->validate([
             'amenity' => 'required|string|max:255'
         ]);
 
-        $property = Property::where('landlord_id', Auth::id())->findOrFail($id);
+        $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
         // Find or create the amenity
         $amenity = \App\Models\Amenity::firstOrCreate([
@@ -871,9 +886,12 @@ class PropertyController extends Controller
 
     public function destroy($id, Request $request)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         // Verify password if provided
         if ($request->has('password')) {
-            $user = User::findOrFail(Auth::id());
+            $user = User::findOrFail($context['user']->id);
             if (!Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'message' => 'Incorrect password. Please try again.',
@@ -885,7 +903,7 @@ class PropertyController extends Controller
         DB::beginTransaction();
 
         try {
-            $property = Property::where('landlord_id', Auth::id())
+            $property = Property::where('landlord_id', $context['landlord_id'])
                 ->with(['rooms', 'bookings', 'images'])
                 ->findOrFail($id);
 

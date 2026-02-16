@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../styles/Tenant/PropertyDetailsScreen';
+import homeStyles from '../../../styles/Tenant/HomePage.js';
 import PropertyService from '../../../services/PropertyServices';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -36,6 +37,32 @@ export default function PropertyDetailsScreen({ route }) {
   useEffect(() => {
     loadRooms();
   }, [accommodation?.id]);
+
+  // Tell TenantLayout what title to use for this screen and hide the layout
+  useEffect(() => {
+    const title = (detailedAccommodation && (detailedAccommodation.title || detailedAccommodation.name)) || (accommodation && (accommodation.title || accommodation.name));
+    try {
+      navigation.setParams?.({ layoutTitle: title, hideLayout: true });
+    } catch (e) {}
+    return () => {
+      try { navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); } catch (e) {}
+    };
+  }, [detailedAccommodation, accommodation, navigation]);
+
+  // Hide bottom tab bar for this details screen (if parent is a tab navigator)
+  useEffect(() => {
+    const parent = navigation.getParent?.();
+    try {
+      parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
+    } catch (e) {
+      // ignore if parent doesn't support tabBarStyle
+    }
+    return () => {
+      try {
+        parent?.setOptions?.({ tabBarStyle: undefined });
+      } catch (e) {}
+    };
+  }, [navigation]);
 
   const loadRooms = async () => {
     if (!accommodation?.id) {
@@ -203,7 +230,8 @@ export default function PropertyDetailsScreen({ route }) {
     
     navigation.navigate('RoomDetails', { 
       room, 
-      property: propertyData 
+      property: propertyData,
+      hideLayout: true,
     });
   };
 
@@ -329,10 +357,10 @@ export default function PropertyDetailsScreen({ route }) {
     const propertyName = ((src && (src.name || src.title)) || 'Property Location')
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'")
-      .replace(/"/g, '\\"')
+      .replace(/\"/g, '\\"')
       .replace(/\n/g, ' ')
       .replace(/\r/g, '');
-    
+
     if (!latitude || !longitude) return null;
 
     return `
@@ -383,15 +411,16 @@ export default function PropertyDetailsScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+      <StatusBar barStyle="light-content" />
+
+      <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, backgroundColor: theme.colors.primary, borderBottomWidth: 0.5, borderBottomColor: theme.colors.primary }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse || '#fff'} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Property Details</Text>
-        <View style={styles.placeholder} />
+
+        <Text style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: theme.colors.textInverse || '#fff' }}>Property Details</Text>
+
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
@@ -529,11 +558,7 @@ export default function PropertyDetailsScreen({ route }) {
             <Text style={[styles.contactButtonText, { color: theme.colors.textInverse }]}>Contact Landlord</Text>
           </TouchableOpacity>
 
-          {/* Report Maintenance Button */}
-          <TouchableOpacity style={[styles.contactButton, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10 }]} onPress={() => navigation.navigate('CreateMaintenanceRequest', { propertyId: active.id })}>
-            <Ionicons name="construct-outline" size={18} color={theme.colors.primary} />
-            <Text style={[styles.contactButtonText, { color: theme.colors.primary }]}>Report Maintenance</Text>
-          </TouchableOpacity>
+          {/* Report Maintenance removed from Property Details - only available via MyBookings */}
 
           {/* Embedded Room List */}
           <View style={styles.roomsSection}>

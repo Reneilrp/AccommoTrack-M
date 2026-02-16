@@ -9,11 +9,19 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use App\Services\BookingService;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class TenantController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    protected $bookingService;
+
+    public function __construct(BookingService $bookingService)
+    {
+        $this->bookingService = $bookingService;
+    }
 
     /**
      * Get all tenants (with optional property filter)
@@ -242,6 +250,8 @@ class TenantController extends Controller
         $validated = $request->validate([
             'room_id' => 'required|exists:rooms,id',
             'move_in_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'notes' => 'nullable|string',
         ]);
 
         $tenant = User::where('role', 'tenant')->findOrFail($id);
@@ -261,22 +271,32 @@ class TenantController extends Controller
             ], 400);
         }
 
-        // Assign tenant to room using the new system
-        $room->assignTenant($tenant->id, $validated['move_in_date'] ?? now()->format('Y-m-d'));
+        // Use BookingService to create a confirmed booking
+        // This will automatically handle assignTenant, profile update, and invoice creation
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
 
-        // Update or create tenant profile
-        $tenant->tenantProfile()->updateOrCreate(
-            ['user_id' => $tenant->id],
-            [
-                'move_in_date' => $validated['move_in_date'] ?? now()->format('Y-m-d'),
-                'status' => 'active',
-            ]
-        );
+            $moveInDate = $validated['move_in_date'] ?? now()->format('Y-m-d');
+            $endDate = $validated['end_date'] ?? \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
 
-        // Update property available rooms
-        $room->property->updateAvailableRooms();
+            $booking = $this->bookingService->createBooking([
+                'room_id' => $room->id,
+                'start_date' => $moveInDate,
+                'end_date' => $endDate,
+                'notes' => $validated['notes'] ?? 'Manually assigned by landlord',
+            ], $tenant->id);
 
-        return response()->json($tenant->load(['tenantProfile', 'room']));
+            // Confirm the booking immediately
+            $this->bookingService->updateStatus($booking, ['status' => 'confirmed']);
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json($tenant->load(['tenantProfile', 'room']));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            Log::error('Manual room assignment failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to assign room', 'message' => $e->getMessage()], 500);
+        }
     }
 
 
