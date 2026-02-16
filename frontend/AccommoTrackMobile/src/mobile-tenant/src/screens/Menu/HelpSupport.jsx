@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import Header from '../../components/Header.jsx';
 
 export default function HelpSupport() {
   const navigation = useNavigation();
@@ -88,20 +89,14 @@ export default function HelpSupport() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
-      <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
-        <View style={homeStyles.headerSide}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
-          </TouchableOpacity>
-        </View>
-        <View style={homeStyles.headerCenter}>
-          <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Help & Support</Text>
-        </View>
-        <View style={homeStyles.headerSide} />
-      </View>
+      
+      <Header 
+        title="Help & Support"
+        onBack={() => navigation.goBack()}
+        showProfile={false}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Welcome Section */}
@@ -209,7 +204,7 @@ export default function HelpSupport() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

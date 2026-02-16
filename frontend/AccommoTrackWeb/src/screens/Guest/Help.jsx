@@ -1,28 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, MessageCircle, Phone, HelpCircle, BookOpen, Clock } from 'lucide-react';
+import InquiryModal from '../../components/Modals/InquiryModal';
+import { helpService } from '../../services/helpService';
 
 const Help = () => {
   const navigate = useNavigate();
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [faqs, setFaqs] = useState([]);
+  const [loadingFaqs, setLoadingFaqs] = useState(true);
 
-  const faqs = [
-    {
-      question: "How do I book a property?",
-      answer: "Browse properties, select a room, and click 'Book Now'. You'll need to create an account or login to complete your booking."
-    },
-    {
-      question: "How do I become a landlord?",
-      answer: "Click on 'Become a Landlord' in the menu and complete the registration process with your valid ID and business permit."
-    },
-    {
-      question: "What payment methods are accepted?",
-      answer: "We accept GCash and Cash only for payments."
-    },
-    {
-      question: "How can I contact my landlord?",
-      answer: "Once logged in, you can message your landlord directly through the Messages section in your dashboard."
-    }
-  ];
+  useEffect(() => {
+    const fetchFaqs = async () => {
+      setLoadingFaqs(true);
+      try {
+        const data = await helpService.getFAQs();
+        setFaqs(data);
+      } catch (error) {
+        console.error('Failed to load FAQs:', error);
+      } finally {
+        setLoadingFaqs(false);
+      }
+    };
+    fetchFaqs();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -52,7 +53,7 @@ const Help = () => {
         </div>
 
         {/* Contact Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
           <a 
             href="mailto:support@accommotrack.com"
             className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group"
@@ -65,25 +66,23 @@ const Help = () => {
             <span className="text-green-600 dark:text-green-500 text-sm font-medium">support@accommotrack.com</span>
           </a>
 
-          <a 
-            href="tel:+639123456789"
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group"
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group cursor-pointer"
+            onClick={() => {
+              const user = localStorage.getItem('user') || localStorage.getItem('userData');
+              if (user) {
+                navigate('/messages');
+              } else {
+                setShowInquiryModal(true);
+              }
+            }}
           >
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Phone className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <h3 className="font-bold text-gray-900 dark:text-white mb-1">Call Us</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mon-Fri, 8AM - 6PM</p>
-            <span className="text-green-600 dark:text-green-500 text-sm font-medium">+63 912 345 6789</span>
-          </a>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group cursor-pointer">
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <MessageCircle className="w-6 h-6 text-green-600 dark:text-green-500" />
             </div>
-            <h3 className="font-bold text-gray-900 dark:text-white mb-1">Live Chat</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Chat with our support team</p>
-            <span className="text-green-600 dark:text-green-500 text-sm font-medium">Start a conversation</span>
+            <h3 className="font-bold text-gray-900 dark:text-white mb-1">Message Support</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Leave us a message</p>
+            <span className="text-green-600 dark:text-green-500 text-sm font-medium">Replies typically in 1-2 hours</span>
           </div>
         </div>
 
@@ -97,7 +96,9 @@ const Help = () => {
           </div>
           
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {faqs.map((faq, index) => (
+            {loadingFaqs ? (
+              <div className="p-6 text-center text-gray-500">Loading FAQs...</div>
+            ) : faqs.map((faq, index) => (
               <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">{faq.question}</h4>
                 <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{faq.answer}</p>
@@ -114,6 +115,9 @@ const Help = () => {
           </div>
         </div>
       </main>
+
+      {/* Inquiry Modal */}
+      {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
     </div>
   );
 };

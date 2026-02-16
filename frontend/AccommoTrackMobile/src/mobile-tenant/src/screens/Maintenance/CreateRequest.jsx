@@ -1,14 +1,30 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+    View, 
+    Text, 
+    TextInput, 
+    TouchableOpacity, 
+    Alert, 
+    Image, 
+    ActivityIndicator, 
+    ScrollView, 
+    KeyboardAvoidingView, 
+    Platform,
+    StatusBar
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { showSuccess, showError } from '../../../../utils/toast';
+import { styles } from '../../../../styles/Tenant/MaintenanceStyles';
+import Header from '../../components/Header.jsx';
 
 export default function CreateRequest() {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { bookingId = null, propertyId = null, roomId = null } = route.params || {};
   const { theme } = useTheme();
 
@@ -20,127 +36,230 @@ export default function CreateRequest() {
 
   const pickImage = async () => {
     try {
-      // Lazy import to avoid hard dependency failing at runtime if package not installed
-      const ImagePicker = require('react-native-image-picker');
-      ImagePicker.launchImageLibrary({ mediaType: 'photo', selectionLimit: 3 }, (res) => {
-        if (res.didCancel) return;
-        if (res.errorCode) {
-          Alert.alert('Image Error', res.errorMessage || 'Unable to pick image');
-          return;
-        }
-
-        const assets = res.assets || [];
-        setImages((prev) => [...prev, ...assets]);
+      const ImagePicker = await import('expo-image-picker');
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission required', 'Please grant media library permissions to attach photos.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({ 
+          mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+          quality: 0.7,
+          allowsMultipleSelection: true 
       });
+      
+      if (res.canceled) return;
+      const assets = res.assets || [];
+      setImages((prev) => [...prev, ...assets].slice(0, 5));
     } catch (err) {
-      Alert.alert('Missing Dependency', 'Image picker not installed. Install `react-native-image-picker` to attach photos.');
+      console.error('Image picker error', err);
+      showError('Error', 'Unable to open image picker.');
     }
+  };
+
+  const removeImage = (index) => {
+      setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const onSubmit = async () => {
     if (!title.trim() || !description.trim()) {
-      Alert.alert('Validation', 'Please provide a title and description for the maintenance request.');
+      showError('Validation', 'Please provide a title and description.');
       return;
     }
 
     setSubmitting(true);
     try {
-      const payload = { title, description, priority };
-      if (bookingId) payload.booking_id = bookingId;
-      if (propertyId) payload.property_id = propertyId;
-      if (roomId) payload.room_id = roomId;
-
-      // If images exist, send as FormData
-      if (images.length > 0) {
-        const form = new FormData();
-        form.append('title', title);
-        form.append('description', description);
-        form.append('priority', priority);
-        if (bookingId) form.append('booking_id', bookingId);
-        if (propertyId) form.append('property_id', propertyId);
-        if (roomId) form.append('room_id', roomId);
-        images.forEach((img, idx) => {
-          // img.uri, img.fileName, img.type
-          form.append('images[]', {
-            uri: img.uri,
-            name: img.fileName || `photo_${idx}.jpg`,
-            type: img.type || 'image/jpeg'
-          });
+      const form = new FormData();
+      form.append('title', title);
+      form.append('description', description);
+      form.append('priority', priority);
+      if (bookingId) form.append('booking_id', bookingId);
+      if (propertyId) form.append('property_id', propertyId);
+      if (roomId) form.append('room_id', roomId);
+      
+      images.forEach((img, idx) => {
+        form.append('images[]', {
+          uri: img.uri,
+          name: img.fileName || `photo_${idx}.jpg`,
+          type: img.type || 'image/jpeg'
         });
+      });
 
-        const res = await tenantService.submitMaintenanceRequest(form, true);
-        if (res.success) {
-          Alert.alert('Request Sent', 'Maintenance request submitted successfully.');
-          navigation.goBack();
-        } else {
-          Alert.alert('Error', res.error || 'Failed to submit request');
-        }
+      const res = await tenantService.submitMaintenanceRequest(form, true);
+      if (res.success) {
+        showSuccess('Request submitted successfully');
+        navigation.goBack();
       } else {
-        const res = await tenantService.submitMaintenanceRequest(payload, false);
-        if (res.success) {
-          Alert.alert('Request Sent', 'Maintenance request submitted successfully.');
-          navigation.goBack();
-        } else {
-          Alert.alert('Error', res.error || 'Failed to submit request');
-        }
+        showError('Error', res.error || 'Failed to submit request');
       }
     } catch (error) {
       console.error('Submit maintenance error:', error);
-      Alert.alert('Error', 'Unexpected error while submitting request.');
+      showError('Error', 'An unexpected error occurred.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const PriorityChip = ({ level, label }) => (
+      <TouchableOpacity 
+        onPress={() => setPriority(level)} 
+        style={[
+            styles.priorityChip, 
+            { 
+                backgroundColor: priority === level ? theme.colors.primary : theme.colors.surface,
+                borderColor: priority === level ? theme.colors.primary : theme.colors.border,
+                borderWidth: 1
+            },
+            priority === level && styles.priorityChipActive
+        ]}
+      >
+        <Text style={[
+            styles.priorityText, 
+            { color: priority === level ? '#fff' : theme.colors.textSecondary }
+        ]}>
+            {label}
+        </Text>
+      </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
-          <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontWeight: '600', marginLeft: 8, color: theme.colors.text }}>New Maintenance Request</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+      
+      <Header 
+        title="Maintenance Request"
+        onBack={() => navigation.goBack()}
+        showProfile={false}
+      />
 
-      <View style={{ marginBottom: 12 }}>
-        <Text style={{ color: theme.colors.textSecondary, marginBottom: 6 }}>Title</Text>
-        <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Leaking faucet" style={{ backgroundColor: theme.colors.surface, padding: 10, borderRadius: 8, color: theme.colors.text }} />
-      </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : null}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            
+            <View style={styles.section}>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                    SUBJECT <Text style={{ color: '#EF4444' }}>*</Text>
+                </Text>
+                <TextInput 
+                    value={title} 
+                    onChangeText={setTitle} 
+                    placeholder="Brief summary of the issue" 
+                    placeholderTextColor={theme.colors.textTertiary}
+                    style={[
+                        styles.input, 
+                        { 
+                            backgroundColor: theme.colors.surface, 
+                            color: theme.colors.text,
+                            borderColor: theme.colors.border,
+                            borderWidth: 1
+                        }
+                    ]} 
+                />
+            </View>
 
-      <View style={{ marginBottom: 12 }}>
-        <Text style={{ color: theme.colors.textSecondary, marginBottom: 6 }}>Description</Text>
-        <TextInput value={description} onChangeText={setDescription} placeholder="Describe the issue" multiline numberOfLines={4} style={{ backgroundColor: theme.colors.surface, padding: 10, borderRadius: 8, minHeight: 100, textAlignVertical: 'top', color: theme.colors.text }} />
-      </View>
+            <View style={styles.section}>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                    DESCRIPTION <Text style={{ color: '#EF4444' }}>*</Text>
+                </Text>
+                <TextInput 
+                    value={description} 
+                    onChangeText={setDescription} 
+                    placeholder="Provide more details about the problem..." 
+                    placeholderTextColor={theme.colors.textTertiary}
+                    multiline 
+                    numberOfLines={6} 
+                    textAlignVertical="top"
+                    style={[
+                        styles.textArea, 
+                        { 
+                            backgroundColor: theme.colors.surface, 
+                            color: theme.colors.text,
+                            borderColor: theme.colors.border,
+                            borderWidth: 1
+                        }
+                    ]} 
+                />
+            </View>
 
-      <View style={{ marginBottom: 12 }}>
-        <Text style={{ color: theme.colors.textSecondary, marginBottom: 6 }}>Priority</Text>
-        <View style={{ flexDirection: 'row' }}>
-          {['low', 'normal', 'high'].map((p) => (
-            <TouchableOpacity key={p} onPress={() => setPriority(p)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, marginRight: 8, backgroundColor: priority === p ? theme.colors.primary : theme.colors.surface }}>
-              <Text style={{ color: priority === p ? theme.colors.textInverse : theme.colors.text }}>{p.toUpperCase()}</Text>
+            <View style={styles.section}>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>PRIORITY LEVEL</Text>
+                <View style={styles.priorityRow}>
+                    <PriorityChip level="low" label="Low" />
+                    <PriorityChip level="normal" label="Normal" />
+                    <PriorityChip level="high" label="High" />
+                </View>
+            </View>
+
+            <View style={styles.section}>
+                <View style={styles.labelRow}>
+                    <Text style={[styles.label, { color: theme.colors.textSecondary }]}>ATTACHMENTS</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.textTertiary }}>{images.length}/5 photos</Text>
+                </View>
+                
+                <View style={styles.photoGrid}>
+                    <TouchableOpacity 
+                        onPress={pickImage} 
+                        disabled={images.length >= 5}
+                        style={[
+                            styles.addPhotoBtn, 
+                            { 
+                                backgroundColor: theme.colors.surface, 
+                                borderStyle: 'dashed', 
+                                borderColor: theme.colors.border,
+                                borderWidth: 1
+                            }
+                        ]}
+                    >
+                        <Ionicons name="camera-outline" size={28} color={theme.colors.primary} />
+                        <Text style={[styles.addPhotoText, { color: theme.colors.primary }]}>Add Photo</Text>
+                    </TouchableOpacity>
+
+                    {images.map((img, idx) => (
+                        <View key={idx} style={styles.photoWrapper}>
+                            <Image source={{ uri: img.uri }} style={styles.photo} />
+                            <TouchableOpacity 
+                                onPress={() => removeImage(idx)} 
+                                style={styles.removePhotoBtn}
+                            >
+                                <Ionicons name="close-circle" size={20} color="#EF4444" />
+                            </TouchableOpacity>
+                        </View>
+                    ))}
+                </View>
+            </View>
+
+            <View style={[styles.infoBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                <Ionicons name="information-circle-outline" size={20} color={theme.colors.primary} />
+                <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
+                    Your request will be sent directly to the landlord. They will review and update you on the progress.
+                </Text>
+            </View>
+
+        </ScrollView>
+
+        <View style={[
+            styles.footer, 
+            { 
+                borderTopColor: theme.colors.border, 
+                backgroundColor: theme.colors.surface,
+                paddingBottom: Math.max(insets.bottom, 20)
+            }
+        ]}>
+            <TouchableOpacity 
+                onPress={onSubmit} 
+                disabled={submitting} 
+                style={[styles.submitBtn, { backgroundColor: theme.colors.primary }]}
+            >
+                {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                ) : (
+                    <Text style={styles.submitBtnText}>Submit Request</Text>
+                )}
             </TouchableOpacity>
-          ))}
         </View>
-      </View>
-
-      <View style={{ marginBottom: 12 }}>
-        <Text style={{ color: theme.colors.textSecondary, marginBottom: 6 }}>Photos (optional)</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={pickImage} style={{ padding: 10, backgroundColor: theme.colors.surface, borderRadius: 8, marginRight: 12 }}>
-            <Ionicons name="image-outline" size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <View style={{ flexDirection: 'row' }}>
-            {images.map((img, idx) => (
-              <Image key={idx} source={{ uri: img.uri }} style={{ width: 56, height: 56, borderRadius: 6, marginRight: 8 }} />
-            ))}
-          </View>
-        </View>
-      </View>
-
-      <View style={{ marginTop: 16 }}>
-        <TouchableOpacity onPress={onSubmit} disabled={submitting} style={{ padding: 14, borderRadius: 10, backgroundColor: theme.colors.primary, alignItems: 'center' }}>
-          {submitting ? <ActivityIndicator color={theme.colors.textInverse} /> : <Text style={{ color: theme.colors.textInverse, fontWeight: '600' }}>Submit Request</Text>}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
