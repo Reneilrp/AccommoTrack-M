@@ -120,17 +120,22 @@ class LandlordVerificationController extends Controller
          return response()->json($verifications);
     }
 
-    /**
-     * Get current landlord's own verification status
-     */
     public function getMyVerification()
     {
         $user = Auth::user();
+        $landlordId = $user->effectiveLandlordId();
+
+        if (!$landlordId) {
+            return response()->json([
+                'message' => 'Not authorized to view verification status',
+                'status' => 'error'
+            ], 403);
+        }
         
         $verification = LandlordVerification::with(['history' => function($query) {
             $query->orderBy('created_at', 'desc');
         }, 'reviewer:id,first_name,last_name'])
-            ->where('user_id', $user->id)
+            ->where('user_id', $landlordId)
             ->first();
 
         if (!$verification) {
@@ -139,6 +144,8 @@ class LandlordVerificationController extends Controller
                 'status' => 'not_submitted'
             ], 404);
         }
+
+        $landlord = User::find($landlordId);
 
         return response()->json([
             'id' => $verification->id,
@@ -164,7 +171,7 @@ class LandlordVerificationController extends Controller
                 ];
             }),
             'user' => [
-                'is_verified' => $user->is_verified,
+                'is_verified' => $landlord->is_verified ?? false,
             ]
         ]);
     }

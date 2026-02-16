@@ -17,7 +17,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
 // Get base storage URL from environment
-const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000/storage';
+const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://192.168.43.142:8000/storage';
 
 // Normalize image URL to use frontend's configured base URL
 const normalizeImageUrl = (url) => {

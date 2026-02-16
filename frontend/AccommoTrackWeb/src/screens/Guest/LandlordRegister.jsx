@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/Logo.png';
-import api from '../../utils/api';
+import api, { isCancel } from '../../utils/api';
 
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);
@@ -11,6 +11,7 @@ const LandlordRegister = () => {
     firstName: '',
     middleName: '',
     lastName: '',
+    dob: '',
     email: '',
     phone: '',
     password: '',
@@ -28,6 +29,22 @@ const LandlordRegister = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const fieldRefs = useRef({});
+  const fileInputRefs = useRef({ validId: null, permit: null });
+
+  // Email live-check state + refs for debounce/abort
+  const [emailAvailable, setEmailAvailable] = useState(null);
+  const [emailCheckMsg, setEmailCheckMsg] = useState('');
+  const emailCheckTimeout = useRef(null);
+  const emailCheckAbortController = useRef(null);
+  // import isCancel from api for consistent cancellation handling
+  // (we import below alongside api)
+
+  // Field level server errors
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Live password checks
+  const [passwordChecks, setPasswordChecks] = useState({ minLen: false, hasUpper: false, numCount: false, hasSpecial: false });
 
   // Fetch ID types from backend
   useEffect(() => {
@@ -58,9 +75,61 @@ const LandlordRegister = () => {
       setForm((prev) => ({ ...prev, [name]: files[0] }));
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
+      // Live behaviors
+      if (name === 'email') {
+        setEmailAvailable(null);
+        setEmailCheckMsg('');
+        // debounce email check
+        if (emailCheckTimeout.current) clearTimeout(emailCheckTimeout.current);
+        emailCheckTimeout.current = setTimeout(() => {
+          runEmailCheck(value);
+        }, 500);
+      }
+      if (name === 'password') {
+        const pwd = value || '';
+        setPasswordChecks({
+          minLen: pwd.length >= 8,
+          hasUpper: /[A-Z]/.test(pwd),
+          numCount: (pwd.match(/\d/g) || []).length >= 2,
+          hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+        });
+      }
     }
     setError('');
     setSuccess('');
+  };
+
+  const runEmailCheck = async (value) => {
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!value || !emailRegex.test(value)) return;
+    try {
+      if (emailCheckAbortController.current) {
+        try { emailCheckAbortController.current.abort(); } catch (e) { }
+      }
+      emailCheckAbortController.current = new AbortController();
+      const res = await api.get('/check-email', { params: { email: value }, signal: emailCheckAbortController.current.signal });
+      setEmailAvailable(res.data?.available);
+      if (!res.data?.available) {
+        setEmailCheckMsg(res.data?.message || 'Email is already taken');
+      } else {
+        setEmailCheckMsg('');
+      }
+    } catch (err) {
+      if (typeof isCancel === 'function' && isCancel(err)) return;
+      if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+      if (err.response && err.response.status === 422) {
+        setEmailAvailable(false);
+        setEmailCheckMsg('Invalid email format');
+        return;
+      }
+      setEmailAvailable(null);
+      setEmailCheckMsg('');
+    }
+  };
+
+  const handleEmailBlur = () => {
+    if (emailCheckTimeout.current) { clearTimeout(emailCheckTimeout.current); emailCheckTimeout.current = null; }
+    runEmailCheck(form.email);
   };
 
 
@@ -72,16 +141,57 @@ const LandlordRegister = () => {
         return false;
       }
     } else if (step === 2) {
-      if (!form.email || !form.password || !form.confirmPassword) {
-        setError('Email, password, and confirm password are required.');
-        return false;
+      const errors = {};
+      // DOB required + age >= 20
+      if (!form.dob) {
+        errors.dob = 'Date of birth is required';
+      } else {
+        const bd = new Date(form.dob);
+        if (isNaN(bd)) {
+          errors.dob = 'Invalid date of birth';
+        } else {
+          const today = new Date();
+          let age = today.getFullYear() - bd.getFullYear();
+          const m = today.getMonth() - bd.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+          if (age < 20) errors.dob = 'You must be at least 20 years old to register';
+        }
       }
-      if (form.password !== form.confirmPassword) {
-        setError('Passwords do not match.');
-        return false;
+
+      // Required email/password
+      if (!form.email) errors.email = 'Email is required';
+      if (!form.password) errors.password = 'Password is required';
+      if (!form.confirmPassword) errors.confirmPassword = 'Please confirm your password';
+
+      // Passwords match
+      if (form.password && form.confirmPassword && form.password !== form.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
       }
-      if (form.password.length < 8) {
-        setError('Password must be at least 8 characters.');
+
+      // Password complexity checks
+      const pwd = form.password || '';
+      const pwdChecks = {
+        minLen: pwd.length >= 8,
+        hasUpper: /[A-Z]/.test(pwd),
+        numCount: (pwd.match(/\d/g) || []).length >= 2,
+        hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+      };
+      setPasswordChecks(pwdChecks);
+      if (!pwdChecks.minLen || !pwdChecks.hasUpper || !pwdChecks.numCount || !pwdChecks.hasSpecial) {
+        errors.password = 'Password does not meet complexity requirements';
+      }
+
+      // Phone validation (optional)
+      if (form.phone && form.phone.trim() !== '') {
+        const digits = (form.phone || '').replace(/\D/g, '');
+        if (!(digits.length === 11 && digits.startsWith('09'))) {
+          errors.phone = 'Phone must be 11 digits and start with 09';
+        }
+      }
+
+      setFieldErrors(errors);
+      if (Object.keys(errors).length) {
+        setError('Please fix the highlighted fields');
         return false;
       }
     } else if (step === 3) {
@@ -126,6 +236,7 @@ const LandlordRegister = () => {
       formData.append('first_name', form.firstName);
       formData.append('middle_name', form.middleName);
       formData.append('last_name', form.lastName);
+      formData.append('dob', form.dob);
       formData.append('email', form.email);
       formData.append('phone', form.phone);
       formData.append('password', form.password);
@@ -138,6 +249,23 @@ const LandlordRegister = () => {
       formData.append('agree', form.agree);
       // formData.append('user_id', ...);
 
+      // Pre-submit: ensure email availability
+      try {
+        if (emailCheckAbortController.current) { try { emailCheckAbortController.current.abort(); } catch (e) { } }
+        emailCheckAbortController.current = new AbortController();
+        const chk = await api.get('/check-email', { params: { email: form.email }, signal: emailCheckAbortController.current.signal });
+        if (chk.data?.available === false) {
+          setFieldErrors({ email: chk.data?.message || 'Email is already taken' });
+          setError('Please fix the highlighted fields.');
+          setSubmitting(false);
+          return;
+        }
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') {
+          // ignore
+        }
+      }
+
       await api.post('/landlord-verification', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -146,7 +274,25 @@ const LandlordRegister = () => {
       setStep(1);
       setShowModal(true);
     } catch (err) {
-      setError(err.response?.data?.message || 'Submission failed. Please try again.');
+      const srvErrs = err.response?.data?.errors;
+      if (srvErrs) {
+        const map = {};
+        const keyMap = { first_name: 'firstName', middle_name: 'middleName', last_name: 'lastName', email: 'email', phone: 'phone', password: 'password', password_confirmation: 'confirmPassword', dob: 'dob' };
+        for (const k in srvErrs) {
+          const local = keyMap[k] || k;
+          map[local] = srvErrs[k][0];
+        }
+        setFieldErrors(map);
+        // focus first invalid
+        const order = ['firstName', 'middleName', 'lastName', 'dob', 'email', 'phone', 'password', 'confirmPassword'];
+        const firstInvalid = order.find(o => map[o]);
+        if (firstInvalid && fieldRefs.current[firstInvalid] && typeof fieldRefs.current[firstInvalid].focus === 'function') {
+          setTimeout(() => { try { fieldRefs.current[firstInvalid].focus(); } catch (e) { } }, 0);
+        }
+        setError(err.response?.data?.message || 'Please fix highlighted fields.');
+      } else {
+        setError(err.response?.data?.message || 'Submission failed. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +333,7 @@ const LandlordRegister = () => {
                   <li>Valid Government-issued ID (e.g., Passport, Driver's License, National ID)</li>
                   <li>Accommodation Permit or Business Permit</li>
                 </ul>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2">Your documents will be reviewed by our team for verification and approval.<br/>Verification may take 1-3 work days.</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2">Your documents will be reviewed by our team for verification and approval.<br />Verification may take 1-3 work days.</span>
                 <button
                   className="mt-4 bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
                   onClick={() => setShowModal(false)}
@@ -219,7 +365,7 @@ const LandlordRegister = () => {
           </div>
           <div className="flex justify-center mb-6">
             <div className="flex gap-2">
-              {[1,2,3].map((s) => (
+              {[1, 2, 3].map((s) => (
                 <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm ${step === s ? 'bg-green-700' : 'bg-green-200 dark:bg-green-900/50'}`}>{s}</div>
               ))}
             </div>
@@ -279,12 +425,35 @@ const LandlordRegister = () => {
             {step === 2 && (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Email Address <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Date of Birth <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    name="dob"
+                    value={form.dob}
+                    onChange={handleChange}
+                    ref={el => fieldRefs.current.dob = el}
+                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required
+                    disabled={submitting}
+                  />
+                  {fieldErrors.dob && <div className="text-xs text-red-600 mt-1">{fieldErrors.dob}</div>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
+                    <span>Email Address</span>
+                    <span className="text-red-500">*</span>
+                    {(form.email && (emailCheckMsg || (error && error.toLowerCase().includes('email')))) && (
+                      <span className="text-red-400 text-xs font-normal ml-2">{emailCheckMsg ? emailCheckMsg : error}</span>
+                    )}
+                  </label>
                   <input
                     type="email"
                     name="email"
                     value={form.email}
                     onChange={handleChange}
+                    onBlur={handleEmailBlur}
+                    ref={el => fieldRefs.current.email = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your email"
                     required
@@ -298,10 +467,16 @@ const LandlordRegister = () => {
                     name="phone"
                     value={form.phone}
                     onChange={handleChange}
+                    ref={el => fieldRefs.current.phone = el}
+                    onBlur={() => {
+                      // normalize phone on blur
+                      setForm(prev => ({ ...prev, phone: (prev.phone || '').replace(/[^0-9]/g, '') }));
+                    }}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your phone number"
                     disabled={submitting}
                   />
+                  {fieldErrors.phone && <div className="text-xs text-red-600 mt-1">{fieldErrors.phone}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Password <span className="text-red-500">*</span></label>
@@ -310,13 +485,20 @@ const LandlordRegister = () => {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
+                    ref={el => fieldRefs.current.password = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Create a password"
                     required
                     disabled={submitting}
                     minLength="8"
                   />
-                  <p className="text-xs text-green-700/70 dark:text-green-400/70 mt-1">Minimum 8 characters</p>
+                  <div className="mt-1 text-xs">
+                    {!passwordChecks.minLen && <div className="text-red-600">• Minimum 8 characters</div>}
+                    {!passwordChecks.hasUpper && <div className="text-red-600">• At least one uppercase letter</div>}
+                    {!passwordChecks.numCount && <div className="text-red-600">• At least two numbers</div>}
+                    {!passwordChecks.hasSpecial && <div className="text-red-600">• At least one special character</div>}
+                  </div>
+                  {fieldErrors.password && <div className="text-xs text-red-600 mt-1">{fieldErrors.password}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Confirm Password <span className="text-red-500">*</span></label>
@@ -325,12 +507,14 @@ const LandlordRegister = () => {
                     name="confirmPassword"
                     value={form.confirmPassword}
                     onChange={handleChange}
+                    ref={el => fieldRefs.current.confirmPassword = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Confirm your password"
                     required
                     disabled={submitting}
                     minLength="8"
                   />
+                  {fieldErrors.confirmPassword && <div className="text-xs text-red-600 mt-1">{fieldErrors.confirmPassword}</div>}
                 </div>
                 <div className="flex justify-between mt-4">
                   <button type="button" className="bg-gray-300 dark:bg-gray-600 text-green-800 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
@@ -431,27 +615,63 @@ const LandlordRegister = () => {
                 )}
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
-                  <input
-                    type="file"
-                    name="validId"
-                    accept="image/*,.pdf"
-                    onChange={handleChange}
-                    className="w-full px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
-                    disabled={submitting}
-                  />
+                  <div className="relative">
+                    <input
+                      type="file"
+                      name="validId"
+                      accept="image/*,.pdf"
+                      onChange={handleChange}
+                      ref={el => { fileInputRefs.current.validId = el; }}
+                      className="w-full pr-20 px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      required={!form.validId}
+                      disabled={submitting}
+                    />
+                    {form.validId && (
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <button
+                          type="button"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          onClick={() => {
+                            try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (e) {}
+                            setForm(prev => ({ ...prev, validId: null }));
+                          }}
+                          disabled={submitting}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Accommodation/Business Permit <span className="text-red-500">*</span></label>
-                  <input
-                    type="file"
-                    name="permit"
-                    accept="image/*,.pdf"
-                    onChange={handleChange}
-                    className="w-full px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
-                    disabled={submitting}
-                  />
+                  <div className="relative">
+                    <input
+                      type="file"
+                      name="permit"
+                      accept="image/*,.pdf"
+                      onChange={handleChange}
+                      ref={el => { fileInputRefs.current.permit = el; }}
+                      className="w-full pr-20 px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      required={!form.permit}
+                      disabled={submitting}
+                    />
+                    {form.permit && (
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <button
+                          type="button"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          onClick={() => {
+                            try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (e) {}
+                            setForm(prev => ({ ...prev, permit: null }));
+                          }}
+                          disabled={submitting}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center mt-2">
                   <input
