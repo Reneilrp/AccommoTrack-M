@@ -218,9 +218,12 @@ export default function TenantsScreen({ navigation, route }) {
               <Ionicons name="chatbubble-ellipses-outline" size={16} color="#0369A1" />
               <Text style={styles.secondaryBtnText}>Message</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => openDetailModal(item)}>
-              <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>View Details</Text>
+            <TouchableOpacity 
+              style={styles.primaryBtn} 
+              onPress={() => navigation.navigate('TenantLogs', { tenantId: item.id, tenantName: item.full_name })}
+            >
+              <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.primaryBtnText}>View History</Text>
             </TouchableOpacity>
           </View>
         </View>

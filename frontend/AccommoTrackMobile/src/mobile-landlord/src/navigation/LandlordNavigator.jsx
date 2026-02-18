@@ -23,6 +23,12 @@ import AddProperty from '../screens/AddProperty.jsx';
 import DormProfile from '../screens/DormProfile.jsx';
 import Notifications from '../screens/Notifications.jsx';
 import AllActivities from '../screens/AllActivities.jsx';
+import AddonManagement from '../screens/AddonManagement.jsx';
+import AddBooking from '../screens/AddBooking.jsx';
+import Payments from '../screens/Payments.jsx';
+import VerificationStatus from '../screens/VerificationStatus.jsx';
+import PropertyActivityLogs from '../screens/PropertyActivityLogs.jsx';
+import TenantLogs from '../screens/TenantLogs.jsx';
 import PropertyDetailsScreen from '../../../mobile-tenant/src/components/PropertyDetailsScreen.jsx';
 
 const Stack = createNativeStackNavigator();
@@ -200,6 +206,12 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="DevTeam" component={DevTeam} options={{ animation: 'none', headerShown: false }} />
       <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
       <Stack.Screen name="AllActivities" component={AllActivities} options={{ animation: 'none' }} />
+      <Stack.Screen name="AddonManagement" component={AddonManagement} options={{ animation: 'none' }} />
+      <Stack.Screen name="AddBooking" component={AddBooking} options={{ animation: 'none' }} />
+      <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+      <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
+      <Stack.Screen name="PropertyActivityLogs" component={PropertyActivityLogs} options={{ animation: 'none' }} />
+      <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>

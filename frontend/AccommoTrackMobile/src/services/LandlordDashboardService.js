@@ -53,6 +53,23 @@ const LandlordDashboardService = {
             };
         }
     },
+
+    async fetchPropertyActivities(propertyId) {
+        try {
+            const response = await api.get(`/landlord/dashboard/recent-activities?property_id=${propertyId}`);
+            return {
+                success: true,
+                data: response.data || []
+            };
+        } catch (error) {
+            console.error('Failed to fetch property activities:', error);
+            return {
+                success: false,
+                data: [],
+                error: error.response?.data?.message || error.message || 'Failed to load activity'
+            };
+        }
+    }
 };
 
 export default LandlordDashboardService;

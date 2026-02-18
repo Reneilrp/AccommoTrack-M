@@ -436,6 +436,91 @@ class TenantService {
       return { success: false, error: error.response?.data?.message || 'Failed to delete review' };
     }
   }
+
+  // --- LANDLORD METHODS ---
+
+  async getTenants(params = {}) {
+    try {
+      const token = await this.getAuthToken();
+      const response = await axios.get(`${API_URL}/landlord/tenants`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        params
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch tenants' };
+    }
+  }
+
+  async getTenantDetails(tenantId) {
+    try {
+      const token = await this.getAuthToken();
+      const response = await axios.get(`${API_URL}/landlord/tenants/${tenantId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error fetching tenant details:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch tenant details' };
+    }
+  }
+
+  async createTenant(tenantData) {
+    try {
+      const token = await this.getAuthToken();
+      const response = await axios.post(`${API_URL}/landlord/tenants`, tenantData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to create tenant' };
+    }
+  }
+
+  async updateTenant(tenantId, tenantData) {
+    try {
+      const token = await this.getAuthToken();
+      const response = await axios.put(`${API_URL}/landlord/tenants/${tenantId}`, tenantData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to update tenant' };
+    }
+  }
+
+  async deleteTenant(tenantId) {
+    try {
+      const token = await this.getAuthToken();
+      const response = await axios.delete(`${API_URL}/landlord/tenants/${tenantId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error deleting tenant:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to delete tenant' };
+    }
+  }
 }
 
 export default new TenantService();

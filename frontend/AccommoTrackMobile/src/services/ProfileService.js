@@ -95,6 +95,72 @@ const ProfileService = {
         errors: error.response?.data?.errors || {}
       };
     }
+  },
+
+  /**
+   * Get landlord verification status
+   */
+  async getVerificationStatus() {
+    try {
+      const response = await api.get('/landlord/my-verification');
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      if (error.response?.status === 404) {
+        return {
+          success: true,
+          data: { status: 'not_submitted' }
+        };
+      }
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch verification status'
+      };
+    }
+  },
+
+  /**
+   * Get allowed valid ID types
+   */
+  async getValidIdTypes() {
+    try {
+      const response = await api.get('/valid-id-types');
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: ['Philippine Passport', "Driver's License", 'PhilSys ID (National ID)', 'UMID'],
+        error: 'Failed to fetch ID types'
+      };
+    }
+  },
+
+  /**
+   * Resubmit verification documents
+   */
+  async resubmitVerification(formData) {
+    try {
+      const response = await api.post('/landlord/resubmit-verification', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Verification resubmission failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to resubmit verification'
+      };
+    }
   }
 };
 
