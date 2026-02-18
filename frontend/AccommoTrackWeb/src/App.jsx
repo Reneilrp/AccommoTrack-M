@@ -4,7 +4,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import WebNavigator from './Navigation/WebNavigator.jsx';
 import LandingPage from './screens/Guest/LandingPage.jsx';
 import AuthScreen from './screens/Auth/Web-Auth';
-import LandlordRegister from './screens/Guest/LandlordRegister';
+import LandlordRegister from './screens/Auth/LandlordRegister';
 import Help from './screens/Guest/Help';
 import ErrorBoundary from './components/Shared/ErrorBoundary';
 import { getDefaultLandingRoute } from './utils/userRoutes';

@@ -95,6 +95,7 @@ const LandlordRegister = () => {
         });
       }
     }
+    setFieldErrors(prev => ({ ...prev, [name]: '' }));
     setError('');
     setSuccess('');
   };
@@ -132,12 +133,85 @@ const LandlordRegister = () => {
     runEmailCheck(form.email);
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const { name, type } = e.target;
+
+      // Allow default behavior for submit buttons or if it's not a named field we track
+      if (type === 'submit') return;
+
+      const fieldsByStep = {
+        1: ['firstName', 'middleName', 'lastName'],
+        2: ['dob', 'email', 'phone', 'password', 'confirmPassword'],
+        3: ['validIdOther', 'agree']
+      };
+
+      const currentFields = fieldsByStep[step];
+      if (!currentFields) return;
+
+      const currentIndex = currentFields.indexOf(name);
+      if (currentIndex === -1) return;
+
+      const isLastField = currentIndex === currentFields.length - 1;
+
+      // Quick check if all required fields in the current step are filled
+      const isStepFilled = () => {
+        if (step === 1) {
+          return form.firstName.trim() !== '' && form.lastName.trim() !== '';
+        }
+        if (step === 2) {
+          return form.dob !== '' && form.email.trim() !== '' && form.password !== '' && form.confirmPassword !== '';
+        }
+        if (step === 3) {
+          return form.validIdType !== '' && (form.validIdType !== 'other' || form.validIdOther.trim() !== '') && form.validId && form.permit && form.agree;
+        }
+        return false;
+      };
+
+      if (isLastField || isStepFilled()) {
+        // If it's the last field or everything is filled, try to go to the next step or submit
+        if (step === 3) {
+          handleSubmit(e);
+        } else {
+          handleNext(e);
+        }
+      } else {
+        // Otherwise, focus the next field in the sequence
+        e.preventDefault();
+        const nextField = currentFields[currentIndex + 1];
+        if (nextField && fieldRefs.current[nextField]) {
+          fieldRefs.current[nextField].focus();
+        }
+      }
+    }
+  };
+
 
   // Step validation
   const validateStep = () => {
     if (step === 1) {
-      if (!form.firstName || !form.lastName) {
-        setError('First and last name are required.');
+      const errors = {};
+      const nameRegex = /^[\p{L} '\-]+$/u;
+
+      if (!form.firstName) {
+        errors.firstName = 'First name is required';
+      } else if (!nameRegex.test(form.firstName)) {
+        errors.firstName = 'First name contains invalid characters';
+      }
+
+      if (form.middleName && form.middleName.trim() !== '' && !nameRegex.test(form.middleName)) {
+        errors.middleName = 'Middle name contains invalid characters';
+      }
+
+      if (!form.lastName) {
+        errors.lastName = 'Last name is required';
+      } else if (!nameRegex.test(form.lastName)) {
+        errors.lastName = 'Last name contains invalid characters';
+      }
+
+      setFieldErrors(errors);
+      if (Object.keys(errors).length) {
+        setError('Please fix the highlighted fields');
         return false;
       }
     } else if (step === 2) {
@@ -386,11 +460,14 @@ const LandlordRegister = () => {
                     name="firstName"
                     value={form.firstName}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    ref={el => fieldRefs.current.firstName = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your first name"
                     required
                     disabled={submitting}
                   />
+                  {fieldErrors.firstName && <div className="text-xs text-red-600 mt-1">{fieldErrors.firstName}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
@@ -399,10 +476,13 @@ const LandlordRegister = () => {
                     name="middleName"
                     value={form.middleName}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    ref={el => fieldRefs.current.middleName = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your middle name"
                     disabled={submitting}
                   />
+                  {fieldErrors.middleName && <div className="text-xs text-red-600 mt-1">{fieldErrors.middleName}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Last Name <span className="text-red-500">*</span></label>
@@ -411,11 +491,14 @@ const LandlordRegister = () => {
                     name="lastName"
                     value={form.lastName}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    ref={el => fieldRefs.current.lastName = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your last name"
                     required
                     disabled={submitting}
                   />
+                  {fieldErrors.lastName && <div className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</div>}
                 </div>
                 <div className="flex justify-end mt-4">
                   <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold" onClick={handleNext} disabled={submitting}>Next</button>
@@ -426,16 +509,40 @@ const LandlordRegister = () => {
               <>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Date of Birth <span className="text-red-500">*</span></label>
-                  <input
-                    type="date"
-                    name="dob"
-                    value={form.dob}
-                    onChange={handleChange}
-                    ref={el => fieldRefs.current.dob = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
-                    disabled={submitting}
-                  />
+                  <div 
+                    className="relative cursor-pointer"
+                    onClick={() => {
+                      const el = fieldRefs.current.dob;
+                      if (el && typeof el.showPicker === 'function') {
+                        try { el.showPicker(); } catch (e) { }
+                      }
+                    }}
+                  >
+                    <input
+                      type="date"
+                      name="dob"
+                      value={form.dob}
+                      onChange={handleChange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleKeyDown(e);
+                        } else {
+                          e.preventDefault();
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (typeof e.target.showPicker === 'function') {
+                          try { e.target.showPicker(); } catch (err) { }
+                        }
+                      }}
+                      max={new Date(new Date().getFullYear() - 20, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
+                      ref={el => fieldRefs.current.dob = el}
+                      className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer"
+                      required
+                      disabled={submitting}
+                    />
+                  </div>
                   {fieldErrors.dob && <div className="text-xs text-red-600 mt-1">{fieldErrors.dob}</div>}
                 </div>
 
@@ -453,6 +560,7 @@ const LandlordRegister = () => {
                     value={form.email}
                     onChange={handleChange}
                     onBlur={handleEmailBlur}
+                    onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.email = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your email"
@@ -467,6 +575,7 @@ const LandlordRegister = () => {
                     name="phone"
                     value={form.phone}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.phone = el}
                     onBlur={() => {
                       // normalize phone on blur
@@ -485,6 +594,7 @@ const LandlordRegister = () => {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.password = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Create a password"
@@ -492,12 +602,14 @@ const LandlordRegister = () => {
                     disabled={submitting}
                     minLength="8"
                   />
-                  <div className="mt-1 text-xs">
-                    {!passwordChecks.minLen && <div className="text-red-600">• Minimum 8 characters</div>}
-                    {!passwordChecks.hasUpper && <div className="text-red-600">• At least one uppercase letter</div>}
-                    {!passwordChecks.numCount && <div className="text-red-600">• At least two numbers</div>}
-                    {!passwordChecks.hasSpecial && <div className="text-red-600">• At least one special character</div>}
-                  </div>
+                  {form.password && (
+                    <div className="mt-1 text-xs">
+                      {!passwordChecks.minLen && <div className="text-red-600">• Minimum 8 characters</div>}
+                      {!passwordChecks.hasUpper && <div className="text-red-600">• At least one uppercase letter</div>}
+                      {!passwordChecks.numCount && <div className="text-red-600">• At least two numbers</div>}
+                      {!passwordChecks.hasSpecial && <div className="text-red-600">• At least one special character</div>}
+                    </div>
+                  )}
                   {fieldErrors.password && <div className="text-xs text-red-600 mt-1">{fieldErrors.password}</div>}
                 </div>
                 <div>
@@ -507,6 +619,7 @@ const LandlordRegister = () => {
                     name="confirmPassword"
                     value={form.confirmPassword}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.confirmPassword = el}
                     className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Confirm your password"
@@ -601,17 +714,18 @@ const LandlordRegister = () => {
                 {form.validIdType === 'other' && (
                   <div>
                     <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Specify ID Type <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      name="validIdOther"
-                      value={form.validIdOther}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="Enter your ID type"
-                      required
-                      disabled={submitting}
-                    />
-                  </div>
+                                      <input
+                                        type="text"
+                                        name="validIdOther"
+                                        value={form.validIdOther}
+                                        onChange={handleChange}
+                                        onKeyDown={handleKeyDown}
+                                        ref={el => fieldRefs.current.validIdOther = el}
+                                        className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        placeholder="Enter your ID type"
+                                        required
+                                        disabled={submitting}
+                                      />                  </div>
                 )}
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
@@ -679,6 +793,7 @@ const LandlordRegister = () => {
                     name="agree"
                     checked={form.agree}
                     onChange={handleChange}
+                    onKeyDown={handleKeyDown}
                     className="mr-2"
                     disabled={submitting}
                     required

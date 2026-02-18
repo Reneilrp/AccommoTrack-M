@@ -2,8 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/login', fn() => response()->
-json(['message' => 'Login route placeholder']))->name('login');
+Route::get('/login', fn() => response()->json(['message' => 'Login route placeholder']))->name('login');
+
+
+
+Route::get('/become-landlord', function() {
+
+    return redirect('http://192.168.254.184:5173/become-landlord');
+
+});
 
 // Hosted PayMongo tokenization page (card tokenization for WebView or browser)
 Route::get('/payments/tokenize/{invoiceId}', [\App\Http\Controllers\PaymongoTokenizeController::class, 'show']);
