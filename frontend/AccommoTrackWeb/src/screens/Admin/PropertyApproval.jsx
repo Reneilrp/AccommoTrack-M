@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/api';
 import { toast } from 'react-hot-toast';
+import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
 const PropertyApproval = ({ isEmbedded = false }) => {
   const [properties, setProperties] = useState([]);
@@ -9,11 +10,11 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const fetchProperties = async (status = 'pending') => {
     setLoading(true);
     try {
-      // Backend endpoints: GET /admin/properties/pending, /approved, /rejected
       const res = await api.get(`/admin/properties/${status}`);
       setProperties(res.data.data || res.data || []);
     } catch (err) {
@@ -28,7 +29,8 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     fetchProperties(statusFilter);
   }, [statusFilter]);
 
-  const handleAction = async (propertyId, action) => {
+  const runAction = async (propertyId, action) => {
+    setConfirmModalState({ isOpen: false });
     setActionLoading(propertyId + ':' + action);
 
     try {
@@ -40,7 +42,6 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         toast.success('Property rejected successfully');
       }
 
-      // Remove property from pending list
       setProperties(prev => prev.filter(p => p.id !== propertyId));
       setShowModal(false);
       setSelectedProperty(null);
@@ -52,6 +53,18 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     }
   };
 
+  const confirmAction = (propertyId, action) => {
+    const isApprove = action === 'approve';
+    setConfirmModalState({
+      isOpen: true,
+      title: `Confirm ${isApprove ? 'Approval' : 'Rejection'}`,
+      message: `Are you sure you want to ${action} this property?`,
+      onConfirm: () => runAction(propertyId, action),
+      confirmText: isApprove ? 'Approve' : 'Reject',
+      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+    });
+  };
+
   const handleView = (property) => {
     setSelectedProperty(property);
     setShowModal(true);
@@ -59,6 +72,15 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
   return (
     <div className={isEmbedded ? "w-full" : "w-full max-w-full px-6 py-6"}>
+      <ConfirmationModal 
+        isOpen={confirmModalState.isOpen}
+        onClose={() => setConfirmModalState({ isOpen: false })}
+        onConfirm={confirmModalState.onConfirm}
+        title={confirmModalState.title}
+        message={confirmModalState.message}
+        confirmText={confirmModalState.confirmText}
+        confirmButtonClass={confirmModalState.confirmButtonClass}
+      />
       {!isEmbedded && (
         <>
           <h2 className="text-2xl font-bold mb-2 text-gray-800">Property Management</h2>
@@ -150,14 +172,14 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                           <>
                             <button
                               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                              onClick={() => handleAction(prop.id, 'reject')}
+                              onClick={() => confirmAction(prop.id, 'reject')}
                               disabled={actionLoading}
                             >
                               {actionLoading === prop.id + ':reject' ? 'Rejecting...' : 'Reject'}
                             </button>
                             <button
                               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                              onClick={() => handleAction(prop.id, 'approve')}
+                              onClick={() => confirmAction(prop.id, 'approve')}
                               disabled={actionLoading}
                             >
                               {actionLoading === prop.id + ':approve' ? 'Approving...' : 'Approve'}
@@ -343,14 +365,14 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {selectedProperty.current_status === 'pending' && (
                 <>
                   <button
-                    onClick={() => handleAction(selectedProperty.id, 'reject')}
+                    onClick={() => confirmAction(selectedProperty.id, 'reject')}
                     disabled={actionLoading}
                     className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {actionLoading === selectedProperty.id + ':reject' ? 'Rejecting...' : 'Reject Property'}
                   </button>
                   <button
-                    onClick={() => handleAction(selectedProperty.id, 'approve')}
+                    onClick={() => confirmAction(selectedProperty.id, 'approve')}
                     disabled={actionLoading}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >

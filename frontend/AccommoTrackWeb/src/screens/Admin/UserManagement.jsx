@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/api';
 import { toast } from 'react-hot-toast';
+import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -9,6 +10,7 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -28,7 +30,20 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  const confirmBlock = (userId, is_blocked) => {
+    const action = is_blocked ? 'unblock' : 'block';
+    setConfirmModalState({
+      isOpen: true,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+      message: `Are you sure you want to ${action} this user?`,
+      onConfirm: () => handleBlock(userId, !is_blocked),
+      confirmText: `${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      confirmButtonClass: is_blocked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+    });
+  };
+
   const handleBlock = async (userId, block = true) => {
+    setConfirmModalState({ isOpen: false });
     setActionLoading(userId + ':' + (block ? 'block' : 'unblock'));
     try {
       if (block) {
@@ -39,7 +54,7 @@ const UserManagement = () => {
         toast.success('User unblocked successfully');
       }
 
-      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_active: !block } : u)));
+      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_blocked: block } : u)));
     } catch (err) {
       console.error('Failed to update user block status', err);
       toast.error(err.response?.data?.message || err.message || 'User action failed');
@@ -74,6 +89,15 @@ const UserManagement = () => {
 
   return (
     <div className="w-full max-w-full px-6 py-6">
+      <ConfirmationModal
+        isOpen={confirmModalState.isOpen}
+        onClose={() => setConfirmModalState({ isOpen: false })}
+        onConfirm={confirmModalState.onConfirm}
+        title={confirmModalState.title}
+        message={confirmModalState.message}
+        confirmText={confirmModalState.confirmText}
+        confirmButtonClass={confirmModalState.confirmButtonClass}
+      />
       <h2 className="text-2xl font-bold mb-2 text-gray-800">User Management</h2>
       <p className="text-sm text-gray-600 mb-6">Manage registered users. View information or block/unblock users.</p>
 
@@ -171,8 +195,8 @@ const UserManagement = () => {
                                 : 'Not Submitted'}
                         </span>
                       ) : (
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {u.is_active ? 'Active' : 'Inactive'}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${u.is_blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                          {u.is_blocked ? 'Blocked' : 'Active'}
                         </span>
                       )}
                     </td>
@@ -186,16 +210,16 @@ const UserManagement = () => {
                         </button>
                         <button
                           className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                            !u.is_active 
-                              ? 'bg-green-600 text-white hover:bg-green-700' 
+                            u.is_blocked
+                              ? 'bg-green-600 text-white hover:bg-green-700'
                               : 'bg-red-600 text-white hover:bg-red-700'
                           }`}
-                          onClick={() => handleBlock(u.id, u.is_active)}
+                          onClick={() => confirmBlock(u.id, u.is_blocked)}
                           disabled={actionLoading}
                         >
-                          {actionLoading === u.id + ':' + (u.is_active ? 'block' : 'unblock')
-                            ? (u.is_active ? 'Blocking...' : 'Unblocking...')
-                            : (u.is_active ? 'Block' : 'Unblock')}
+                          {actionLoading === u.id + ':' + (u.is_blocked ? 'unblock' : 'block')
+                            ? (u.is_blocked ? 'Unblocking...' : 'Blocking...')
+                            : (u.is_blocked ? 'Unblock' : 'Block')}
                         </button>
                       </div>
                     </td>
@@ -269,8 +293,8 @@ const UserManagement = () => {
                               : 'Not Submitted'}
                       </span>
                     ) : (
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedUser.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {selectedUser.is_active ? 'Active' : 'Inactive'}
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedUser.is_blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                        {selectedUser.is_blocked ? 'Blocked' : 'Active'}
                       </span>
                     )}
                   </div>
@@ -385,17 +409,17 @@ const UserManagement = () => {
               </button>
               <button
                 onClick={() => {
-                  handleBlock(selectedUser.id, selectedUser.is_active);
+                  confirmBlock(selectedUser.id, selectedUser.is_blocked);
                   setShowModal(false);
                 }}
                 disabled={actionLoading}
                 className={`px-6 py-2 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                  !selectedUser.is_active 
-                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                  selectedUser.is_blocked
+                    ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-red-600 text-white hover:bg-red-700'
                 }`}
               >
-                {selectedUser.is_active ? 'Block User' : 'Unblock User'}
+                {selectedUser.is_blocked ? 'Unblock User' : 'Block User'}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Eye, CheckCircle, XCircle, FileText, Loader2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
+import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
 export default function LandlordApproval() {
   const [verifications, setVerifications] = useState([]);
@@ -12,6 +13,7 @@ export default function LandlordApproval() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
     fetchVerifications();
@@ -21,12 +23,7 @@ export default function LandlordApproval() {
     try {
       setLoading(true);
       setError('');
-      // Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
       const res = await api.get('/admin/landlord-verifications');
-      // Filter for pending by default, or maybe the API returns all. 
-      // The requirement focuses on "Approving", so usually pending ones are most relevant.
-      // Let's assume the API returns all and filter client side or display status.
-      // For now, let's display all but sort "pending" to top.
       const data = res.data.data || res.data || [];
       setVerifications(data);
     } catch (err) {
@@ -37,15 +34,23 @@ export default function LandlordApproval() {
     }
   };
 
+  const confirmApprove = (userId, verificationId) => {
+    setConfirmModalState({
+      isOpen: true,
+      title: 'Confirm Approval',
+      message: 'Are you sure you want to approve this landlord? This will verify their account and send them a confirmation email.',
+      onConfirm: () => handleApprove(userId, verificationId),
+      confirmText: 'Approve',
+      confirmButtonClass: 'bg-green-600 hover:bg-green-700'
+    });
+  };
+
   const handleApprove = async (userId, verificationId) => {
-    if (!confirm('Are you sure you want to approve this landlord? This will verify their account and send them a confirmation email.')) return;
-    
+    setConfirmModalState({ isOpen: false });
     try {
       setActionLoading(true);
-      // Approve user verification status
       await api.post(`/admin/users/${userId}/approve`);
       
-      // Update local state
       setVerifications(prev => prev.map(v => 
         v.id === verificationId 
           ? { ...v, status: 'approved', user: { ...v.user, is_verified: true } } 
@@ -66,20 +71,29 @@ export default function LandlordApproval() {
     setShowRejectModal(true);
   };
 
-  const handleReject = async () => {
+  const confirmReject = () => {
     if (!rejectionReason.trim() || rejectionReason.trim().length < 10) {
       toast.error('Please provide a detailed rejection reason (at least 10 characters)');
       return;
     }
-
+    setConfirmModalState({
+      isOpen: true,
+      title: 'Confirm Rejection',
+      message: 'Are you sure you want to reject this application? The reason will be sent to the landlord.',
+      onConfirm: handleReject,
+      confirmText: 'Reject',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700'
+    });
+  };
+  
+  const handleReject = async () => {
+    setConfirmModalState({ isOpen: false });
     try {
       setActionLoading(true);
-      // Call the reject endpoint with reason
       await api.post(`/admin/landlord-verifications/${selectedVerification.id}/reject`, {
         reason: rejectionReason.trim()
       });
       
-      // Update local state
       setVerifications(prev => prev.map(v => 
         v.id === selectedVerification.id 
           ? { ...v, status: 'rejected', rejection_reason: rejectionReason.trim(), user: { ...v.user, is_verified: false } } 
@@ -117,6 +131,15 @@ export default function LandlordApproval() {
 
   return (
     <div className="w-full">
+      <ConfirmationModal 
+        isOpen={confirmModalState.isOpen}
+        onClose={() => setConfirmModalState({ isOpen: false })}
+        onConfirm={confirmModalState.onConfirm}
+        title={confirmModalState.title}
+        message={confirmModalState.message}
+        confirmText={confirmModalState.confirmText}
+        confirmButtonClass={confirmModalState.confirmButtonClass}
+      />
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-800">Landlord Verification Requests</h3>
         <p className="text-sm text-gray-500">Review submitted IDs and business permits.</p>
@@ -255,7 +278,7 @@ export default function LandlordApproval() {
                     Reject Application
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedVerification.user_id, selectedVerification.id)}
+                    onClick={() => confirmApprove(selectedVerification.user_id, selectedVerification.id)}
                     disabled={actionLoading}
                     className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
                   >
@@ -323,7 +346,7 @@ export default function LandlordApproval() {
                 Cancel
               </button>
               <button
-                onClick={handleReject}
+                onClick={confirmReject}
                 disabled={actionLoading || rejectionReason.trim().length < 10}
                 className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
