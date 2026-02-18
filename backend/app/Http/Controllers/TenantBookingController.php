@@ -143,7 +143,7 @@ class TenantBookingController extends Controller
     public function show($id)
     {
         try {
-            $booking = Booking::with(['property.images', 'landlord', 'room', 'addons', 'maintenanceRequests'])
+            $booking = Booking::with(['property.images', 'landlord', 'room.images', 'room.amenities', 'addons', 'maintenanceRequests'])
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
@@ -160,6 +160,19 @@ class TenantBookingController extends Controller
                 })->toArray();
             }
 
+            $roomDetails = null;
+            if ($booking->room) {
+                $roomDetails = [
+                    'id' => $booking->room->id,
+                    'room_number' => $booking->room->room_number,
+                    'room_type' => $booking->room->type,
+                    'capacity' => $booking->room->capacity,
+                    'description' => $booking->room->description,
+                    'images' => $booking->room->images,
+                    'amenities' => $booking->room->amenities,
+                ];
+            }
+
             $data = [
                 'id' => $booking->id,
                 'landlordName' => $booking->landlord->first_name . ' ' . $booking->landlord->last_name,
@@ -172,8 +185,7 @@ class TenantBookingController extends Controller
                     'email' => $booking->landlord->email,
                     'phone' => $booking->landlord->phone ?? 'N/A',
                 ],
-                'roomType' => $booking->room ? $booking->room->type : 'N/A',
-                'roomNumber' => $booking->room ? $booking->room->room_number : 'N/A',
+                'room' => $roomDetails,
                 'propertyTitle' => $booking->property->title,
                 'property' => [
                     'id' => $property->id,
