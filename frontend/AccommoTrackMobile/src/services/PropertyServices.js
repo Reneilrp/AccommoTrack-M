@@ -108,11 +108,9 @@ const PropertyService = {
             console.log('Response data is array?', Array.isArray(response.data));
             console.log('Response data:', JSON.stringify(response.data).substring(0, 200));
 
-            // Axios automatically puts the response in response.data
-            // So if Laravel returns an array directly, it's in response.data
             return {
                 success: true,
-                data: response.data, // This is already the array from Laravel
+                data: response.data,
                 error: null
             };
         } catch (error) {

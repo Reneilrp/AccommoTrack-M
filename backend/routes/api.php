@@ -117,6 +117,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant: Maintenance Requests
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'index']);
         Route::post('/maintenance-requests', [MaintenanceRequestController::class, 'store']);
+
+        // Tenant/Landlord: Resubmit verification (for unverified landlords)
+        Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
     });
 
     // ===== LANDLORD ROUTES =====

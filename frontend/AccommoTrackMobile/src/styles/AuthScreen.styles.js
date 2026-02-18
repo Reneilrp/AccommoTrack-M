@@ -142,6 +142,13 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: '#991B1B',
   },
+  inlineErrorText: {
+    fontSize: 12,
+    color: '#B91C1C',
+    marginTop: -10,
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
   form: {
     gap: 16,
   },

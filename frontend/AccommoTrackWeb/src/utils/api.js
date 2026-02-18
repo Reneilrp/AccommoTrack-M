@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://192.168.43.142:8000';
+const BASE_URL = import.meta.env.VITE_APP_URL;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 
@@ -9,7 +9,8 @@ const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
     }
 });
 
@@ -97,6 +98,7 @@ export const rootApi = axios.create({
     baseURL: BASE_URL,
     withCredentials: true,
     headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
     }
 });
