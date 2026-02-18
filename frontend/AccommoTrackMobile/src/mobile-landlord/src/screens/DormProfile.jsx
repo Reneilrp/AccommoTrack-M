@@ -467,6 +467,44 @@ export default function DormProfileScreen({ route, navigation }) {
               <Ionicons name="bed-outline" size={20} color="#FFFFFF" />
               <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Manage Rooms</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{
+                marginTop: 12,
+                backgroundColor: '#FFFFFF',
+                paddingVertical: 12,
+                borderRadius: 8,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+                borderWidth: 1,
+                borderColor: theme.colors.primary
+              }}
+              onPress={() => navigation.navigate('AddonManagement', { propertyId: form.id, propertyTitle: form.title })}
+            >
+              <Ionicons name="sparkles-outline" size={20} color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 14 }}>Manage Add-ons</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{
+                marginTop: 12,
+                backgroundColor: '#FFFFFF',
+                paddingVertical: 12,
+                borderRadius: 8,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+                borderWidth: 1,
+                borderColor: '#6B7280'
+              }}
+              onPress={() => navigation.navigate('PropertyActivityLogs', { propertyId: form.id, propertyTitle: form.title })}
+            >
+              <Ionicons name="list-outline" size={20} color="#6B7280" />
+              <Text style={{ color: '#6B7280', fontWeight: '600', fontSize: 14 }}>Activity Logs</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.sectionCard}>

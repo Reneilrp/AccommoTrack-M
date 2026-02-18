@@ -419,9 +419,41 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280'
   },
-  performanceStatValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827'
-  }
-});
+    performanceStatValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#111827'
+    },
+    verificationBanner: {
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+    },
+    bannerNotSubmitted: {
+      backgroundColor: '#FFF7ED',
+      borderColor: '#FED7AA',
+    },
+    bannerPending: {
+      backgroundColor: '#FFFBEB',
+      borderColor: '#FDE68A',
+    },
+    bannerRejected: {
+      backgroundColor: '#FEF2F2',
+      borderColor: '#FECACA',
+    },
+    bannerTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      marginBottom: 2,
+    },
+    bannerText: {
+      fontSize: 12,
+      color: '#4B5563',
+      lineHeight: 16,
+    }
+  });
+  

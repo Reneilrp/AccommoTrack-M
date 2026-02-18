@@ -139,6 +139,19 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const sections = useMemo(
     () => [
       {
+        title: 'Account',
+        items: [
+          {
+            id: 'verification',
+            label: 'Verification Status',
+            description: 'ID and business permit status',
+            icon: 'shield-checkmark-outline',
+            type: 'navigate',
+            target: 'VerificationStatus'
+          }
+        ]
+      },
+      {
         title: 'Notifications',
         items: [
           {

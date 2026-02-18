@@ -14,6 +14,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import PropertyService from '../../../services/PropertyServices';
@@ -95,10 +96,12 @@ export default function BookingsScreen({ navigation }) {
     []
   );
 
-  useEffect(() => {
-    loadBookings();
-    loadStats();
-  }, [loadBookings, loadStats]);
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+      loadStats();
+    }, [loadBookings, loadStats])
+  );
 
   const handleRefresh = () => {
     loadBookings(true);
@@ -318,7 +321,12 @@ export default function BookingsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.heroTitle}>Bookings</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          onPress={() => navigation.navigate('AddBooking')}
+        >
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       {error ? (
