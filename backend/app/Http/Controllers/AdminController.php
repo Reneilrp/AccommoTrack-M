@@ -242,7 +242,7 @@ class AdminController extends Controller
     public function blockUser(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $user->is_active = false;
+        $user->is_blocked = true;
         $user->save();
 
         return response()->json(['user' => $user, 'message' => 'User blocked']);
@@ -254,7 +254,7 @@ class AdminController extends Controller
     public function unblockUser(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $user->is_active = true;
+        $user->is_blocked = false;
         $user->save();
 
         return response()->json(['user' => $user, 'message' => 'User unblocked']);
@@ -421,7 +421,7 @@ class AdminController extends Controller
         $landlords = User::where('role', 'landlord')->count();
         $tenants = User::where('role', 'tenant')->count();
         $activeUsers = User::where('role', '!=', 'admin')->where('is_active', true)->count();
-        $blockedUsers = User::where('role', '!=', 'admin')->where('is_active', false)->count();
+        $blockedUsers = User::where('role', '!=', 'admin')->where('is_blocked', true)->count();
 
         $totalProperties = Property::count();
         $approvedProperties = Property::where('current_status', 'active')->count();

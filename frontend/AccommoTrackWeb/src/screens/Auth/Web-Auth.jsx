@@ -12,13 +12,222 @@ import {
   Check, 
   Monitor, 
   Smartphone, 
-  Loader2 
+  Loader2,
+  XCircle,
+  RefreshCw,
+  Upload,
+  X
 } from 'lucide-react';
 import Logo from '../../assets/Logo.png';
 import api, { isCancel, rootApi } from '../../utils/api';
 import { getDefaultLandingRoute } from '../../utils/userRoutes';
 import toast, { Toaster } from 'react-hot-toast';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import BlockedUserModal from '../../components/Shared/BlockedUserModal';
+
+// Resubmit Modal Component
+const ResubmitModal = ({ visible, onClose, theme }) => {
+  const [loading, setLoading] = useState(false);
+  const [idTypes, setIdTypes] = useState([]);
+  const [idTypesLoading, setIdTypesLoading] = useState(false);
+  const [form, setForm] = useState({
+    validIdType: '',
+    validIdOther: '',
+    validId: null,
+    permit: null
+  });
+
+  useEffect(() => {
+    if (visible && idTypes.length === 0) {
+      setIdTypesLoading(true);
+      api.get('/valid-id-types')
+        .then(res => {
+          setIdTypes(res.data);
+          setIdTypesLoading(false);
+        })
+        .catch(() => {
+          setIdTypes(['Philippine Passport', 'Driver\'s License', 'PhilSys ID', 'UMID', 'PRC ID', 'Postal ID', 'Voter\'s ID', 'TIN ID', 'PhilHealth ID', 'Senior Citizen ID', 'OFW ID', 'Other']);
+          setIdTypesLoading(false);
+        });
+    }
+  }, [visible, idTypes.length]);
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      setForm(prev => ({ ...prev, [name]: files[0] }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.validIdType || !form.validId || !form.permit) {
+      toast.error('Please fill in all required fields and upload documents.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('valid_id_type', form.validIdType);
+      if (form.validIdType === 'Other') formData.append('valid_id_other', form.validIdOther);
+      formData.append('valid_id', form.validId);
+      formData.append('permit', form.permit);
+
+      await api.post('/tenant/resubmit-verification', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      toast.success('Documents resubmitted successfully! Please wait for admin review.');
+      onClose();
+      // reload to clear login state or navigate
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to resubmit documents.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg border border-green-100 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-green-50 dark:bg-gray-900/50">
+          <h3 className="text-xl font-bold text-green-800 dark:text-green-400 flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" />
+            Resubmit Documents
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
+          <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 mb-4">
+            <p className="text-xs text-amber-800 font-bold uppercase mb-1">Notice:</p>
+            <p className="text-sm text-amber-700">
+              Only document re-upload is required. Your name and contact information will remain unchanged.
+            </p>
+          </div>
+
+          {/* ID Type */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Valid ID Type <span className="text-red-500">*</span></label>
+            <select
+              value={form.validIdType}
+              onChange={(e) => setForm(prev => ({ ...prev, validIdType: e.target.value }))}
+              className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 transition-all outline-none text-gray-900 dark:text-white"
+              required
+            >
+              <option value="">Select ID type</option>
+              {idTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="Other">Other (specify below)</option>
+            </select>
+          </div>
+
+          {form.validIdType === 'Other' && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Specify ID Type <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={form.validIdOther}
+                onChange={(e) => setForm(prev => ({ ...prev, validIdOther: e.target.value }))}
+                className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 transition-all outline-none text-gray-900 dark:text-white"
+                placeholder="Enter your ID type"
+                required
+              />
+            </div>
+          )}
+
+          {/* Valid ID Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
+            <div className="relative group">
+              <input
+                type="file"
+                name="validId"
+                accept="image/*,.pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                id="resubmit-valid-id"
+                required
+              />
+              <label
+                htmlFor="resubmit-valid-id"
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.validId ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50'}`}
+              >
+                {form.validId ? (
+                  <div className="flex flex-col items-center text-green-600 dark:text-green-400">
+                    <Check className="w-8 h-8 mb-2" />
+                    <span className="text-xs font-medium text-center px-4 truncate w-full">{form.validId.name}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
+                    <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-medium">Click to upload valid ID</span>
+                    <span className="text-[10px] mt-1 opacity-60">JPG, PNG, PDF up to 10MB</span>
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+
+          {/* Permit Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Upload Business Permit <span className="text-red-500">*</span></label>
+            <div className="relative group">
+              <input
+                type="file"
+                name="permit"
+                accept="image/*,.pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                id="resubmit-permit"
+                required
+              />
+              <label
+                htmlFor="resubmit-permit"
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${form.permit ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50'}`}
+              >
+                {form.permit ? (
+                  <div className="flex flex-col items-center text-green-600 dark:text-green-400">
+                    <Check className="w-8 h-8 mb-2" />
+                    <span className="text-xs font-medium text-center px-4 truncate w-full">{form.permit.name}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
+                    <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-medium">Click to upload business permit</span>
+                    <span className="text-[10px] mt-1 opacity-60">JPG, PNG, PDF up to 10MB</span>
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin h-5 w-5" />
+                Submitting Documents...
+              </>
+            ) : (
+              'Submit for Re-verification'
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 function AuthScreen({ onLogin = () => {} }) {
   const navigate = useNavigate();
@@ -29,6 +238,10 @@ function AuthScreen({ onLogin = () => {} }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPlatformChoice, setShowPlatformChoice] = useState(false);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [showResubmitModal, setShowResubmitModal] = useState(false);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
@@ -249,6 +462,21 @@ function AuthScreen({ onLogin = () => {} }) {
         }
       }
 
+      // Check if account is pending or rejected verification (EVEN IF LOGIN SUCCEEDED)
+      // This is important because we allowed login for 'rejected' landlords.
+      if (data && data.user && data.user.role === 'landlord' && !data.user.is_verified) {
+        if (data.verification_status === 'rejected') {
+          setPendingModalData({
+            status: 'rejected_verification',
+            title: 'Account Rejected',
+            message: 'Your landlord verification was rejected.',
+            reason: data.rejection_reason || 'No reason provided'
+          });
+          setShowPendingModal(true);
+          return;
+        }
+      }
+
       // If the login response already contains the user, use it immediately.
       if (data && data.user) {
         const me = data.user;
@@ -291,6 +519,23 @@ function AuthScreen({ onLogin = () => {} }) {
         setError('Login succeeded but fetching account failed. Please refresh.');
       }
     } catch (err) {
+      // Check if account is pending verification
+      if (err.response?.status === 403 && err.response?.data?.status === 'pending_verification') {
+        setPendingModalData({
+          status: 'pending_verification',
+          title: 'Account Pending Review',
+          message: err.response.data.message
+        });
+        setShowPendingModal(true);
+        return;
+      }
+
+      // Check if account is blocked
+      if (err.response?.status === 403 && err.response?.data?.status === 'blocked') {
+        setShowBlockedModal(true);
+        return;
+      }
+
       let errorMsg = err.response?.data?.message || err.message || 'Network error. Please check your connection.';
 
       if (err.response?.data?.errors) {
@@ -449,6 +694,12 @@ function AuthScreen({ onLogin = () => {} }) {
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Toaster />
+      <BlockedUserModal isOpen={showBlockedModal} onClose={() => setShowBlockedModal(false)} />
+      <ResubmitModal 
+        visible={showResubmitModal} 
+        onClose={() => setShowResubmitModal(false)} 
+        theme={effectiveTheme} 
+      />
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
         {/* Back/Sign In Button */}
         {isLogin ? (
@@ -932,6 +1183,68 @@ function AuthScreen({ onLogin = () => {} }) {
             <p className="text-xs text-green-700/70 text-center mt-4">
               You can access your tenant account from any device
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pending/Rejected Verification Modal */}
+      {showPendingModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
+            {/* Status Icon */}
+            <div className="flex justify-center mb-4">
+              {pendingModalData.status === 'pending_verification' ? (
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <XCircle className="w-10 h-10 text-red-600" />
+                </div>
+              )}
+            </div>
+
+            {/* Title */}
+            <h3 className={`text-xl font-bold text-center mb-2 ${pendingModalData.status === 'pending_verification' ? 'text-yellow-700' : 'text-red-700'}`}>
+              {pendingModalData.title}
+            </h3>
+            
+            {/* Description */}
+            <p className="text-gray-600 text-center mb-4">
+              {pendingModalData.message}
+            </p>
+
+            {/* Rejection Reason */}
+            {pendingModalData.status === 'rejected_verification' && pendingModalData.reason && (
+              <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6">
+                <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">Reason for Rejection:</p>
+                <p className="text-sm text-red-600 italic">"{pendingModalData.reason}"</p>
+              </div>
+            )}
+
+            {/* Choice Buttons */}
+            <div className="space-y-3">
+              {pendingModalData.status === 'rejected_verification' && (
+                <button
+                  onClick={() => {
+                    setShowPendingModal(false);
+                    setShowResubmitModal(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  Resubmit Documents
+                </button>
+              )}
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowPendingModal(false)}
+                className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === 'pending_verification' ? 'bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'}`}
+              >
+                {pendingModalData.status === 'pending_verification' ? 'Got it, thanks!' : 'Close'}
+              </button>
+            </div>
           </div>
         </div>
       )}

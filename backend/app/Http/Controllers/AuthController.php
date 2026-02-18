@@ -82,6 +82,34 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->is_blocked) {
+            return response()->json([
+                'status' => 'blocked',
+                'message' => 'Your account has been blocked by the administrator. Please contact support for assistance.'
+            ], 403);
+        }
+
+        // Check landlord verification status
+        if ($user->role === 'landlord') {
+            $verification = $user->landlordVerification;
+            
+            if ($verification) {
+                if ($verification->status === 'pending') {
+                    return response()->json([
+                        'status' => 'pending_verification',
+                        'message' => 'Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.'
+                    ], 403);
+                }
+                // Allow login if rejected, but frontend will handle the modal
+            } elseif (!$user->is_verified) {
+                // Fallback for unverified landlords without a verification record
+                return response()->json([
+                    'status' => 'pending_verification',
+                    'message' => 'Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.'
+                ], 403);
+            }
+        }
+
         // Load caretaker assignment if user is a caretaker
         if ($user->role === 'caretaker') {
             $user->load('caretakerAssignment');
@@ -89,11 +117,20 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
+        $responseData = [
             'user' => $user,
             'token' => $token,
             'message' => 'Login successful'
-        ]);
+        ];
+
+        // Add verification info for landlords
+        if ($user->role === 'landlord' && !$user->is_verified) {
+            $verification = $user->landlordVerification;
+            $responseData['verification_status'] = $verification ? $verification->status : 'pending';
+            $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
+        }
+
+        return response()->json($responseData);
     }
 
     public function logout(Request $request)

@@ -81,6 +81,7 @@ class User extends Authenticatable
         'is_active',
         'payment_methods_settings',
         'notification_preferences',
+        'is_blocked',
     ];
 
     protected $hidden = [
@@ -93,6 +94,7 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'payment_methods_settings' => 'array',
         'notification_preferences' => 'array',
+        'is_blocked' => 'boolean',
     ];
 
     protected $appends = [
