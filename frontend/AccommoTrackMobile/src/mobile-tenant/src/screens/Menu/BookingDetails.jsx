@@ -9,7 +9,8 @@ import {
     Alert, 
     RefreshControl,
     StatusBar,
-    Dimensions
+    Dimensions,
+    Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -25,6 +26,110 @@ import Header from '../../components/Header.jsx';
 
 const { width: screenWidth } = Dimensions.get('window');
 
+const InfoRow = ({ icon, label, value, color, theme }) => (
+    <View style={styles.infoRow}>
+        <View style={[styles.iconCircle, { backgroundColor: (color || theme.colors.primary) + '15' }]}>
+            <Ionicons name={icon} size={18} color={color || theme.colors.primary} />
+        </View>
+        <View style={styles.infoTextContainer}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>{value}</Text>
+        </View>
+    </View>
+);
+
+const RoomDetails = ({ room, theme }) => {
+    return (
+        <>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Room</Text>
+            <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, padding: 0 }]}>
+                {room.images && room.images.length > 0 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+                        {room.images.map(image => (
+                            <Image
+                                key={image.id}
+                                source={{ uri: `${API_BASE_URL}/storage/${image.image_url.replace(/^\/?(storage\/)?/, '')}` }}
+                                style={{ width: screenWidth * 0.6, height: 150, borderRadius: 8, marginRight: 10 }}
+                            />
+                        ))}
+                    </ScrollView>
+                ) : (
+                    <View style={{ alignItems: 'center', justifyContent: 'center', height: 150 }}>
+                        <Ionicons name="image-outline" size={40} color={theme.colors.textTertiary} />
+                        <Text style={{ color: theme.colors.textTertiary }}>No room images</Text>
+                    </View>
+                )}
+
+                <View style={{ padding: 16 }}>
+                    <InfoRow icon="information-circle-outline" label="Room Type" value={room.room_type} theme={theme} />
+                    <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+                    <InfoRow icon="people-outline" label="Capacity" value={`${room.capacity} person(s)`} theme={theme} />
+                    <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+                    <Text style={{ color: theme.colors.text, marginTop: 10, marginBottom: 5, fontWeight: 'bold' }}>Description</Text>
+                    <Text style={{ color: theme.colors.textSecondary }}>{room.description || 'No description available.'}</Text>
+
+                    {room.amenities && room.amenities.length > 0 && (
+                        <>
+                            <View style={[styles.separator, { backgroundColor: theme.colors.border, marginVertical: 15 }]} />
+                            <Text style={{ color: theme.colors.text, marginBottom: 10, fontWeight: 'bold' }}>Amenities</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                {room.amenities.map(amenity => (
+                                    <View key={amenity.id} style={{ flexDirection: 'row', alignItems: 'center', width: '50%', marginBottom: 8 }}>
+                                        <Ionicons name="checkmark-circle-outline" size={16} color={theme.colors.primary} />
+                                        <Text style={{ color: theme.colors.text, marginLeft: 5 }}>{amenity.name}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </>
+                    )}
+                </View>
+            </View>
+        </>
+    );
+};
+
+const MaintenanceRequestModal = ({ visible, onClose, theme }) => {
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <View style={{ backgroundColor: theme.colors.surface, borderRadius: 10, padding: 20, width: '90%' }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 }}>Request Maintenance</Text>
+                    {/* Form will go here */}
+                    <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
+                        <Text style={{ color: theme.colors.primary, textAlign: 'center' }}>Close</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+const AddonModal = ({ visible, onClose, theme }) => {
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <View style={{ backgroundColor: theme.colors.surface, borderRadius: 10, padding: 20, width: '90%' }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 }}>Request Addon</Text>
+                    {/* Form will go here */}
+                    <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
+                        <Text style={{ color: theme.colors.primary, textAlign: 'center' }}>Close</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
 export default function BookingDetails() {
     const route = useRoute();
     const navigation = useNavigation();
@@ -37,6 +142,8 @@ export default function BookingDetails() {
     const [refreshing, setRefreshing] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
     const [cancelingAddonId, setCancelingAddonId] = useState(null);
+    const [maintenanceModalVisible, setMaintenanceModalVisible] = useState(false);
+    const [addonModalVisible, setAddonModalVisible] = useState(false);
 
     const fetchBooking = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -175,18 +282,6 @@ export default function BookingDetails() {
         ]);
     };
 
-    const InfoRow = ({ icon, label, value, color }) => (
-        <View style={styles.infoRow}>
-            <View style={[styles.iconCircle, { backgroundColor: (color || theme.colors.primary) + '15' }]}>
-                <Ionicons name={icon} size={18} color={color || theme.colors.primary} />
-            </View>
-            <View style={styles.infoTextContainer}>
-                <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
-                <Text style={[styles.infoValue, { color: theme.colors.text }]}>{value}</Text>
-            </View>
-        </View>
-    );
-
     return (
         <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
             <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
@@ -251,14 +346,16 @@ export default function BookingDetails() {
                         </View>
                     </View>
 
-                    {/* Accommodation Details */}
-                    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Accommodation</Text>
+                    {booking.room && <RoomDetails room={booking.room} theme={theme} />}
+
+                    {/* Landlord Information */}
+                    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Landlord Information</Text>
                     <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
-                        <InfoRow icon="bed-outline" label="Room Number" value={booking.roomNumber || 'Not assigned'} />
+                        <InfoRow icon="person-outline" label="Landlord" value={landlord.first_name ? `${landlord.first_name} ${landlord.last_name}` : 'N/A'} theme={theme} />
                         <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-                        <InfoRow icon="business-outline" label="Property Type" value={property.property_type || 'N/A'} />
+                        <InfoRow icon="mail-outline" label="Email" value={landlord.email || 'N/A'} theme={theme} />
                         <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-                        <InfoRow icon="person-outline" label="Landlord" value={landlord.first_name ? `${landlord.first_name} ${landlord.last_name}` : 'N/A'} />
+                        <InfoRow icon="call-outline" label="Phone" value={landlord.phone || 'N/A'} theme={theme} />
                     </View>
 
                     {/* Payment Summary */}
@@ -343,6 +440,18 @@ export default function BookingDetails() {
                 </View>
             </ScrollView>
 
+            <MaintenanceRequestModal 
+                visible={maintenanceModalVisible} 
+                onClose={() => setMaintenanceModalVisible(false)}
+                theme={theme}
+            />
+
+            <AddonModal 
+                visible={addonModalVisible} 
+                onClose={() => setAddonModalVisible(false)}
+                theme={theme}
+            />
+
             {/* Bottom Action Footer */}
             <SafeAreaView edges={['bottom']} style={[styles.footer, { 
                 backgroundColor: theme.colors.surface, 
@@ -350,47 +459,34 @@ export default function BookingDetails() {
                 borderTopWidth: 1,
                 paddingTop: 16
             }]}>
-                <View style={styles.actionRow}>
-                    {(booking.status === 'pending' || booking.status === 'confirmed') ? (
-                        <TouchableOpacity 
-                            onPress={handleCancelBooking}
-                            disabled={isCanceling}
-                            style={[styles.actionBtn, styles.outlineBtn, { borderColor: '#EF4444' }]}
-                        >
-                            {isCanceling ? <ActivityIndicator color="#EF4444" /> : <Text style={styles.cancelBookingText}>Cancel Booking</Text>}
-                        </TouchableOpacity>
-                    ) : null}
-                    
-                    <TouchableOpacity 
-                        onPress={() => navigation.navigate('Messages', {
-                            startConversation: true,
-                            recipient: landlord,
-                            property: { id: property.id, title: property.title }
-                        })}
-                        style={[styles.actionBtn, { backgroundColor: theme.colors.primary, flex: 1.5 }]}
-                    >
-                        <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
-                        <Text style={styles.actionBtnText}>Contact Landlord</Text>
-                    </TouchableOpacity>
-                </View>
-                
                 <View style={[styles.actionRow, { marginTop: 10 }]}>
                     <TouchableOpacity 
-                        onPress={() => navigation.navigate('CreateMaintenanceRequest', { bookingId: booking.id, propertyId: property.id })}
+                        onPress={() => setMaintenanceModalVisible(true)}
                         style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
                     >
                         <Ionicons name="build-outline" size={18} color={theme.colors.primary} />
-                        <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Maintenance</Text>
+                        <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Request Maintenance</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                        onPress={() => navigation.navigate('Addons', { bookingId: booking.id, propertyId: property.id })}
+                        onPress={() => setAddonModalVisible(true)}
                         style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}
                     >
                         <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
-                        <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Add-ons</Text>
+                        <Text style={[styles.secondaryActionText, { color: theme.colors.primary }]}>Request Addon</Text>
                     </TouchableOpacity>
                 </View>
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('Messages', {
+                        startConversation: true,
+                        recipient: landlord,
+                        property: { id: property.id, title: property.title }
+                    })}
+                    style={[styles.actionBtn, { backgroundColor: theme.colors.primary, flex: 1, marginTop: 10 }]}
+                >
+                    <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+                    <Text style={styles.actionBtnText}>Contact Landlord</Text>
+                </TouchableOpacity>
             </SafeAreaView>
         </View>
     );

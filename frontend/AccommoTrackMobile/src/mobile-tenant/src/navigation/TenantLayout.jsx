@@ -63,7 +63,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   }, []);
 
   // Hide header/bottom nav on routes that implement their own header/navigation
-  const hideHeaderRoutes = new Set(['Settings', 'Profile', 'UpdatePassword', 'NotificationPreferences', 'HelpSupport', 'AccommodationDetails', 'RoomsList', 'RoomDetails', 'Chat', 'CreateMaintenanceRequest', 'Addons', 'BookingDetails']);
+  const hideHeaderRoutes = new Set(['Settings','Profile', 'UpdatePassword', 'NotificationPreferences', 'HelpSupport', 'AccommodationDetails', 'RoomsList', 'RoomDetails', 'Chat', 'CreateMaintenanceRequest', 'Addons', 'BookingDetails']);
   const hideBottomRoutes = new Set(['Profile', 'UpdatePassword', 'NotificationPreferences', 'HelpSupport', 'AccommodationDetails', 'RoomsList', 'RoomDetails', 'Chat', 'CreateMaintenanceRequest', 'Addons', 'BookingDetails']);
   
   // Also respect explicit route param hideLayout=true
@@ -133,15 +133,14 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
       {showHeader && (
         <Header
           title={title}
-          onMenuPress={() => {
-            try {
-              // Attempt to toggle drawer if available
-              navigationRef?.current?.dispatch?.({ type: 'TOGGLE_DRAWER' });
-            } catch (e) {
-              // fallback: no-op
+          onMenuPress={() => navigate('MenuModal')}
+          onProfilePress={() => {
+            if (isGuest) {
+              onAuthRequired?.();
+            } else {
+              navigate('Profile');
             }
           }}
-          onProfilePress={() => navigate('Profile')}
         />
       )}
 

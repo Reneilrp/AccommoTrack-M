@@ -97,19 +97,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const handleBecomeLandlord = () => {
     Alert.alert(
       'Become a Landlord',
-      'You will be redirected to our web portal to register as a landlord.\n\nAfter creating your account, you can:\n• Continue managing on web portal\n• Login on this app as landlord',
+      'You will be redirected to our web portal to register as a landlord.\n\nAfter creating your account, you can login here in the app as a landlord.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Open Web Portal', 
           onPress: () => {
             // Open web admin portal for landlord registration
-            Linking.openURL(`${WEB_BASE_URL}/login`);
-            
-            // Show follow-up after a delay
-            setTimeout(() => {
-              showPostRegistrationOptions();
-            }, 2000);
+            Linking.openURL(`${WEB_BASE_URL}/become-landlord`);
           }
         }
       ]
@@ -222,14 +217,12 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
-      
-      {/* Standard Header component handles its own SafeAreaView */}
-      <Header 
-        title="Settings"
-        onBack={navigation.canGoBack() ? () => navigation.goBack() : null}
-        showProfile={false}
-      />
-
+        {/* {Stand Header Component} */}
+        <Header
+          title="Settings"
+          onBack={navigation.canGoBack() ? () => navigation.goBack() : null}
+          showProfile={false}
+        />
       {/* Content Area */}
       <View style={homeStyles.flex1}>
         {loading ? (

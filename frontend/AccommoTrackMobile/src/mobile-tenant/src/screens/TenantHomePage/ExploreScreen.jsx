@@ -169,24 +169,20 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     setMenuModalVisible(false);
 
     if (isGuest) {
-      const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
+      const protectedItems = [
+        'Dashboard', 
+        'My Bookings', 
+        'Favorites', 
+        'Payments', 
+        'Notifications',
+        'My Maintenance Requests',
+        'My Addon Requests'
+      ];
       
       if (protectedItems.includes(itemTitle)) {
-        Alert.alert(
-          'Sign In Required',
-          `You need to sign in to access ${itemTitle}.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Sign In', 
-              onPress: () => {
-                if (onAuthRequired) {
-                  onAuthRequired();
-                }
-              }
-            }
-          ]
-        );
+        if (onAuthRequired) {
+          onAuthRequired();
+        }
         return;
       }
     }

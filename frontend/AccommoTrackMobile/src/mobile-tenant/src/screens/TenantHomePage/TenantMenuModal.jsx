@@ -16,17 +16,13 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
 
   const handleMenuItemPress = (title) => {
     // If guest, protect certain routes and prompt to sign in
-    const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
+    // Note: Most protected items are hidden from the menu for guests, but this is a safety check
+    const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Notifications'];
     if (isGuest && protectedItems.includes(title)) {
       navigation.goBack();
-      Alert.alert(
-        'Sign In Required',
-        `You need to sign in to access ${title}.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => { if (onAuthRequired) onAuthRequired(); } }
-        ]
-      );
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
       return;
     }
 
@@ -55,7 +51,7 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
         navigation.navigate('Payments');
         break;
       case 'Settings':
-        navigation.navigate('Settings');
+        navigation.navigate('Main', { screen: 'Settings' });
         break;
       case 'Future UI Demo':
         navigation.navigate('DemoUI');

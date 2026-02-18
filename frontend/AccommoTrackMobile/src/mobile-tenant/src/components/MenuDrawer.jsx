@@ -98,7 +98,22 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
   // rendered separately and anchored to the bottom for better UX.
   const logoutItem = allMenuItems.find(item => item.title === 'Logout');
   const settingsItem = allMenuItems.find(item => item.title === 'Settings');
-  const menuItemsToDisplay = allMenuItems.filter(item => item.title !== 'Logout' && item.title !== 'Settings');
+  const menuItemsToDisplay = allMenuItems.filter(item => {
+    // Exclude logout footer item
+    if (item.title === 'Logout') return false;
+
+    // If guest, exclude protected modules, but KEEP 'Settings' in the list if it's there
+    if (isGuest) {
+      const protectedTitles = ['Notifications', 'My Maintenance Requests', 'My Addon Requests', 'Payments'];
+      if (protectedTitles.includes(item.title)) return false;
+      return true; // includes Settings if it's in allMenuItems and not excluded
+    }
+
+    // If authenticated, exclude 'Settings' from main list because it's in the footer
+    if (item.title === 'Settings') return false;
+    
+    return true;
+  });
 
   const handleClose = () => {
     onClose();
@@ -182,9 +197,9 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
             ))}
           </ScrollView>
 
-          {/* Footer actions: show Settings (always) and Logout (only when logged in) */}
+          {/* Footer actions: show Settings (only for auth users) and Logout (only for auth users) */}
           <SafeAreaView edges={["bottom"]} style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingVertical: 8, paddingHorizontal: 12 }}>
-            {settingsItem && (
+            {!isGuest && settingsItem && (
               <TouchableOpacity
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}
                 onPress={() => onMenuItemPress(settingsItem.title)}
