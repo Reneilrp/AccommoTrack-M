@@ -170,7 +170,7 @@ export default function LandlordLayout({
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
       <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
         isSidebarOpen ? 'w-64' : 'w-20'
@@ -384,7 +384,9 @@ export default function LandlordLayout({
           location.pathname === '/rooms' ||
           location.pathname.startsWith('/rooms/') ||
           location.pathname === '/tenants' ||
-          location.pathname.startsWith('/tenants/')
+          location.pathname.startsWith('/tenants/') ||
+          location.pathname === '/maintenance' ||
+          location.pathname === '/reviews'
         ) && (
           <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
@@ -422,7 +424,9 @@ export default function LandlordLayout({
               location.pathname === '/rooms' ||
               location.pathname.startsWith('/rooms/') ||
               location.pathname === '/tenants' ||
-              location.pathname.startsWith('/tenants/')
+              location.pathname.startsWith('/tenants/') ||
+              location.pathname === '/maintenance' ||
+              location.pathname === '/reviews'
             ) ? 'p-0' : 'p-4 lg:p-8'
           }`}
           style={{ scrollbarGutter: 'stable' }}

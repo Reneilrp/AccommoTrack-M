@@ -84,7 +84,7 @@ export const addonService = {
      */
     async handleAddonRequest(bookingId, addonId, action, note = null) {
         try {
-            const response = await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, {
+            const response = await api.patch(`/bookings/${bookingId}/addons/${addonId}`, {
                 action, // 'approve' or 'reject'
                 note
             });

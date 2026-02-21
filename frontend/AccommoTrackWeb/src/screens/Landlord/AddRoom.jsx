@@ -12,7 +12,7 @@ import PriceRow from '../../components/Shared/PriceRow';
 import api from '../../utils/api';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {
-  const normalizedType = propertyType ? propertyType.toLowerCase() : '';
+  const normalizedType = (propertyType || '').toString().toLowerCase();
   const isApartment = normalizedType.includes('apartment');
   const isDormitory = normalizedType.includes('dormitory');
   const isBoarding = normalizedType.includes('boarding');
@@ -81,6 +81,31 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
     })();
     return () => { mounted = false; };
   }, [isOpen, propertyId]);
+
+  // Reset form when modal opens or property changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        roomNumber: '',
+        roomType: initialRoomType,
+        floor: '1',
+        monthlyRate: '',
+        dailyRate: '',
+        billingPolicy: 'monthly',
+        minStayDays: '1',
+        capacity: isBedSpacerProperty ? '1' : '1',
+        pricingModel: initialPricingModel,
+        description: '',
+        rules: [],
+        amenities: [],
+        images: []
+      });
+      setPreviewImages([]);
+      setError('');
+      setFieldErrors({});
+      setIsFormValid(false);
+    }
+  }, [isOpen, propertyId, initialRoomType, initialPricingModel, isBedSpacerProperty]);
 
   const allRoomTypes = [
     { value: 'single', label: 'Single Room' },
@@ -497,6 +522,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         capacity: '1',
         pricingModel: 'full_room',
         description: '',
+        rules: [],
         amenities: [],
         images: []
       });

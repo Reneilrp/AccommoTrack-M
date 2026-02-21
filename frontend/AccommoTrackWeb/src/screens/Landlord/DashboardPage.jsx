@@ -258,7 +258,7 @@ export default function DashboardPage({ user }) {
 
           {!isCaretaker && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Bookings</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Invoices</h2>
               <div className="space-y-3">
                 {upcomingPayments.unpaidBookings.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">All paid up!</p> :
                   upcomingPayments.unpaidBookings.slice(0, 4).map((b) => (
@@ -269,6 +269,7 @@ export default function DashboardPage({ user }) {
                   ))
                 }
               </div>
+              <Link to="/payments" className="block text-center mt-4 text-xs font-bold text-brand-600 hover:underline uppercase tracking-widest">View All Payments &rarr;</Link>
             </div>
           )}
         </div>

@@ -19,10 +19,28 @@ export default function Payments() {
   const navigate = useNavigate();
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordData, setRecordData] = useState({
+    amount: '',
+    method: 'cash',
+    reference: '',
+    notes: ''
+  });
 
   useEffect(() => {
     loadInvoices();
   }, []);
+
+  useEffect(() => {
+    if (selectedInvoice) {
+      setRecordData({
+        amount: selectedInvoice.amount_cents ? (selectedInvoice.amount_cents / 100).toString() : (selectedInvoice.amount || '').toString(),
+        method: 'cash',
+        reference: '',
+        notes: ''
+      });
+    }
+  }, [selectedInvoice]);
 
   const loadInvoices = async () => {
     try {
@@ -55,6 +73,33 @@ export default function Payments() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRecordOffline = async () => {
+    if (!selectedInvoice || !recordData.amount || !recordData.method) {
+      toast.error('Please fill in amount and method');
+      return;
+    }
+
+    setIsRecording(true);
+    try {
+      await api.post(`/invoices/${selectedInvoice.id}/record`, {
+        amount_cents: Math.round(parseFloat(recordData.amount) * 100),
+        method: recordData.method,
+        reference: recordData.reference,
+        notes: recordData.notes,
+        received_at: new Date().toISOString()
+      });
+      
+      toast.success('Payment recorded successfully');
+      setShowInvoiceModal(false);
+      await loadInvoices();
+    } catch (e) {
+      console.error('Failed to record payment', e);
+      toast.error(e.response?.data?.message || 'Failed to record payment');
+    } finally {
+      setIsRecording(false);
     }
   };
 
@@ -224,12 +269,12 @@ export default function Payments() {
           </span>
         </td>
         <td className="px-6 py-4 text-sm">
-          {inv.booking_id ? (
+          {inv.booking_id || inv.id ? (
             <button
               onClick={() => { setSelectedInvoice(inv); setShowInvoiceModal(true); }}
-              className="text-green-600 hover:text-green-800 font-medium"
+              className="text-green-600 hover:text-green-800 font-bold uppercase text-xs tracking-wider"
             >
-              View
+              Manage
             </button>
           ) : (
             <span className="text-xs text-gray-500">—</span>
@@ -381,10 +426,10 @@ export default function Payments() {
         {showInvoiceModal && selectedInvoice && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full overflow-hidden shadow-2xl">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                 <div>
-                  <h3 className="text-xl font-bold dark:text-white text-gray-900">Manage Payment</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedInvoice.reference || `INV-${selectedInvoice.id}`}</p>
+                  <h3 className="text-xl font-black dark:text-white text-gray-900 uppercase tracking-tight">Manage Invoice</h3>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-1">REF: {selectedInvoice.reference || `INV-${selectedInvoice.id}`}</p>
                 </div>
                 <button onClick={() => setShowInvoiceModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
                   <X className="w-5 h-5 text-gray-500" />
@@ -394,25 +439,90 @@ export default function Payments() {
               <div className="p-6 space-y-6">
                 {/* Summary Info */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <p className="text-gray-500 dark:text-gray-400 mb-1">Tenant</p>
-                    <p className="font-semibold dark:text-white text-gray-900">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                    <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">Tenant</p>
+                    <p className="font-semibold dark:text-white text-gray-900 truncate">
                       {selectedInvoice.tenant?.first_name 
                         ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` 
                         : (selectedInvoice.tenant?.name || '—')}
                     </p>
                   </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <p className="text-gray-500 dark:text-gray-400 mb-1">Amount</p>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                    <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">Invoice Total</p>
                     <p className="font-bold text-green-600 dark:text-green-400">
                       <PriceRow amount={selectedInvoice.amount_cents ? selectedInvoice.amount_cents/100 : selectedInvoice.amount} />
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Update Payment Status</label>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">Record Payment</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Amount (₱)</label>
+                      <input 
+                        type="number"
+                        value={recordData.amount}
+                        onChange={(e) => setRecordData({...recordData, amount: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Method</label>
+                      <select 
+                        value={recordData.method}
+                        onChange={(e) => setRecordData({...recordData, method: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="gcash">GCash</option>
+                        <option value="check">Check</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Reference (Optional)</label>
+                    <input 
+                      type="text"
+                      value={recordData.reference}
+                      onChange={(e) => setRecordData({...recordData, reference: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="Transaction reference..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Notes (Optional)</label>
+                    <textarea 
+                      value={recordData.notes}
+                      onChange={(e) => setRecordData({...recordData, notes: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
+                      placeholder="Add any internal notes..."
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleRecordOffline}
+                    disabled={isRecording}
+                    className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isRecording ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Recording...
+                      </>
+                    ) : 'Record Payment'}
+                  </button>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-xs text-gray-400 mb-2 font-bold uppercase">Quick Status Update</p>
+                  <div className="grid grid-cols-4 gap-2">
                     {[
                       { id: 'unpaid', label: 'Unpaid', color: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
                       { id: 'partial', label: 'Partial', color: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
@@ -427,7 +537,7 @@ export default function Payments() {
                             setShowInvoiceModal(false);
                           }
                         }}
-                        className={`flex items-center justify-center py-3 px-4 rounded-xl border text-sm font-bold transition-all ${status.color}`}
+                        className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
                       >
                         {status.label}
                       </button>

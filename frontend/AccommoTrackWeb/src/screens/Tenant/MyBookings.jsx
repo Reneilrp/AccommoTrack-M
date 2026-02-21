@@ -17,8 +17,10 @@ import {
   MapPin,
   Sparkles,
   RefreshCw,
-  Star
+  Star,
+  ShieldAlert
 } from 'lucide-react';
+import ReportModal from '../../components/Modals/ReportModal';
 
 const MyBookings = () => {
   const { uiState, updateScreenState, updateData } = useUIState();
@@ -40,6 +42,10 @@ const MyBookings = () => {
   // Review Modal State
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
+
+  // Report Modal State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedPropertyForReport, setSelectedPropertyForReport] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -117,6 +123,11 @@ const MyBookings = () => {
     setShowReviewModal(true);
   };
 
+  const handleReport = (property) => {
+    setSelectedPropertyForReport(property);
+    setShowReportModal(true);
+  };
+
   const tabs = [
     { id: 'current', label: 'My Stay', icon: Home },
     { id: 'financials', label: 'Financials', icon: DollarSign },
@@ -166,6 +177,7 @@ const MyBookings = () => {
               onRequestAddon={() => setShowAddonModal(true)}
               onCancelAddon={handleCancelAddonRequest}
               onReview={handleReview}
+              onReport={handleReport}
             />
           )}
           {activeTab === 'financials' && (
@@ -176,6 +188,7 @@ const MyBookings = () => {
               data={history} 
               onLoadMore={() => {}} 
               onReview={handleReview}
+              onReport={handleReport}
             />
           )}
         </>
@@ -201,6 +214,19 @@ const MyBookings = () => {
           }}
           onSuccess={() => {
             fetchData();
+          }}
+        />
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && selectedPropertyForReport && (
+        <ReportModal
+          isOpen={showReportModal}
+          propertyId={selectedPropertyForReport.id}
+          propertyTitle={selectedPropertyForReport.title}
+          onClose={() => {
+            setShowReportModal(false);
+            setSelectedPropertyForReport(null);
           }}
         />
       )}
@@ -271,15 +297,24 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
                   {property.address}
                 </p>
               </div>
-              {!booking.hasReview && (
+              <div className="flex flex-col gap-2">
+                {!booking.hasReview && (
+                  <button 
+                    onClick={() => onReview({ ...booking, property })}
+                    className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border border-white/20"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                    Review Property
+                  </button>
+                )}
                 <button 
-                  onClick={() => onReview({ ...booking, property })}
-                  className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border border-white/20"
+                  onClick={() => onReport(property)}
+                  className="bg-red-500/20 backdrop-blur-md hover:bg-red-500/40 text-red-100 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border border-red-500/20"
                 >
-                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                  Review Property
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  Report Issue
                 </button>
-              )}
+              </div>
             </div>
           </div>
           <div className="p-6">
@@ -434,48 +469,60 @@ const FinancialsTab = ({ data }) => {
     );
   }
 
-  const { financials, booking } = data;
+  const { financials } = data;
+  
+  // Flatten all transactions from all invoices into a single sorted list
+  const allTransactions = (financials.invoices || [])
+    .flatMap(inv => (inv.transactions || []).map(tx => ({ ...tx, invoiceRef: inv.id })))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Monthly Rent</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{financials.monthlyRent.toLocaleString()}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+          <p className="text-xs font-bold text-gray-400 uppercase mb-1">Monthly Rent</p>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">₱{financials.monthlyRent.toLocaleString()}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Monthly Add-ons</p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{financials.monthlyAddons.toLocaleString()}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+          <p className="text-xs font-bold text-gray-400 uppercase mb-1">Monthly Add-ons</p>
+          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">+₱{financials.monthlyAddons.toLocaleString()}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Monthly</p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{financials.monthlyTotal.toLocaleString()}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+          <p className="text-xs font-bold text-gray-400 uppercase mb-1">Total Due/mo</p>
+          <p className="text-2xl font-black text-green-600 dark:text-green-400">₱{financials.monthlyTotal.toLocaleString()}</p>
         </div>
       </div>
 
-      {/* Payment History */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Payments</h3>
-        {financials.payments.length > 0 ? (
+      {/* Transaction History */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <RefreshCw className="w-5 h-5 text-brand-500" />
+          Recent Transactions
+        </h3>
+        {allTransactions.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Date</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Amount</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Method</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Date</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Amount</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Method</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {financials.payments.map((payment) => (
-                  <tr key={payment.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-200">{new Date(payment.paymentDate).toLocaleDateString()}</td>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">₱{payment.amount.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{payment.paymentMethod || '-'}</td>
+                {allTransactions.map((tx) => (
+                  <tr key={tx.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{tx.date}</td>
+                    <td className="py-3 px-4 text-sm font-bold text-gray-900 dark:text-white">₱{tx.amount.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-500 capitalize">{tx.method.replace('paymongo_', '').replace('_', ' ')}</td>
                     <td className="py-3 px-4">
-                      <StatusBadge status={payment.status} />
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        tx.status === 'succeeded' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {tx.status}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -483,30 +530,33 @@ const FinancialsTab = ({ data }) => {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-8">No payments recorded yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-center py-8 italic text-sm">No payment transactions recorded yet.</p>
         )}
       </div>
 
       {/* Invoice History */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Invoices</h3>
-        {financials.invoices.length > 0 ? (
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-brand-500" />
+          Invoice History
+        </h3>
+        {financials.invoices && financials.invoices.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Due Date</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Description</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Amount</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Due Date</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Description</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Amount</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {financials.invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-200">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">{invoice.description || 'Monthly Rent'}</td>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
+                  <tr key={invoice.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{invoice.dueDate || invoice.issuedAt}</td>
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-500">{invoice.description || 'Accommodation Fee'}</td>
+                    <td className="py-3 px-4 text-sm font-bold text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
                     <td className="py-3 px-4">
                       <StatusBadge status={invoice.status} />
                     </td>
@@ -516,7 +566,7 @@ const FinancialsTab = ({ data }) => {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-8">No invoices generated yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-center py-8 italic text-sm">No invoices generated yet.</p>
         )}
       </div>
     </div>
@@ -563,18 +613,27 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <StatusBadge status={booking.status} />
-                {booking.status === 'completed' && !booking.has_review && (
+                <div className="flex items-center gap-3">
+                  {booking.status === 'completed' && !booking.has_review && (
+                    <button 
+                      onClick={() => onReview(booking)}
+                      className="flex items-center gap-1 text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 underline underline-offset-2"
+                    >
+                      <Star className="w-3 h-3 fill-current" />
+                      Leave Review
+                    </button>
+                  )}
+                  {booking.has_review && (
+                    <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic">Reviewed</span>
+                  )}
                   <button 
-                    onClick={() => onReview(booking)}
-                    className="flex items-center gap-1 text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 underline underline-offset-2"
+                    onClick={() => onReport(booking.property)}
+                    className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
                   >
-                    <Star className="w-3 h-3 fill-current" />
-                    Leave Review
+                    <ShieldAlert className="w-3 h-3" />
+                    Report
                   </button>
-                )}
-                {booking.has_review && (
-                  <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic">Reviewed</span>
-                )}
+                </div>
               </div>
             </div>
           </div>

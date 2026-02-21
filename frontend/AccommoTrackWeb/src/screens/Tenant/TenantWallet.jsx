@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { paymentService } from '../../services/paymentService';
 import { SkeletonWallet } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
+import toast from 'react-hot-toast';
 
 export default function TenantWallet() {
   const { uiState, updateScreenState, updateData } = useUIState();
@@ -18,6 +19,7 @@ export default function TenantWallet() {
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
+  const [isRefreshing, setIsRecording] = useState(false);
 
   const loadData = useCallback(async () => {
     // Only set loading if we have NO data
@@ -25,6 +27,19 @@ export default function TenantWallet() {
     setError(null);
 
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('payment_refresh') === 'true') {
+        // Find any pending/unpaid invoices and trigger a background refresh
+        // This is a safety for when webhooks are slow/missing
+        toast.loading('Updating payment status...', { id: 'refreshing' });
+        const listRes = await paymentService.getPayments('all');
+        if (listRes.success) {
+          const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
+          await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
+          toast.success('Payment statuses updated', { id: 'refreshing' });
+        }
+      }
+
       const [paymentsRes, statsRes] = await Promise.all([
         paymentService.getPayments(statusFilter),
         paymentService.getStats()
@@ -221,6 +236,7 @@ export default function TenantWallet() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -237,6 +253,16 @@ export default function TenantWallet() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-mono">{payment.referenceNo}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
+                        <button
+                          onClick={() => navigate(`/checkout/${payment.id}`)}
+                          className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          Pay Now
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (

@@ -76,7 +76,6 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   };
 
   const [profileData, setProfileData] = useState({ firstName: user?.first_name || '', lastName: user?.last_name || '', email: user?.email || '', phone: user?.phone || '' });
-  const [notifications, setNotifications] = useState({ emailNewBooking: true, emailPayment: true, emailMaintenance: false, smsPaymentReminder: true, smsNewTenant: false, pushMessages: true });
   const [security, setSecurity] = useState({ twoFactorAuth: false, loginAlerts: true });
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [caretakers, setCaretakers] = useState(cachedData?.caretakers || []);
@@ -204,7 +203,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
         <div className="lg:col-span-3">
           {activeTab === 'profile' && <MyProfile user={user} profileData={profileData} setProfileData={setProfileData} isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} handleSaveProfile={handleSaveProfile} profilePhoto={profilePhoto} photoPreview={photoPreview} isUploadingPhoto={isUploadingPhoto} fileInputRef={fileInputRef} handlePhotoSelect={handlePhotoSelect} handlePhotoUpload={handlePhotoUpload} />}
-          {activeTab === 'notifications' && <Notifications notifications={notifications} setNotifications={setNotifications} />}
+          {activeTab === 'notifications' && <Notifications user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'security' && <Security passwordData={passwordData} setPasswordData={setPasswordData} isEditingPassword={isEditingPassword} setIsEditingPassword={setIsEditingPassword} security={security} setSecurity={setSecurity} isEditingSecurity={isEditingSecurity} setIsEditingSecurity={setIsEditingSecurity} />}
           {activeTab === 'caretaker' && (
             <CareTakerAccess 

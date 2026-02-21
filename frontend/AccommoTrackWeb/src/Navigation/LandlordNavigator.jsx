@@ -17,6 +17,8 @@ import Analytics from '../screens/Landlord/Analytics.jsx';
 import Settings from '../screens/Landlord/Settings.jsx';
 import MyProperties from '../screens/Landlord/MyProperties.jsx';
 import CaretakerDashboard from '../screens/Landlord/CaretakerDashboard.jsx';
+import LandlordMaintenance from '../screens/Landlord/LandlordMaintenance.jsx';
+import LandlordReviews from '../screens/Landlord/Reviews.jsx';
 
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
@@ -29,7 +31,10 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
             <Route path="/" element={<Navigate to={caretakerHome} replace />} />
             <Route path="/dashboard" element={<CaretakerDashboard user={user} />} />
             {caretakerPermissions.rooms && (
-              <Route path="/rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
+              <>
+                <Route path="/rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
+                <Route path="/maintenance" element={<LandlordMaintenance user={user} accessRole="caretaker" />} />
+              </>
             )}
             {caretakerPermissions.bookings && (
               <Route path="/bookings" element={<Bookings user={user} accessRole="caretaker" />} />
@@ -62,9 +67,11 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/properties/:id" element={<PropertySummary />} />
           <Route path="/properties/:id/edit" element={<PropertyDetailRoute />} />
           <Route path="/rooms" element={<RoomManagement user={user} />} />
+          <Route path="/maintenance" element={<LandlordMaintenance user={user} />} />
           <Route path="/tenants/:id" element={<TenantLogs user={user} />} />
           <Route path="/tenants/logs" element={<TenantLogs user={user} />} />
           <Route path="/payments" element={<Payments user={user} />} />
+          <Route path="/reviews" element={<LandlordReviews user={user} />} />
           <Route path="/tenants" element={<Tenants user={user} accessRole="landlord" />} />
           <Route path="/bookings" element={<Bookings user={user} accessRole="landlord" />} />
           <Route path="/messages" element={<Messages user={user} accessRole="landlord" />} />

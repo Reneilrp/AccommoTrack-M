@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import { 
-  Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2 
+  Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star 
 } from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
@@ -243,6 +243,20 @@ export default function PropertySummary() {
                 title="Tenant management"
               >
                 <Users className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate(`/maintenance?property_id=${id}`)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Maintenance Requests"
+              >
+                <Wrench className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate(`/reviews?property_id=${id}`)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Guest Reviews"
+              >
+                <Star className="w-5 h-5" />
               </button>
             </div>
           </div>

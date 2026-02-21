@@ -5,6 +5,10 @@ import {
   Calendar,
   Download,
   Building2,
+  LucidePhilippinePeso,
+  TrendingUp,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import {
   BarChart,
@@ -27,35 +31,32 @@ import { cacheManager } from '../../utils/cache';
 export default function Analytics({ user }) {
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_analytics || cacheManager.get('landlord_analytics');
+  const accessibleProperties = uiState.data?.accessible_properties || cacheManager.get('accessible_properties');
 
   const [timeRange, setTimeRange] = useState('month');
   const [selectedProperty, setSelectedProperty] = useState('all');
-  const [properties, setProperties] = useState(cachedData?.properties || null);
+  const [properties, setProperties] = useState(accessibleProperties || cachedData?.properties || []);
   const [analytics, setAnalytics] = useState(cachedData?.analytics || null);
   const [loading, setLoading] = useState(!cachedData);
-  const [propertiesLoading, setPropertiesLoading] = useState(!cachedData);
+  const [propertiesLoading, setPropertiesLoading] = useState(!accessibleProperties && !cachedData?.properties);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadProperties();
+    if (!accessibleProperties || accessibleProperties.length === 0) {
+      loadProperties();
+    }
   }, []);
-
-  useEffect(() => {
-    loadAnalytics();
-  }, [timeRange, selectedProperty]);
 
   const loadProperties = async () => {
     try {
-      if (!cachedData) setPropertiesLoading(true);
-      const response = await api.get('/landlord/properties');
+      setPropertiesLoading(true);
+      const response = await api.get('/properties/accessible');
       const data = response.data || [];
       setProperties(data);
-      const newState = { ...uiState.data?.landlord_analytics, properties: data };
-      updateData('landlord_analytics', newState);
-      cacheManager.set('landlord_analytics', newState);
+      updateData('accessible_properties', data);
+      cacheManager.set('accessible_properties', data);
     } catch (err) {
       console.error('Failed to load properties:', err);
-      setProperties([]);
     } finally {
       setPropertiesLoading(false);
     }
@@ -87,6 +88,10 @@ export default function Analytics({ user }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [timeRange, selectedProperty]);
 
   // Download analytics as CSV
   const downloadAnalyticsCSV = () => {
@@ -234,14 +239,15 @@ export default function Analytics({ user }) {
         ) : (properties && properties.length > 0) ? (
           analytics ? (
             <>
-              {/* Key Metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              {/* Key Metrics - Business Overview & Inventory */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {/* Row 1: Financials */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="green" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11H4"/><path d="M20 7H4"/><path d="M7 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 0 12H7"/></svg>
+                      <LucidePhilippinePeso className="w-6 h-6 text-green-600" />
                     </div>
-                    <span className="text-green-600 text-sm font-semibold">{analytics.revenue.collection_rate}%</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cumulative</span>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Revenue</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.total_revenue.toLocaleString()}</p>
@@ -249,29 +255,90 @@ export default function Analytics({ user }) {
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Home className="w-6 h-6 text-blue-600" /></div>
-                    <span className="text-blue-600 text-sm font-semibold">{analytics.overview.occupancy_rate}%</span>
+                    <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Current Month</span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Monthly Revenue</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.monthly_revenue.toLocaleString()}</p>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Target: 100%</span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Collection Rate</p>
+                  <p className={`text-2xl font-bold ${analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {analytics.revenue.collection_rate}%
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <LucidePhilippinePeso className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall</span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Payment Success Rate</p>
+                  <p className={`text-2xl font-bold ${analytics.payments.payment_rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
+                    {analytics.payments.payment_rate}%
+                  </p>
+                </div>
+
+                {/* Row 2: Operations */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Home className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Occupancy</span>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Occupancy Rate</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.occupied_rooms}/{analytics.overview.total_rooms}</p>
+                  <p className={`text-2xl font-bold ${analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}`}>
+                    {analytics.overview.occupancy_rate}% <span className="text-sm font-normal text-gray-500">({analytics.overview.occupied_rooms}/{analytics.overview.total_rooms})</span>
+                  </p>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"><Users className="w-6 h-6 text-purple-600" /></div>
-                    <span className="text-green-600 text-sm font-semibold">+{analytics.overview.new_tenants_this_month}</span>
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Inventory</span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview.total_rooms} <span className="text-sm font-normal text-gray-500">({analytics.overview.available_rooms} Available)</span>
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                      <Users className="w-6 h-6 text-pink-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Active</span>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active Tenants</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.active_tenants}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview.active_tenants} <span className="text-sm font-bold text-green-600 ml-1">+{analytics.overview.new_tenants_this_month} New</span>
+                  </p>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><Calendar className="w-6 h-6 text-yellow-600" /></div>
-                    <span className="text-gray-600 text-sm font-semibold">months</span>
+                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-6 h-6 text-yellow-600" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-400">Avg Duration</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Avg Stay Duration</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Tenant Retention</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months} <span className="text-sm font-normal text-gray-500">months</span></p>
                 </div>
               </div>
 
@@ -303,6 +370,55 @@ export default function Analytics({ user }) {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Property Performance Breakdown */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Property Performance Breakdown</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold">Property Name</th>
+                        <th className="px-6 py-4 font-semibold">Occupancy Rate</th>
+                        <th className="px-6 py-4 font-semibold">Rooms (Occ/Total)</th>
+                        <th className="px-6 py-4 font-semibold">Monthly Revenue</th>
+                        <th className="px-6 py-4 font-semibold">Efficiency Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {analytics.properties.map((p, index) => (
+                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{p.name}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${p.occupancy_rate >= 80 ? 'bg-green-500' : p.occupancy_rate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`} 
+                                  style={{ width: `${p.occupancy_rate}%` }}
+                                />
+                              </div>
+                              <span className="text-gray-600 dark:text-gray-300">{p.occupancy_rate}%</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{p.occupied_rooms} / {p.total_rooms}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(p.monthly_revenue || 0).toLocaleString()}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              p.occupancy_rate >= 90 ? 'bg-green-100 text-green-700' : 
+                              p.occupancy_rate >= 50 ? 'bg-blue-100 text-blue-700' : 
+                              'bg-orange-100 text-orange-700'
+                            }`}>
+                              {p.occupancy_rate >= 90 ? 'Optimal' : (p.occupancy_rate >= 50 ? 'Stable' : 'Needs Attention')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           ) : (
