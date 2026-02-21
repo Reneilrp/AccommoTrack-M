@@ -212,6 +212,12 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
       case 'Help & Support':
         navigation.navigate('HelpSupport');
         break;
+      case 'My Maintenance Requests':
+        navigation.navigate('MyMaintenanceRequests');
+        break;
+      case 'My Addon Requests':
+        navigation.navigate('Addons');
+        break;
       case 'Logout':
         if (isGuest) {
           if (onAuthRequired) {

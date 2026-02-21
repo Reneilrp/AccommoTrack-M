@@ -98,7 +98,8 @@ export default function MyBookings() {
             status: statusMap[booking.status] || booking.status || 'Pending',
             statusRaw: booking.status,
             paymentStatus: booking.paymentStatus,
-            bookingReference: booking.bookingReference
+            bookingReference: booking.bookingReference,
+            hasReview: booking.hasReview
           };
         });
         
@@ -235,12 +236,28 @@ export default function MyBookings() {
                     </Text>
                   </View>
                 )}
-                {booking.statusRaw === 'completed' && (
+                {((booking.statusRaw === 'completed' || booking.statusRaw === 'confirmed') && !booking.hasReview) && (
                   <View style={styles.reviewBtnContainer}>
                     <TouchableOpacity onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: booking.propertyId })} style={[styles.reviewBtn, { backgroundColor: theme.colors.primary }]}>
-                      <Text style={{ color: theme.colors.textInverse, fontWeight: '600' }}>Leave Review</Text>
+                      <Text style={{ color: theme.colors.textInverse, fontWeight: '600' }}>{booking.statusRaw === 'confirmed' ? 'Review Property' : 'Leave Review'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => navigation.navigate('ReportProperty', { propertyId: booking.propertyId, propertyTitle: booking.name })} 
+                      style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', marginLeft: 8, borderWidth: 1, borderColor: '#FECACA' }]}
+                    >
+                      <Text style={{ color: '#991B1B', fontWeight: '600' }}>Report</Text>
                     </TouchableOpacity>
                   </View>
+                )}
+                {booking.hasReview && (
+                   <View style={styles.reviewBtnContainer}>
+                      <TouchableOpacity 
+                        onPress={() => navigation.navigate('ReportProperty', { propertyId: booking.propertyId, propertyTitle: booking.name })} 
+                        style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA', width: '100%' }]}
+                      >
+                        <Text style={{ color: '#991B1B', fontWeight: '600', textAlign: 'center' }}>Report Issue with Listing</Text>
+                      </TouchableOpacity>
+                   </View>
                 )}
               </View>
               </TouchableOpacity>

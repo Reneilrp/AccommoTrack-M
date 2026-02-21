@@ -29,6 +29,7 @@ import MyRequests from '../screens/Maintenance/MyRequests.jsx';
 import LeaveReview from '../screens/Reviews/LeaveReview.jsx';
 import MyReviews from '../screens/Reviews/MyReviews.jsx';
 import BookingDetails from '../screens/Menu/BookingDetails.jsx';
+import ReportProperty from '../screens/Menu/ReportProperty.jsx';
 
 const RootStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
@@ -97,6 +98,17 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
           )}
         </MainStack.Screen>
 
+        <MainStack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
+        
+        <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
+          {(props) => (
+            <MessagesPage {...props} />
+          )}
+        </MainStack.Screen>
+
+        {/* Chat route - full screen, no bottom nav or header */}
+        <MainStack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none', headerShown: false }} />
+
         {/* Protected Routes - Only for authenticated users */}
         {!isGuest && (
           <>
@@ -109,14 +121,6 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
             <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
             <MainStack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
-            <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
-              {(props) => (
-                <MessagesPage {...props} />
-              )}
-            </MainStack.Screen>
-
-            {/* Chat route - full screen, no bottom nav or header */}
-            <MainStack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none', headerShown: false }} />
 
             <MainStack.Screen name="MyBookings" options={{ animation: 'none' }}>
               {(props) => (
@@ -128,13 +132,13 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentRedirectWebview" component={PaymentRedirectWebview} options={{ animation: 'none' }} />
-            <MainStack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
             <MainStack.Screen name="CreateMaintenanceRequest" component={CreateRequest} options={{ animation: 'none' }} />
             <MainStack.Screen name="Addons" component={AddonsScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="MyMaintenanceRequests" component={MyRequests} options={{ animation: 'none' }} />
             <MainStack.Screen name="BookingDetails" component={BookingDetails} options={{ animation: 'none' }} />
             <MainStack.Screen name="LeaveReview" component={LeaveReview} options={{ animation: 'none' }} />
             <MainStack.Screen name="MyReviews" component={MyReviews} options={{ animation: 'none' }} />
+            <MainStack.Screen name="ReportProperty" component={ReportProperty} options={{ animation: 'none' }} />
           </>
         )}
       </MainStack.Navigator>

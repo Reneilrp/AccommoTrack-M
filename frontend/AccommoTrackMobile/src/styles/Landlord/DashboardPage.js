@@ -50,8 +50,7 @@ export const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#16A34A',
     paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 16,
+    height: 56,
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
@@ -61,7 +60,7 @@ export const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -84,7 +83,7 @@ export const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center'
   },

@@ -16,8 +16,16 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
 
   const handleMenuItemPress = (title) => {
     // If guest, protect certain routes and prompt to sign in
-    // Note: Most protected items are hidden from the menu for guests, but this is a safety check
-    const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Notifications'];
+    const protectedItems = [
+      'Dashboard', 
+      'My Bookings', 
+      'Favorites', 
+      'Payments', 
+      'Notifications', 
+      'My Maintenance Requests', 
+      'My Addon Requests'
+    ];
+    
     if (isGuest && protectedItems.includes(title)) {
       navigation.goBack();
       if (onAuthRequired) {
@@ -32,32 +40,31 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
     // Navigate based on selection
     switch (title) {
       case 'Dashboard':
-        navigation.navigate('Dashboard');
+        navigation.navigate('Main', { screen: 'Dashboard' });
         break;
       case 'My Bookings':
-        navigation.navigate('MyBookings');
+        navigation.navigate('Main', { screen: 'MyBookings' });
         break;
       case 'My Maintenance Requests':
-        navigation.navigate('MyMaintenanceRequests');
+        navigation.navigate('Main', { screen: 'MyMaintenanceRequests' });
         break;
       case 'My Addon Requests':
-        // Open addons screen which now shows tenant requests at top
-        navigation.navigate('Addons');
+        navigation.navigate('Main', { screen: 'Addons' });
         break;
       case 'Notifications':
-        navigation.navigate('Notifications');
+        navigation.navigate('Main', { screen: 'Notifications' });
         break;
       case 'Payments':
-        navigation.navigate('Payments');
+        navigation.navigate('Main', { screen: 'Payments' });
         break;
       case 'Settings':
         navigation.navigate('Main', { screen: 'Settings' });
         break;
       case 'Future UI Demo':
-        navigation.navigate('DemoUI');
+        navigation.navigate('Main', { screen: 'DemoUI' });
         break;
       case 'Help & Support':
-        navigation.navigate('HelpSupport');
+        navigation.navigate('Main', { screen: 'HelpSupport' });
         break;
       case 'Logout':
         if (onLogout) onLogout();

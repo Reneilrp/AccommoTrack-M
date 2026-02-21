@@ -27,7 +27,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { accommodation } = route.params;
+  const { accommodation, isGuest = false, onAuthRequired } = route.params || {};
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,17 +37,6 @@ export default function PropertyDetailsScreen({ route }) {
   useEffect(() => {
     loadRooms();
   }, [accommodation?.id]);
-
-  // Tell TenantLayout what title to use for this screen and hide the layout
-  useEffect(() => {
-    const title = (detailedAccommodation && (detailedAccommodation.title || detailedAccommodation.name)) || (accommodation && (accommodation.title || accommodation.name));
-    try {
-      navigation.setParams?.({ layoutTitle: title, hideLayout: true });
-    } catch (e) {}
-    return () => {
-      try { navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); } catch (e) {}
-    };
-  }, [detailedAccommodation, accommodation, navigation]);
 
   // Hide bottom tab bar for this details screen (if parent is a tab navigator)
   useEffect(() => {
@@ -285,6 +274,11 @@ export default function PropertyDetailsScreen({ route }) {
 
   // Contact landlord function
   const handleContactLandlord = async () => {
+    if (isGuest) {
+      if (onAuthRequired) onAuthRequired();
+      return;
+    }
+
     try {
       const src = detailedAccommodation || accommodation;
       
@@ -485,6 +479,15 @@ export default function PropertyDetailsScreen({ route }) {
               <Ionicons name="pricetag-outline" size={24} color={theme.colors.primary} />
               <Text style={[styles.statNumber, { color: theme.colors.text }]}>{active && active.priceRange}</Text>
               <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Price Range</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="star" size={24} color="#F59E0B" />
+              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
+                {active && active.rating ? active.rating : '-'}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+                {active && active.reviews_count ? `${active.reviews_count} Reviews` : 'No Reviews'}
+              </Text>
             </View>
           </View>
 

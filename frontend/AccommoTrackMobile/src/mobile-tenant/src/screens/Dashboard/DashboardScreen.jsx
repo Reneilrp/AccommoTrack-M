@@ -295,7 +295,7 @@ const DashboardScreen = () => {
                   </View>
                   <TouchableOpacity
                     style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => navigation.navigate('Wallet')}
+                    onPress={() => navigation.navigate('Payments')}
                   >
                     <Text style={styles.primaryButtonText}>View Wallet</Text>
                   </TouchableOpacity>

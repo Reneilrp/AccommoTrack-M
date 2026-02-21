@@ -187,12 +187,17 @@ export default function ProfilePage() {
       
       // Create form data for multipart upload
       const formData = new FormData();
+      formData.append('_method', 'PUT');
       
-      // Parse the full name back to parts if user edited name field
-      const nameParts = profileData.name.trim().split(' ');
-      formData.append('first_name', profileData.firstName || nameParts[0] || '');
-      formData.append('middle_name', profileData.middleName || (nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : ''));
-      formData.append('last_name', profileData.lastName || nameParts[nameParts.length - 1] || '');
+      // Parse the full name field to update first/last name
+      const nameParts = (profileData.name || '').trim().split(' ');
+      const fName = nameParts[0] || '';
+      const lName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      const mName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+
+      formData.append('first_name', fName);
+      formData.append('middle_name', mName);
+      formData.append('last_name', lName);
       formData.append('phone', profileData.phone || '');
       formData.append('notes', profileData.bio || '');
       formData.append('preference', JSON.stringify(profileData.preferences));
@@ -202,23 +207,38 @@ export default function ProfilePage() {
       }
 
       const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           ...headers,
-          'Content-Type': 'multipart/form-data',
         },
         body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
-        setIsEditing(false); // Disable editing mode immediately
-        Alert.alert('Success', 'Profile updated successfully!');
         
-        // Update local storage with new user data
+        // Refresh local state with new data
         if (result.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(result.user));
+          const u = result.user;
+          const tp = u.tenant_profile || {};
+          
+          setProfileData(prev => ({
+            ...prev,
+            firstName: u.first_name || '',
+            middleName: u.middle_name || '',
+            lastName: u.last_name || '',
+            name: [u.first_name, u.middle_name, u.last_name].filter(Boolean).join(' ') || prev.name,
+            phone: u.phone || '',
+            bio: tp.notes || '',
+            dateOfBirth: tp.date_of_birth || '',
+            preferences: typeof tp.preference === 'string' ? JSON.parse(tp.preference) : (tp.preference || prev.preferences)
+          }));
+
+          await AsyncStorage.setItem('user', JSON.stringify(u));
         }
+
+        setIsEditing(false);
+        Alert.alert('Success', 'Profile updated successfully!');
       } else {
         const error = await response.json();
         Alert.alert('Error', error.message || 'Failed to update profile');
@@ -300,6 +320,7 @@ export default function ProfilePage() {
       const headers = await getAuthHeaders();
 
       const formData = new FormData();
+      formData.append('_method', 'PUT');
       
       // Get file extension from URI
       const uriParts = imageAsset.uri.split('.');
@@ -317,10 +338,9 @@ export default function ProfilePage() {
       formData.append('last_name', profileData.lastName);
 
       const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           ...headers,
-          'Content-Type': 'multipart/form-data',
         },
         body: formData,
       });

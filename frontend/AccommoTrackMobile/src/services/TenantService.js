@@ -353,6 +353,29 @@ class TenantService {
   }
 
   /**
+   * Submit a report for a property
+   */
+  async submitReport(payload) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.post(`${API_URL}/reports`, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to submit report' };
+    }
+  }
+
+  /**
    * Submit a review/rating for a property (tenant-only)
    * payload: { booking_id, property_id, rating, comment }
    */

@@ -6,10 +6,13 @@ import {
   StatusBar,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 import { styles } from '../../../styles/Landlord/Analytics';
@@ -90,6 +93,7 @@ export default function Analytics({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const loadProperties = useCallback(async () => {
     const response = await LandlordAnalyticsService.fetchProperties();
@@ -134,6 +138,79 @@ export default function Analytics({ navigation }) {
     await loadAnalytics();
     setRefreshing(false);
   }, [loadAnalytics]);
+
+  const downloadAnalyticsCSV = async () => {
+    if (!analytics) return;
+    
+    try {
+      setExporting(true);
+      
+      const formatVal = (amount) => `PHP ${Number(amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      const formatPct = (val) => `${Number(val || 0).toFixed(1)}%`;
+      
+      const totalPaymentCount = (analytics.payments?.paid || 0) + (analytics.payments?.unpaid || 0) + (analytics.payments?.partial || 0) + (analytics.payments?.overdue || 0) || 1;
+
+      const rows = [
+        ['AccommoTrack Analytics Report'],
+        ['Generated:', new Date().toLocaleString()],
+        ['Time Range:', timeRange.toUpperCase()],
+        ['Property Filter:', selectedProperty === 'all' ? 'All Properties' : (properties?.find(p => p.id == selectedProperty)?.title || 'Selected Property')],
+        [''],
+        ['=== BUSINESS OVERVIEW ==='],
+        ['Metric', 'Value'],
+        ['Total Revenue', formatVal(analytics.overview.total_revenue)],
+        ['Monthly Revenue', formatVal(analytics.overview.monthly_revenue)],
+        ['Revenue Collection Rate', formatPct(analytics.revenue.collection_rate)],
+        ['Occupancy Rate', formatPct(analytics.overview.occupancy_rate)],
+        [''],
+        ['=== INVENTORY & TENANTS ==='],
+        ['Metric', 'Value'],
+        ['Total Rooms', analytics.overview.total_rooms],
+        ['Occupied Rooms', analytics.overview.occupied_rooms],
+        ['Available Rooms', analytics.overview.available_rooms],
+        ['Active Tenants', analytics.overview.active_tenants],
+        ['New Tenants', analytics.overview.new_tenants_this_month],
+        ['Avg Stay Duration', `${analytics.tenants.average_stay_months} months`],
+        [''],
+        ['=== REVENUE TREND ==='],
+        ['Period', 'Revenue'],
+        ...analytics.revenue.monthly_trend.map(item => [item.month, formatVal(item.revenue)]),
+        [''],
+        ['=== PAYMENT PERFORMANCE ==='],
+        ['Status', 'Count', 'Percent'],
+        ['Paid', analytics.payments.paid, formatPct((analytics.payments.paid / totalPaymentCount) * 100)],
+        ['Pending', analytics.payments.unpaid, formatPct((analytics.payments.unpaid / totalPaymentCount) * 100)],
+        ['Partial', analytics.payments.partial, formatPct((analytics.payments.partial / totalPaymentCount) * 100)],
+        ['Overdue', analytics.payments.overdue, formatPct((analytics.payments.overdue / totalPaymentCount) * 100)],
+        [''],
+        ['=== PROPERTY PERFORMANCE ==='],
+        ['Property', 'Occupancy', 'Revenue'],
+        ...analytics.properties.map(p => [
+          p.name, 
+          formatPct(p.occupancy_rate), 
+          formatVal(p.monthly_revenue)
+        ])
+      ];
+
+      const csvContent = rows.map(e => e.map(i => `"${String(i).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const filename = `Analytics_${new Date().getTime()}.csv`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+      
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(fileUri);
+      } else {
+        Alert.alert('Success', 'CSV saved to documents.');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to generate or share CSV.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const overview = analytics?.overview;
   const roomTypes = analytics?.roomTypes || [];
@@ -388,7 +465,17 @@ export default function Analytics({ navigation }) {
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          onPress={downloadAnalyticsCSV}
+          disabled={exporting || loading || !analytics}
+        >
+          {exporting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="download-outline" size={20} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Filters Row - Sticky */}

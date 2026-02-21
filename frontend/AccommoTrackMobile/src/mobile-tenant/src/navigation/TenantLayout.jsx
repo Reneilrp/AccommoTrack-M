@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, SafeAreaView } from 'react-native';
+import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 // Global Header removed — screens should use TopNavigation when needed
 import BottomNavigation from '../components/BottomNavigation.jsx';
 import Header from '../components/Header.jsx';
@@ -149,9 +150,9 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
       </View>
 
       {showBottom && (
-        <SafeAreaView edges={["bottom"]} style={{ backgroundColor: theme.colors.surface }}>
+        <View style={{ backgroundColor: theme.colors.surface }}>
           <BottomNavigation isGuest={isGuest} onAuthRequired={onAuthRequired} currentRouteName={activeRouteName} />
-        </SafeAreaView>
+        </View>
       )}
     </View>
   );

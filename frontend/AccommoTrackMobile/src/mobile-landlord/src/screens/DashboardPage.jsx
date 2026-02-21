@@ -91,7 +91,9 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings' },
     { id: 5, title: 'Payments', icon: 'cash', color: '#10b981', screen: 'Payments' },
     { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics' },
-    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' }
+    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' },
+    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests' },
+    { id: 9, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews' }
   ];
 
   // Reset mounted ref on each mount
@@ -293,7 +295,11 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     ? `${occupancyRate}% Full`
     : `${derivedOccupancyPercent}% Full`;
   const tenantCount = occupiedRooms ?? 0;
-  const pendingNotifications = stats?.bookings?.pending ?? 0;
+  
+  // Calculate total pending notifications (Bookings + Maintenance + Addons)
+  const pendingNotifications = (stats?.bookings?.pending ?? 0) + 
+                               (stats?.requests?.maintenance ?? 0) + 
+                               (stats?.requests?.addons ?? 0);
 
   const renderVerificationBanner = () => {
     if (!verificationStatus || verificationStatus.status === 'approved') return null;
@@ -355,7 +361,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
       {/* Menu Drawer */}
@@ -375,7 +381,6 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           <Ionicons name="menu" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.greeting}>Welcome back,</Text>
           <Text style={styles.userName}>{user?.first_name || 'Landlord'}</Text>
         </View>
         <TouchableOpacity

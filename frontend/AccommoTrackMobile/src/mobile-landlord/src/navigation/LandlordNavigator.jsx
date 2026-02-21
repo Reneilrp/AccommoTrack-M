@@ -30,6 +30,9 @@ import VerificationStatus from '../screens/VerificationStatus.jsx';
 import PropertyActivityLogs from '../screens/PropertyActivityLogs.jsx';
 import TenantLogs from '../screens/TenantLogs.jsx';
 import PropertyDetailsScreen from '../../../mobile-tenant/src/components/PropertyDetailsScreen.jsx';
+import MaintenanceRequests from '../screens/MaintenanceRequests.jsx';
+import Reviews from '../screens/Reviews.jsx';
+import Caretakers from '../screens/Caretakers.jsx';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -150,7 +153,7 @@ function MainTabs({ onLogout }) {
         name="Bookings" 
         component={Bookings}
         options={{
-          tabBarLabel: 'Bookings',
+          tabBarLabel: () => null,
           tabBarButton: (props) => (
             <CustomTabBarButton {...props} />
           )
@@ -161,7 +164,7 @@ function MainTabs({ onLogout }) {
         name="Messages" 
         component={Messages}
         options={{
-          tabBarBadge: 3,
+          tabBarBadge: undefined,
           tabBarBadgeStyle: {
             backgroundColor: COLORS.danger,
             color: '#FFFFFF',
@@ -212,6 +215,9 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
       <Stack.Screen name="PropertyActivityLogs" component={PropertyActivityLogs} options={{ animation: 'none' }} />
       <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
+      <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
+      <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
+      <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>

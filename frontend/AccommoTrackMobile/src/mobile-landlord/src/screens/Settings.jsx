@@ -148,6 +148,14 @@ export default function SettingsScreen({ navigation, onLogout }) {
             icon: 'shield-checkmark-outline',
             type: 'navigate',
             target: 'VerificationStatus'
+          },
+          {
+            id: 'caretakers',
+            label: 'Caretaker Management',
+            description: 'Manage access and permissions',
+            icon: 'people-outline',
+            type: 'navigate',
+            target: 'Caretakers'
           }
         ]
       },
