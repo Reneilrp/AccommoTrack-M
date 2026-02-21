@@ -172,7 +172,10 @@ class PropertyController extends Controller
                         $q->with('amenities', 'images');
                     },
                     'images',
-                    'landlord:id,first_name,last_name,email,phone,payment_methods_settings'
+                    'landlord:id,first_name,last_name,email,phone,payment_methods_settings',
+                    'reviews' => function($q) {
+                        $q->where('is_published', true);
+                    }
                 ])
                 ->findOrFail($id);
 
@@ -183,6 +186,11 @@ class PropertyController extends Controller
 
             $primaryImage = $property->images->where('is_primary', true)->first();
             $coverImage = $primaryImage ?? $property->images->first();
+
+            // Calculate average rating from reviews
+            $avgRating = $property->reviews->count() > 0 
+                ? round($property->reviews->avg('rating'), 1) 
+                : null;
 
             return response()->json([
                 'id' => $property->id,
@@ -208,6 +216,8 @@ class PropertyController extends Controller
                         ? '₱' . number_format($minPrice, 0)
                         : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
                     : 'Contact for price',
+                'rating' => $avgRating,
+                'reviews_count' => $property->reviews->count(),
                 'image' => $coverImage
                     ? (str_starts_with($coverImage->image_url, 'http')
                         ? $coverImage->image_url
@@ -487,54 +497,6 @@ class PropertyController extends Controller
         $property->amenities_list = $property->amenities->pluck('name')->toArray();
 
         return response()->json($property, 201);
-    }
-
-    /**
-     * Show property details for tenants (public view)
-     * This allows tenants to view any property and includes landlord info
-     */
-    public function showForTenant($id)
-    {
-        $property = Property::with([
-            'rooms' => function ($query) {
-                $query->select(
-                    'id',
-                    'property_id',
-                    'room_number',
-                    'room_type',
-                    'capacity',
-                    'monthly_rate',
-                    'status',
-                    'description'
-                )
-                    ->orderBy('room_number');
-            },
-            'images' => function ($query) {
-                $query->select('id', 'property_id', 'image_url');
-            },
-            'amenities' => function ($query) {
-                $query->select('amenities.id', 'amenities.name');
-            },
-            'landlord:id,first_name,last_name,email,phone'
-        ])->findOrFail($id);
-
-        // Format images with proper URLs
-        $property->images->transform(function ($image) {
-            $image->image_url = asset('storage/' . $image->image_url);
-            return $image;
-        });
-
-        // Format amenities
-        $property->amenities_list = $property->amenities->pluck('name')->toArray();
-
-        // Add landlord_id and landlord_name to the root level for easier access
-        $propertyArray = $property->toArray();
-        $propertyArray['landlord_id'] = $property->landlord->id ?? null;
-        $propertyArray['landlord_name'] = $property->landlord
-            ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
-            : 'Unknown';
-
-        return response()->json($propertyArray, 200);
     }
 
     /**

@@ -153,10 +153,18 @@ class TenantSettingsController extends Controller
             // Smart merge for preferences
             if (array_key_exists('preference', $validated)) {
                 $currentPrefs = $tenantProfile->preference ?? [];
-                // Ensure currentPrefs is array
                 if (!is_array($currentPrefs)) $currentPrefs = [];
                 
                 $newPrefs = $validated['preference'];
+                
+                // Decode if it's a JSON string (common with FormData)
+                if (is_string($newPrefs)) {
+                    $decoded = json_decode($newPrefs, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $newPrefs = $decoded;
+                    }
+                }
+
                 if (is_array($newPrefs)) {
                     $tenantProfile->preference = array_merge($currentPrefs, $newPrefs);
                 }

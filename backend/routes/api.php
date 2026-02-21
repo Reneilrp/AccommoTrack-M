@@ -42,7 +42,6 @@ Route::get('/public/properties', [PropertyController::class, 'getAllProperties']
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
 
-Route::get('/properties/{id}/view', [PropertyController::class, 'showForTenant']);
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
@@ -117,9 +116,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant: Maintenance Requests
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'index']);
         Route::post('/maintenance-requests', [MaintenanceRequestController::class, 'store']);
-
-        // Tenant/Landlord: Resubmit verification (for unverified landlords)
-        Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
     });
 
     // ===== LANDLORD ROUTES =====
@@ -134,6 +130,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Landlord: Reviews
         Route::get('/reviews', [ReviewController::class, 'getLandlordReviews']);
         Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
+
+        // Landlord: Maintenance Requests
+        Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'indexForLandlord']);
+        Route::patch('/maintenance-requests/{id}/status', [MaintenanceRequestController::class, 'updateStatus']);
         
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
@@ -161,11 +161,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/room-types', [AnalyticsController::class, 'getRoomTypeAnalytics']);
         Route::get('/analytics/properties', [AnalyticsController::class, 'getPropertyComparison']);
         Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
-        Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
-        Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
-        Route::post('/tenants', [TenantController::class, 'store']);
-        Route::put('/tenants/{id}', [TenantController::class, 'update']);
-        Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
+            Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
+            Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
+            
+            // Reports (Tenant)
+            Route::post('/reports', [App\Http\Controllers\ReportController::class, 'store']);
+        
+            Route::post('/tenants', [TenantController::class, 'store']);
+            Route::put('/tenants/{id}', [TenantController::class, 'update']);        Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
         Route::get('/caretakers', [CaretakerController::class, 'index']);
@@ -185,6 +188,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ===== SHARED BOOKINGS =====
+    // Allow authenticated users (tenants) to submit reviews via /api/reviews
+    Route::post('/reviews', [ReviewController::class, 'store']);
+
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/stats', [BookingController::class, 'getStats']);
@@ -230,7 +236,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
-        Route::get('/admin/properties/pending', [PropertyController::class, 'getPendingPropertiesForApproval']);  
 
         // Admin: Inquiries
         Route::get('/inquiries', [App\Http\Controllers\InquiryController::class, 'index']);
@@ -241,6 +246,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
         // Admin: reject landlord verification with reason
         Route::post('/landlord-verifications/{id}/reject', [AdminController::class, 'rejectVerification']);
+
+        // Admin: Reports
+        Route::get('/reports', [App\Http\Controllers\ReportController::class, 'index']);
+        Route::patch('/reports/{id}', [App\Http\Controllers\ReportController::class, 'update']);
     });
 
     Route::prefix('messages')->group(function () {

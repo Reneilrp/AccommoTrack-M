@@ -3,22 +3,23 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Payment;
+use App\Models\Invoice;
 use App\Models\Booking;
+use App\Models\PaymentTransaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TenantPaymentController extends Controller
 {
     /**
-     * Get all payments for the authenticated tenant
+     * Get all invoices for the authenticated tenant
      */
     public function index(Request $request)
     {
         try {
             $tenantId = Auth::id();
 
-            $query = Payment::with(['booking.property', 'booking', 'room'])
+            $query = Invoice::with(['booking.property', 'property', 'booking.room', 'transactions'])
                 ->where('tenant_id', $tenantId);
 
             // Filter by status if provided
@@ -26,111 +27,79 @@ class TenantPaymentController extends Controller
                 $query->where('status', $request->status);
             }
 
-            $payments = $query->orderBy('created_at', 'desc')
+            $invoices = $query->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function ($payment) {
-                    $propertyName = 'N/A';
-                    if ($payment->booking && $payment->booking->property) {
-                        $propertyName = $payment->booking->property->title;
-                    } elseif ($payment->room && $payment->room->property) {
-                        $propertyName = $payment->room->property->title;
-                    }
+                ->map(function ($invoice) {
+                    $propertyName = $invoice->property->title ?? ($invoice->booking->property->title ?? 'N/A');
+                    $roomNumber = $invoice->booking->room->room_number ?? 'N/A';
 
-                    // Map payment status to display format
-                    $statusMap = [
-                        'paid' => 'Paid',
-                        'pending' => 'Pending',
-                        'overdue' => 'Overdue',
-                        'cancelled' => 'Cancelled'
-                    ];
-
-                    // Map payment method to display format
-                    $methodMap = [
-                        'cash' => 'Cash',
-                        'bank_transfer' => 'Bank Transfer',
-                        'gcash' => 'GCash',
-                        'paymaya' => 'PayMaya',
-                        'card' => 'Card'
-                    ];
-
-                    // Get booking payment status if booking exists
-                    $bookingPaymentStatus = null;
-                    $bookingPaymentStatusDisplay = null;
-                    if ($payment->booking) {
-                        $bookingPaymentStatus = $payment->booking->payment_status;
-                        $bookingPaymentStatusMap = [
-                            'unpaid' => 'Unpaid',
-                            'partial' => 'Partial Paid',
-                            'paid' => 'Paid',
-                            'refunded' => 'Refunded'
-                        ];
-                        $bookingPaymentStatusDisplay = $bookingPaymentStatusMap[$bookingPaymentStatus] ?? ucfirst($bookingPaymentStatus);
-                    }
+                    // Use the latest transaction for method/reference info
+                    $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
 
                     return [
-                        'id' => $payment->id,
+                        'id' => $invoice->id,
                         'propertyName' => $propertyName,
-                        'amount' => (float) $payment->amount,
-                        'date' => $payment->payment_date ? $payment->payment_date->format('M d, Y') : ($payment->created_at->format('M d, Y')),
-                        'dueDate' => $payment->due_date ? $payment->due_date->format('M d, Y') : null,
-                        'status' => $statusMap[$payment->status] ?? ucfirst($payment->status),
-                        'statusRaw' => $payment->status,
-                        'paymentStatus' => $bookingPaymentStatusDisplay, // Booking payment status (Partial Paid, Paid, Refunded)
-                        'paymentStatusRaw' => $bookingPaymentStatus,
-                        'method' => $methodMap[$payment->payment_method] ?? ucfirst($payment->payment_method ?? 'N/A'),
-                        'methodRaw' => $payment->payment_method,
-                        'referenceNo' => $payment->reference_number ?? 'N/A',
-                        'notes' => $payment->notes,
-                        'bookingId' => $payment->booking_id,
-                        'roomId' => $payment->room_id,
-                        'created_at' => $payment->created_at,
+                        'roomNumber' => $roomNumber,
+                        'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
+                        'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
+                        'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : '—',
+                        'status' => ucfirst($invoice->status),
+                        'statusRaw' => $invoice->status,
+                        'method' => $lastTx ? ucfirst(str_replace('paymongo_', '', $lastTx->method)) : 'N/A',
+                        'referenceNo' => $lastTx->gateway_reference ?? ($invoice->reference ?? 'N/A'),
+                        'transactions' => $invoice->transactions->map(function($tx) {
+                            return [
+                                'id' => $tx->id,
+                                'amount' => (float) $tx->amount_cents / 100,
+                                'status' => $tx->status,
+                                'method' => $tx->method,
+                                'date' => $tx->created_at->format('M d, Y H:i')
+                            ];
+                        })
                     ];
                 });
 
-            return response()->json($payments, 200);
+            return response()->json($invoices, 200);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Failed to fetch payments',
+                'message' => 'Failed to fetch payment history',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Get payment statistics for tenant
+     * Get payment statistics for tenant based on Invoices
      */
     public function getStats()
     {
         try {
             $tenantId = Auth::id();
 
-            // Total paid this month
-            $totalPaidThisMonth = Payment::where('tenant_id', $tenantId)
-                ->where('status', 'paid')
-                ->whereMonth('payment_date', now()->month)
-                ->whereYear('payment_date', now()->year)
-                ->sum('amount');
+            // Total paid this month (via transactions)
+            $totalPaidThisMonthCents = PaymentTransaction::where('tenant_id', $tenantId)
+                ->where('status', 'succeeded')
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->sum('amount_cents');
 
-            // Count of paid payments
-            $paidCount = Payment::where('tenant_id', $tenantId)
+            // Count of paid invoices
+            $paidCount = Invoice::where('tenant_id', $tenantId)
                 ->where('status', 'paid')
-                ->whereMonth('payment_date', now()->month)
-                ->whereYear('payment_date', now()->year)
+                ->whereMonth('updated_at', now()->month)
                 ->count();
 
-            // Get next due date from bookings
-            $nextDueBooking = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->whereIn('payment_status', ['unpaid', 'partial'])
-                ->orderBy('start_date', 'asc')
+            // Get next due date from pending invoices
+            $nextDueInvoice = Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial'])
+                ->whereNotNull('due_date')
+                ->orderBy('due_date', 'asc')
                 ->first();
 
-            $nextDueDate = $nextDueBooking ? $nextDueBooking->start_date->format('M d') : null;
-
             return response()->json([
-                'totalPaidThisMonth' => (float) $totalPaidThisMonth,
+                'totalPaidThisMonth' => (float) $totalPaidThisMonthCents / 100,
                 'paidCount' => $paidCount,
-                'nextDueDate' => $nextDueDate
+                'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->format('M d') : 'None'
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -141,19 +110,19 @@ class TenantPaymentController extends Controller
     }
 
     /**
-     * Get single payment details
+     * Get single invoice details
      */
     public function show($id)
     {
         try {
-            $payment = Payment::with(['booking.property', 'room'])
+            $invoice = Invoice::with(['booking.property', 'property', 'booking.room', 'transactions'])
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
-            return response()->json($payment, 200);
+            return response()->json($invoice, 200);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Payment not found',
+                'message' => 'Invoice not found',
                 'error' => $e->getMessage()
             ], 404);
         }

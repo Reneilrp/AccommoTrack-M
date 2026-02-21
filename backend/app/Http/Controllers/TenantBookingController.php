@@ -18,7 +18,7 @@ class TenantBookingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Booking::with(['property.images', 'landlord', 'room'])
+            $query = Booking::with(['property.images', 'landlord', 'room', 'review'])
                 ->where('tenant_id', Auth::id());
 
             // Filter by status if provided
@@ -69,6 +69,7 @@ class TenantBookingController extends Controller
                         'bookingReference' => $booking->booking_reference,
                         'notes' => $booking->notes,
                         'created_at' => $booking->created_at,
+                        'hasReview' => (bool) $booking->review,
                     ];
                 });
 

@@ -184,10 +184,15 @@ class ReviewController extends Controller
         try {
             $user = Auth::user();
             
-            $reviews = Review::whereHas('property', function ($q) use ($user) {
+            $query = Review::whereHas('property', function ($q) use ($user) {
                 $q->where('landlord_id', $user->id);
-            })
-            ->with([
+            });
+
+            if ($request->has('property_id')) {
+                $query->where('property_id', $request->property_id);
+            }
+
+            $reviews = $query->with([
                 'tenant:id,first_name,last_name,profile_image',
                 'property:id,title',
                 'booking:id,start_date,end_date'

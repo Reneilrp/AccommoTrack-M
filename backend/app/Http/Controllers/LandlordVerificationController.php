@@ -113,13 +113,6 @@ class LandlordVerificationController extends Controller
     }
 
     // Admin helper to retrieve/approve
-    public function getLandlordVerifications()
-    {
-         // Same as index for now, usually for admin dashboard
-         $verifications = LandlordVerification::with('user')->where('status', 'pending')->get();
-         return response()->json($verifications);
-    }
-
     public function getMyVerification()
     {
         $user = Auth::user();

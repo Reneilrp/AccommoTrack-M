@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Http\Controllers;
+
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
@@ -256,5 +258,4 @@ class AnalyticsController extends Controller
             ], 500);
         }
     }
-}
 }

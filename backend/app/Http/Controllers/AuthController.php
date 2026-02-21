@@ -170,6 +170,7 @@ class AuthController extends Controller
                 'payment_methods_settings' => 'nullable|array',
                 'payment_methods_settings.allowed' => 'nullable|array',
                 'payment_methods_settings.details' => 'nullable|array',
+                'notification_preferences' => 'nullable|array',
             ]);
 
             // Handle profile image upload

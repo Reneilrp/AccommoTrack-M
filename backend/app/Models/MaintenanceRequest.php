@@ -42,4 +42,42 @@ class MaintenanceRequest extends Model
 {
     /** @use HasFactory<\Database\Factories\MaintenanceRequestFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'property_id',
+        'booking_id',
+        'tenant_id',
+        'landlord_id',
+        'title',
+        'description',
+        'priority',
+        'status',
+        'images',
+        'resolved_at'
+    ];
+
+    protected $casts = [
+        'resolved_at' => 'datetime',
+        'images' => 'array'
+    ];
+
+    public function property()
+    {
+        return $this->belongsTo(Property::class);
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(User::class, 'tenant_id');
+    }
+
+    public function landlord()
+    {
+        return $this->belongsTo(User::class, 'landlord_id');
+    }
+
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class);
+    }
 }

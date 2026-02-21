@@ -571,54 +571,6 @@ class RoomController extends Controller
     }
 
     /**
-     * Get available rooms for a property (PUBLIC - no auth required)
-     */
-    public function publicRooms($propertyId)
-    {
-        try {
-            $property = Property::where('is_published', true)
-                ->where('is_available', true)
-                ->findOrFail($propertyId);
-
-            $rooms = Room::where('property_id', $propertyId)
-                ->where('status', 'available')
-                ->with('amenities', 'images')
-                ->orderBy('room_number')
-                ->get()
-                ->map(function ($room) {
-                    return [
-                        'id' => $room->id,
-                        'room_number' => $room->room_number,
-                        'room_type' => $room->room_type,
-                        'type_label' => $this->getRoomTypeLabel($room->room_type),
-                        'floor' => $room->floor,
-                        'floor_label' => $this->formatFloor($room->floor),
-                        'monthly_rate' => (float) $room->monthly_rate,
-                        'daily_rate' => isset($room->daily_rate) ? (float) $room->daily_rate : null,
-                        'billing_policy' => $room->billing_policy ?? 'monthly',
-                        'min_stay_days' => isset($room->min_stay_days) ? (int) $room->min_stay_days : null,
-                        'capacity' => $room->capacity,
-                        'status' => $room->status,
-                        'description' => $room->description,
-                        'amenities' => $room->amenities ? $room->amenities->pluck('name')->toArray() : [],
-                        'images' => $room->images ? $room->images->pluck('image_url')->map(fn($url) => asset($url))->toArray() : [],
-                    ];
-                });
-
-            return response()->json($rooms, 200);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Property not found or not available'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to fetch rooms',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Pricing preview for a room. Accepts either `days=N` or `start`/`end` dates (YYYY-MM-DD).
      * Public endpoint used for price previews.
      */

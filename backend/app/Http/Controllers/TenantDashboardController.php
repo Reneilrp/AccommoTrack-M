@@ -345,22 +345,23 @@ class TenantDashboardController extends Controller
                     'monthlyRent' => (float) $booking->monthly_rent,
                     'monthlyAddons' => (float) $monthlyAddonTotal,
                     'monthlyTotal' => (float) ($booking->monthly_rent + $monthlyAddonTotal),
-                    'payments' => $booking->payments->take(5)->map(function ($payment) {
-                        return [
-                            'id' => $payment->id,
-                            'amount' => (float) $payment->amount,
-                            'status' => $payment->status,
-                            'paymentDate' => $payment->payment_date,
-                            'paymentMethod' => $payment->payment_method ?? null
-                        ];
-                    }),
-                    'invoices' => $booking->invoices->take(5)->map(function ($invoice) {
+                    'invoices' => $booking->invoices->map(function ($invoice) {
                         return [
                             'id' => $invoice->id,
                             'amount' => (float) ($invoice->total_cents / 100),
                             'status' => $invoice->status,
-                            'dueDate' => $invoice->due_date,
-                            'description' => $invoice->description ?? null
+                            'dueDate' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : null,
+                            'description' => $invoice->description ?? null,
+                            'issuedAt' => $invoice->issued_at ? $invoice->issued_at->format('Y-m-d') : $invoice->created_at->format('Y-m-d'),
+                            'transactions' => $invoice->transactions->map(function($tx) {
+                                return [
+                                    'id' => $tx->id,
+                                    'amount' => (float) $tx->amount_cents / 100,
+                                    'status' => $tx->status,
+                                    'method' => $tx->method,
+                                    'date' => $tx->created_at->format('Y-m-d H:i')
+                                ];
+                            })
                         ];
                     })
                 ]
