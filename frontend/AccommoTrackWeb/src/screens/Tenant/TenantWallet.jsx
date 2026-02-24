@@ -34,7 +34,7 @@ export default function TenantWallet() {
         // This is a safety for when webhooks are slow/missing
         toast.loading('Updating payment status...', { id: 'refreshing' });
         const listRes = await paymentService.getPayments('all');
-        if (listRes.success) {
+        if (listRes.success && Array.isArray(listRes.data)) {
           const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
           await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
           toast.success('Payment statuses updated', { id: 'refreshing' });
@@ -235,36 +235,39 @@ export default function TenantWallet() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
-              {getFilteredPayments().length > 0 ? (
-                getFilteredPayments().map((payment) => (
-                  <tr key={payment.id}>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{payment.propertyName}</td>
-                    <td className="px-6 py-4 text-sm font-semibold">{paymentService.formatAmount(payment.amount)}</td>
-                    <td className="px-6 py-4 text-sm">{payment.date}</td>
-                    <td className="px-6 py-4 text-sm">{payment.dueDate || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs ${paymentService.getStatusColor(payment.status)}`}>
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono">{payment.referenceNo}</td>
-                    <td className="px-6 py-4 text-sm">
-                      {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
-                        <button
-                          onClick={() => navigate(`/checkout/${payment.id}`)}
-                          className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Pay Now
-                        </button>
-                      )}
-                    </td>
+              {(() => {
+                const filtered = getFilteredPayments();
+                return Array.isArray(filtered) && filtered.length > 0 ? (
+                  filtered.map((payment) => (
+                    <tr key={payment.id}>
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{payment.propertyName}</td>
+                      <td className="px-6 py-4 text-sm font-semibold">{paymentService.formatAmount(payment.amount)}</td>
+                      <td className="px-6 py-4 text-sm">{payment.date}</td>
+                      <td className="px-6 py-4 text-sm">{payment.dueDate || '-'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs ${paymentService.getStatusColor(payment.status)}`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-mono">{payment.referenceNo}</td>
+                      <td className="px-6 py-4 text-sm">
+                        {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
+                          <button
+                            onClick={() => navigate(`/checkout/${payment.id}`)}
+                            className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Pay Now
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">No payments found</td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">No payments found</td>
-                </tr>
-              )}
+                );
+              })()}
             </tbody>
           </table>
         </div>

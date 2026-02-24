@@ -15,10 +15,12 @@ const NotificationDropdown = () => {
     try {
       setLoading(true);
       const res = await api.get('/notifications');
-      setNotifications(res.data.data || res.data || []); // Handle paginated or collection response
+      const data = res.data.data || res.data || [];
+      const safeData = Array.isArray(data) ? data : [];
+      setNotifications(safeData); // Handle paginated or collection response
       // Calculate unread count if not provided explicitly, or fetch separately if needed
       // Assuming API returns unread_count or we filter locally
-      const unread = (res.data.data || res.data || []).filter(n => !n.read_at).length;
+      const unread = safeData.filter(n => !n.read_at).length;
       setUnreadCount(unread);
     } catch (error) {
       console.error('Failed to load notifications', error);
@@ -51,7 +53,7 @@ const NotificationDropdown = () => {
   const handleMarkAsRead = async (id) => {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
+      setNotifications(prev => (Array.isArray(prev) ? prev : []).map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Failed to mark as read', error);
@@ -61,7 +63,7 @@ const NotificationDropdown = () => {
   const handleMarkAllRead = async () => {
     try {
       await api.patch('/notifications/read-all');
-      setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
+      setNotifications(prev => (Array.isArray(prev) ? prev : []).map(n => ({ ...n, read_at: new Date().toISOString() })));
       setUnreadCount(0);
     } catch (error) {
       console.error('Failed to mark all as read', error);
@@ -116,9 +118,9 @@ const NotificationDropdown = () => {
           </div>
 
           <div className="max-h-[400px] overflow-y-auto">
-            {loading && notifications.length === 0 ? (
+            {loading && (!notifications || (Array.isArray(notifications) && notifications.length === 0)) ? (
               <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</div>
-            ) : notifications.length === 0 ? (
+            ) : !notifications || (Array.isArray(notifications) && notifications.length === 0) ? (
               <div className="flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
                   <Bell className="w-6 h-6 text-gray-400 dark:text-gray-500" />
@@ -128,7 +130,7 @@ const NotificationDropdown = () => {
               </div>
             ) : (
               <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                {notifications.map((notification) => (
+                {(Array.isArray(notifications) ? notifications : []).map((notification) => (
                   <li 
                     key={notification.id} 
                     className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${

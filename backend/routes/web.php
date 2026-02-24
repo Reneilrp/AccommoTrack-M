@@ -8,7 +8,7 @@ Route::get('/login', fn() => response()->json(['message' => 'Login route placeho
 
 Route::get('/become-landlord', function() {
 
-    return redirect('http://192.168.254.184:5173/become-landlord');
+    return redirect(config('app.url') . '/become-landlord');
 
 });
 

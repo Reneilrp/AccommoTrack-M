@@ -364,7 +364,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
           </div>
 
           {/* Active Add-ons */}
-          {addons.active.length > 0 && (
+          {Array.isArray(addons.active) && addons.active.length > 0 && (
             <div className="mb-6">
               <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Current Subscriptions</h4>
               <div className="space-y-3">
@@ -376,7 +376,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
           )}
 
           {/* Pending Requests */}
-          {addons.pending.length > 0 && (
+          {Array.isArray(addons.pending) && addons.pending.length > 0 && (
             <div className="mb-6">
               <h4 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Awaiting Approval</h4>
               <div className="space-y-3">
@@ -392,7 +392,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
             </div>
           )}
 
-          {addons.active.length === 0 && addons.pending.length === 0 && (
+          {(!Array.isArray(addons.active) || addons.active.length === 0) && (!Array.isArray(addons.pending) || addons.pending.length === 0) && (
             <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
               <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
               <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
@@ -482,8 +482,9 @@ const FinancialsTab = ({ data }) => {
   const { financials } = data;
   
   // Flatten all transactions from all invoices into a single sorted list
-  const allTransactions = (financials.invoices || [])
-    .flatMap(inv => (inv.transactions || []).map(tx => ({ ...tx, invoiceRef: inv.id })))
+  const invoices = Array.isArray(financials.invoices) ? financials.invoices : [];
+  const allTransactions = invoices
+    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ ...tx, invoiceRef: inv.id })))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
@@ -554,7 +555,7 @@ const FinancialsTab = ({ data }) => {
             Invoice History
           </h3>
         </div>
-        {financials.invoices && financials.invoices.length > 0 ? (
+        {Array.isArray(financials.invoices) && financials.invoices.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -651,7 +652,7 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
               </div>
             </div>
           </div>
-          {booking.addons.length > 0 && (
+          {Array.isArray(booking.addons) && booking.addons.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Add-ons used:</p>
               <div className="flex flex-wrap gap-2">
@@ -757,7 +758,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
         </div>
       </div>
       <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-        {availableAddons.length === 0 ? (
+        {!Array.isArray(availableAddons) || availableAddons.length === 0 ? (
           <div className="text-center py-12">
             <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400 font-medium">No add-ons available for this property.</p>
