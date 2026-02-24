@@ -135,17 +135,17 @@ const MyBookings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+    <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6">
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700 pb-2 overflow-x-auto">
+      <div className="flex gap-2 mb-6 border-b border-gray-300 dark:border-gray-700 pb-2 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => updateScreenState('bookings', { activeTab: tab.id })}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap border shadow-sm ${
               activeTab === tab.id
-                ? 'bg-green-600 text-white shadow-md'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-500/20'
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             <tab.icon className="w-5 h-5" />
@@ -235,7 +235,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAddon, onReview }) => {
+const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAddon, onReview, onReport }) => {
   if (!data?.hasActiveStay) {
     // If there are pending bookings, show them here so tenant sees their pending request
     if (pendingBookings && pendingBookings.length > 0) {
@@ -243,32 +243,37 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
       const startDate = pb?.start_date ? new Date(pb.start_date) : null;
       const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
       return (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
           <Home className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">No Active Stay</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">You don't have an active booking at the moment.</p>
-          <div className="inline-block bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-4 py-2 rounded-lg">
-            <Calendar className="w-5 h-5 inline mr-2" />
-            Pending Booking: {pb?.property?.title || pb?.property || 'Property'} - {pb?.room?.roomNumber || pb?.room || 'Room'}
-            <br />
-            {daysUntil !== null && <span className="text-sm">Starts in {daysUntil} days</span>}
-            <div className="mt-2 text-xs text-amber-700">Status: {String(pb.status).toLowerCase()}</div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">You don't have an active booking at the moment.</p>
+          <div className="inline-block bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-6 py-4 rounded-xl border border-amber-100 dark:border-amber-900/30">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-6 h-6" />
+              <div className="text-left">
+                <p className="font-bold">Pending: {pb?.property?.title || pb?.property || 'Property'}</p>
+                <p className="text-sm opacity-80">{daysUntil !== null ? `Starts in ${daysUntil} days` : 'Awaiting approval'}</p>
+              </div>
+            </div>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <Home className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">No Active Stay</h3>
-        <p className="text-gray-500 dark:text-gray-400 mb-4">You don't have an active booking at the moment.</p>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">Explore our properties to find your next home.</p>
         {data?.upcomingBooking && (
-          <div className="inline-block bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg">
-            <Calendar className="w-5 h-5 inline mr-2" />
-            Upcoming: {data.upcomingBooking.property} - {data.upcomingBooking.room}
-            <br />
-            <span className="text-sm">Starts in {data.upcomingBooking.daysUntil} days</span>
+          <div className="inline-block bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-6 py-4 rounded-xl border border-green-100 dark:border-green-900/30">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-6 h-6" />
+              <div className="text-left">
+                <p className="font-bold">Upcoming: {data.upcomingBooking.property}</p>
+                <p className="text-sm opacity-80">Starts in {data.upcomingBooking.daysUntil} days</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -282,18 +287,18 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
       {/* Main Column */}
       <div className="lg:col-span-2 space-y-6">
         {/* Room Details Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
           <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
             <img
               src={getImageUrl(property.image) || 'https://via.placeholder.com/800x400?text=No+Image'}
               alt={property.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 flex justify-between items-end">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
               <div>
-                <h2 className="text-xl font-bold text-white">{property.title}</h2>
-                <p className="text-white/80 text-sm flex items-center">
-                  <MapPin className="w-4 h-4 mr-1" />
+                <h2 className="text-2xl font-bold text-white">{property.title}</h2>
+                <p className="text-white/90 text-sm flex items-center mt-1 font-medium">
+                  <MapPin className="w-4 h-4 mr-1.5" />
                   {property.address}
                 </p>
               </div>
@@ -301,18 +306,18 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
                 {!booking.hasReview && (
                   <button 
                     onClick={() => onReview({ ...booking, property })}
-                    className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border border-white/20"
+                    className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/30"
                   >
-                    <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                    Review Property
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    Review
                   </button>
                 )}
                 <button 
                   onClick={() => onReport(property)}
-                  className="bg-red-500/20 backdrop-blur-md hover:bg-red-500/40 text-red-100 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border border-red-500/20"
+                  className="bg-red-500/20 backdrop-blur-md hover:bg-red-500/40 text-red-100 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-red-500/30"
                 >
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  Report Issue
+                  <ShieldAlert className="w-4 h-4" />
+                  Report
                 </button>
               </div>
             </div>
@@ -336,33 +341,33 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
                 icon={booking.paymentStatus === 'paid' ? '✅' : '⏳'} 
               />
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                <span className="font-medium">Lease Period:</span> {booking.startDate} to {booking.endDate}
-                <span className="ml-4 font-medium">Duration:</span> {booking.totalMonths} months
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                <span><span className="font-bold dark:text-gray-300">Lease:</span> {booking.startDate} to {booking.endDate}</span>
+                <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{booking.totalMonths} Months</span>
               </p>
             </div>
           </div>
         </div>
 
         {/* Add-ons Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add-ons & Extras</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
             <button
               onClick={onRequestAddon}
-              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-500/20 active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              Request Add-on
+              Request
             </button>
           </div>
 
           {/* Active Add-ons */}
           {addons.active.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Active</h4>
-              <div className="space-y-2">
+            <div className="mb-6">
+              <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Current Subscriptions</h4>
+              <div className="space-y-3">
                 {addons.active.map((addon) => (
                   <AddonItem key={addon.pivotId} addon={addon} status="active" />
                 ))}
@@ -372,9 +377,9 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
 
           {/* Pending Requests */}
           {addons.pending.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">Pending Approval</h4>
-              <div className="space-y-2">
+            <div className="mb-6">
+              <h4 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Awaiting Approval</h4>
+              <div className="space-y-3">
                 {addons.pending.map((addon) => (
                   <AddonItem 
                     key={addon.pivotId} 
@@ -388,13 +393,16 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
           )}
 
           {addons.active.length === 0 && addons.pending.length === 0 && (
-            <p className="text-gray-400 dark:text-gray-500 text-center py-4">No add-ons yet. Request one to get started!</p>
+            <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
+              <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+              <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
+            </div>
           )}
 
           {addons.monthlyTotal > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-300">Monthly Add-on Total:</span>
-              <span className="font-semibold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}/mo</span>
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Monthly Add-on Fees:</span>
+              <span className="text-lg font-black text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
             </div>
           )}
         </div>
@@ -403,50 +411,52 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
       {/* Sidebar */}
       <div className="space-y-6">
         {/* Landlord Contact Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Landlord Contact</h3>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <span className="text-xl">{(landlord?.name && landlord.name.charAt(0).toUpperCase()) || '?'}</span>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-black">
+                {landlord?.name?.charAt(0).toUpperCase() || '?'}
               </div>
               <div>
-                <p className="font-medium text-gray-900 dark:text-white">{landlord?.name || 'Property Owner'}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Property Owner</p>
+                <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
               </div>
           </div>
-          <div className="space-y-2">
-            {landlord?.email ? (
-              <a href={`mailto:${landlord.email}`} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400">
-                <Mail className="w-4 h-4" />
+          <div className="space-y-3">
+            {landlord?.email && (
+              <a href={`mailto:${landlord.email}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <Mail className="w-4 h-4" />
+                </div>
                 {landlord.email}
               </a>
-            ) : (
-              <div className="text-sm text-gray-500 dark:text-gray-400">No email available</div>
             )}
             {landlord?.phone && (
-              <a href={`tel:${landlord.phone}`} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400">
-                <Phone className="w-4 h-4" />
+              <a href={`tel:${landlord.phone}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <Phone className="w-4 h-4" />
+                </div>
                 {landlord.phone}
               </a>
             )}
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Monthly Summary</h3>
+        {/* Quick Summary */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
           <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-300">Base Rent</span>
-              <span className="font-medium text-gray-900 dark:text-white">₱{booking.monthlyRent.toLocaleString()}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Room Rent</span>
+              <span className="font-bold text-gray-900 dark:text-white">₱{booking.monthlyRent.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-300">Add-ons</span>
-              <span className="font-medium text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Monthly Add-ons</span>
+              <span className="font-bold text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
             </div>
-            <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between">
-              <span className="font-semibold text-gray-900 dark:text-white">Total Monthly</span>
-              <span className="font-bold text-green-600 dark:text-green-400">
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
+              <span className="font-bold text-gray-900 dark:text-white">Monthly Total</span>
+              <span className="text-xl font-black text-green-600 dark:text-green-400">
                 ₱{(booking.monthlyRent + addons.monthlyTotal).toLocaleString()}
               </span>
             </div>
@@ -461,9 +471,9 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
 const FinancialsTab = ({ data }) => {
   if (!data?.hasActiveStay) {
     return (
-      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <DollarSign className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200">No Active Booking</h3>
+        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">No Active Booking</h3>
         <p className="text-gray-500 dark:text-gray-400">Financial details will appear when you have an active stay.</p>
       </div>
     );
@@ -480,46 +490,48 @@ const FinancialsTab = ({ data }) => {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase mb-1">Monthly Rent</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Monthly Rent</p>
           <p className="text-2xl font-black text-gray-900 dark:text-white">₱{financials.monthlyRent.toLocaleString()}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase mb-1">Monthly Add-ons</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Monthly Add-ons</p>
           <p className="text-2xl font-black text-amber-600 dark:text-amber-400">+₱{financials.monthlyAddons.toLocaleString()}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase mb-1">Total Due/mo</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Due/mo</p>
           <p className="text-2xl font-black text-green-600 dark:text-green-400">₱{financials.monthlyTotal.toLocaleString()}</p>
         </div>
       </div>
 
       {/* Transaction History */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <RefreshCw className="w-5 h-5 text-brand-500" />
-          Recent Transactions
-        </h3>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+        <div className="p-6 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <RefreshCw className="w-5 h-5 text-green-500" />
+            Recent Transactions
+          </h3>
+        </div>
         {allTransactions.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Date</th>
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Amount</th>
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Method</th>
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Status</th>
+                <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Date</th>
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Amount</th>
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Method</th>
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
                 {allTransactions.map((tx) => (
-                  <tr key={tx.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{tx.date}</td>
-                    <td className="py-3 px-4 text-sm font-bold text-gray-900 dark:text-white">₱{tx.amount.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-500 capitalize">{tx.method.replace('paymongo_', '').replace('_', ' ')}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        tx.status === 'succeeded' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                  <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{tx.date}</td>
+                    <td className="py-4 px-6 text-sm font-black text-gray-900 dark:text-white">₱{tx.amount.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-gray-500 dark:text-gray-500 capitalize">{tx.method.replace('paymongo_', '').replace('_', ' ')}</td>
+                    <td className="py-4 px-6">
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase ${
+                        tx.status === 'succeeded' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>
                         {tx.status}
                       </span>
@@ -530,34 +542,36 @@ const FinancialsTab = ({ data }) => {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-8 italic text-sm">No payment transactions recorded yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No payment transactions recorded yet.</p>
         )}
       </div>
 
       {/* Invoice History */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-brand-500" />
-          Invoice History
-        </h3>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+        <div className="p-6 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-green-500" />
+            Invoice History
+          </h3>
+        </div>
         {financials.invoices && financials.invoices.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Due Date</th>
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Description</th>
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Amount</th>
-                  <th className="text-left py-3 px-4 text-[10px] font-black text-gray-400 uppercase">Status</th>
+                <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Due Date</th>
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Description</th>
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Amount</th>
+                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
                 {financials.invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{invoice.dueDate || invoice.issuedAt}</td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-500">{invoice.description || 'Accommodation Fee'}</td>
-                    <td className="py-3 px-4 text-sm font-bold text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
-                    <td className="py-3 px-4">
+                  <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{invoice.dueDate || invoice.issuedAt}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-gray-500 dark:text-gray-500">{invoice.description || 'Accommodation Fee'}</td>
+                    <td className="py-4 px-6 text-sm font-black text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
+                    <td className="py-4 px-6">
                       <StatusBadge status={invoice.status} />
                     </td>
                   </tr>
@@ -566,7 +580,7 @@ const FinancialsTab = ({ data }) => {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-8 italic text-sm">No invoices generated yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No invoices generated yet.</p>
         )}
       </div>
     </div>
@@ -579,7 +593,7 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
 
   if (!bookings || bookings.length === 0) {
     return (
-      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <Clock className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200">No History Yet</h3>
         <p className="text-gray-500 dark:text-gray-400">Your past bookings will appear here.</p>
@@ -590,10 +604,10 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
   return (
     <div className="space-y-4">
       {bookings.map((booking) => (
-        <div key={booking.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+        <div key={booking.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-600">
                 <img
                   src={getImageUrl(booking.property.image) || 'https://via.placeholder.com/64'}
                   alt={booking.property.title}
@@ -601,15 +615,15 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
                 />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white">{booking.property.title}</h4>
+                <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property.title}</h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Room {booking.room.roomNumber}</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">{booking.period.startDate} - {booking.period.endDate}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Paid</p>
-                <p className="font-semibold text-green-600 dark:text-green-400">₱{booking.financials.totalPaid.toLocaleString()}</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Paid</p>
+                <p className="font-black text-green-600 dark:text-green-400">₱{booking.financials.totalPaid.toLocaleString()}</p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <StatusBadge status={booking.status} />
@@ -617,10 +631,10 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
                   {booking.status === 'completed' && !booking.has_review && (
                     <button 
                       onClick={() => onReview(booking)}
-                      className="flex items-center gap-1 text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 underline underline-offset-2"
+                      className="flex items-center gap-1 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"
                     >
                       <Star className="w-3 h-3 fill-current" />
-                      Leave Review
+                      Review
                     </button>
                   )}
                   {booking.has_review && (
@@ -642,7 +656,7 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Add-ons used:</p>
               <div className="flex flex-wrap gap-2">
                 {booking.addons.map((addon, idx) => (
-                  <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
+                  <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded border border-gray-200 dark:border-gray-600">
                     {addon.name} ({addon.priceType === 'monthly' ? '₱' + addon.price + '/mo' : '₱' + addon.price})
                   </span>
                 ))}
@@ -666,10 +680,10 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
 
 // ==================== Helper Components ====================
 const StatCard = ({ label, value, icon }) => (
-  <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-    <div className="text-2xl mb-1">{icon}</div>
-    <p className="text-lg font-bold text-gray-900 dark:text-white">{value}</p>
-    <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+  <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md transition-all">
+    <div className="text-2xl mb-2">{icon}</div>
+    <p className="text-lg font-black text-gray-900 dark:text-white leading-tight">{value}</p>
+    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mt-1 tracking-wider">{label}</p>
   </div>
 );
 
@@ -694,27 +708,31 @@ const StatusBadge = ({ status }) => {
 };
 
 const AddonItem = ({ addon, status, onCancel }) => (
-  <div className={`flex items-center justify-between p-3 rounded-lg ${
-    status === 'active' ? 'bg-green-50 dark:bg-green-900/30' : 'bg-amber-50 dark:bg-amber-900/30'
+  <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+    status === 'active' 
+      ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' 
+      : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
   }`}>
-    <div className="flex items-center gap-3">
-      <Sparkles className={`w-5 h-5 ${status === 'active' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`} />
+    <div className="flex items-center gap-4">
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${status === 'active' ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400'}`}>
+        <Sparkles className="w-5 h-5" />
+      </div>
       <div>
-        <p className="font-medium text-gray-900 dark:text-white">{addon.name}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {addon.priceTypeLabel} • {addon.addonType === 'rental' ? 'Provided' : 'Usage Fee'}
+        <p className="font-bold text-gray-900 dark:text-white leading-tight">{addon.name}</p>
+        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
+          {addon.priceTypeLabel} <span className="mx-1 opacity-30">•</span> {addon.addonType === 'rental' ? 'Rental' : 'Service Fee'}
         </p>
       </div>
     </div>
-    <div className="flex items-center gap-2">
-      <span className="font-semibold text-gray-900 dark:text-white">
+    <div className="flex items-center gap-3">
+      <span className="font-black text-gray-900 dark:text-white">
         ₱{addon.price.toLocaleString()}
-        {addon.priceType === 'monthly' && <span className="text-xs text-gray-500 dark:text-gray-400">/mo</span>}
+        {addon.priceType === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
       </span>
       {status === 'pending' && onCancel && (
         <button
           onClick={onCancel}
-          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1"
+          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
           title="Cancel Request"
         >
           <XCircle className="w-5 h-5" />
@@ -725,62 +743,63 @@ const AddonItem = ({ addon, status, onCancel }) => (
 );
 
 const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Available Add-ons</h3>
-          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
-            <XCircle className="w-6 h-6" />
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Available Add-ons</h3>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Select an extra service to add to your stay</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+            <X className="w-6 h-6 text-gray-400" />
           </button>
         </div>
       </div>
-      <div className="p-6 overflow-y-auto max-h-[60vh]">
+      <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
         {availableAddons.length === 0 ? (
-          <p className="text-center text-gray-500 dark:text-gray-400 py-8">No add-ons available for this property.</p>
+          <div className="text-center py-12">
+            <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400 font-medium">No add-ons available for this property.</p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {availableAddons.map((addon) => (
-              <div key={addon.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:border-green-300 dark:hover:border-green-600 transition-colors">
+              <div key={addon.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md transition-all group">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-gray-900 dark:text-white">{addon.name}</h4>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
                         addon.priceType === 'monthly' 
                           ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
                           : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                       }`}>
                         {addon.priceTypeLabel}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        addon.addonType === 'rental' 
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
-                          : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                      }`}>
-                        {addon.addonTypeLabel}
-                      </span>
                     </div>
                     {addon.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{addon.description}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{addon.description}</p>
                     )}
-                    <p className="text-lg font-semibold text-green-600 dark:text-green-400 mt-2">
-                      ₱{addon.price.toLocaleString()}
-                      {addon.priceType === 'monthly' && <span className="text-sm font-normal">/month</span>}
-                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-xl font-black text-green-600 dark:text-green-400">
+                        ₱{addon.price.toLocaleString()}
+                      </p>
+                      {addon.priceType === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
+                    </div>
                     {addon.stock !== null && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {addon.hasStock ? `${addon.stock} available` : 'Out of stock'}
+                      <p className={`text-[10px] font-black uppercase mt-2 ${addon.hasStock ? 'text-gray-400 dark:text-gray-500' : 'text-red-500'}`}>
+                        {addon.hasStock ? `${addon.stock} Available` : 'Out of stock'}
                       </p>
                     )}
                   </div>
                   <button
                     onClick={() => onRequest(addon)}
                     disabled={!addon.hasStock || requestingId === addon.id}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
                       addon.hasStock && requestingId !== addon.id
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     }`}
                   >
                     {requestingId === addon.id ? (
@@ -794,6 +813,11 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
             ))}
           </div>
         )}
+      </div>
+      <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-center">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest leading-relaxed">
+          Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
+        </p>
       </div>
     </div>
   </div>
