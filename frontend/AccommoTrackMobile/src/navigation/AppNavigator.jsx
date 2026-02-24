@@ -6,7 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 /* Core */
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
-import LandlordNavigator from '../mobile-landlord/src/navigation/LandlordNavigator.jsx';
+import LandlordLayout from '../mobile-landlord/src/navigation/LandlordLayout.jsx';
 import TenantLayout from '../mobile-tenant/src/navigation/TenantLayout.jsx';
 import { styles } from '../styles/AppNavigator.js';
 
@@ -120,8 +120,8 @@ export default function AppNavigator() {
 
   // If user is logged in as landlord
   if (userRole === 'landlord') {
-    console.log(' Rendering LandlordNavigator');
-    return <LandlordNavigator onLogout={handleLogout} />;
+    console.log(' Rendering LandlordLayout');
+    return <LandlordLayout onLogout={handleLogout} />;
   }
 
   // Returning user (logged out) - go straight to Auth

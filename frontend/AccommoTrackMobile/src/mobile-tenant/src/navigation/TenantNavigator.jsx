@@ -30,6 +30,7 @@ import LeaveReview from '../screens/Reviews/LeaveReview.jsx';
 import MyReviews from '../screens/Reviews/MyReviews.jsx';
 import BookingDetails from '../screens/Menu/BookingDetails.jsx';
 import ReportProperty from '../screens/Menu/ReportProperty.jsx';
+import ServiceRequests from '../screens/ServiceRequests/ServiceRequests.jsx';
 
 const RootStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
@@ -135,6 +136,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="CreateMaintenanceRequest" component={CreateRequest} options={{ animation: 'none' }} />
             <MainStack.Screen name="Addons" component={AddonsScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="MyMaintenanceRequests" component={MyRequests} options={{ animation: 'none' }} />
+            <MainStack.Screen name="ServiceRequests" component={ServiceRequests} options={{ animation: 'none' }} />
             <MainStack.Screen name="BookingDetails" component={BookingDetails} options={{ animation: 'none' }} />
             <MainStack.Screen name="LeaveReview" component={LeaveReview} options={{ animation: 'none' }} />
             <MainStack.Screen name="MyReviews" component={MyReviews} options={{ animation: 'none' }} />

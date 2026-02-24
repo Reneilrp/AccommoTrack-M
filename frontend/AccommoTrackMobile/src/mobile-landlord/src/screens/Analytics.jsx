@@ -7,16 +7,19 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert
+  Alert,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { BarChart } from 'react-native-chart-kit';
 import { useTheme } from '../../../contexts/ThemeContext';
-import Button from '../components/Button';
 import { styles } from '../../../styles/Landlord/Analytics';
 import LandlordAnalyticsService from '../../../services/LandlordAnalyticsService';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return '₱0';
@@ -24,64 +27,19 @@ const formatCurrency = (value) => {
   return `₱${numeric.toLocaleString()}`;
 };
 
-const TimeRangeButton = ({ label, value, isSelected, onPress }) => (
-  <Button
-    onPress={() => onPress(value)}
-    style={[
-      styles.timeButton,
-      isSelected ? styles.timeButtonActive : styles.timeButtonInactive
-    ]}
-    type="transparent"
-  >
-    <Text
-      style={[
-        styles.timeButtonText,
-        isSelected ? styles.timeButtonTextActive : styles.timeButtonTextInactive
-      ]}
-    >
-      {label}
-    </Text>
-  </Button>
-);
-
-const StatCard = ({ title, value, color, icon, hint, bgColor }) => (
-  <View style={styles.statCard}>
-    <View style={styles.statCardHeader}>
-      <View style={[styles.statIconBox, { backgroundColor: bgColor }]}>
+const MetricCard = ({ label, value, subValue, tag, icon, color, bgColor }) => (
+  <View style={styles.metricCard}>
+    <View style={styles.metricHeader}>
+      <View style={[styles.metricIconBox, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={22} color={color} />
       </View>
-      {hint ? <Text style={[styles.statHint, { color }]}>{hint}</Text> : null}
+      <Text style={styles.metricTag}>{tag}</Text>
     </View>
-    <Text style={styles.statTitle}>{title}</Text>
-    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.metricLabel}>{label}</Text>
+    <Text style={styles.metricValue}>{value}</Text>
+    {subValue ? <Text style={styles.metricSubValue}>{subValue}</Text> : null}
   </View>
 );
-
-const BarChartItem = ({ label, revenue, maxRevenue }) => {
-  const heightPercent = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
-  return (
-    <View style={styles.barItem}>
-      <View style={styles.barWrapper}>
-        <View style={[styles.bar, { height: `${heightPercent}%` }]} />
-      </View>
-      <Text style={styles.barLabel}>{label}</Text>
-    </View>
-  );
-};
-
-const paymentPalette = [
-  { key: 'paid', label: 'Paid', color: '#059669', background: '#DCFCE7' },
-  { key: 'unpaid', label: 'Pending', color: '#D97706', background: '#FEF3C7' },
-  { key: 'partial', label: 'Partial', color: '#2563EB', background: '#DBEAFE' },
-  { key: 'overdue', label: 'Overdue', color: '#DC2626', background: '#FEE2E2' }
-];
-
-const bookingPalette = [
-  { key: 'confirmed', label: 'Confirmed', color: '#059669', background: '#DCFCE7' },
-  { key: 'pending', label: 'Pending', color: '#D97706', background: '#FEF3C7' },
-  { key: 'completed', label: 'Completed', color: '#2563EB', background: '#DBEAFE' },
-  { key: 'cancelled', label: 'Cancelled', color: '#DC2626', background: '#FEE2E2' }
-];
 
 export default function Analytics({ navigation }) {
   const { theme } = useTheme();
@@ -99,467 +57,350 @@ export default function Analytics({ navigation }) {
     const response = await LandlordAnalyticsService.fetchProperties();
     if (response.success) {
       setProperties(response.data || []);
-    } else {
-      setErrorMessage((prev) => prev || response.error);
     }
   }, []);
 
   const loadAnalytics = useCallback(async () => {
     setErrorMessage('');
-    setLoading(true);
+    if (!refreshing) setLoading(true);
     try {
       const response = await LandlordAnalyticsService.fetchDashboard({
         timeRange,
         propertyId: selectedProperty
       });
 
-      if (!response.success) {
-        throw new Error(response.error || 'Unable to load analytics');
-      }
-
+      if (!response.success) throw new Error(response.error);
       setAnalytics(response.data);
     } catch (err) {
       setErrorMessage(err.message || 'Unable to load analytics');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [selectedProperty, timeRange]);
+  }, [selectedProperty, timeRange, refreshing]);
 
-  useEffect(() => {
-    loadProperties();
-  }, [loadProperties]);
+  useEffect(() => { loadProperties(); }, [loadProperties]);
+  useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [loadAnalytics]);
-
-  const onRefresh = useCallback(async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    await loadAnalytics();
-    setRefreshing(false);
-  }, [loadAnalytics]);
+    loadAnalytics();
+  };
 
-  const downloadAnalyticsCSV = async () => {
+  const handleExport = async () => {
     if (!analytics) return;
-    
+    setExporting(true);
     try {
-      setExporting(true);
-      
-      const formatVal = (amount) => `PHP ${Number(amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-      const formatPct = (val) => `${Number(val || 0).toFixed(1)}%`;
-      
-      const totalPaymentCount = (analytics.payments?.paid || 0) + (analytics.payments?.unpaid || 0) + (analytics.payments?.partial || 0) + (analytics.payments?.overdue || 0) || 1;
-
+      const formatCsvVal = (val) => `"${String(val).replace(/"/g, '""')}"`;
       const rows = [
         ['AccommoTrack Analytics Report'],
         ['Generated:', new Date().toLocaleString()],
         ['Time Range:', timeRange.toUpperCase()],
-        ['Property Filter:', selectedProperty === 'all' ? 'All Properties' : (properties?.find(p => p.id == selectedProperty)?.title || 'Selected Property')],
+        ['Property:', selectedProperty === 'all' ? 'All' : properties.find(p=>p.id==selectedProperty)?.title],
         [''],
-        ['=== BUSINESS OVERVIEW ==='],
         ['Metric', 'Value'],
-        ['Total Revenue', formatVal(analytics.overview.total_revenue)],
-        ['Monthly Revenue', formatVal(analytics.overview.monthly_revenue)],
-        ['Revenue Collection Rate', formatPct(analytics.revenue.collection_rate)],
-        ['Occupancy Rate', formatPct(analytics.overview.occupancy_rate)],
-        [''],
-        ['=== INVENTORY & TENANTS ==='],
-        ['Metric', 'Value'],
-        ['Total Rooms', analytics.overview.total_rooms],
-        ['Occupied Rooms', analytics.overview.occupied_rooms],
-        ['Available Rooms', analytics.overview.available_rooms],
-        ['Active Tenants', analytics.overview.active_tenants],
-        ['New Tenants', analytics.overview.new_tenants_this_month],
-        ['Avg Stay Duration', `${analytics.tenants.average_stay_months} months`],
-        [''],
-        ['=== REVENUE TREND ==='],
-        ['Period', 'Revenue'],
-        ...analytics.revenue.monthly_trend.map(item => [item.month, formatVal(item.revenue)]),
-        [''],
-        ['=== PAYMENT PERFORMANCE ==='],
-        ['Status', 'Count', 'Percent'],
-        ['Paid', analytics.payments.paid, formatPct((analytics.payments.paid / totalPaymentCount) * 100)],
-        ['Pending', analytics.payments.unpaid, formatPct((analytics.payments.unpaid / totalPaymentCount) * 100)],
-        ['Partial', analytics.payments.partial, formatPct((analytics.payments.partial / totalPaymentCount) * 100)],
-        ['Overdue', analytics.payments.overdue, formatPct((analytics.payments.overdue / totalPaymentCount) * 100)],
-        [''],
-        ['=== PROPERTY PERFORMANCE ==='],
-        ['Property', 'Occupancy', 'Revenue'],
-        ...analytics.properties.map(p => [
-          p.name, 
-          formatPct(p.occupancy_rate), 
-          formatVal(p.monthly_revenue)
-        ])
+        ['Total Revenue', analytics.overview.total_revenue],
+        ['Monthly Revenue', analytics.overview.monthly_revenue],
+        ['Collection Rate', `${analytics.revenue.collection_rate}%`],
+        ['Occupancy Rate', `${analytics.overview.occupancy_rate}%`]
       ];
-
-      const csvContent = rows.map(e => e.map(i => `"${String(i).replace(/"/g, '""')}"`).join(",")).join("\n");
-      const filename = `Analytics_${new Date().getTime()}.csv`;
-      const fileUri = `${FileSystem.documentDirectory}${filename}`;
-
-      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
-      
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(fileUri);
-      } else {
-        Alert.alert('Success', 'CSV saved to documents.');
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to generate or share CSV.');
+      const csv = rows.map(r => r.map(formatCsvVal).join(',')).join('\n');
+      const fileUri = `${FileSystem.documentDirectory}Analytics_${Date.now()}.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csv);
+      await Sharing.shareAsync(fileUri);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to export report');
     } finally {
       setExporting(false);
     }
   };
 
-  const overview = analytics?.overview;
-  const roomTypes = analytics?.roomTypes || [];
-  const revenueTrend = analytics?.revenue?.monthly_trend || [];
-  const payments = analytics?.payments || {};
-  const bookings = analytics?.bookings || {};
-  const topProperty = analytics?.properties?.[0] || null;
+  const propertyOptions = useMemo(() => [
+    { id: 'all', name: 'All Properties' },
+    ...properties.map(p => ({ id: p.id, name: p.title || p.name }))
+  ], [properties]);
 
-  const statCards = useMemo(() => [
-    {
-      title: 'Total Revenue',
-      value: formatCurrency(overview?.total_revenue),
-      icon: 'cash-outline',
-      color: '#059669',
-      bgColor: '#DCFCE7',
-      hint: overview ? `${analytics?.revenue?.collection_rate || 0}%` : null
-    },
-    {
-      title: 'Occupancy Rate',
-      value: overview ? `${overview.occupancy_rate || 0}%` : '0%',
-      icon: 'home-outline',
-      color: '#2563EB',
-      bgColor: '#DBEAFE',
-      hint: overview ? `${overview.occupied_rooms || 0}/${overview.total_rooms || 0}` : null
-    },
-    {
-      title: 'Active Tenants',
-      value: overview?.active_tenants?.toString() || '0',
-      icon: 'people-outline',
-      color: '#7C3AED',
-      bgColor: '#EDE9FE',
-      hint: overview ? `+${overview.new_tenants_this_month || 0}` : null
-    },
-    {
-      title: 'Avg Stay',
-      value: `${analytics?.tenants?.average_stay_months || 0} mo`,
-      icon: 'time-outline',
-      color: '#D97706',
-      bgColor: '#FEF3C7',
-      hint: analytics?.tenants ? `${analytics.tenants.move_ins || 0} in` : null
-    }
-  ], [analytics, overview]);
+  const selectedPropertyName = propertyOptions.find(p => p.id === selectedProperty)?.name || 'All Properties';
 
-  const propertyComparisonVisible =
-    selectedProperty === 'all' && (analytics?.properties?.length || 0) > 1;
-
-  const maxRevenue = useMemo(() => {
-    if (!revenueTrend.length) return 0;
-    return Math.max(...revenueTrend.map((item) => Number(item.revenue) || 0));
-  }, [revenueTrend]);
-
-  const propertyOptions = useMemo(
-    () => [
-      { id: 'all', name: 'All Properties' },
-      ...(properties || []).map((p) => ({ id: p.id, name: p.name || p.title || 'Unnamed Property' }))
-    ],
-    [properties]
-  );
-
-  const selectedPropertyName = useMemo(() => {
-    const found = propertyOptions.find((p) => p.id === selectedProperty);
-    return found?.name || 'All Properties';
-  }, [propertyOptions, selectedProperty]);
-
-  const handleSelectProperty = (id) => {
-    setSelectedProperty(id);
-    setDropdownOpen(false);
+  const MONTH_MAP = {
+    '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+    '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
   };
 
-  const renderContent = () => (
-    <View style={styles.body}>
-      {/* Key Metrics - Horizontal Scroll */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        contentContainerStyle={styles.statsScrollContainer}
-      >
-        {statCards.map((card, index) => (
-          <StatCard key={card.title + index} {...card} />
-        ))}
-      </ScrollView>
+  const revenueTrend = useMemo(() => analytics?.revenue?.monthly_trend || [], [analytics]);
+  
+  const chartData = useMemo(() => {
+    if (!revenueTrend.length) return null;
 
-      {/* Revenue Trend Chart */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Revenue Trend</Text>
-        {revenueTrend.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No revenue data yet</Text>
-            <Text style={styles.emptySubtitle}>Try a different time range.</Text>
-          </View>
-        ) : (
-          <View style={styles.barChartContainer}>
-            {revenueTrend.map((item) => (
-              <BarChartItem
-                key={`${item.month}-${item.revenue}`}
-                label={item.month}
-                revenue={Number(item.revenue) || 0}
-                maxRevenue={maxRevenue}
-              />
-            ))}
+    const formatLabel = (period) => {
+      if (timeRange === 'week') {
+        const date = new Date(period);
+        return date.toLocaleDateString('en-US', { weekday: 'short' });
+      }
+      if (timeRange === 'month') {
+        // period is YYYY-MM-Week #
+        if (period.includes('Week')) {
+            return period.split('-').pop(); // "Week #"
+        }
+        return period;
+      }
+      if (timeRange === 'year') {
+        // period is YYYY-MM
+        const parts = period.split('-');
+        if (parts.length > 1) {
+            return MONTH_MAP[parts[1]] || period;
+        }
+        return period;
+      }
+      return period;
+    };
+
+    return {
+      labels: revenueTrend.map(t => formatLabel(t.month || t.period)),
+      datasets: [{ data: revenueTrend.map(t => Number(t.revenue) || 0) }]
+    };
+  }, [revenueTrend, timeRange]);
+
+  const paymentChartData = useMemo(() => {
+    if (!analytics?.payments) return null;
+    const { paid, unpaid, partial, overdue } = analytics.payments;
+    return {
+      labels: ['Paid', 'Pending', 'Partial', 'Overdue'],
+      datasets: [{
+        data: [paid || 0, unpaid || 0, partial || 0, overdue || 0]
+      }]
+    };
+  }, [analytics]);
+
+  const renderContent = () => {
+    if (!analytics) return null;
+    const { overview, revenue, payments, tenants, properties: perf } = analytics;
+
+    return (
+      <View style={styles.body}>
+        {/* Metric Cards Grid */}
+        <View style={styles.metricsGrid}>
+          <MetricCard 
+            label="Total Revenue" 
+            value={formatCurrency(overview.total_revenue)} 
+            tag="Cumulative"
+            icon="cash" color="#16a34a" bgColor="#DCFCE7"
+          />
+          <MetricCard 
+            label="Monthly Revenue" 
+            value={formatCurrency(overview.monthly_revenue)} 
+            tag="This Month"
+            icon="trending-up" color="#059669" bgColor="#D1FAE5"
+          />
+          <MetricCard 
+            label="Collection Rate" 
+            value={`${revenue.collection_rate}%`} 
+            tag="Target: 100%"
+            icon="checkmark-circle" color="#2563EB" bgColor="#DBEAFE"
+          />
+          <MetricCard 
+            label="Payment Success" 
+            value={`${payments.payment_rate}%`} 
+            tag="Overall"
+            icon="shield-checkmark" color="#4F46E5" bgColor="#E0E7FF"
+          />
+          <MetricCard 
+            label="Occupancy Rate" 
+            value={`${overview.occupancy_rate}%`} 
+            subValue={`${overview.occupied_rooms}/${overview.total_rooms} rooms`}
+            tag="Occupancy"
+            icon="home" color="#7C3AED" bgColor="#EDE9FE"
+          />
+          <MetricCard 
+            label="Total Rooms" 
+            value={overview.total_rooms} 
+            subValue={`${overview.available_rooms} Available`}
+            tag="Inventory"
+            icon="business" color="#9333EA" bgColor="#F3E8FF"
+          />
+          <MetricCard 
+            label="Active Tenants" 
+            value={overview.active_tenants} 
+            subValue={`+${overview.new_tenants_this_month} New`}
+            tag="Active"
+            icon="people" color="#DB2777" bgColor="#FCE7F3"
+          />
+          <MetricCard 
+            label="Tenant Retention" 
+            value={`${tenants.average_stay_months} mo`} 
+            tag="Avg Duration"
+            icon="calendar" color="#D97706" bgColor="#FEF3C7"
+          />
+        </View>
+
+        {/* Revenue Trend Chart (Vertical Bar) */}
+        {chartData && (
+          <View style={styles.chartSection}>
+            <Text style={styles.chartTitle}>Revenue Trend ({timeRange === 'week' ? 'Daily' : timeRange === 'month' ? 'Weekly' : 'Monthly'})</Text>
+            <BarChart
+              data={chartData}
+              width={SCREEN_WIDTH - 64}
+              height={240}
+              yAxisLabel="₱"
+              yAxisSuffix=""
+              fromZero={true}
+              chartConfig={{
+                backgroundColor: '#ffffff',
+                backgroundGradientFrom: '#ffffff',
+                backgroundGradientTo: '#ffffff',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(22, 163, 74, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                style: { borderRadius: 16 },
+                fillShadowGradient: '#16a34a',
+                fillShadowGradientOpacity: 1,
+                formatYLabel: (y) => {
+                  const val = Number(y);
+                  if (val >= 1000) return (val/1000).toFixed(0) + 'k';
+                  return val.toString();
+                }
+              }}
+              verticalLabelRotation={timeRange === 'week' ? 30 : 0}
+              style={{ marginVertical: 8, borderRadius: 16 }}
+              showValuesOnTopOfBars={false}
+            />
           </View>
         )}
-      </View>
 
-      {/* Room Type Performance - Horizontal Scroll */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Room Type Performance</Text>
-        {roomTypes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No room data</Text>
-            <Text style={styles.emptySubtitle}>Rooms will appear here once added.</Text>
+        {/* Payment Status Chart (Bar Chart) */}
+        {paymentChartData && (
+          <View style={styles.chartSection}>
+            <Text style={styles.chartTitle}>Payment Status</Text>
+            <BarChart
+              data={paymentChartData}
+              width={SCREEN_WIDTH - 64}
+              height={220}
+              yAxisLabel=""
+              yAxisSuffix=""
+              chartConfig={{
+                backgroundColor: '#ffffff',
+                backgroundGradientFrom: '#ffffff',
+                backgroundGradientTo: '#ffffff',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                style: { borderRadius: 16 },
+                fillShadowGradient: '#2563EB',
+                fillShadowGradientOpacity: 1,
+              }}
+              verticalLabelRotation={0}
+              style={{ marginVertical: 8, borderRadius: 16 }}
+              showValuesOnTopOfBars={true}
+            />
           </View>
-        ) : (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.roomScrollContainer}
-          >
-            {roomTypes.map((room) => (
-              <View key={room.type_key || room.type} style={styles.roomCard}>
-                <View style={styles.roomCardHeader}>
-                  <Text style={styles.roomType}>{room.type}</Text>
-                  <Text style={styles.roomRevenueValue}>{formatCurrency(room.revenue)}</Text>
+        )}
+
+        {/* Property Performance Breakdown */}
+        <View style={styles.tableCard}>
+          <View style={styles.tableHeader}>
+            <Text style={styles.tableTitle}>Property Performance</Text>
+          </View>
+          {perf.map((p, i) => (
+            <View key={i} style={styles.tableRow}>
+              <View style={styles.tableColMain}>
+                <Text style={styles.tablePropName} numberOfLines={1}>{p.name}</Text>
+                <Text style={styles.tablePropSub}>{p.occupied_rooms} / {p.total_rooms} Rooms</Text>
+                <View style={styles.progressBarBg}>
+                  <View style={[
+                    styles.progressBarFill, 
+                    { width: `${p.occupancy_rate}%`, backgroundColor: p.occupancy_rate >= 80 ? '#22c55e' : p.occupancy_rate >= 50 ? '#3b82f6' : '#f97316' }
+                  ]} />
                 </View>
-                <Text style={styles.roomDetails}>{room.occupied} of {room.total} occupied</Text>
-                <View style={styles.progressBarBackground}>
-                  <View
-                    style={[styles.progressBarFill, { width: `${room.occupancy_rate || 0}%` }]}
-                  />
-                </View>
-                <Text style={styles.roomOccupancy}>
-                  {room.occupancy_rate || 0}% • {room.available || 0} available
-                </Text>
               </View>
-            ))}
-          </ScrollView>
-        )}
-      </View>
-
-      {/* Payment Status - 2x2 Grid with Horizontal Scroll */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Payment Status</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.paymentScrollContainer}
-        >
-          {paymentPalette.map((item) => (
-            <View key={item.key} style={[styles.paymentCard, { backgroundColor: item.background }]}>
-              <Text style={[styles.paymentValue, { color: item.color }]}>
-                {payments[item.key] || 0}
-              </Text>
-              <Text style={[styles.paymentLabel, { color: item.color }]}>{item.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.collectionFooter}>
-          <Text style={styles.collectionLabel}>Collection Rate</Text>
-          <Text style={styles.collectionValue}>{payments.payment_rate || 0}%</Text>
-        </View>
-      </View>
-
-      {/* Booking Status - Horizontal Scroll */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Booking Status</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.paymentScrollContainer}
-        >
-          {bookingPalette.map((item) => (
-            <View key={item.key} style={[styles.paymentCard, { backgroundColor: item.background }]}>
-              <Text style={[styles.paymentValue, { color: item.color }]}>
-                {bookings[item.key] || 0}
-              </Text>
-              <Text style={[styles.paymentLabel, { color: item.color }]}>{item.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.collectionFooter}>
-          <Text style={styles.collectionLabel}>Total Bookings</Text>
-          <Text style={styles.collectionValue}>{bookings.total || 0}</Text>
-        </View>
-      </View>
-
-      {/* Property Comparison */}
-      {propertyComparisonVisible && (
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Property Comparison</Text>
-          <View style={styles.propertyList}>
-            {analytics.properties.map((property) => (
-              <View key={property.id} style={styles.propertyRow}>
-                <View>
-                  <Text style={styles.propertyName}>{property.name}</Text>
-                  <Text style={styles.propertySubtext}>
-                    {property.occupied_rooms}/{property.total_rooms} occupied
+              <View style={styles.tableColSide}>
+                <Text style={styles.tableRate}>{p.occupancy_rate}%</Text>
+                <Text style={styles.tableRevenue}>{formatCurrency(p.monthly_revenue)}</Text>
+                <View style={[
+                  styles.statusBadge, 
+                  { backgroundColor: p.occupancy_rate >= 90 ? '#dcfce7' : p.occupancy_rate >= 50 ? '#dbeafe' : '#ffedd5' }
+                ]}>
+                  <Text style={[
+                    styles.statusBadgeText,
+                    { color: p.occupancy_rate >= 90 ? '#15803d' : p.occupancy_rate >= 50 ? '#1e40af' : '#9a3412' }
+                  ]}>
+                    {p.occupancy_rate >= 90 ? 'OPTIMAL' : p.occupancy_rate >= 50 ? 'STABLE' : 'ATTENTION'}
                   </Text>
                 </View>
-                <View style={styles.propertyStats}>
-                  <Text style={styles.propertyOccupancy}>{property.occupancy_rate}%</Text>
-                  <Text style={styles.propertyRevenue}>{formatCurrency(property.monthly_revenue)}</Text>
-                </View>
               </View>
-            ))}
-          </View>
+            </View>
+          ))}
         </View>
-      )}
-
-      {/* Quick Insights - Horizontal Scroll */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.insightsScrollContainer}
-      >
-        <View style={[styles.insightCard, { backgroundColor: '#059669' }]}>
-          <Text style={styles.insightTitle}>Top Property</Text>
-          {topProperty ? (
-            <>
-              <Text style={styles.insightValue}>{topProperty.name}</Text>
-              <Text style={styles.insightDetail}>
-                {topProperty.occupancy_rate || 0}% • {formatCurrency(topProperty.monthly_revenue)}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.insightDetail}>No property data yet</Text>
-          )}
-        </View>
-        <View style={[styles.insightCard, { backgroundColor: '#2563EB' }]}>
-          <Text style={styles.insightTitle}>Collection Rate</Text>
-          <Text style={styles.insightValue}>{analytics?.revenue?.collection_rate || 0}%</Text>
-          <Text style={styles.insightDetail}>
-            {formatCurrency(analytics?.revenue?.actual_monthly)} collected
-          </Text>
-        </View>
-        <View style={[styles.insightCard, { backgroundColor: '#7C3AED' }]}>
-          <Text style={styles.insightTitle}>Booking Overview</Text>
-          <Text style={styles.insightValue}>{bookings.total || 0}</Text>
-          <Text style={styles.insightDetail}>
-            {bookings.confirmed || 0} confirmed • {bookings.pending || 0} pending
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
-  );
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-      {/* Header */}
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      {/* Standard Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          onPress={downloadAnalyticsCSV}
-          disabled={exporting || loading || !analytics}
-        >
-          {exporting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-          )}
+        <TouchableOpacity style={styles.iconButton} onPress={handleExport} disabled={exporting || !analytics}>
+          {exporting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={24} color="#FFFFFF" />}
         </TouchableOpacity>
       </View>
 
-      {/* Filters Row - Sticky */}
+      {/* Filters */}
       <View style={styles.filtersContainer}>
-        <View style={styles.dropdownContainer}>
-          <TouchableOpacity
-            style={styles.dropdownButton}
-            onPress={() => setDropdownOpen(!dropdownOpen)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.dropdownButtonText} numberOfLines={1}>
-              {selectedPropertyName}
-            </Text>
-            <Ionicons
-              name={dropdownOpen ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={theme.colors.primary}
-            />
+        <View style={{ zIndex: 2000 }}>
+          <TouchableOpacity style={styles.dropdownButton} onPress={() => setDropdownOpen(!dropdownOpen)}>
+            <Text style={styles.dropdownButtonText}>{selectedPropertyName}</Text>
+            <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#16a34a" />
           </TouchableOpacity>
           {dropdownOpen && (
             <View style={styles.dropdownList}>
-              {propertyOptions.map((property) => (
-                <TouchableOpacity
-                  key={property.id}
-                  style={[
-                    styles.dropdownItem,
-                    selectedProperty === property.id && styles.dropdownItemSelected
-                  ]}
-                  onPress={() => handleSelectProperty(property.id)}
-                >
-                  <Text
-                    style={[
-                      styles.dropdownItemText,
-                      selectedProperty === property.id && styles.dropdownItemTextSelected
-                    ]}
-                    numberOfLines={1}
+              <ScrollView>
+                {propertyOptions.map(p => (
+                  <TouchableOpacity 
+                    key={p.id} 
+                    style={[styles.dropdownItem, selectedProperty === p.id && styles.dropdownItemSelected]}
+                    onPress={() => { setSelectedProperty(p.id); setDropdownOpen(false); }}
                   >
-                    {property.name}
-                  </Text>
-                  {selectedProperty === property.id && (
-                    <Ionicons name="checkmark" size={18} color={theme.colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text style={styles.dropdownItemText}>{p.name}</Text>
+                    {selectedProperty === p.id && <Ionicons name="checkmark" size={18} color="#16a34a" />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
+
         <View style={styles.timeButtonContainer}>
-          {['week', 'month', 'year'].map((range) => (
-            <TimeRangeButton
-              key={range}
-              label={range.charAt(0).toUpperCase() + range.slice(1)}
-              value={range}
-              isSelected={timeRange === range}
-              onPress={setTimeRange}
-            />
+          {['week', 'month', 'year'].map(r => (
+            <TouchableOpacity 
+              key={r} 
+              style={[styles.timeButton, timeRange === r && styles.timeButtonActive]}
+              onPress={() => setTimeRange(r)}
+            >
+              <Text style={[styles.timeButtonText, timeRange === r && styles.timeButtonTextActive]}>{r}</Text>
+            </TouchableOpacity>
           ))}
         </View>
       </View>
 
       <ScrollView
         style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} colors={[theme.colors.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#16a34a" />}
         showsVerticalScrollIndicator={false}
       >
         {errorMessage ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          </View>
+          <View style={styles.errorBanner}><Text style={styles.errorText}>{errorMessage}</Text></View>
         ) : null}
 
         {loading && !analytics ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingLabel}>Loading analytics...</Text>
+            <ActivityIndicator size="large" color="#16a34a" />
+            <Text style={styles.loadingLabel}>Synchronizing analytics...</Text>
           </View>
-        ) : (
-          analytics ? renderContent() : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No analytics yet</Text>
-              <Text style={styles.emptySubtitle}>Add properties or change the filters to see insights.</Text>
-            </View>
-          )
-        )}
+        ) : renderContent()}
       </ScrollView>
     </SafeAreaView>
   );

@@ -63,7 +63,7 @@ export const styles = StyleSheet.create({
   logoTextGreen: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
     letterSpacing: -0.5,
   },
   logoTextGray: {
@@ -81,7 +81,7 @@ export const styles = StyleSheet.create({
     marginBottom: 10,
   },
   backButtonText: {
-    color: '#10b981',
+    color: '#16a34a',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -201,8 +201,8 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
+    backgroundColor: '#16a34a',
+    borderColor: '#16a34a',
   },
   termsText: {
     flex: 1,
@@ -212,7 +212,7 @@ export const styles = StyleSheet.create({
     opacity: 0.8,
   },
   termsLink: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
 

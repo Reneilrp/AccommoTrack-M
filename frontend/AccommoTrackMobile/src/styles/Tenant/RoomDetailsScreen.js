@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -118,7 +118,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
     letterSpacing: -0.8,
   },
   priceLabel: {
@@ -213,13 +213,13 @@ amenityText: {
   },
   viewAllText: {
     fontSize: 13,
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   
   // Action Buttons
   bookButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -233,7 +233,7 @@ amenityText: {
     letterSpacing: 0.3,
   },
   contactButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingVertical: 16,
     borderRadius: 8,
     flexDirection: 'row',
@@ -287,7 +287,7 @@ amenityText: {
     color: '#000',
   },
   submitButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',

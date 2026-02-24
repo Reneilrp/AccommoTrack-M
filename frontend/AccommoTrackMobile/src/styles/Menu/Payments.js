@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   headerTitle: {
     fontSize: 18,
@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   balanceCard: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     margin: 20,
     padding: 24,
     borderRadius: 16,
@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   methodAvailableBadge: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -169,7 +169,7 @@ export const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: '#DCFCE7',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -210,7 +210,7 @@ export const styles = StyleSheet.create({
   paymentAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
   },
   paymentValue: {
     fontSize: 14,

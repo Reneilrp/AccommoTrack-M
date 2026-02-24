@@ -1,28 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  StatusBar,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-  Platform,
-  Switch
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  StatusBar, 
+  ActivityIndicator, 
+  Alert, 
+  Platform, 
+  Switch, 
+  Image, 
+  StyleSheet 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { styles } from '../../../../styles/Tenant/ProfilePage.js';
-import { API_BASE_URL as API_URL } from '../../../../config';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import { styles } from '../../../../styles/Tenant/ProfilePage.js';
+import ProfileService from '../../../../services/ProfileService';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
@@ -32,7 +32,6 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: '',
     firstName: '',
     middleName: '',
     lastName: '',
@@ -54,41 +53,13 @@ export default function ProfilePage() {
     loadUserProfile();
   }, []);
 
-  const getAuthHeaders = async () => {
-    try {
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        const user = JSON.parse(userJson);
-        const token = user?.token || (await AsyncStorage.getItem('token'));
-        return {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        };
-      }
-    } catch (e) {}
-    const fallbackToken = await AsyncStorage.getItem('token');
-    return {
-      'Authorization': `Bearer ${fallbackToken}`,
-      'Accept': 'application/json',
-    };
-  };
-
   const loadUserProfile = async () => {
     try {
       setLoading(true);
-      const headers = await getAuthHeaders();
-      
-      const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'GET',
-        headers,
-      });
+      const res = await ProfileService.getProfile();
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        const fullName = [data.first_name, data.middle_name, data.last_name]
-          .filter(Boolean)
-          .join(' ');
+      if (res.success) {
+        const data = res.data;
         
         // Calculate age from DOB if age is missing but DOB exists
         let calculatedAge = data.age ? String(data.age) : '';
@@ -98,7 +69,6 @@ export default function ProfilePage() {
 
         setProfileData(prev => ({
           ...prev,
-          name: fullName || 'User',
           firstName: data.first_name || '',
           middleName: data.middle_name || '',
           lastName: data.last_name || '',
@@ -109,7 +79,7 @@ export default function ProfilePage() {
           bio: data.tenant_profile?.notes || '',
           profileImage: data.profile_image || null,
           preferences: data.tenant_profile?.preference 
-            ? JSON.parse(data.tenant_profile.preference) 
+            ? (typeof data.tenant_profile.preference === 'string' ? JSON.parse(data.tenant_profile.preference) : data.tenant_profile.preference)
             : prev.preferences,
         }));
       } else {
@@ -119,11 +89,11 @@ export default function ProfilePage() {
           const user = JSON.parse(userString);
           setProfileData(prev => ({
             ...prev,
-            name: [user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' ') || 'User',
             firstName: user.first_name || '',
             middleName: user.middle_name || '',
             lastName: user.last_name || '',
             email: user.email || '',
+            phone: user.phone || '',
           }));
         }
       }
@@ -183,65 +153,39 @@ export default function ProfilePage() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const headers = await getAuthHeaders();
       
-      // Create form data for multipart upload
-      const formData = new FormData();
-      formData.append('_method', 'PUT');
-      
-      // Parse the full name field to update first/last name
-      const nameParts = (profileData.name || '').trim().split(' ');
-      const fName = nameParts[0] || '';
-      const lName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
-      const mName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+      const updateData = {
+        first_name: profileData.firstName,
+        middle_name: profileData.middleName,
+        last_name: profileData.lastName,
+        phone: profileData.phone || '',
+        notes: profileData.bio || '',
+        preference: profileData.preferences,
+        date_of_birth: profileData.dateOfBirth || null,
+      };
 
-      formData.append('first_name', fName);
-      formData.append('middle_name', mName);
-      formData.append('last_name', lName);
-      formData.append('phone', profileData.phone || '');
-      formData.append('notes', profileData.bio || '');
-      formData.append('preference', JSON.stringify(profileData.preferences));
-      
-      if (profileData.dateOfBirth) {
-        formData.append('date_of_birth', profileData.dateOfBirth);
-      }
+      const res = await ProfileService.updateProfile(updateData);
 
-      const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
+      if (res.success) {
+        const u = res.data;
+        const tp = u.tenant_profile || {};
         
-        // Refresh local state with new data
-        if (result.user) {
-          const u = result.user;
-          const tp = u.tenant_profile || {};
-          
-          setProfileData(prev => ({
-            ...prev,
-            firstName: u.first_name || '',
-            middleName: u.middle_name || '',
-            lastName: u.last_name || '',
-            name: [u.first_name, u.middle_name, u.last_name].filter(Boolean).join(' ') || prev.name,
-            phone: u.phone || '',
-            bio: tp.notes || '',
-            dateOfBirth: tp.date_of_birth || '',
-            preferences: typeof tp.preference === 'string' ? JSON.parse(tp.preference) : (tp.preference || prev.preferences)
-          }));
+        setProfileData(prev => ({
+          ...prev,
+          firstName: u.first_name || '',
+          middleName: u.middle_name || '',
+          lastName: u.last_name || '',
+          phone: u.phone || '',
+          bio: tp.notes || '',
+          dateOfBirth: tp.date_of_birth || '',
+          preferences: typeof tp.preference === 'string' ? JSON.parse(tp.preference) : (tp.preference || prev.preferences)
+        }));
 
-          await AsyncStorage.setItem('user', JSON.stringify(u));
-        }
-
+        await AsyncStorage.setItem('user', JSON.stringify(u));
         setIsEditing(false);
         Alert.alert('Success', 'Profile updated successfully!');
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to update profile');
+        Alert.alert('Error', res.error || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -253,7 +197,6 @@ export default function ProfilePage() {
 
   const handleChangePhoto = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
@@ -261,7 +204,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // Show options
       Alert.alert(
         'Change Profile Photo',
         'Choose an option',
@@ -317,60 +259,25 @@ export default function ProfilePage() {
   const uploadProfileImage = async (imageAsset) => {
     try {
       setSaving(true);
-      const headers = await getAuthHeaders();
-
-      const formData = new FormData();
-      formData.append('_method', 'PUT');
       
-      // Get file extension from URI
-      const uriParts = imageAsset.uri.split('.');
-      const fileType = uriParts[uriParts.length - 1];
-      const cleanName = (profileData.name || 'user').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const updateData = {
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+      };
 
-      formData.append('profile_image', {
-        uri: imageAsset.uri,
-        name: `profile_${cleanName}_${Date.now()}.${fileType}`,
-        type: `image/${fileType}`,
-      });
+      const res = await ProfileService.updateProfile(updateData, imageAsset);
 
-      // Include current user data to prevent losing other fields
-      formData.append('first_name', profileData.firstName);
-      formData.append('last_name', profileData.lastName);
+      if (res.success) {
+        const u = res.data;
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: u.profile_image || imageAsset.uri,
+        }));
 
-      const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Update local state with new image URL
-        if (result.user?.profile_image) {
-          setProfileData(prev => ({
-            ...prev,
-            profileImage: result.user.profile_image,
-          }));
-        } else {
-          // Use local URI temporarily
-          setProfileData(prev => ({
-            ...prev,
-            profileImage: imageAsset.uri,
-          }));
-        }
-
-        // Update local storage
-        if (result.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(result.user));
-        }
-
+        await AsyncStorage.setItem('user', JSON.stringify(u));
         Alert.alert('Success', 'Profile photo updated!');
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to upload photo');
+        Alert.alert('Error', res.error || 'Failed to upload photo');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -382,13 +289,11 @@ export default function ProfilePage() {
 
   const getProfileImageSource = () => {
     if (profileData.profileImage) {
-      // Check if it's a remote URL or local URI
-      if (profileData.profileImage.startsWith('http') || profileData.profileImage.startsWith('file://')) {
+      if (typeof profileData.profileImage === 'string' && (profileData.profileImage.startsWith('http') || profileData.profileImage.startsWith('file://'))) {
         return { uri: profileData.profileImage };
       }
       return { uri: profileData.profileImage };
     }
-    // Default placeholder
     return null;
   };
 
@@ -483,23 +388,57 @@ export default function ProfilePage() {
             )}
           </View>
           {!isEditing && (
-            <Text style={[styles.userName, { color: theme.colors.text }]}>{profileData.name}</Text>
+            <Text style={[styles.userName, { color: theme.colors.text }]}>
+                {[profileData.firstName, profileData.lastName].filter(Boolean).join(' ')}
+            </Text>
           )}
         </View>
 
         {/* Form Section */}
         <View style={styles.formSection}>
-          {/* Name */}
+          {/* First Name */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>Full Name</Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>First Name</Text>
             <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
               <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
-                value={profileData.name}
-                onChangeText={(text) => handleInputChange('name', text)}
+                value={profileData.firstName}
+                onChangeText={(text) => handleInputChange('firstName', text)}
                 editable={isEditing}
-                placeholder="Enter your name"
+                placeholder="First Name"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+            </View>
+          </View>
+
+          {/* Middle Name */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Middle Name</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
+              <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                value={profileData.middleName}
+                onChangeText={(text) => handleInputChange('middleName', text)}
+                editable={isEditing}
+                placeholder="Middle Name"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+            </View>
+          </View>
+
+          {/* Last Name */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Last Name</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
+              <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                value={profileData.lastName}
+                onChangeText={(text) => handleInputChange('lastName', text)}
+                editable={isEditing}
+                placeholder="Last Name"
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>

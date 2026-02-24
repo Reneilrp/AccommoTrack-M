@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
 
   // HEADER STYLES
   header: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 0,
     // Use a fixed app-bar height so SafeArea inset + header padding don't stack
     height: 56,
@@ -172,10 +172,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
@@ -184,7 +184,7 @@ export const styles = StyleSheet.create({
     color: '#212121',
   },
   searchButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 25,
@@ -213,7 +213,7 @@ export const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   filterOptionsContainer: {
     padding: 20,
@@ -225,7 +225,7 @@ export const styles = StyleSheet.create({
   alignItems: 'center',
 },
   filterButtonActive: {
-  backgroundColor: '#10b981',
+  backgroundColor: '#16a34a',
   },
   filterButtonText: {
   color: '#757575',
@@ -248,7 +248,7 @@ export const styles = StyleSheet.create({
   },
   filterOptionActive: {
     backgroundColor: '#E8F5E9',
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
   },
   filterOptionContent: {
     flexDirection: 'row',
@@ -261,7 +261,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   filterOptionTextActive: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   activeFilterContainer: {
@@ -279,7 +279,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   activeFilterText: {
-    color: '#10b981',
+    color: '#16a34a',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -299,10 +299,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F0F0F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   imageContainer: {
     width: '100%',
@@ -323,7 +323,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
@@ -356,7 +356,7 @@ export const styles = StyleSheet.create({
   availabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#DCFCE7',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -365,7 +365,7 @@ export const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: 13,
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
     marginLeft: 6,
   },
@@ -381,7 +381,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#16a34a',
   },
   priceLabel: {
     fontSize: 12,
@@ -389,7 +389,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   viewButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 25,
@@ -464,7 +464,7 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   clearButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -507,10 +507,10 @@ export const styles = StyleSheet.create({
   borderRadius: 12,
   marginBottom: 16,
   shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 3,
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.03,
+  shadowRadius: 2,
+  elevation: 1,
   overflow: 'hidden',
 },
 
@@ -529,7 +529,7 @@ typeBadge: {
   position: 'absolute',
   top: 12,
   left: 12,
-  backgroundColor: '#10b981',
+  backgroundColor: '#16a34a',
   paddingHorizontal: 12,
   paddingVertical: 6,
   borderRadius: 6,
@@ -578,7 +578,7 @@ availabilityBadge: {
 
 availabilityText: {
   fontSize: 12,
-  color: '#10b981',
+  color: '#16a34a',
   marginLeft: 4,
   fontWeight: '500',
 },
@@ -590,7 +590,7 @@ cardFooter: {
 },
 
 viewButton: {
-  backgroundColor: '#10b981',
+  backgroundColor: '#16a34a',
   paddingVertical: 12,
   paddingHorizontal: 40,
   borderRadius: 8,

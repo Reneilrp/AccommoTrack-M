@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -90,7 +90,7 @@ export const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 14,
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
     marginLeft: 4,
   },

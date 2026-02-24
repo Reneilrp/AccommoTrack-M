@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     borderBottomColor: '#e5e7eb',
   },
   backButton: { padding: 8 },
@@ -65,7 +65,7 @@ export const styles = StyleSheet.create({
     marginRight: 12,
   },
   typeBadge: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -145,7 +145,7 @@ export const styles = StyleSheet.create({
   statNumber: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
     marginTop: 8,
   },
   statLabel: {
@@ -167,7 +167,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   amenityText: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   ruleItem: {
@@ -197,12 +197,12 @@ export const styles = StyleSheet.create({
     backgroundColor: '#f0fdf4',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
   },
   openMapsText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10b981',
+    color: '#16a34a',
   },
   mapContainer: {
     height: 250,
@@ -255,7 +255,7 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   refreshText: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   filterScroll: {
@@ -273,14 +273,14 @@ export const styles = StyleSheet.create({
   },
   filterChipActive: {
     backgroundColor: '#dcfce7',
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
   },
   filterChipText: {
     color: '#6b7280',
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: '#065f46',
+    color: '#166534',
   },
   roomsLoadingContainer: {
     flexDirection: 'row',
@@ -404,7 +404,7 @@ export const styles = StyleSheet.create({
     flexShrink: 0,
   },
   viewDetailsText: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   contactButton: {
@@ -412,7 +412,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     borderWidth: 0,
     paddingVertical: 14,
     paddingHorizontal: 24,

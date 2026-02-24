@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     
     // Header
     header: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         paddingHorizontal: 16,
         paddingVertical: 16,
         flexDirection: 'row',
@@ -103,14 +103,14 @@ export const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: '#D1FAE5',
+        backgroundColor: '#DCFCE7',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#10b981',
+        color: '#16a34a',
     },
     conversationInfo: {
         flex: 1,
@@ -131,7 +131,7 @@ export const styles = StyleSheet.create({
     },
     propertyName: {
         fontSize: 12,
-        color: '#10b981',
+        color: '#16a34a',
         marginTop: 2,
     },
     lastMessage: {
@@ -140,7 +140,7 @@ export const styles = StyleSheet.create({
         marginTop: 4,
     },
     unreadBadge: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         borderRadius: 12,
         minWidth: 24,
         height: 24,
@@ -156,7 +156,7 @@ export const styles = StyleSheet.create({
 
     // Chat Header
     chatScreenHeader: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         paddingHorizontal: 0,
         paddingTop: 8,
         paddingBottom: 8,
@@ -280,12 +280,12 @@ export const styles = StyleSheet.create({
         borderRadius: 16,
     },
     myMessageBubble: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         borderBottomRightRadius: 4,
         alignSelf: 'flex-end',
     },
     theirMessageBubble: {
-        backgroundColor: '#D1FAE5',
+        backgroundColor: '#DCFCE7',
         borderBottomLeftRadius: 4,
         borderWidth: 0,
         alignSelf: 'flex-start',
@@ -331,7 +331,7 @@ export const styles = StyleSheet.create({
         color: '#1F2937',
     },
     sendButton: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         width: 40,
         height: 40,
         borderRadius: 20,

@@ -85,11 +85,11 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const { theme } = useTheme();
 
   const quickActions = [
-    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'MyProperties' },
+    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties' },
     { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement' },
     { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants' },
     { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings' },
-    { id: 5, title: 'Payments', icon: 'cash', color: '#10b981', screen: 'Payments' },
+    { id: 5, title: 'Payments', icon: 'cash', color: '#16a34a', screen: 'Payments' },
     { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics' },
     { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' },
     { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests' },
@@ -244,7 +244,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
       subtitle: 'Room 101 • 2 hours ago',
       amount: 5000,
       icon: 'checkmark-circle',
-      iconColor: '#10b981'
+      iconColor: '#16a34a'
     },
     {
       id: 2,
@@ -381,7 +381,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           <Ionicons name="menu" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.userName}>{user?.first_name || 'Landlord'}</Text>
+          <Text style={styles.userName}>{user?.first_name || 'Dashboard'}</Text>
         </View>
         <TouchableOpacity
           style={styles.notificationButton}
@@ -616,7 +616,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           ) : firstProperty ? (
             <Button
               style={styles.propertyCard}
-              onPress={() => navigation.navigate('MyProperties')}
+              onPress={() => navigation.navigate('Properties')}
               type="transparent"
             >
               <View style={styles.propertyHeader}>

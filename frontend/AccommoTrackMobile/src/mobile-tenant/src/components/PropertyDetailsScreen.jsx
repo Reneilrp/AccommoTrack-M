@@ -1,6 +1,6 @@
 // Replace the entire PropertyDetailsScreen.jsx with this updated version
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   View, 
   ScrollView, 
@@ -18,7 +18,7 @@ import { WebView } from 'react-native-webview';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../styles/Tenant/PropertyDetailsScreen';
 import homeStyles from '../../../styles/Tenant/HomePage.js';
 import PropertyService from '../../../services/PropertyServices';
@@ -34,9 +34,11 @@ export default function PropertyDetailsScreen({ route }) {
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  useEffect(() => {
-    loadRooms();
-  }, [accommodation?.id]);
+  useFocusEffect(
+    useCallback(() => {
+      loadRooms();
+    }, [accommodation?.id])
+  );
 
   // Hide bottom tab bar for this details screen (if parent is a tab navigator)
   useEffect(() => {

@@ -46,7 +46,7 @@ export const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterButtonActive: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   filterText: {
     fontSize: 14,
@@ -137,7 +137,7 @@ export const styles = StyleSheet.create({
   roomPrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
   },
   
   priceLabel: {
@@ -220,6 +220,6 @@ export const styles = StyleSheet.create({
   viewDetailsText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#10b981',
+    color: '#16a34a',
   },
 });

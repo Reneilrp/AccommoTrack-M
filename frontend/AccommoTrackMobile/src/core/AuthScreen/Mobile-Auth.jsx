@@ -20,6 +20,7 @@ import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL as API_URL } from '../../config';
 import BlockedUserModal from '../../components/BlockedUserModal';
+import ForgotPasswordModal from '../../components/ForgotPasswordModal';
 
 const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) => {
   const isPending = data.status === 'pending_verification';
@@ -61,7 +62,7 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) =
             
             <TouchableOpacity 
               onPress={onClose}
-              style={{ backgroundColor: isPending ? '#10B981' : '#F3F4F6', paddingVertical: 12, borderRadius: 12, width: '100%' }}
+              style={{ backgroundColor: isPending ? '#16a34a' : '#F3F4F6', paddingVertical: 12, borderRadius: 12, width: '100%' }}
             >
               <Text style={{ color: isPending ? 'white' : '#4B5563', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
                 {isPending ? 'Got it, thanks!' : 'Close'}
@@ -162,7 +163,7 @@ const ResubmitModal = ({ visible, onClose }) => {
     <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={{ flex: 1, backgroundColor: 'white', padding: 20, paddingTop: 60 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#10B981' }}>Resubmit Documents</Text>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#16a34a' }}>Resubmit Documents</Text>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={28} color="#4B5563" />
           </TouchableOpacity>
@@ -180,7 +181,7 @@ const ResubmitModal = ({ visible, onClose }) => {
                 <TouchableOpacity 
                   key={type} 
                   onPress={() => setForm(prev => ({ ...prev, validIdType: type }))}
-                  style={{ padding: 8, backgroundColor: form.validIdType === type ? '#10B981' : '#F3F4F6', borderRadius: 8, marginRight: 10 }}
+                  style={{ padding: 8, backgroundColor: form.validIdType === type ? '#16a34a' : '#F3F4F6', borderRadius: 8, marginRight: 10 }}
                 >
                   <Text style={{ color: form.validIdType === type ? 'white' : '#374151' }}>{type}</Text>
                 </TouchableOpacity>
@@ -190,7 +191,7 @@ const ResubmitModal = ({ visible, onClose }) => {
 
           <TouchableOpacity 
             onPress={() => pickImage('validId')}
-            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.validId ? '#10B981' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: form.validId ? '#F0FDF4' : '#F9FAFB' }}
+            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.validId ? '#16a34a' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: form.validId ? '#F0FDF4' : '#F9FAFB' }}
           >
             {form.validId ? (
               <Image source={{ uri: form.validId.uri }} style={{ width: '100%', height: '100%', borderRadius: 10 }} />
@@ -204,7 +205,7 @@ const ResubmitModal = ({ visible, onClose }) => {
 
           <TouchableOpacity 
             onPress={() => pickImage('permit')}
-            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.permit ? '#10B981' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 30, backgroundColor: form.permit ? '#F0FDF4' : '#F9FAFB' }}
+            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.permit ? '#16a34a' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 30, backgroundColor: form.permit ? '#F0FDF4' : '#F9FAFB' }}
           >
             {form.permit ? (
               <Image source={{ uri: form.permit.uri }} style={{ width: '100%', height: '100%', borderRadius: 10 }} />
@@ -219,7 +220,7 @@ const ResubmitModal = ({ visible, onClose }) => {
           <TouchableOpacity 
             onPress={handleSubmit}
             disabled={loading}
-            style={{ backgroundColor: '#10B981', paddingVertical: 15, borderRadius: 12, alignItems: 'center' }}
+            style={{ backgroundColor: '#16a34a', paddingVertical: 15, borderRadius: 12, alignItems: 'center' }}
           >
             {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>Submit Re-verification</Text>}
           </TouchableOpacity>
@@ -241,6 +242,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [pendingModalVisible, setPendingModalVisible] = useState(false);
   const [resubmitModalVisible, setResubmitModalVisible] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [emailAvailable, setEmailAvailable] = useState(null);
   const [emailCheckMsg, setEmailCheckMsg] = useState('');
@@ -579,6 +581,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         visible={resubmitModalVisible} 
         onClose={() => setResubmitModalVisible(false)} 
       />
+      <ForgotPasswordModal 
+        visible={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -675,7 +681,10 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 
               {/* Forgot Password */}
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity 
+                style={styles.forgotPassword}
+                onPress={() => setShowForgotPasswordModal(true)}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
@@ -764,7 +773,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 <View style={styles.form}>
                   {/* Back Button */}
                   <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
-                    <Ionicons name="arrow-back" size={20} color="#10b981" />
+                    <Ionicons name="arrow-back" size={20} color="#16a34a" />
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
 
@@ -820,20 +829,20 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   </View>
                   <View style={{ marginTop: 10, paddingHorizontal: 5, marginBottom: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.minLen ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.minLen ? '#10B981' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.minLen ? '#10B981' : '#9CA3AF' }}>Minimum 8 characters</Text>
+                      <Ionicons name={passwordChecks.minLen ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.minLen ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.minLen ? '#16a34a' : '#9CA3AF' }}>Minimum 8 characters</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.hasUpper ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasUpper ? '#10B981' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.hasUpper ? '#10B981' : '#9CA3AF' }}>At least one uppercase letter</Text>
+                      <Ionicons name={passwordChecks.hasUpper ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasUpper ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.hasUpper ? '#16a34a' : '#9CA3AF' }}>At least one uppercase letter</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.hasLower ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasLower ? '#10B981' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.hasLower ? '#10B981' : '#9CA3AF' }}>At least one lowercase letter</Text>
+                      <Ionicons name={passwordChecks.hasLower ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasLower ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.hasLower ? '#16a34a' : '#9CA3AF' }}>At least one lowercase letter</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.hasNumber ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasNumber ? '#10B981' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.hasNumber ? '#10B981' : '#9CA3AF' }}>At least one number</Text>
+                      <Ionicons name={passwordChecks.hasNumber ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasNumber ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.hasNumber ? '#16a34a' : '#9CA3AF' }}>At least one number</Text>
                     </View>
                   </View>
                   {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}

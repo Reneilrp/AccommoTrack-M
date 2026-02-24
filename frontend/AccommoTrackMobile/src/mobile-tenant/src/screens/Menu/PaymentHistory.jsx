@@ -76,7 +76,7 @@ export default function PaymentHistory() {
                     <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
                   </View>
                   <View style={styles.paymentInfo}>
-                    <Text style={styles.propertyName}>{payment.propertyName}</Text>
+                    <Text style={styles.propertyName}>{payment.propertyName} {payment.roomNumber !== 'N/A' ? `• Room ${payment.roomNumber}` : ''}</Text>
                     <Text style={styles.paymentDate}>{payment.date}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: `#00000020` }]}>

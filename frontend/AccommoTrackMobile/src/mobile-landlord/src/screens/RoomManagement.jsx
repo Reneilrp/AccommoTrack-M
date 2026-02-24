@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,18 +29,6 @@ const FILTERS = [
   { label: 'Maintenance', value: 'maintenance' }
 ];
 
-const ROOM_TYPES = [
-  { label: 'Single Room', value: 'single' },
-  { label: 'Double Room', value: 'double' },
-  { label: 'Quad Room', value: 'quad' },
-  { label: 'Bed Spacer', value: 'bedSpacer' }
-];
-
-const PRICING_MODELS = [
-  { label: 'Full Room', value: 'full_room' },
-  { label: 'Per Bed', value: 'per_bed' }
-];
-
 const DEFAULT_STATS = { total: 0, occupied: 0, available: 0, maintenance: 0 };
 
 const normalizeId = (value) => {
@@ -48,12 +37,20 @@ const normalizeId = (value) => {
   return Number.isNaN(parsed) ? value : parsed;
 };
 
+const getOrdinalSuffix = (num) => {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) return 'st';
+  if (j === 2 && k !== 12) return 'nd';
+  if (j === 3 && k !== 13) return 'rd';
+  return 'th';
+};
+
 const buildFloors = () =>
-  Array.from({ length: 10 }, (_, index) => {
-    const num = index + 1;
-    const suffix = num % 10 === 1 && num !== 11 ? 'st' : num % 10 === 2 && num !== 12 ? 'nd' : num % 10 === 3 && num !== 13 ? 'rd' : 'th';
-    return { value: String(num), label: `${num}${suffix} Floor` };
-  });
+  Array.from({ length: 15 }, (_, i) => ({
+    value: String(i + 1),
+    label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`
+  }));
 
 const FLOORS = buildFloors();
 
@@ -63,39 +60,11 @@ const parseList = (value) => {
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        return parsed.filter(Boolean);
-      }
-    } catch (err) {
-      // noop
-    }
-    return value
-      .split(/[\n,]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  if (typeof value === 'object') {
-    return Object.values(value)
-      .map((item) => (typeof item === 'string' ? item.trim() : ''))
-      .filter(Boolean);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch (err) {}
+    return value.split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
   }
   return [];
-};
-
-const normalizeRoomType = (value) => {
-  if (!value) return 'single';
-  const key = String(value).toLowerCase().replace(/\s+/g, '');
-  const map = {
-    single: 'single',
-    singleroom: 'single',
-    double: 'double',
-    doubleroom: 'double',
-    quad: 'quad',
-    quadroom: 'quad',
-    bedspacer: 'bedSpacer',
-    bedspacers: 'bedSpacer'
-  };
-  return map[key] || value;
 };
 
 const formatCurrency = (value) => {
@@ -110,24 +79,11 @@ const statusTokens = {
   maintenance: { bg: '#FEF3C7', color: '#B45309', label: 'Maintenance' }
 };
 
-const buildEmptyForm = () => ({
-  id: null,
-  roomNumber: '',
-  roomType: 'single',
-  floor: '1',
-  monthlyRate: '',
-  capacity: '1',
-  pricingModel: 'full_room',
-  description: '',
-  status: 'available',
-  amenities: [],
-  occupied: 0
-});
-
 export default function RoomManagementScreen({ navigation, route }) {
   const { theme } = useTheme();
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const initialFilter = route?.params?.filter || 'all';
+  
   const [properties, setProperties] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId || null);
   const [rooms, setRooms] = useState([]);
@@ -140,19 +96,61 @@ export default function RoomManagementScreen({ navigation, route }) {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('add');
-  const [roomForm, setRoomForm] = useState(buildEmptyForm());
   const [modalLoading, setModalLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  
+  // Web-exact state
+  const [formData, setFormData] = useState({
+    id: null,
+    roomNumber: '',
+    roomType: 'single',
+    floor: '1',
+    monthlyRate: '',
+    dailyRate: '',
+    billingPolicy: 'monthly',
+    minStayDays: '1',
+    capacity: '1',
+    pricingModel: 'full_room',
+    description: '',
+    status: 'available',
+    amenities: [],
+    rules: []
+  });
+
   const [newAmenity, setNewAmenity] = useState('');
+  const [newRule, setNewRule] = useState('');
   const [selectedImages, setSelectedImages] = useState([]);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
 
   const selectedProperty = useMemo(
-    () => properties.find((property) => normalizeId(property.id) === normalizeId(selectedPropertyId)) || null,
+    () => properties.find((p) => normalizeId(p.id) === normalizeId(selectedPropertyId)) || null,
     [properties, selectedPropertyId]
   );
 
+  const propertyType = selectedProperty?.property_type || '';
+  const normalizedType = propertyType.toLowerCase();
+  const isApartment = normalizedType.includes('apartment');
+  const isDormitory = normalizedType.includes('dormitory');
+  const isBoarding = normalizedType.includes('boarding');
+  const isBedSpacerProperty = normalizedType.includes('bedspacer') || normalizedType.includes('bed spacer');
+
+  const allRoomTypes = [
+    { value: 'single', label: 'Single Room' },
+    { value: 'double', label: 'Double Room' },
+    { value: 'quad', label: 'Quad Room' },
+    { value: 'bedSpacer', label: 'Bed Spacer' }
+  ];
+
+  const roomTypes = useMemo(() => {
+    if (isApartment) return allRoomTypes.filter(rt => rt.value !== 'bedSpacer');
+    if (isBedSpacerProperty) return allRoomTypes.filter(rt => rt.value === 'bedSpacer');
+    if (isDormitory || isBoarding) return allRoomTypes.filter(rt => rt.value === 'single' || rt.value === 'bedSpacer');
+    return allRoomTypes.filter(rt => rt.value !== 'bedSpacer');
+  }, [isApartment, isBedSpacerProperty, isDormitory, isBoarding]);
+
   const propertyAmenities = useMemo(() => parseList(selectedProperty?.amenities_list || selectedProperty?.amenities), [selectedProperty]);
+  const propertyRules = useMemo(() => parseList(selectedProperty?.property_rules || selectedProperty?.rules), [selectedProperty]);
 
   const filteredRooms = useMemo(() => {
     if (filter === 'all') return rooms;
@@ -162,347 +160,264 @@ export default function RoomManagementScreen({ navigation, route }) {
   const loadProperties = useCallback(async () => {
     try {
       setLoadingProperties(true);
-      setError('');
-      const response = await PropertyService.getMyProperties();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load properties');
+      const res = await PropertyService.getMyProperties();
+      if (res.success) {
+        const data = res.data || [];
+        setProperties(data);
+        if (!selectedPropertyId && data.length > 0) {
+          setSelectedPropertyId(normalizeId(data[0].id));
+        }
       }
-      const data = Array.isArray(response.data) ? response.data : [];
-      setProperties(data);
-      setSelectedPropertyId((prevSelected) => {
-        if (preselectedPropertyId) return normalizeId(preselectedPropertyId);
-        if (!prevSelected && data.length > 0) return normalizeId(data[0].id);
-        const stillExists = data.some((property) => normalizeId(property.id) === normalizeId(prevSelected));
-        if (stillExists) return normalizeId(prevSelected);
-        return data.length > 0 ? normalizeId(data[0].id) : null;
-      });
     } catch (err) {
-      setError(err.message || 'Unable to load properties');
+      setError('Failed to load properties');
     } finally {
       setLoadingProperties(false);
     }
-  }, [preselectedPropertyId]);
+  }, [selectedPropertyId]);
 
-  const loadRooms = useCallback(
-    async (fromRefresh = false) => {
-      if (!selectedPropertyId) return;
-      try {
-        fromRefresh ? setRefreshing(true) : setLoadingRooms(true);
-        setError('');
-        const [roomsRes, statsRes] = await Promise.all([
-          PropertyService.getRooms(selectedPropertyId),
-          PropertyService.getRoomStats(selectedPropertyId)
-        ]);
-
-        if (!roomsRes.success) {
-          throw new Error(roomsRes.error || 'Failed to load rooms');
-        }
-        if (!statsRes.success) {
-          throw new Error(statsRes.error || 'Failed to load room stats');
-        }
-
-        const resolvedRooms = Array.isArray(roomsRes.data)
-          ? roomsRes.data
-          : roomsRes.data?.rooms || roomsRes.data?.data || [];
-        setRooms(resolvedRooms);
-        const statsData = statsRes.data?.data || statsRes.data || {};
-        setStats({
-          total: Number(statsData.total ?? statsData.total_rooms ?? resolvedRooms.length ?? 0),
-          occupied: Number(statsData.occupied ?? 0),
-          available: Number(statsData.available ?? 0),
-          maintenance: Number(statsData.maintenance ?? 0)
-        });
-      } catch (err) {
-        setError(err.message || 'Unable to load rooms');
-      } finally {
-        fromRefresh ? setRefreshing(false) : setLoadingRooms(false);
-      }
-    },
-    [selectedPropertyId]
-  );
-
-  useEffect(() => {
-    loadProperties();
-  }, [loadProperties]);
-
-  useEffect(() => {
-    if (selectedPropertyId) {
-      loadRooms();
-    }
-  }, [selectedPropertyId, loadRooms]);
-
-  const handleRefresh = useCallback(() => {
+  const loadRooms = useCallback(async (fromRefresh = false) => {
     if (!selectedPropertyId) return;
-    loadRooms(true);
-  }, [loadRooms, selectedPropertyId]);
+    try {
+      fromRefresh ? setRefreshing(true) : setLoadingRooms(true);
+      const [roomsRes, statsRes] = await Promise.all([
+        PropertyService.getRooms(selectedPropertyId),
+        PropertyService.getRoomStats(selectedPropertyId)
+      ]);
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setRoomForm(buildEmptyForm());
-    setSelectedImages([]);
-    setNewAmenity('');
-    setModalLoading(false);
+      if (roomsRes.success) setRooms(roomsRes.data || []);
+      if (statsRes.success) {
+        const s = statsRes.data?.data || statsRes.data || {};
+        setStats({
+          total: Number(s.total ?? 0),
+          occupied: Number(s.occupied ?? 0),
+          available: Number(s.available ?? 0),
+          maintenance: Number(s.maintenance ?? 0)
+        });
+      }
+    } catch (err) {
+      setError('Failed to load room data');
+    } finally {
+      fromRefresh ? setRefreshing(false) : setLoadingRooms(false);
+    }
+  }, [selectedPropertyId]);
+
+  useEffect(() => { loadProperties(); }, [loadProperties]);
+  useEffect(() => { if (selectedPropertyId) loadRooms(); }, [selectedPropertyId, loadRooms]);
+
+  const handleRoomsRefresh = () => loadRooms(true);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => {
+      let updated = { ...prev, [field]: value };
+      
+      if (field === 'roomType') {
+        const capacityMap = { 'single': '1', 'double': '2', 'quad': '4' };
+        if (capacityMap[value]) updated.capacity = capacityMap[value];
+        if (value === 'bedSpacer') updated.pricingModel = 'per_bed';
+        else if (value === 'single') updated.pricingModel = 'full_room';
+      }
+
+      if (field === 'billingPolicy') {
+        if (value !== 'monthly' && value !== 'monthly_with_daily') updated.monthlyRate = '';
+        if (value !== 'daily' && value !== 'monthly_with_daily') updated.dailyRate = '';
+      }
+      
+      return updated;
+    });
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const validateForm = (data) => {
+    const errors = {};
+    if (!data.roomNumber || !String(data.roomNumber).trim()) errors.roomNumber = 'Room number is required';
+
+    const bp = data.billingPolicy || 'monthly';
+    if (bp === 'monthly' || bp === 'monthly_with_daily') {
+      const m = parseFloat(data.monthlyRate);
+      if (!m || m <= 0) errors.monthlyRate = 'Enter a valid monthly rate';
+    }
+    if (bp === 'daily' || bp === 'monthly_with_daily') {
+      const d = parseFloat(data.dailyRate);
+      if (!d || d <= 0) errors.dailyRate = 'Enter a valid daily rate';
+    }
+
+    const cap = parseInt(data.capacity, 10);
+    if (!cap || cap < 1) errors.capacity = 'Capacity must be 1 or more';
+    else if (cap > 10) errors.capacity = 'Max capacity is 10';
+
+    const ms = parseInt(data.minStayDays, 10);
+    if (!ms || ms < 1) errors.minStayDays = 'Min stay must be at least 1 day';
+
+    if (data.roomType === 'bedSpacer' && data.pricingModel !== 'per_bed') {
+      errors.pricingModel = 'Bed Spacer must use per-bed pricing';
+    }
+
+    return { valid: Object.keys(errors).length === 0, errors };
   };
 
   const openAddModal = () => {
     if (!selectedPropertyId) {
-      Alert.alert('Property Required', 'Select a property before adding rooms.');
+      Alert.alert('Error', 'Select a property first');
       return;
     }
     setModalMode('add');
-    setRoomForm(buildEmptyForm());
+    const initialRT = isBedSpacerProperty ? 'bedSpacer' : 'single';
+    const initialPM = isBedSpacerProperty ? 'per_bed' : 'full_room';
+    
+    setFormData({
+      id: null,
+      roomNumber: '',
+      roomType: initialRT,
+      floor: '1',
+      monthlyRate: '',
+      dailyRate: '',
+      billingPolicy: 'monthly',
+      minStayDays: '1',
+      capacity: initialRT === 'bedSpacer' ? '1' : '1',
+      pricingModel: initialPM,
+      description: '',
+      status: 'available',
+      amenities: [],
+      rules: []
+    });
     setSelectedImages([]);
+    setFieldErrors({});
     setModalVisible(true);
-  };
-
-  const parseFloorValue = (room) => {
-    if (!room) return '1';
-    if (room.floor) return String(room.floor);
-    if (room.floor_label) {
-      const match = room.floor_label.match(/\d+/);
-      return match ? match[0] : '1';
-    }
-    return '1';
   };
 
   const openEditModal = (room) => {
     setModalMode('edit');
-    setRoomForm({
+    setFormData({
       id: room.id,
-      roomNumber: room.room_number || room.name || '',
-      roomType: normalizeRoomType(room.room_type || room.type_label),
-      floor: parseFloorValue(room),
-      monthlyRate: room.monthly_rate ? String(room.monthly_rate) : '',
-      capacity: room.capacity ? String(room.capacity) : '1',
+      roomNumber: room.room_number || '',
+      roomType: room.room_type || 'single',
+      floor: String(room.floor || '1'),
+      monthlyRate: String(room.monthly_rate || ''),
+      dailyRate: String(room.daily_rate || ''),
+      billingPolicy: room.billing_policy || 'monthly',
+      minStayDays: String(room.min_stay_days || '1'),
+      capacity: String(room.capacity || '1'),
       pricingModel: room.pricing_model || 'full_room',
       description: room.description || '',
       status: room.status || 'available',
       amenities: parseList(room.amenities),
+      rules: parseList(room.rules),
       occupied: room.occupied || 0
     });
     setSelectedImages([]);
+    setFieldErrors({});
     setModalVisible(true);
   };
 
-  const handleFormChange = (field, value) => {
-    setRoomForm((prev) => {
-      let next = { ...prev, [field]: value };
-      if (field === 'roomType') {
-        // Auto-set capacity based on room type (except bedSpacer which is manual)
-        if (value !== 'bedSpacer') {
-          const capacityMap = { single: '1', double: '2', quad: '4' };
-          next.capacity = capacityMap[value] || prev.capacity;
-        }
-        // For bedSpacer, always use per_bed pricing model
-        if (value === 'bedSpacer') {
-          next.pricingModel = 'per_bed';
-        }
-        // For single rooms, always use full_room pricing
-        if (value === 'single') {
-          next.pricingModel = 'full_room';
-        }
-      }
-      return next;
-    });
-  };
-
   const toggleAmenity = (amenity) => {
-    setRoomForm((prev) => ({
+    setFormData(prev => ({
       ...prev,
       amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter((item) => item !== amenity)
+        ? prev.amenities.filter(a => a !== amenity)
         : [...prev.amenities, amenity]
     }));
   };
 
+  const toggleRule = (rule) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.includes(rule)
+        ? prev.rules.filter(r => r !== rule)
+        : [...prev.rules, rule]
+    }));
+  };
+
   const handleAddAmenity = async () => {
-    const value = newAmenity.trim();
-    if (!value || !selectedPropertyId) return;
-    try {
-      const response = await PropertyService.addPropertyAmenity(selectedPropertyId, value);
-      if (!response.success) {
-        throw new Error(response.error || 'Unable to add amenity');
-      }
-      setProperties((prev) =>
-        prev.map((property) =>
-          property.id === selectedPropertyId
-            ? {
-                ...property,
-                amenities_list: [...parseList(property.amenities_list || property.amenities), value]
-              }
-            : property
-        )
-      );
-      setRoomForm((prev) => ({ ...prev, amenities: [...prev.amenities, value] }));
+    if (!newAmenity.trim() || !selectedPropertyId) return;
+    const res = await PropertyService.addPropertyAmenity(selectedPropertyId, newAmenity.trim());
+    if (res.success) {
+      setFormData(prev => ({ ...prev, amenities: [...prev.amenities, newAmenity.trim()] }));
       setNewAmenity('');
-    } catch (err) {
-      Alert.alert('Amenity', err.message || 'Failed to add amenity');
+      loadProperties();
+    }
+  };
+
+  const handleAddRule = async () => {
+    if (!newRule.trim() || !selectedPropertyId) return;
+    const res = await PropertyService.addPropertyRule(selectedPropertyId, newRule.trim());
+    if (res.success) {
+      setFormData(prev => ({ ...prev, rules: [...prev.rules, newRule.trim()] }));
+      setNewRule('');
+      loadProperties();
     }
   };
 
   const handlePickImages = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo library access to upload room images.');
+    const res = await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, quality: 0.8 });
+    if (!res.canceled) {
+      const mapped = res.assets.map((a, i) => ({ 
+        uri: a.uri, 
+        name: a.fileName || `room-${Date.now()}-${i}.jpg`, 
+        type: a.mimeType || 'image/jpeg' 
+      }));
+      setSelectedImages(prev => [...prev, ...mapped]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const { valid, errors } = validateForm(formData);
+    if (!valid) {
+      setFieldErrors(errors);
+      Alert.alert('Validation Error', 'Please fix the highlighted errors.');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8
-    });
-
-    if (!result.canceled) {
-      const mapped = (result.assets || []).map((asset, index) => ({
-        uri: asset.uri,
-        name: asset.fileName || `room-${Date.now()}-${index}.jpg`,
-        type: asset.mimeType || 'image/jpeg'
-      }));
-      setSelectedImages((prev) => [...prev, ...mapped]);
-    }
-  };
-
-  const removeSelectedImage = (index) => {
-    setSelectedImages((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const validateForm = () => {
-    if (!roomForm.roomNumber.trim()) {
-      Alert.alert('Validation', 'Room number is required.');
-      return false;
-    }
-    if (!roomForm.monthlyRate || Number(roomForm.monthlyRate) <= 0) {
-      Alert.alert('Validation', 'Enter a valid monthly rate.');
-      return false;
-    }
-    if (!selectedPropertyId) {
-      Alert.alert('Validation', 'Select a property before saving.');
-      return false;
-    }
-    return true;
-  };
-
-  const buildCreatePayload = () => {
-    const payload = new FormData();
-    payload.append('property_id', selectedPropertyId);
-    payload.append('room_number', roomForm.roomNumber.trim());
-    payload.append('room_type', roomForm.roomType);
-    payload.append('floor', parseInt(roomForm.floor, 10) || 1);
-    payload.append('monthly_rate', parseFloat(roomForm.monthlyRate));
-    payload.append('capacity', parseInt(roomForm.capacity, 10) || 1);
-    payload.append('pricing_model', roomForm.pricingModel);
-    payload.append('description', roomForm.description || '');
-    payload.append('status', roomForm.status || 'available');
-    roomForm.amenities.forEach((amenity, index) => {
-      payload.append(`amenities[${index}]`, amenity);
-    });
-    selectedImages.forEach((image, index) => {
-      payload.append(`images[${index}]`, image);
-    });
-    return payload;
-  };
-
-  const buildUpdatePayload = () => ({
-    room_number: roomForm.roomNumber.trim(),
-    room_type: roomForm.roomType,
-    floor: parseInt(roomForm.floor, 10) || 1,
-    monthly_rate: parseFloat(roomForm.monthlyRate),
-    capacity: parseInt(roomForm.capacity, 10) || 1,
-    pricing_model: roomForm.pricingModel,
-    status: roomForm.status,
-    description: roomForm.description || '',
-    amenities: roomForm.amenities
-  });
-
-  const handleSubmitRoom = async () => {
-    if (!validateForm()) return;
+    setModalLoading(true);
     try {
-      setModalLoading(true);
-      const response =
-        modalMode === 'add'
-          ? await PropertyService.createRoom(buildCreatePayload())
-          : await PropertyService.updateRoom(roomForm.id, buildUpdatePayload());
+      const payload = new FormData();
+      payload.append('property_id', selectedPropertyId);
+      payload.append('room_number', formData.roomNumber.trim());
+      payload.append('room_type', formData.roomType);
+      payload.append('floor', formData.floor);
+      payload.append('capacity', isApartment ? '1' : formData.capacity);
+      payload.append('billing_policy', formData.billingPolicy);
+      payload.append('pricing_model', formData.pricingModel);
+      payload.append('min_stay_days', formData.minStayDays);
+      payload.append('description', formData.description || '');
+      payload.append('status', formData.status);
+      
+      if (formData.monthlyRate) payload.append('monthly_rate', formData.monthlyRate);
+      if (formData.dailyRate) payload.append('daily_rate', formData.dailyRate);
 
-      if (!response.success) {
-        throw new Error(response.error || 'Unable to save room');
+      formData.amenities.forEach((a, i) => payload.append(`amenities[${i}]`, a));
+      formData.rules.forEach((r, i) => payload.append(`rules[${i}]`, r));
+      selectedImages.forEach((img, i) => payload.append(`images[${i}]`, img));
+
+      const res = modalMode === 'add' 
+        ? await PropertyService.createRoom(payload)
+        : await PropertyService.updateRoom(formData.id, payload);
+      
+      if (res.success) {
+        setModalVisible(false);
+        loadRooms();
+      } else {
+        Alert.alert('Error', res.error || 'Failed to save room');
       }
-      closeModal();
-      loadRooms();
-    } catch (err) {
-      Alert.alert('Room Management', err.message || 'Unable to save room');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const confirmDeleteRoom = () => {
-    Alert.alert('Delete Room', 'This room will be permanently removed. Continue?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setModalLoading(true);
-            const response = await PropertyService.deleteRoom(roomForm.id);
-            if (!response.success) {
-              throw new Error(response.error || 'Unable to delete room');
-            }
-            closeModal();
-            loadRooms();
-          } catch (err) {
-            Alert.alert('Delete Room', err.message || 'Unable to delete room');
-          } finally {
-            setModalLoading(false);
-          }
-        }
-      }
-    ]);
-  };
-
-  const openStatusModal = (room) => {
-    setStatusTarget(room);
-    setStatusModalVisible(true);
-  };
-
-  const handleStatusChange = async (status) => {
-    if (!statusTarget) return;
-    try {
-      setStatusModalVisible(false);
-      const response = await PropertyService.updateRoomStatus(statusTarget.id, status);
-      if (!response.success) {
-        throw new Error(response.error || 'Unable to update status');
-      }
-      loadRooms();
-    } catch (err) {
-      Alert.alert('Status Update', err.message || 'Unable to update status');
-    }
-  };
-
   const renderRoomCard = ({ item }) => {
     const badge = statusTokens[item.status] || statusTokens.available;
-    const imageSource = (() => {
-      if (item.images && item.images.length > 0) {
-        const first = item.images[0];
-        if (typeof first === 'string') return { uri: getImageUrl(first) };
-        if (first && (first.image_url || first.url || first.path)) {
-          return { uri: getImageUrl(first.image_url || first.url || first.path) };
-        }
-      }
-      return null;
-    })();
-    const amenities = parseList(item.amenities);
-    const occupantCount = item.occupied ?? item.current_occupancy ?? 0;
-    const capacity = item.capacity ?? item.max_occupants ?? 0;
-    const openSlots = item.available_slots ?? Math.max((capacity || 0) - occupantCount, 0);
+    const cover = item.images?.[0] ? { uri: getImageUrl(typeof item.images[0] === 'string' ? item.images[0] : item.images[0].path) } : null;
+    
     return (
       <View style={styles.roomCard}>
-        {imageSource ? (
-          <Image source={imageSource} style={styles.roomImage} />
-        ) : (
+        {cover ? <Image source={cover} style={styles.roomImage} /> : (
           <View style={[styles.roomImage, { alignItems: 'center', justifyContent: 'center' }]}>
-            <Ionicons name="bed-outline" size={36} color="#94A3B8" />
+            <Ionicons name="bed-outline" size={40} color="#94A3B8" />
           </View>
         )}
         <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
@@ -512,57 +427,24 @@ export default function RoomManagementScreen({ navigation, route }) {
           <View style={styles.roomTopRow}>
             <View>
               <Text style={styles.roomTitle}>Room {item.room_number}</Text>
-              <Text style={styles.roomMeta}>
-                {item.type_label || item.room_type} • {item.floor_label || `Floor ${item.floor || '-'}`}
-              </Text>
+              <Text style={styles.roomMeta}>{item.room_type} • Floor {item.floor}</Text>
             </View>
             <View style={styles.priceBlock}>
-              <Text style={styles.price}>{formatCurrency(item.monthly_rate)}</Text>
-              <Text style={styles.priceCaption}>per month</Text>
+              <Text style={styles.price}>{formatCurrency(item.monthly_rate || item.daily_rate)}</Text>
+              <Text style={styles.priceCaption}>{item.billing_policy === 'daily' ? 'per day' : 'per month'}</Text>
             </View>
           </View>
-          <View style={styles.capacityRow}>
-            <Ionicons name="people" size={16} color="#6B7280" />
-            <Text style={styles.capacityText}>
-              {occupantCount}/{capacity || '—'} occupants
-              {openSlots > 0 ? ` • ${openSlots} slot${openSlots === 1 ? '' : 's'} open` : ''}
-            </Text>
-          </View>
-          {item.tenant ? (
-            <View style={styles.tenantCard}>
-              <Text style={styles.tenantLabel}>Current Tenant(s)</Text>
-              <Text style={styles.tenantText} numberOfLines={2}>
-                {item.tenant}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.tenantCard}>
-              <Text style={styles.tenantLabel}>Current Tenant(s)</Text>
-              <Text style={styles.tenantText} numberOfLines={1}>
-                None assigned
-              </Text>
-            </View>
-          )}
-          {amenities.length > 0 && (
-            <View style={styles.amenitiesRow}>
-              {amenities.slice(0, 3).map((amenity, index) => (
-                <View key={`${amenity}-${index}`} style={styles.amenityChip}>
-                  <Text style={styles.amenityText}>{amenity}</Text>
-                </View>
-              ))}
-              {amenities.length > 3 && (
-                <Text style={{ fontSize: 12, color: '#6B7280', alignSelf: 'center' }}>+{amenities.length - 3}</Text>
-              )}
-            </View>
-          )}
           <View style={styles.roomActions}>
             <TouchableOpacity style={styles.actionButton} onPress={() => openEditModal(item)}>
               <Ionicons name="create-outline" size={18} color="#0369A1" />
               <Text style={styles.actionText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.statusButton]} onPress={() => openStatusModal(item)}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#FEF3C7' }]} 
+              onPress={() => { setStatusTarget(item); setStatusModalVisible(true); }}
+            >
               <Ionicons name="swap-horizontal" size={18} color="#B45309" />
-              <Text style={[styles.actionText, styles.statusButtonText]}>Status</Text>
+              <Text style={[styles.actionText, { color: '#B45309' }]}>Status</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -570,341 +452,346 @@ export default function RoomManagementScreen({ navigation, route }) {
     );
   };
 
-  const renderHeader = () => (
-    <>
-      {!preselectedPropertyId && (
-        <View style={styles.propertySelector}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.propertyScroll}
-          >
-            {properties.map((property) => (
-              <TouchableOpacity
-                key={property.id}
-                activeOpacity={0.9}
-                style={[
-                  styles.propertyChip,
-                  normalizeId(property.id) === normalizeId(selectedPropertyId) && styles.propertyChipActive
-                ]}
-                onPress={() => setSelectedPropertyId(normalizeId(property.id))}
-              >
-                <Text style={styles.propertyChipTitle}>{property.title || property.name || 'Untitled Property'}</Text>
-                <Text style={styles.propertyChipMeta}>
-                  {[property.city, property.province].filter(Boolean).join(', ') || 'No address'}
-                </Text>
-                <Text style={[styles.propertyChipMeta, { marginTop: 8 }]}>Rooms: {property.total_rooms ?? '—'}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Total Rooms</Text>
-          <Text style={styles.statValue}>{stats.total}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Occupied</Text>
-          <Text style={styles.statValue}>{stats.occupied}</Text>
-        </View>
-      </View>
-      <View style={[styles.statsRow, { marginTop: 8 }] }>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Available</Text>
-          <Text style={styles.statValue}>{stats.available}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Maintenance</Text>
-          <Text style={styles.statValue}>{stats.maintenance}</Text>
-        </View>
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {FILTERS.map((chip) => (
-          <TouchableOpacity
-            key={chip.value}
-            style={[styles.filterChip, filter === chip.value && styles.filterChipActive]}
-            onPress={() => setFilter(chip.value)}
-          >
-            <Text style={[styles.filterText, filter === chip.value && { color: '#0F172A' }]}>{chip.label}</Text>
-            {chip.value === 'all' ? (
-              <Text style={styles.filterBadge}>{stats.total}</Text>
-            ) : null}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </>
-  );
-
-  if (loadingProperties && properties.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading properties...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const noProperties = !loadingProperties && properties.length === 0;
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+      
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Room Management</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('MyProperties')}>
-          <Ionicons name="home-outline" size={20} color="#FFFFFF" />
+        <TouchableOpacity style={styles.iconButton} onPress={openAddModal}>
+          <Ionicons name="add" size={32} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
-
-      {noProperties ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="bed-outline" size={48} color="#94A3B8" />
-          <Text style={styles.emptyTitle}>No properties yet</Text>
-          <Text style={styles.emptySubtitle}>Add a property first to start creating rooms.</Text>
-          <TouchableOpacity style={[styles.addButton, { marginTop: 24 }]} onPress={() => navigation.navigate('AddProperty')}>
-            <Ionicons name="add" size={18} color={theme.colors.primary} />
-            <Text style={styles.addButtonText}>Add Property</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredRooms}
-          keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
-          renderItem={renderRoomCard}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />}
-          ListEmptyComponent={
-            loadingRooms ? (
-              <View style={{ paddingTop: 60, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading rooms...</Text>
+      <FlatList
+        data={filteredRooms}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderRoomCard}
+        ListHeaderComponent={(
+          <View>
+            {!preselectedPropertyId && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propertyScroll}>
+                {properties.map(p => (
+                  <TouchableOpacity 
+                    key={p.id} 
+                    style={[styles.propertyChip, normalizeId(p.id) === selectedPropertyId && styles.propertyChipActive]}
+                    onPress={() => setSelectedPropertyId(normalizeId(p.id))}
+                  >
+                    <Text style={styles.propertyChipTitle}>{p.title}</Text>
+                    <Text style={styles.propertyChipMeta}>{p.city}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+            
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Occupied</Text>
+                <Text style={[styles.statValue, { color: '#B91C1C' }]}>{stats.occupied}</Text>
               </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="bed-outline" size={48} color="#94A3B8" />
-                <Text style={styles.emptyTitle}>No rooms yet</Text>
-                <Text style={styles.emptySubtitle}>Add rooms to this property to view them here.</Text>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Available</Text>
+                <Text style={[styles.statValue, { color: '#15803D' }]}>{stats.available}</Text>
               </View>
-            )
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Maintenance</Text>
+                <Text style={[styles.statValue, { color: '#B45309' }]}>{stats.maintenance}</Text>
+              </View>
+            </View>
 
-      {selectedProperty && !noProperties && (
-        <TouchableOpacity style={styles.fab} onPress={openAddModal}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.fabText}>Add Room</Text>
-        </TouchableOpacity>
-      )}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+              {FILTERS.map(f => (
+                <TouchableOpacity 
+                  key={f.value} 
+                  style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
+                  onPress={() => setFilter(f.value)}
+                >
+                  <Text style={[styles.filterText, filter === f.value && { color: '#16A34A' }]}>{f.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRoomsRefresh} />}
+        showsVerticalScrollIndicator={false}
+      />
 
-      <Modal visible={modalVisible} animationType="slide" onRequestClose={closeModal}>
+      {/* Add/Edit Modal */}
+      <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={closeModal} style={styles.modalCloseButton}>
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseButton}>
               <Ionicons name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>{modalMode === 'add' ? 'Add Room' : `Edit Room ${roomForm.roomNumber}`}</Text>
+            <Text style={styles.modalTitle}>{modalMode === 'add' ? 'Add New Room' : 'Edit Room'}</Text>
             <View style={{ width: 42 }} />
           </View>
-          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Basic Details</Text>
-            <Text style={styles.label}>Room Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 301"
-              value={roomForm.roomNumber}
-              onChangeText={(text) => handleFormChange('roomNumber', text)}
-            />
-            <Text style={styles.label}>Room Type</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={roomForm.roomType}
-                onValueChange={(value) => handleFormChange('roomType', value)}
-              >
-                {ROOM_TYPES.filter((type) =>
-                  selectedProperty?.property_type?.toLowerCase() === 'apartment' ? type.value !== 'bedSpacer' : true
-                ).map((type) => (
-                  <Picker.Item key={type.value} label={type.label} value={type.value} />
-                ))}
-              </Picker>
-            </View>
-            <Text style={styles.label}>Monthly Rate (₱)</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={roomForm.monthlyRate}
-              onChangeText={(text) => handleFormChange('monthlyRate', text.replace(/[^0-9.]/g, ''))}
-            />
-            <Text style={styles.label}>Floor</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker selectedValue={roomForm.floor} onValueChange={(value) => handleFormChange('floor', value)}>
-                {FLOORS.map((floor) => (
-                  <Picker.Item key={floor.value} label={floor.label} value={floor.value} />
-                ))}
-              </Picker>
-            </View>
-            <Text style={styles.label}>Capacity</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="number-pad"
-              value={roomForm.capacity}
-              onChangeText={(text) => handleFormChange('capacity', text.replace(/[^0-9]/g, ''))}
-            />
-            <Text style={styles.sectionTitle}>Pricing Model</Text>
-            {roomForm.roomType === 'bedSpacer' ? (
-              <View style={styles.pricingInfoBox}>
-                <Text style={styles.pricingInfoText}>
-                  Bed Spacer rooms use per-bed pricing only. Each tenant pays ₱{roomForm.monthlyRate || '0'} for their individual bed.
-                </Text>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            <Text style={styles.sectionTitle}>Basic Information</Text>
+            
+            {/* Row 1: Room Number | Floor | Room Type */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Room Number <Text style={styles.requiredAsterisk}>*</Text></Text>
+                <TextInput 
+                  style={[styles.input, fieldErrors.roomNumber && { borderColor: '#EF4444' }]} 
+                  value={formData.roomNumber} 
+                  onChangeText={t => handleInputChange('roomNumber', t)}
+                  placeholder="e.g., 301"
+                />
               </View>
-            ) : roomForm.roomType === 'single' ? (
-              <View style={styles.pricingInfoBox}>
-                <Text style={styles.pricingInfoText}>
-                  Single rooms use full room pricing. The tenant pays ₱{roomForm.monthlyRate || '0'}/month.
-                </Text>
-              </View>
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={[styles.pricingCard, roomForm.pricingModel === 'full_room' && styles.pricingCardActive]}
-                  onPress={() => handleFormChange('pricingModel', 'full_room')}
-                >
-                  <Text style={styles.pricingCardTitle}>Full Room Price</Text>
-                  <Text style={styles.pricingCardDesc}>
-                    {parseInt(roomForm.capacity) > 1
-                      ? `Tenants divide ₱${roomForm.monthlyRate || '0'} equally (₱${roomForm.monthlyRate && roomForm.capacity ? Math.round(parseFloat(roomForm.monthlyRate) / parseInt(roomForm.capacity)).toLocaleString() : '0'}/person)`
-                      : 'Single tenant pays full price'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.pricingCard, roomForm.pricingModel === 'per_bed' && styles.pricingCardActive]}
-                  onPress={() => handleFormChange('pricingModel', 'per_bed')}
-                >
-                  <Text style={styles.pricingCardTitle}>Per Bed/Tenant Price</Text>
-                  <Text style={styles.pricingCardDesc}>
-                    Each tenant pays ₱{roomForm.monthlyRate || '0'} for their bed (independent billing)
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-            <Text style={styles.sectionTitle}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              multiline
-              value={roomForm.description}
-              onChangeText={(text) => handleFormChange('description', text)}
-            />
-            <Text style={styles.sectionTitle}>Amenities</Text>
-            {propertyAmenities.length > 0 ? (
-              <View style={styles.pillList}>
-                {propertyAmenities.map((amenity) => (
-                  <TouchableOpacity
-                    key={amenity}
-                    style={[styles.pill, roomForm.amenities.includes(amenity) && styles.pillActive]}
-                    onPress={() => toggleAmenity(amenity)}
-                  >
-                    <Text style={styles.pillText}>{amenity}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.helperText}>No amenities saved for this property yet.</Text>
-            )}
-            <TextInput
-              style={styles.input}
-              placeholder="Add new amenity"
-              value={newAmenity}
-              onChangeText={setNewAmenity}
-              onSubmitEditing={handleAddAmenity}
-            />
-            <TouchableOpacity style={styles.pill} onPress={handleAddAmenity}>
-              <Text style={[styles.pillText, { color: theme.colors.primary }]}>Save Amenity</Text>
-            </TouchableOpacity>
-            {modalMode === 'add' && (
-              <>
-                <Text style={styles.sectionTitle}>Photos</Text>
-                <View style={styles.imageGrid}>
-                  {selectedImages.map((image, index) => (
-                    <View key={`${image.uri}-${index}`} style={styles.imagePreview}>
-                      <Image source={{ uri: image.uri }} style={{ width: '100%', height: '100%' }} />
-                      <TouchableOpacity style={styles.imageRemove} onPress={() => removeSelectedImage(index)}>
-                        <Ionicons name="trash" size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  <TouchableOpacity style={[styles.imagePreview, styles.addImageTile]} onPress={handlePickImages}>
-                    <Ionicons name="add" size={28} color="#94A3B8" />
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-            {modalMode === 'edit' && (
-              <>
-                <Text style={styles.sectionTitle}>Status</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Floor <Text style={styles.requiredAsterisk}>*</Text></Text>
                 <View style={styles.pickerWrapper}>
-                  <Picker selectedValue={roomForm.status} onValueChange={(value) => handleFormChange('status', value)}>
-                    <Picker.Item label="Available" value="available" />
-                    <Picker.Item label="Occupied" value="occupied" />
-                    <Picker.Item label="Maintenance" value="maintenance" />
+                  <Picker selectedValue={formData.floor} onValueChange={v => handleInputChange('floor', v)}>
+                    {FLOORS.map(f => <Picker.Item key={f.value} label={f.label} value={f.value} />)}
                   </Picker>
                 </View>
-              </>
-            )}
-          </ScrollView>
-          <View style={styles.modalActions}>
-            {modalMode === 'edit' ? (
-              <TouchableOpacity
-                style={[styles.dangerButton, { flex: 1 }]}
-                onPress={confirmDeleteRoom}
-                disabled={roomForm.occupied > 0 || modalLoading}
+              </View>
+            </View>
+
+            <Text style={styles.label}>Room Type <Text style={styles.requiredAsterisk}>*</Text></Text>
+            <View style={[styles.pickerWrapper, isBedSpacerProperty && { backgroundColor: '#F3F4F6' }]}>
+              <Picker 
+                selectedValue={formData.roomType} 
+                onValueChange={v => handleInputChange('roomType', v)}
+                enabled={!isBedSpacerProperty}
               >
-                {modalLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Delete</Text>}
+                {roomTypes.map(rt => <Picker.Item key={rt.value} label={rt.label} value={rt.value} />)}
+              </Picker>
+            </View>
+
+            {/* Billing Row */}
+            <Text style={styles.sectionTitle}>Billing & Rates</Text>
+            <Text style={styles.label}>Billing Policy</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker selectedValue={formData.billingPolicy} onValueChange={v => handleInputChange('billingPolicy', v)}>
+                <Picker.Item label="Monthly Rate" value="monthly" />
+                <Picker.Item label="Monthly + Daily" value="monthly_with_daily" />
+                <Picker.Item label="Daily Rate" value="daily" />
+              </Picker>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {(formData.billingPolicy !== 'daily') && (
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Monthly Rate (₱/month) <Text style={styles.requiredAsterisk}>*</Text></Text>
+                  <TextInput 
+                    style={[styles.input, fieldErrors.monthlyRate && { borderColor: '#EF4444' }]} 
+                    keyboardType="numeric" 
+                    value={formData.monthlyRate}
+                    onChangeText={t => handleInputChange('monthlyRate', t)}
+                    placeholder="e.g., 5000"
+                  />
+                </View>
+              )}
+              {(formData.billingPolicy !== 'monthly') && (
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Daily Rate (₱/day) <Text style={styles.requiredAsterisk}>*</Text></Text>
+                  <TextInput 
+                    style={[styles.input, fieldErrors.dailyRate && { borderColor: '#EF4444' }]} 
+                    keyboardType="numeric" 
+                    value={formData.dailyRate}
+                    onChangeText={t => handleInputChange('dailyRate', t)}
+                    placeholder="e.g., 300"
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Min Stay & Capacity Row */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Minimum Stay (days)</Text>
+                <TextInput 
+                  style={[styles.input, fieldErrors.minStayDays && { borderColor: '#EF4444' }]} 
+                  keyboardType="numeric" 
+                  value={formData.minStayDays}
+                  onChangeText={t => handleInputChange('minStayDays', t)}
+                  placeholder="e.g., 30"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={styles.label}>Capacity <Text style={styles.requiredAsterisk}>*</Text></Text>
+                </View>
+                <TextInput 
+                  style={[styles.input, (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && { backgroundColor: '#F3F4F6' }, fieldErrors.capacity && { borderColor: '#EF4444' }]} 
+                  keyboardType="numeric" 
+                  value={formData.capacity}
+                  onChangeText={t => handleInputChange('capacity', t)}
+                  editable={!((isDormitory || isBoarding) && formData.roomType !== 'bedSpacer')}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Pricing Model</Text>
+            <Text style={[styles.helperText, { marginBottom: 12 }]}>
+              {formData.roomType === 'bedSpacer' ? 'Bed Spacer rooms use per-bed pricing only' : 'How should tenants pay for this room?'}
+            </Text>
+            
+            <View style={{ gap: 10 }}>
+              {formData.roomType !== 'bedSpacer' && (
+                <TouchableOpacity 
+                  style={[styles.pricingCard, formData.pricingModel === 'full_room' && styles.pricingCardActive]}
+                  onPress={() => handleInputChange('pricingModel', 'full_room')}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Ionicons name={formData.pricingModel === 'full_room' ? "radio-button-on" : "radio-button-off"} size={20} color={formData.pricingModel === 'full_room' ? "#16A34A" : "#6B7280"} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.pricingCardTitle, formData.pricingModel === 'full_room' && { color: '#16A34A' }]}>Room Price</Text>
+                      <Text style={styles.pricingCardDesc}>
+                        {parseInt(formData.capacity) > 1 
+                          ? `Tenants divide ₱${formData.monthlyRate || '0'} equally (₱${formData.monthlyRate && formData.capacity ? Math.round(parseFloat(formData.monthlyRate) / parseInt(formData.capacity)).toLocaleString() : '0'}/person)`
+                          : 'Single tenant pays full price'}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {(formData.roomType !== 'single' || formData.roomType === 'bedSpacer') && (
+                <TouchableOpacity 
+                  style={[styles.pricingCard, formData.pricingModel === 'per_bed' && styles.pricingCardActive]}
+                  onPress={() => handleInputChange('pricingModel', 'per_bed')}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Ionicons name={formData.pricingModel === 'per_bed' ? "radio-button-on" : "radio-button-off"} size={20} color={formData.pricingModel === 'per_bed' ? "#16A34A" : "#6B7280"} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.pricingCardTitle, formData.pricingModel === 'per_bed' && { color: '#16A34A' }]}>Per Bed/Tenant Price</Text>
+                      <Text style={styles.pricingCardDesc}>Each tenant pays ₱${formData.monthlyRate || '0'} for their bed (independent billing)</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={styles.sectionTitle}>Description (Optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Add room description..."
+              multiline
+              value={formData.description}
+              onChangeText={t => handleInputChange('description', t)}
+            />
+
+            <Text style={styles.sectionTitle}>Room Rules (optional)</Text>
+            <View style={[styles.pillList, { marginBottom: 12 }]}>
+              {propertyRules.map(r => (
+                <TouchableOpacity 
+                  key={r} 
+                  style={[styles.pill, formData.rules.includes(r) && styles.pillActive]}
+                  onPress={() => toggleRule(r)}
+                >
+                  <Text style={styles.pillText}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="Add new rule (e.g., no smoking)"
+                value={newRule}
+                onChangeText={setNewRule}
+              />
+              <TouchableOpacity 
+                style={[styles.pill, { paddingVertical: 0, justifyContent: 'center', borderColor: '#16A34A' }]} 
+                onPress={handleAddRule}
+              >
+                <Ionicons name="add" size={20} color="#16A34A" />
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={[styles.secondaryButton, { flex: 1 }]} onPress={closeModal} disabled={modalLoading}>
-                <Text style={styles.buttonText}>Cancel</Text>
+            </View>
+            <Text style={[styles.helperText, { marginTop: 8 }]}>Select rules to include for this room or add a new rule to the property.</Text>
+
+            <Text style={styles.sectionTitle}>Room Amenities</Text>
+            <View style={[styles.pillList, { marginBottom: 12 }]}>
+              {propertyAmenities.map(a => (
+                <TouchableOpacity 
+                  key={a} 
+                  style={[styles.pill, formData.amenities.includes(a) && styles.pillActive]}
+                  onPress={() => toggleAmenity(a)}
+                >
+                  <Text style={styles.pillText}>{a}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="e.g., Water Heater, Study Lamp"
+                value={newAmenity}
+                onChangeText={setNewAmenity}
+              />
+              <TouchableOpacity 
+                style={[styles.pill, { paddingVertical: 0, justifyContent: 'center', borderColor: '#16A34A' }]} 
+                onPress={handleAddAmenity}
+              >
+                <Ionicons name="add" size={20} color="#16A34A" />
               </TouchableOpacity>
-            )}
-            <TouchableOpacity style={[styles.primaryButton, { flex: 1 }]} onPress={handleSubmitRoom} disabled={modalLoading}>
+            </View>
+            <Text style={[styles.helperText, { marginTop: 8 }]}>Add amenities that will be available in this room and saved to property</Text>
+
+            <Text style={styles.sectionTitle}>Room Images</Text>
+            <View style={styles.imageGrid}>
+              {selectedImages.map((img, i) => (
+                <View key={i} style={styles.imagePreview}>
+                  <Image source={{ uri: img.uri }} style={{ width: '100%', height: '100%' }} />
+                  {i === 0 && (
+                    <View style={{ position: 'absolute', left: 6, top: 6, backgroundColor: '#16A34A', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700' }}>Cover</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity style={styles.imageRemove} onPress={() => setSelectedImages(prev => prev.filter((_, idx) => idx !== i))}>
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {selectedImages.length < 10 && (
+                <TouchableOpacity style={[styles.imagePreview, styles.addImageTile]} onPress={handlePickImages}>
+                  <Ionicons name="camera" size={28} color="#94A3B8" />
+                  <Text style={{ color: '#94A3B8', fontSize: 10, marginTop: 4 }}>Add Image</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[styles.helperText, { marginTop: 8 }]}>PNG, JPG up to 10MB (Max 10 images)</Text>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setModalVisible(false)} disabled={modalLoading}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit} disabled={modalLoading}>
               {modalLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>{modalMode === 'add' ? 'Add Room' : 'Save Changes'}</Text>}
             </TouchableOpacity>
           </View>
         </SafeAreaView>
       </Modal>
 
-      <Modal visible={statusModalVisible} transparent animationType="slide" onRequestClose={() => setStatusModalVisible(false)}>
+      {/* Status Modal */}
+      <Modal visible={statusModalVisible} transparent animationType="fade">
         <View style={styles.statusModalOverlay}>
           <View style={styles.statusSheet}>
-            {['available', 'occupied', 'maintenance'].map((status, index, arr) => (
-              <TouchableOpacity
-                key={status}
-                style={[styles.statusOption, index === arr.length - 1 && styles.statusOptionLast]}
-                onPress={() => handleStatusChange(status)}
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Update Room Status</Text>
+            {Object.keys(statusTokens).map(s => (
+              <TouchableOpacity 
+                key={s} 
+                style={styles.statusOption}
+                onPress={async () => {
+                  const res = await PropertyService.updateRoomStatus(statusTarget.id, s);
+                  if (res.success) { setStatusModalVisible(false); loadRooms(); }
+                }}
               >
-                <Text style={styles.statusOptionText}>{statusTokens[status].label}</Text>
+                <Text style={styles.statusOptionText}>{statusTokens[s].label}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={[styles.statusOption, styles.statusOptionLast]} onPress={() => setStatusModalVisible(false)}>
-              <Text style={[styles.statusOptionText, { color: '#6B7280' }]}>Cancel</Text>
+            <TouchableOpacity style={[styles.statusOption, { borderBottomWidth: 0 }]} onPress={() => setStatusModalVisible(false)}>
+              <Text style={[styles.statusOptionText, { color: '#EF4444' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -912,4 +799,3 @@ export default function RoomManagementScreen({ navigation, route }) {
     </SafeAreaView>
   );
 }
-

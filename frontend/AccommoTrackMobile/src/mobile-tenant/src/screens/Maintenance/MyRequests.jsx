@@ -5,7 +5,7 @@ import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { styles } from '../../../../styles/Tenant/MaintenanceStyles';
 
-export default function MyRequests() {
+export default function MyRequests({ hideHeader = false }) {
   const { theme } = useTheme();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,29 +36,35 @@ export default function MyRequests() {
   };
 
   if (loading) return (
-    <SafeAreaView style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator />
-    </SafeAreaView>
+    <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+    </View>
   );
+
+  const content = (
+    <View style={styles.container}>
+      {!hideHeader && <Text style={[styles.title, { color: theme.colors.text }]}>My Maintenance Requests</Text>}
+      <FlatList
+          data={requests}
+          keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          renderItem={({ item }) => (
+          <View style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
+              <Text style={[styles.requestTitle, { color: theme.colors.text }]}>{item.title || item.subject || 'Maintenance Request'}</Text>
+              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>{item.description || item.note || ''}</Text>
+              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>Status: {item.status || item.request_status || 'Pending'}</Text>
+              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>Created: {item.created_at ? new Date(item.created_at).toLocaleString() : ''}</Text>
+          </View>
+          )}
+      />
+    </View>
+  );
+
+  if (hideHeader) return content;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.container}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>My Maintenance Requests</Text>
-        <FlatList
-            data={requests}
-            keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            renderItem={({ item }) => (
-            <View style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
-                <Text style={[styles.requestTitle, { color: theme.colors.text }]}>{item.title || item.subject || 'Maintenance Request'}</Text>
-                <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>{item.description || item.note || ''}</Text>
-                <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>Status: {item.status || item.request_status || 'Pending'}</Text>
-                <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>Created: {item.created_at ? new Date(item.created_at).toLocaleString() : ''}</Text>
-            </View>
-            )}
-        />
-      </View>
+      {content}
     </SafeAreaView>
   );
 }

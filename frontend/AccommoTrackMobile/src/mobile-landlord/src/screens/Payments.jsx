@@ -41,12 +41,19 @@ export default function Payments({ navigation }) {
     try {
       const res = await PaymentService.getInvoices();
       if (res.success) {
-        setInvoices(res.data || []);
+        // Ensure we have an array
+        let data = res.data;
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          data = data.invoices || data.data || [];
+        }
+        setInvoices(Array.isArray(data) ? data : []);
       } else {
         console.error('Failed to fetch invoices:', res.error);
+        setInvoices([]);
       }
     } catch (error) {
       console.error('Error in fetchInvoices:', error);
+      setInvoices([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -86,6 +93,7 @@ export default function Payments({ navigation }) {
   };
 
   const filteredInvoices = useMemo(() => {
+    if (!Array.isArray(invoices)) return [];
     return invoices.filter(inv => {
       const status = (inv.status || inv.booking?.payment_status || inv.payment_status || 'unpaid').toLowerCase();
       const matchesFilter = activeFilter === 'all' || status === activeFilter;
@@ -95,8 +103,8 @@ export default function Payments({ navigation }) {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       const ref = (inv.reference || inv.id || '').toString().toLowerCase();
-      const tenant = (inv.tenant?.name || '').toLowerCase();
-      const property = (inv.property_title || inv.booking?.property?.title || '').toLowerCase();
+      const tenant = ((inv.tenant?.full_name || `${inv.tenant?.first_name || ''} ${inv.tenant?.last_name || ''}`) || '').toLowerCase();
+      const property = (inv.property?.title || inv.property_title || inv.booking?.property?.title || '').toLowerCase();
       
       return ref.includes(q) || tenant.includes(q) || property.includes(q);
     });
@@ -118,6 +126,9 @@ export default function Payments({ navigation }) {
     const status = item.status || item.booking?.payment_status || item.payment_status || 'unpaid';
     const statusStyle = getStatusStyle(status);
     const amount = item.amount || (item.amount_cents ? item.amount_cents / 100 : 0);
+    const tenantName = item.tenant?.full_name || (item.tenant ? `${item.tenant.first_name} ${item.tenant.last_name}` : '—');
+    const propertyTitle = item.property?.title || item.property_title || item.booking?.property?.title || '—';
+    const roomNumber = item.booking?.room?.room_number || '—';
     
     return (
       <View style={styles.invoiceCard}>
@@ -131,12 +142,12 @@ export default function Payments({ navigation }) {
         <View style={styles.invoiceBody}>
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={16} color="#6B7280" />
-            <Text style={styles.infoText} numberOfLines={1}>{item.tenant?.name || '—'}</Text>
+            <Text style={styles.infoText} numberOfLines={1}>{tenantName}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="business-outline" size={16} color="#6B7280" />
             <Text style={styles.infoText} numberOfLines={1}>
-              {item.property_title || item.booking?.property?.title || '—'}
+              {propertyTitle} {roomNumber !== '—' ? `• Room ${roomNumber}` : ''}
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -169,7 +180,7 @@ export default function Payments({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading payments...</Text>
         </View>
       </SafeAreaView>
@@ -178,7 +189,7 @@ export default function Payments({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -237,8 +248,8 @@ export default function Payments({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchInvoices(true)}
-            colors={['#10b981']}
-            tintColor="#10b981"
+            colors={['#16a34a']}
+            tintColor="#16a34a"
           />
         }
         ListEmptyComponent={
@@ -270,11 +281,20 @@ export default function Payments({ navigation }) {
               <View style={styles.summaryGrid}>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Tenant</Text>
-                  <Text style={styles.summaryValue}>{selectedInvoice?.tenant?.name || '—'}</Text>
+                  <Text style={styles.summaryValue}>
+                    {selectedInvoice?.tenant?.full_name || (selectedInvoice?.tenant ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` : '—')}
+                  </Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Property / Room</Text>
+                  <Text style={styles.summaryValue} numberOfLines={1}>
+                    {selectedInvoice?.property?.title || selectedInvoice?.property_title || '—'} 
+                    {selectedInvoice?.booking?.room?.room_number ? ` (Room ${selectedInvoice.booking.room.room_number})` : ''}
+                  </Text>
                 </View>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Amount</Text>
-                  <Text style={[styles.summaryValue, { color: '#10b981' }]}>
+                  <Text style={[styles.summaryValue, { color: '#16a34a' }]}>
                     ₱{parseFloat(selectedInvoice?.amount || (selectedInvoice?.amount_cents / 100) || 0).toLocaleString()}
                   </Text>
                 </View>

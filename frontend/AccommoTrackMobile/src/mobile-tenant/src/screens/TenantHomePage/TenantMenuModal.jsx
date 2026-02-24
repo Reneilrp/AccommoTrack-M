@@ -22,8 +22,7 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
       'Favorites', 
       'Payments', 
       'Notifications', 
-      'My Maintenance Requests', 
-      'My Addon Requests'
+      'Service Requests'
     ];
     
     if (isGuest && protectedItems.includes(title)) {
@@ -45,11 +44,8 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
       case 'My Bookings':
         navigation.navigate('Main', { screen: 'MyBookings' });
         break;
-      case 'My Maintenance Requests':
-        navigation.navigate('Main', { screen: 'MyMaintenanceRequests' });
-        break;
-      case 'My Addon Requests':
-        navigation.navigate('Main', { screen: 'Addons' });
+      case 'Service Requests':
+        navigation.navigate('Main', { screen: 'ServiceRequests' });
         break;
       case 'Notifications':
         navigation.navigate('Main', { screen: 'Notifications' });

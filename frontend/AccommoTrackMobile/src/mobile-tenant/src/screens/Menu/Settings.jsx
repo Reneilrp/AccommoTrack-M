@@ -1,50 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, RefreshControl, Linking, StatusBar } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../../styles/Menu/Settings.js';
-import { WEB_BASE_URL } from '../../../../config';
-import { useTheme } from '../../../../contexts/ThemeContext';
-import { ListItemSkeleton } from '../../../../components/Skeletons';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
-import Header from '../../components/Header.jsx';
+import ProfileService from '../../../../services/ProfileService';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   
-  const [notifications, setNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [locationServices, setLocationServices] = useState(true);
+  const [notificationSettings, setNotificationSettings] = useState({
+    notifications: true,
+    emailNotifications: true,
+    pushNotifications: true,
+    locationServices: true
+  });
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkGuestMode();
   }, [isGuest]);
 
   const checkGuestMode = async () => {
+    let guest = false;
     if (isGuest !== undefined) {
-      setIsGuestMode(isGuest);
-      return;
+      guest = isGuest;
+    } else {
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        guest = !userJson;
+      } catch (error) {
+        console.error('Error checking guest mode:', error);
+      }
     }
+    setIsGuestMode(guest);
+    
+    if (!guest) {
+      loadSettings();
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const loadSettings = async () => {
     try {
-      const userJson = await AsyncStorage.getItem('user');
-      setIsGuestMode(!userJson);
+      setLoading(true);
+      const res = await ProfileService.getProfile();
+      if (res.success && res.data) {
+        const prefs = res.data.notification_preferences;
+        if (prefs) {
+          const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
+          setNotificationSettings({
+            notifications: parsed.notifications ?? true,
+            emailNotifications: parsed.emailNotifications ?? true,
+            pushNotifications: parsed.pushNotifications ?? true,
+            locationServices: parsed.locationServices ?? true
+          });
+        }
+      }
     } catch (error) {
-      console.error('Error checking guest mode:', error);
+      console.error('Error loading settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = async (key, value) => {
+    if (isGuestMode) return;
+    
+    const newSettings = { ...notificationSettings, [key]: value };
+    setNotificationSettings(newSettings);
+    
+    try {
+      await ProfileService.updateSettings({
+        notification_preferences: newSettings
+      });
+      
+      // Update local storage too for consistency
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        user.notification_preferences = newSettings;
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+      }
+    } catch (error) {
+      console.error('Error updating setting:', error);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // Simulate refresh - reload settings/preferences
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // You can add actual data refresh logic here if needed
+      if (!isGuestMode) {
+        await loadSettings();
+      }
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
@@ -58,7 +104,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         navigation.navigate('Profile');
         break;
       case "Notification Preferences":
-        navigation.navigate('NotificationPreferences');
+        // Scroll to notifications or navigate if separate
         break;
       case "Account Security":
         navigation.navigate('UpdatePassword');
@@ -105,27 +151,6 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           onPress: () => {
             // Open web admin portal for landlord registration
             Linking.openURL(`${WEB_BASE_URL}/become-landlord`);
-          }
-        }
-      ]
-    );
-  };
-
-  const showPostRegistrationOptions = () => {
-    Alert.alert(
-      'Already Registered?',
-      'If you\'ve created your landlord account on the web portal, you can now login here in the app.',
-      [
-        { text: 'Stay as Guest', style: 'cancel' },
-        {
-          text: 'Login as Landlord',
-          onPress: () => {
-            // Navigate to auth screen
-            if (onLoginPress) {
-              onLoginPress();
-            } else {
-              navigation.navigate('Auth');
-            }
           }
         }
       ]
@@ -197,7 +222,22 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       {
         title: "Notifications",
         items: [
-          { id: 7, label: "Notification Preferences", icon: "notifications-outline", arrow: true },
+          { 
+            id: 8, 
+            label: "Push Notifications", 
+            icon: "notifications-outline", 
+            toggle: true, 
+            value: notificationSettings.pushNotifications,
+            onChange: (val) => updateSetting('pushNotifications', val)
+          },
+          { 
+            id: 9, 
+            label: "Email Notifications", 
+            icon: "mail-outline", 
+            toggle: true, 
+            value: notificationSettings.emailNotifications,
+            onChange: (val) => updateSetting('emailNotifications', val)
+          },
         ]
       },
       {
@@ -217,7 +257,6 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
-        {/* {Stand Header Component} */}
         <Header
           title="Settings"
           onBack={navigation.canGoBack() ? () => navigation.goBack() : null}
@@ -227,9 +266,6 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       <View style={homeStyles.flex1}>
         {loading ? (
           <ScrollView style={homeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
             <ListItemSkeleton />
             <ListItemSkeleton />
             <ListItemSkeleton />
@@ -278,7 +314,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                         <Switch
                         value={item.value}
                         onValueChange={item.onChange}
-                        trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+                        trackColor={{ false: '#D1D5DB', true: theme.colors.brand200 }}
                         thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
                       />
                     ) : (
@@ -315,8 +351,6 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           </ScrollView>
         )}
       </View>
-
-      {/* Bottom navigation is provided by TenantNavigator/TenantMain - remove local nav */}
     </View>
   );
 }

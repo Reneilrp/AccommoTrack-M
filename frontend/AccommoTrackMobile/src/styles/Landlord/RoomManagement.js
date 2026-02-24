@@ -6,10 +6,9 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6'
   },
   header: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 8,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -17,13 +16,13 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center'
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -44,17 +43,17 @@ export const styles = StyleSheet.create({
     color: '#16A34A'
   },
   listContent: {
-    paddingBottom: 120
+    paddingBottom: 40
   },
   propertySelector: {
     marginTop: 16,
-    paddingHorizontal: 16
   },
   propertyScroll: {
+    paddingHorizontal: 16,
     paddingVertical: 12
   },
   propertyChip: {
-    width: 250,
+    width: 150,
     padding: 16,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
@@ -84,28 +83,32 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginTop: 12,
-    gap: 12
+    gap: 10
   },
   statCard: {
     flex: 1,
     borderRadius: 16,
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
-    elevation: 1
+    elevation: 1,
+    alignItems: 'center'
   },
   statLabel: {
-    fontSize: 13,
-    color: '#6B7280'
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+    textAlign: 'center'
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#111827',
-    marginTop: 6
+    marginTop: 4
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -236,13 +239,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#D1FAE5'
+    borderColor: '#DCFCE7'
   },
   amenityText: {
     fontSize: 12,
-    color: '#047857',
+    color: '#15803D',
     fontWeight: '600'
   },
   roomActions: {
@@ -286,27 +289,6 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     marginTop: 6
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 999,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6
-  },
-  fabText: {
-    color: '#FFFFFF',
-    fontWeight: '700'
   },
   errorBanner: {
     marginHorizontal: 16,
@@ -423,7 +405,8 @@ export const styles = StyleSheet.create({
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 12
+    marginTop: 12,
+    gap: 12
   },
   imagePreview: {
     width: 100,
@@ -431,8 +414,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#F1F5F9',
-    marginRight: 12,
-    marginBottom: 12
+    position: 'relative'
   },
   addImageTile: {
     borderWidth: 2,
@@ -482,7 +464,8 @@ export const styles = StyleSheet.create({
     right: 8,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 999,
-    padding: 4
+    padding: 4,
+    zIndex: 10
   },
   modalActions: {
     flexDirection: 'row',
@@ -546,5 +529,18 @@ export const styles = StyleSheet.create({
   },
   statusOptionLast: {
     borderBottomWidth: 0
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6'
+  },
+  ruleText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151'
   }
 });

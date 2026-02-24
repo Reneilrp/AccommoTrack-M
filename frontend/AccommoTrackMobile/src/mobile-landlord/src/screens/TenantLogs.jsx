@@ -121,7 +121,7 @@ export default function TenantLogs({ route, navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading logs...</Text>
         </View>
       </SafeAreaView>
@@ -132,7 +132,7 @@ export default function TenantLogs({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -145,7 +145,7 @@ export default function TenantLogs({ route, navigation }) {
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={['#10b981']} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={['#16a34a']} />
         }
       >
         {/* Profile Card */}
@@ -171,7 +171,7 @@ export default function TenantLogs({ route, navigation }) {
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Outstanding</Text>
-              <Text style={[styles.infoValue, { color: dueAmount > 0 ? '#DC2626' : '#10b981' }]}>
+              <Text style={[styles.infoValue, { color: dueAmount > 0 ? '#DC2626' : '#16a34a' }]}>
                 ₱{dueAmount.toLocaleString()}
               </Text>
             </View>

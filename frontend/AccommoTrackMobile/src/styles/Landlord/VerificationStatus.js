@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   backButton: {
     padding: 4,
@@ -144,14 +144,14 @@ export const styles = StyleSheet.create({
     color: '#EF4444',
   },
   resubmitButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 10,
-    shadowColor: '#10b981',
+    shadowColor: '#16a34a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -266,7 +266,7 @@ export const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 13,
-    color: '#10b981',
+    color: '#16a34a',
     marginTop: 4,
   },
   formContainer: {
@@ -308,7 +308,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F0FDF4',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -317,7 +317,7 @@ export const styles = StyleSheet.create({
   uploadBoxText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10b981',
+    color: '#16a34a',
   },
   selectedFile: {
     marginTop: 8,
@@ -348,7 +348,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     alignItems: 'center',
     justifyContent: 'center',
   },

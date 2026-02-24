@@ -6,10 +6,9 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6'
   },
   header: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 20,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 8,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -17,16 +16,67 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center'
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center'
   },
+  
+  // Step Indicator
+  stepsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB'
+  },
+  stepWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB'
+  },
+  stepCircleActive: {
+    backgroundColor: '#16A34A',
+    borderColor: '#16A34A'
+  },
+  stepCircleCompleted: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#16A34A'
+  },
+  stepNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280'
+  },
+  stepNumberActive: {
+    color: '#FFFFFF'
+  },
+  stepLine: {
+    width: 40,
+    height: 2,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 8
+  },
+  stepLineActive: {
+    backgroundColor: '#16A34A'
+  },
+
   formContent: {
     padding: 16
   },
@@ -48,9 +98,15 @@ export const styles = StyleSheet.create({
     marginBottom: 12
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: '#111827'
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+    marginBottom: 16
   },
   label: {
     fontSize: 13,
@@ -90,11 +146,15 @@ export const styles = StyleSheet.create({
     height: 280,
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 12
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
   },
   pillGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16
   },
   pill: {
     paddingHorizontal: 12,
@@ -103,8 +163,6 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
-    marginRight: 8,
-    marginBottom: 8
   },
   pillActive: {
     borderColor: '#16A34A',
@@ -117,16 +175,16 @@ export const styles = StyleSheet.create({
   },
   imagesRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    gap: 10
   },
   imagePreview: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     borderRadius: 12,
-    marginRight: 10,
-    marginBottom: 10,
     backgroundColor: '#E5E7EB',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    position: 'relative'
   },
   imageRemove: {
     position: 'absolute',
@@ -137,46 +195,200 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    zIndex: 10
   },
   addImageButton: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     borderRadius: 12,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: '#CBD5F5',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC'
   },
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8
+    paddingVertical: 10,
+    gap: 10
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 8
+    backgroundColor: '#F3F4F6'
   },
-  actionButton: {
-    marginTop: 12,
-    backgroundColor: '#16A34A',
+  
+  // Navigation Footer
+  footer: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12
+  },
+  prevButton: {
+    flex: 1,
     paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center'
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8
   },
-  actionButtonText: {
-    color: '#FFFFFF',
+  nextButton: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8
+  },
+  draftButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  buttonText: {
     fontSize: 16,
-    fontWeight: '600'
+    fontWeight: '600',
+    color: '#374151'
+  },
+  buttonTextPrimary: {
+    color: '#FFFFFF'
+  },
+  buttonTextDraft: {
+    color: '#16A34A'
+  },
+
+  errorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   },
   errorText: {
     fontSize: 13,
     color: '#B91C1C',
-    marginBottom: 12
+    flex: 1
   },
+  
+  verificationWarning: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E'
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#B45309',
+    marginTop: 2,
+    lineHeight: 16
+  },
+
   requiredAsterisk: {
     color: '#DC2626',
   },
+
+  credentialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 8,
+    gap: 10
+  },
+  credentialName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151'
+  },
+  removeCredential: {
+    padding: 4
+  },
+
+  // Enhanced Success Modal
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24
+  },
+  successModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12
+  },
+  successIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center'
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32
+  },
+  successButton: {
+    backgroundColor: '#16A34A',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    width: '100%',
+    alignItems: 'center'
+  },
+  successButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700'
+  }
 });

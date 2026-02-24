@@ -3,121 +3,56 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB'
+    backgroundColor: '#F3F4F6'
   },
   header: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 8,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    paddingBottom: 16,
-    backgroundColor: '#10b981',
+    justifyContent: 'space-between'
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
-    textAlign: 'center',
+    flex: 1,
+    textAlign: 'center'
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 48,
+    height: 48,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
-  iconButtonNoBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1F2937',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorBanner: {
-    margin: 16,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA'
-  },
-  errorText: {
-    color: '#991B1B',
-    fontSize: 13
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    margin: 16,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB'
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 12
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 4
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 30,
-    backgroundColor: '#16A34A',
-    gap: 8
-  },
-  primaryBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '600'
-  },
+  // Property Carousel
   propertySelector: {
-    paddingVertical: 12
+    marginTop: 16
   },
   propertyScroll: {
     paddingHorizontal: 16,
-    gap: 12
+    paddingVertical: 12
   },
   propertyChip: {
-    width: 220,
+    width: 200,
     padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF'
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2
   },
   propertyChipActive: {
-    borderColor: '#16A34A',
-    backgroundColor: '#DCFCE7'
+    borderWidth: 2,
+    borderColor: '#16A34A'
   },
   propertyChipTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#0F172A'
   },
   propertyChipMeta: {
@@ -125,65 +60,69 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4
   },
+  // Stats Grid (5 columns)
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 12
+    marginTop: 8,
+    gap: 8,
+    flexWrap: 'wrap'
   },
   statCard: {
-    width: '48%',
+    flex: 1,
+    minWidth: '30%',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'center'
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#10b981',
-    marginTop: 6,
-    textAlign: 'center',
+    color: '#0F172A',
+    marginTop: 2
   },
+  // Search Bar
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB'
   },
   searchInput: {
     flex: 1,
+    marginLeft: 10,
     fontSize: 14,
     color: '#0F172A'
   },
+  // Filters
   filterRow: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 16,
     gap: 8
   },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: 99,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF'
+    borderColor: '#E5E7EB'
   },
   filterChipActive: {
     backgroundColor: '#DCFCE7',
@@ -191,64 +130,56 @@ export const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: 13,
-    color: '#475569',
-    fontWeight: '500'
+    fontWeight: '600',
+    color: '#64748B'
   },
   filterTextActive: {
-    color: '#065F46'
+    color: '#166534'
   },
+  // Tenant Card
   listContent: {
-    padding: 16,
-    paddingBottom: 32,
-    gap: 12
-  },
-  centerState: {
-    marginTop: 40,
-    alignItems: 'center',
-    gap: 12
-  },
-  centerText: {
-    fontSize: 14,
-    color: '#6B7280'
+    paddingBottom: 40
   },
   tenantCard: {
-    flexDirection: 'row',
-    padding: 16,
-    borderRadius: 20,
     backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 14
+    borderColor: '#F1F5F9',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4
   },
   avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center'
   },
   avatarText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#047857'
+    color: '#166534'
   },
   tenantContent: {
     flex: 1
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start'
-  },
   tenantName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#0F172A'
   },
   tenantEmail: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 2
   },
   roomRow: {
@@ -259,223 +190,250 @@ export const styles = StyleSheet.create({
   },
   roomText: {
     fontSize: 13,
-    color: '#475569'
+    fontWeight: '600',
+    color: '#16A34A'
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9'
   },
   metaLabel: {
-    fontSize: 11,
-    color: '#94A3B8'
+    fontSize: 10,
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    fontWeight: '700'
   },
   metaValue: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#0F172A',
     marginTop: 2
   },
   paymentBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6
   },
   paymentText: {
-    fontSize: 12,
-    fontWeight: '600'
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase'
   },
   cardActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 14
+    marginTop: 16,
+    gap: 10
+  },
+  primaryBtn: {
+    flex: 1,
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6
+  },
+  primaryBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
   },
   secondaryBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#F1F5F9'
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6
   },
   secondaryBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0369A1'
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 13
   },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#DC2626'
-  },
-  dangerBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '600'
-  },
+  // Modal
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB'
+    backgroundColor: '#FFFFFF'
   },
   modalHeader: {
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB'
+    borderBottomColor: '#F1F5F9'
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB'
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#0F172A'
-  },
-  modalContent: {
-    padding: 20,
-    gap: 20
-  },
-  detailHero: {
-    alignItems: 'center',
-    gap: 10
-  },
-  avatarLarge: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#D1FAE5',
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  avatarLargeText: {
-    fontSize: 24,
+  modalTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#047857'
+    color: '#0F172A'
+  },
+  modalContent: {
+    padding: 24
+  },
+  detailHero: {
+    alignItems: 'center',
+    marginBottom: 24
+  },
+  avatarLarge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16
+  },
+  avatarLargeText: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#166534'
   },
   detailName: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '800',
     color: '#0F172A'
   },
   detailEmail: {
-    fontSize: 13,
-    color: '#475569'
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 4
   },
   detailTags: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8
+    gap: 12,
+    marginTop: 16
   },
   detailTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#F0FDF4'
+    borderRadius: 8,
+    gap: 6
   },
   detailTagText: {
     fontSize: 12,
-    color: '#065F46'
+    fontWeight: '600',
+    color: '#475569'
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9'
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16
+  },
+  assignmentCard: {
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB'
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
-    marginBottom: 12
-  },
-  assignmentCard: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0'
-  },
   assignmentTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#0F172A'
   },
   assignmentMeta: {
     fontSize: 13,
-    color: '#475569',
+    color: '#64748B',
     marginTop: 4
-  },
-  assignmentActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16
   },
   assignmentEmpty: {
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF'
+    padding: 24,
+    borderStyle: 'dashed'
   },
   assignmentEmptyText: {
-    fontSize: 13,
-    color: '#6B7280'
+    marginTop: 8,
+    color: '#94A3B8',
+    fontSize: 14
   },
   detailList: {
-    gap: 4
+    gap: 12
   },
   detailLabel: {
-    fontSize: 12,
-    color: '#94A3B8'
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    textTransform: 'uppercase'
   },
   detailValue: {
-    fontSize: 14,
-    color: '#0F172A',
-    marginBottom: 6
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A'
   },
   helperText: {
-    fontSize: 12,
-    color: '#94A3B8'
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB'
-  },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF'
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    color: '#94A3B8',
     fontSize: 14,
+    fontStyle: 'italic'
+  },
+  // States
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40
+  },
+  centerText: {
+    marginTop: 12,
+    color: '#64748B',
+    fontSize: 14
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     color: '#0F172A',
-    backgroundColor: '#FFFFFF'
+    marginTop: 16
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    margin: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA'
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 13,
+    fontWeight: '500'
   }
 });

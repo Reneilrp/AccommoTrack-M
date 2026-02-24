@@ -116,6 +116,22 @@ export default function PaymentDetail() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.detailContainer}>
+          <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 8 }]}>Details</Text>
+            <View style={homeStyles.rowBetween}>
+              <Text style={{ color: theme.colors.textSecondary }}>Property</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.property?.title || invoice.booking?.property?.title || '—'}</Text>
+            </View>
+            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
+              <Text style={{ color: theme.colors.textSecondary }}>Room</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.booking?.room?.room_number || '—'}</Text>
+            </View>
+            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
+              <Text style={{ color: theme.colors.textSecondary }}>Issued At</Text>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.issued_at ? new Date(invoice.issued_at).toLocaleDateString() : '—'}</Text>
+            </View>
+          </View>
+
           <Text style={[styles.invoiceTitle, { color: theme.colors.text }]}>{invoice.description || 'Invoice'}</Text>
 
           <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface }]}>

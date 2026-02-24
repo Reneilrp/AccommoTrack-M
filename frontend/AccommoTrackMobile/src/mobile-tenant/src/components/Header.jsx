@@ -6,7 +6,7 @@ import homeStyles from '../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { navigationRef } from '../../../navigation/RootNavigation';
 
-export default function Header({ onMenuPress, onProfilePress, isGuest, title: propTitle, showProfile: propShowProfile, onBack }) {
+export default function Header({ onMenuPress, onProfilePress, isGuest, title: propTitle, showProfile: propShowProfile, onBack, notificationCount = 0 }) {
   const { theme } = useTheme();
 
   // Determine current route name if navigationRef is ready
@@ -45,7 +45,29 @@ export default function Header({ onMenuPress, onProfilePress, isGuest, title: pr
         <View style={homeStyles.headerSide}>
           {showProfile && (
             <TouchableOpacity style={homeStyles.headerIcon} onPress={onProfilePress}>
-              <Ionicons name="person-circle-outline" size={22} color={theme.colors.textInverse} />
+              <View>
+                <Ionicons name="notifications-outline" size={22} color={theme.colors.textInverse} />
+                {notificationCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    backgroundColor: '#EF4444',
+                    borderRadius: 10,
+                    minWidth: 16,
+                    height: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingHorizontal: 4,
+                    borderWidth: 1.5,
+                    borderColor: theme.colors.primary
+                  }}>
+                    <Text style={{ color: 'white', fontSize: 9, fontWeight: 'bold' }}>
+                      {notificationCount > 99 ? '99+' : notificationCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           )}
         </View>

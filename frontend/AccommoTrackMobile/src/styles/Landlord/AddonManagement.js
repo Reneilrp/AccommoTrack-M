@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   backButton: {
     padding: 4,
@@ -37,7 +37,7 @@ export const styles = StyleSheet.create({
   },
   addServiceButton: {
     marginTop: 12,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -86,7 +86,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
   activeTabBadge: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   tabBadgeText: {
     fontSize: 10,
@@ -240,7 +240,7 @@ export const styles = StyleSheet.create({
   addonPrice: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#16a34a',
     marginTop: 12,
   },
   priceUnit: {
@@ -312,7 +312,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingVertical: 8,
     borderRadius: 8,
     gap: 4,
@@ -469,12 +469,12 @@ export const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   checkboxLabel: {
     fontSize: 14,
@@ -503,7 +503,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     alignItems: 'center',
   },
   submitButtonText: {

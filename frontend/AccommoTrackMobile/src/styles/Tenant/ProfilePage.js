@@ -6,7 +6,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   header: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -48,13 +48,13 @@ export const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
   },
   changePhotoButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -168,7 +168,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleActive: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   toggleCircle: {
     width: 24,

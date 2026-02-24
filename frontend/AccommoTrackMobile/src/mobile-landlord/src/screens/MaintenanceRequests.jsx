@@ -65,7 +65,7 @@ export default function MaintenanceRequests() {
     switch (status) {
       case 'pending': return '#F59E0B'; // yellow
       case 'in_progress': return '#3B82F6'; // blue
-      case 'completed': return '#10B981'; // green
+      case 'completed': return '#16a34a'; // green
       case 'cancelled': return '#6B7280'; // gray
       default: return '#6B7280';
     }
@@ -258,7 +258,7 @@ export default function MaintenanceRequests() {
                 )}
                 {selectedRequest.status === 'in_progress' && (
                   <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+                    style={[styles.actionButton, { backgroundColor: '#16a34a' }]}
                     onPress={() => handleUpdateStatus(selectedRequest.id, 'completed')}
                     disabled={updating}
                   >

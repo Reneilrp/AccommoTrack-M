@@ -257,7 +257,7 @@ export default function MyPropertiesScreen({ navigation }) {
                 style={[styles.filterChip, active ? styles.filterActive : styles.filterInactive]}
                 onPress={() => setStatusFilter(tab.key)}
               >
-                <Text style={[styles.filterLabel, { color: active ? '#065F46' : '#1F2937' }]}>{tab.label}</Text>
+                <Text style={[styles.filterLabel, { color: active ? '#166534' : '#1F2937' }]}>{tab.label}</Text>
               </TouchableOpacity>
             );
           })}

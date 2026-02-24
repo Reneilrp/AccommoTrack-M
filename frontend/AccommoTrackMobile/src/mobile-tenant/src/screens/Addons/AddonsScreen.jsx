@@ -20,7 +20,7 @@ import { showSuccess, showError } from '../../../../utils/toast';
 import { styles } from '../../../../styles/Tenant/AddonsStyles';
 import Header from '../../components/Header.jsx';
 
-export default function AddonsScreen() {
+export default function AddonsScreen({ hideHeader = false }) {
   const { theme } = useTheme();
   const route = useRoute();
   const navigation = useNavigation();
@@ -117,16 +117,8 @@ export default function AddonsScreen() {
     </View>
   );
 
-  return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-      
-      <Header 
-        title="Add-ons & Services"
-        onBack={() => navigation.goBack()}
-        showProfile={false}
-      />
-
+  const content = (
+    <View style={{ flex: 1 }}>
       <FlatList
         data={addons}
         keyExtractor={(item) => item.id.toString()}
@@ -224,6 +216,21 @@ export default function AddonsScreen() {
             </View>
         )}
       />
+    </View>
+  );
+
+  if (hideHeader) return content;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+      
+      <Header 
+        title="Add-ons & Services"
+        onBack={() => navigation.goBack()}
+        showProfile={false}
+      />
+      {content}
     </View>
   );
 }

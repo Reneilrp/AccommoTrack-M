@@ -379,9 +379,9 @@ export default function AddonManagement({ route, navigation }) {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading add-on data...</Text>
         </View>
       </SafeAreaView>
@@ -390,7 +390,7 @@ export default function AddonManagement({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -450,8 +450,8 @@ export default function AddonManagement({ route, navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchData(true)}
-            colors={['#10b981']}
-            tintColor="#10b981"
+            colors={['#16a34a']}
+            tintColor="#16a34a"
           />
         }
       >

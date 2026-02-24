@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   backButton: {
     padding: 4,
@@ -49,12 +49,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
   },
   avatarText: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#10b981',
+    color: '#16a34a',
   },
   tenantName: {
     fontSize: 20,
@@ -140,7 +140,7 @@ export const styles = StyleSheet.create({
     color: '#64748B',
   },
   activeFilterTabText: {
-    color: '#10b981',
+    color: '#16a34a',
   },
   paymentCard: {
     backgroundColor: '#FFFFFF',

@@ -6,10 +6,12 @@ const ProfileService = {
    */
   async getProfile() {
     try {
-      const response = await api.get('/me');
+      // Use tenant-specific profile endpoint if it's a tenant, otherwise fallback to /me
+      const response = await api.get('/tenant/profile').catch(() => api.get('/me'));
+      
       return {
         success: true,
-        data: response.data.user
+        data: response.data.user || response.data
       };
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -28,6 +30,7 @@ const ProfileService = {
   async updateProfile(profileData, image = null) {
     try {
       let response;
+      const endpoint = '/tenant/profile';
       
       if (image) {
         // Use FormData for image upload
@@ -36,7 +39,11 @@ const ProfileService = {
         // Append profile data
         Object.keys(profileData).forEach(key => {
           if (profileData[key] !== null && profileData[key] !== undefined) {
-            formData.append(key, profileData[key]);
+            if (typeof profileData[key] === 'object' && !Array.isArray(profileData[key])) {
+                formData.append(key, JSON.stringify(profileData[key]));
+            } else {
+                formData.append(key, profileData[key]);
+            }
           }
         });
         
@@ -51,19 +58,21 @@ const ProfileService = {
           type: type,
         });
         
-        response = await api.post('/me', formData, {
+        // Laravel requires POST for FormData with PUT method spoofing
+        formData.append('_method', 'PUT');
+        response = await api.post(endpoint, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
       } else {
         // Regular JSON update without image
-        response = await api.put('/me', profileData);
+        response = await api.put(endpoint, profileData);
       }
       
       return {
         success: true,
-        data: response.data.user,
+        data: response.data.user || response.data,
         message: response.data.message || 'Profile updated successfully'
       };
     } catch (error) {
@@ -72,6 +81,26 @@ const ProfileService = {
         success: false,
         error: error.response?.data?.message || 'Failed to update profile',
         errors: error.response?.data?.errors || {}
+      };
+    }
+  },
+
+  /**
+   * Update settings specifically (notifications, etc)
+   */
+  async updateSettings(settings) {
+    try {
+      const response = await api.put('/tenant/profile', settings);
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        message: 'Settings updated successfully'
+      };
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to update settings'
       };
     }
   },

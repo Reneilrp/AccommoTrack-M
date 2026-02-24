@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   backButton: {
     padding: 4,
@@ -57,8 +57,8 @@ export const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   activeFilterChip: {
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
+    backgroundColor: '#16a34a',
+    borderColor: '#16a34a',
   },
   filterText: {
     fontSize: 13,
@@ -94,7 +94,7 @@ export const styles = StyleSheet.create({
   logAmount: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#16a34a',
     marginLeft: 8,
   },
   logMeta: {

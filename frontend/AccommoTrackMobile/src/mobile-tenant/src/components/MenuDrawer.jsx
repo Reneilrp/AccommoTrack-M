@@ -25,8 +25,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
   const allMenuItems = [
     { id: 1, title: 'Settings', icon: 'settings-outline', color: theme.colors.primary },
     { id: 2, title: 'Notifications', icon: 'notifications-outline', color: theme.colors.warning },
-    { id: 3, title: 'My Maintenance Requests', icon: 'construct-outline', color: theme.colors.primary },
-    { id: 4, title: 'My Addon Requests', icon: 'cube-outline', color: theme.colors.primary },
+    { id: 3, title: 'Service Requests', icon: 'cube-outline', color: theme.colors.primary },
     { id: 5, title: 'Payments', icon: 'wallet-outline', color: theme.colors.primary },
     { id: 6, title: 'Logout', icon: 'log-out-outline', color: theme.colors.error },
   ];
@@ -104,7 +103,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
 
     // If guest, exclude protected modules, but KEEP 'Settings' in the list if it's there
     if (isGuest) {
-      const protectedTitles = ['Notifications', 'My Maintenance Requests', 'My Addon Requests', 'Payments'];
+      const protectedTitles = ['Notifications', 'Service Requests', 'Payments'];
       if (protectedTitles.includes(item.title)) return false;
       return true; // includes Settings if it's in allMenuItems and not excluded
     }

@@ -309,12 +309,12 @@ export default function WalletScreen() {
 
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: '#D1FAE5' }]}>
+        <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
           <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
-          <Text style={[styles.statValue, { color: '#065F46' }]}>
+          <Text style={[styles.statValue, { color: '#166534' }]}>
             {formatCurrency(stats?.totalPaidThisMonth || 0)}
           </Text>
-          <Text style={[styles.statLabel, { color: '#047857' }]}>Paid This Month</Text>
+          <Text style={[styles.statLabel, { color: '#15803D' }]}>Paid This Month</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>

@@ -7,9 +7,8 @@ export const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#16A34A',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 8,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -17,13 +16,13 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center'
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center'
   },

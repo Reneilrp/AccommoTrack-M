@@ -80,7 +80,7 @@ export default function About({ navigation }) {
         </View>
 
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>© 2025 AccommoTrack. All rights reserved.</Text>
+          <Text style={styles.versionText}>© 2026 AccommoTrack. All rights reserved.</Text>
         </View>
 
         <View style={{ height: 50 }} />

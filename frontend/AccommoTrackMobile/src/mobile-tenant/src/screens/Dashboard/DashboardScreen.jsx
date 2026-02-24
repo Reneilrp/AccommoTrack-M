@@ -145,6 +145,15 @@ const DashboardScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Header
+        onMenuPress={() => navigation.openDrawer()}
+        onProfilePress={() => navigation.navigate('Notifications')}
+        isGuest={false}
+        title="Dashboard"
+        showProfile={true}
+        notificationCount={stats?.notifications?.unread || 0}
+      />
+
       {/* Content Area */}
       <View style={styles.contentContainer}>
         {loading ? (

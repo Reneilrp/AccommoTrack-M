@@ -47,43 +47,38 @@ export const styles = StyleSheet.create({
     marginLeft: 6
   },
   header: {
-    position: 'relative',
     backgroundColor: '#16A34A',
-    paddingHorizontal: 16,
-    height: 56,
+    paddingHorizontal: 8,
+    height: 60,
     flexDirection: 'row',
-    justifyContent: 'flex-start',
     alignItems: 'center',
-    gap: 12
+    justifyContent: 'space-between',
   },
   menuButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'transparent',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center'
   },
   headerTextContainer: {
     flex: 1,
-    marginLeft: 12
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   greeting: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#FFFFFF',
     opacity: 0.9
   },
   userName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginTop: 4
+    textAlign: 'center'
   },
   notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -408,7 +403,7 @@ export const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#10B981'
+    backgroundColor: '#16a34a'
   },
   performanceRow: {
     flexDirection: 'row',

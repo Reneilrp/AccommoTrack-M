@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
   header: {
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -67,7 +67,7 @@ export const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#10b981', 
+    backgroundColor: '#16a34a', 
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -92,7 +92,7 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -160,7 +160,7 @@ export const styles = StyleSheet.create({
   },
   fieldValueEditable: {
     borderBottomWidth: 1.5,
-    borderBottomColor: '#10b981',
+    borderBottomColor: '#16a34a',
     paddingBottom: 4,
   },
 

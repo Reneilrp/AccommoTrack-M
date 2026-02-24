@@ -33,7 +33,7 @@ const BlockedUserModal = ({ visible, onClose }) => {
           <View style={{ width: '100%', gap: 12 }}>
             <TouchableOpacity 
               onPress={handleContactSupport}
-              style={{ backgroundColor: '#10B981', paddingVertical: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+              style={{ backgroundColor: '#16a34a', paddingVertical: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
             >
               <Ionicons name="mail-outline" size={20} color="white" />
               <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Contact Support</Text>

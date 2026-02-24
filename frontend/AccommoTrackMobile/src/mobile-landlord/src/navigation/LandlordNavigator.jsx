@@ -55,7 +55,7 @@ const CustomTabBarButton = ({ children, onPress }) => (
         borderRadius: 32,
         backgroundColor: COLORS.primary,
         borderWidth: 4,
-        borderColor: '#F8FAFC', // Matches app background
+        borderColor: COLORS.background, // Uses theme background
         justifyContent: 'center',
         alignItems: 'center',
       }}
@@ -115,7 +115,7 @@ function MainTabs({ onLogout }) {
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: COLORS.border,
           paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
           height: 60 + insets.bottom,
@@ -196,6 +196,7 @@ export default function LandlordNavigator({ onLogout }) {
       />
       
       {/* Additional Screens */}
+      <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
       <Stack.Screen name="DashboardPage" component={LandlordDashboard} options={{ animation: 'none' }}/>
       <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
       <Stack.Screen name="RoomManagement" component={RoomManagement} options={{ animation: 'none' }}/>

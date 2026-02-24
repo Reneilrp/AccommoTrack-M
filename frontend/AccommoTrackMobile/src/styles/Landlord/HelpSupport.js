@@ -9,7 +9,7 @@ export const styles = StyleSheet.create({
     paddingTop: 40, 
     paddingBottom: 15,
     paddingHorizontal: 16,
-    backgroundColor: '#10b981', 
+    backgroundColor: '#16a34a', 
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

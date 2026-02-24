@@ -218,7 +218,7 @@ export default function BookingDetails() {
 
     const getStatusStyles = (status) => {
         const s = (status || '').toLowerCase();
-        if (s === 'confirmed' || s === 'completed' || s === 'paid') return { color: '#10B981', bg: '#DCFCE7' };
+        if (s === 'confirmed' || s === 'completed' || s === 'paid') return { color: '#16a34a', bg: '#DCFCE7' };
         if (s === 'pending') return { color: '#F59E0B', bg: '#FEF3C7' };
         if (s === 'cancelled' || s === 'canceled' || s === 'failed' || s === 'unpaid') return { color: '#EF4444', bg: '#FEE2E2' };
         return { color: '#6B7280', bg: '#F3F4F6' };

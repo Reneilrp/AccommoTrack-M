@@ -140,7 +140,7 @@ export default function VerificationStatus({ navigation }) {
       case 'approved':
         return {
           icon: 'checkmark-circle',
-          color: '#10b981',
+          color: '#16a34a',
           bg: '#DCFCE7',
           border: '#86EFAC',
           label: 'Verified',
@@ -182,7 +182,7 @@ export default function VerificationStatus({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <ActivityIndicator size="large" color="#16a34a" />
           <Text style={styles.loadingText}>Loading status...</Text>
         </View>
       </SafeAreaView>
@@ -191,7 +191,7 @@ export default function VerificationStatus({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -204,7 +204,7 @@ export default function VerificationStatus({ navigation }) {
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={['#10b981']} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={['#16a34a']} />
         }
       >
         {/* Status Card */}
@@ -241,7 +241,7 @@ export default function VerificationStatus({ navigation }) {
             <View style={styles.documentGrid}>
               <View style={styles.documentCard}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="image-outline" size={18} color="#10b981" />
+                  <Ionicons name="image-outline" size={18} color="#16a34a" />
                   <Text style={styles.documentLabel}>Valid ID ({verification.valid_id_type})</Text>
                 </View>
                 {verification.valid_id_path ? (
@@ -381,7 +381,7 @@ export default function VerificationStatus({ navigation }) {
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument('validId')}
                 >
-                  <Ionicons name="camera-outline" size={32} color="#10b981" />
+                  <Ionicons name="camera-outline" size={32} color="#16a34a" />
                   <Text style={styles.uploadBoxText}>Capture or Pick ID Image</Text>
                 </TouchableOpacity>
                 {formData.validId && (
@@ -395,7 +395,7 @@ export default function VerificationStatus({ navigation }) {
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument('permit')}
                 >
-                  <Ionicons name="document-attach-outline" size={32} color="#10b981" />
+                  <Ionicons name="document-attach-outline" size={32} color="#16a34a" />
                   <Text style={styles.uploadBoxText}>Upload Permit Document</Text>
                 </TouchableOpacity>
                 {formData.permit && (
