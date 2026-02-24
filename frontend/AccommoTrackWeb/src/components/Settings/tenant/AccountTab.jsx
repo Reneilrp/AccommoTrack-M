@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../../services/tenantService';
 import { SkeletonAccountTab } from '../../Shared/Skeleton';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 const AccountTab = ({ user }) => {
 	const [saving, setSaving] = useState(false);
@@ -87,7 +88,7 @@ const AccountTab = ({ user }) => {
 				{!isEditing && (
 					<button
 						onClick={() => setIsEditing(true)}
-						className="px-4 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 rounded-lg hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-colors"
+						className="px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
 					>
 						Edit Security
 					</button>
@@ -126,7 +127,7 @@ const AccountTab = ({ user }) => {
 								onChange={handleChange}
 								required
 								disabled={!isEditing}
-								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 							/>
 						</div>
             
@@ -140,7 +141,7 @@ const AccountTab = ({ user }) => {
 								required
 								minLength={8}
 								disabled={!isEditing}
-								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 							/>
 						</div>
 
@@ -157,19 +158,19 @@ const AccountTab = ({ user }) => {
 								className={`w-full px-4 py-2 border rounded-lg focus:ring-2 outline-none transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 ${
 									!passwordsMatch && passwordData.confirm_password 
 										? 'border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-200 dark:focus:ring-red-800' 
-										: 'border-gray-300 dark:border-gray-600 focus:border-brand-500 focus:ring-brand-200 dark:focus:ring-brand-800'
+										: 'border-gray-300 dark:border-gray-600 focus:border-green-500 focus:ring-green-200 dark:focus:ring-green-800'
 								}`}
 							/>
 							<div className="mt-2 h-5">
 								{passwordData.confirm_password && (
 									passwordsMatch ? (
 										<p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-											<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+											<CheckCircle2 className="w-4 h-4" />
 											Passwords match
 										</p>
 									) : (
 										<p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-											<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+											<XCircle className="w-4 h-4" />
 											Passwords do not match
 										</p>
 									)
@@ -190,7 +191,7 @@ const AccountTab = ({ user }) => {
 								<button
 									type="submit"
 									disabled={saving || !passwordsMatch}
-									className={`px-6 py-2 bg-brand-600 text-white rounded-lg font-medium shadow-sm hover:bg-brand-700 transition-colors ${
+									className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${
 										(saving || !passwordsMatch) ? 'opacity-70 cursor-not-allowed' : ''
 									}`}
 								>

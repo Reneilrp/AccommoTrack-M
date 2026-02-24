@@ -110,7 +110,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 				{!isEditing && (
 					<button
 						onClick={handleEdit}
-						className="px-4 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 rounded-lg hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-colors"
+						className="px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
 					>
 						Edit Preferences
 					</button>
@@ -177,7 +177,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 						<button
 							onClick={handleSave}
 							disabled={saving}
-							className="px-6 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-70"
+							className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-70"
 						>
 							{saving ? 'Saving...' : 'Save Changes'}
 						</button>
@@ -203,8 +203,8 @@ const ToggleItem = ({ label, description, checked, disabled, onChange }) => (
 		) : (
 			<button
 				onClick={onChange}
-				className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-600 dark:focus:ring-brand-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-					checked ? 'bg-brand-600' : 'bg-gray-200 dark:bg-gray-600'
+				className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-600 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+					checked ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
 				}`}
 			>
 				<span

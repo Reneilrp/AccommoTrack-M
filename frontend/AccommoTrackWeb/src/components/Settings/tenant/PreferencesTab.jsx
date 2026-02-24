@@ -130,7 +130,7 @@ const PreferencesTab = () => {
 				{!isEditing && (
 					<button
 						onClick={() => setIsEditing(true)}
-						className="px-4 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 rounded-lg hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-colors"
+						className="px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
 					>
 						Edit Preferences
 					</button>
@@ -152,7 +152,7 @@ const PreferencesTab = () => {
 							value={formData.room_preference}
 							onChange={handleChange}
 							disabled={!isEditing}
-							className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+							className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 						>
 							<option value="">Select preference</option>
 							<option value="Single">Single Room</option>
@@ -169,7 +169,7 @@ const PreferencesTab = () => {
 							value={formData.budget_range}
 							onChange={handleChange}
 							disabled={!isEditing}
-							className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+							className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 						>
 							<option value="">Select budget</option>
 							<option value="<2000">Below ₱2,000</option>
@@ -196,7 +196,7 @@ const PreferencesTab = () => {
 								onChange={handleChange}
 								disabled={!isEditing}
 								placeholder="e.g., Friendly, Introverted, Outgoing"
-								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 							/>
 						</div>
 
@@ -209,7 +209,7 @@ const PreferencesTab = () => {
 								onChange={handleChange}
 								disabled={!isEditing}
 								placeholder="e.g., Quiet, Clean, Early Riser"
-								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 							/>
 						</div>
 
@@ -222,7 +222,7 @@ const PreferencesTab = () => {
 								disabled={!isEditing}
 								rows={4}
 								placeholder="Tell us about your daily routine, work/study schedule, or hobbies..."
-								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 							/>
 						</div>
 					</div>
@@ -242,7 +242,7 @@ const PreferencesTab = () => {
 							<div>
 								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
 									<input type="checkbox" className="sr-only" checked={formData.quiet_environment} onChange={() => handleToggle('quiet_environment')} disabled={!isEditing} />
-									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.quiet_environment ? 'bg-brand-600' : ''}`}></span>
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.quiet_environment ? 'bg-green-600' : ''}`}></span>
 								</label>
 							</div>
 						</div>
@@ -256,7 +256,7 @@ const PreferencesTab = () => {
 							<div>
 								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
 									<input type="checkbox" className="sr-only" checked={formData.pet_friendly} onChange={() => handleToggle('pet_friendly')} disabled={!isEditing} />
-									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.pet_friendly ? 'bg-brand-600' : ''}`}></span>
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.pet_friendly ? 'bg-green-600' : ''}`}></span>
 								</label>
 							</div>
 						</div>
@@ -270,7 +270,7 @@ const PreferencesTab = () => {
 							<div>
 								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
 									<input type="checkbox" className="sr-only" checked={formData.no_smoking} onChange={() => handleToggle('no_smoking')} disabled={!isEditing} />
-									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.no_smoking ? 'bg-brand-600' : ''}`}></span>
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.no_smoking ? 'bg-green-600' : ''}`}></span>
 								</label>
 							</div>
 						</div>
@@ -284,7 +284,7 @@ const PreferencesTab = () => {
 							<div>
 								<label className={`relative inline-flex items-center cursor-pointer ${!isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
 									<input type="checkbox" className="sr-only" checked={formData.cooking_allowed} onChange={() => handleToggle('cooking_allowed')} disabled={!isEditing} />
-									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.cooking_allowed ? 'bg-brand-600' : ''}`}></span>
+									<span className={`w-11 h-6 bg-gray-200 rounded-full shadow-inner transition-colors ${formData.cooking_allowed ? 'bg-green-600' : ''}`}></span>
 								</label>
 							</div>
 						</div>
@@ -304,7 +304,7 @@ const PreferencesTab = () => {
 						<button
 							type="submit"
 							disabled={saving}
-							className={`px-6 py-2 bg-brand-600 text-white rounded-lg font-medium shadow-sm hover:bg-brand-700 transition-colors ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+							className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
 						>
 							{saving ? 'Saving...' : 'Save Preferences'}
 						</button>
