@@ -10,8 +10,6 @@ const api = axios.create({
     withCredentials: true,
     headers: {
         'Accept': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
-        'bypass-tunnel-reminder': 'true'
     }
 });
 
@@ -112,7 +110,5 @@ export const rootApi = axios.create({
     withCredentials: true,
     headers: {
         'Accept': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
-        'bypass-tunnel-reminder': 'true'
     }
 });
