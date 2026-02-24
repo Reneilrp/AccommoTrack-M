@@ -7,10 +7,10 @@ const TenantMessages = ({ user }) => {
   const messaging = useMessaging(user, 'tenant');
 
   return (
-    <div className="h-full bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
+    <div className="h-full bg-transparent dark:bg-gray-900 flex flex-col overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         {/* Conversations List Sidebar */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 h-full overflow-hidden">
+        <div className="w-80 flex-shrink-0 border-r border-gray-300 dark:border-gray-700 h-full overflow-hidden">
           <ChatList {...messaging} />
         </div>
 

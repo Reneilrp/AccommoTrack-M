@@ -99,7 +99,7 @@ export default function TenantMaintenance() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
       </div>
     );
   }
@@ -113,7 +113,7 @@ export default function TenantMaintenance() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           New Request
@@ -132,7 +132,7 @@ export default function TenantMaintenance() {
       {/* Requests List */}
       <div className="grid grid-cols-1 gap-4">
         {requests.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 p-12 text-center shadow-md">
             <div className="w-16 h-16 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Wrench className="w-8 h-8 text-gray-300" />
             </div>
@@ -143,7 +143,7 @@ export default function TenantMaintenance() {
           requests.map((req) => (
             <div 
               key={req.id}
-              className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all group"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-all group"
             >
               <div className="p-5 flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${maintenanceService.getStatusColor(req.status)}`}>
@@ -164,7 +164,7 @@ export default function TenantMaintenance() {
                   </div>
                 </div>
                 <div className="self-center">
-                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-green-500 transition-colors" />
                 </div>
               </div>
             </div>
@@ -175,8 +175,8 @@ export default function TenantMaintenance() {
       {/* New Request Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-300 dark:border-gray-700">
+            <div className="px-6 py-4 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/30">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">New Maintenance Request</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-6 h-6" />
@@ -190,7 +190,7 @@ export default function TenantMaintenance() {
                   type="text"
                   required
                   placeholder="e.g. Leaking faucet, Light bulb replacement"
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                 />
@@ -202,7 +202,7 @@ export default function TenantMaintenance() {
                   required
                   rows="4"
                   placeholder="Please describe the issue in detail..."
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                 />
@@ -273,7 +273,7 @@ export default function TenantMaintenance() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 px-6 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Request'}
                 </button>

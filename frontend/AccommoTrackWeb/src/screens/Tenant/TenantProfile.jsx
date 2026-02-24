@@ -167,7 +167,7 @@ const TenantProfile = () => {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Avatar & Basic Info */}
         <div className="md:col-span-1 space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col items-center text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 flex flex-col items-center text-center">
             <div className="relative group">
               {imagePreview ? (
                 <img 
@@ -196,7 +196,7 @@ const TenantProfile = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm">{formData.email}</p>
           </div>
           
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Account Info</h3>
             
             <div className="space-y-4">
@@ -224,7 +224,7 @@ const TenantProfile = () => {
         <div className="md:col-span-2 space-y-6">
           
           {/* Personal Information Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
               <span className="w-1 h-6 bg-green-500 rounded-full"></span>
               Personal Information
@@ -303,7 +303,7 @@ const TenantProfile = () => {
           </div>
 
           {/* Emergency Contact */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
               <span className="w-1 h-6 bg-red-400 rounded-full"></span>
               Emergency Contact
@@ -346,7 +346,7 @@ const TenantProfile = () => {
           </div>
 
           {/* Preferences & Lifestyle */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h3 className="text-md font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
               <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
               Preferences & Lifestyle
