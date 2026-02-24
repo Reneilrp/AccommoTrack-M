@@ -49,7 +49,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         ref={carouselRef}
         className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-2"
       >
-        {property.rooms.map((room) => (
+        {(Array.isArray(property?.rooms) ? property.rooms : []).map((room) => (
           <div
             key={room.id}
             className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg hover:border-green-200 dark:hover:border-green-700 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"

@@ -59,8 +59,11 @@ const PropertyMap = ({ properties, onMarkerClick, centerOn }) => {
     // Default center (Manila)
     const defaultCenter = [14.5995, 120.9842]; 
 
+    // Ensure properties is an array
+    const safeProperties = Array.isArray(properties) ? properties : [];
+
     // Filter properties with valid coordinates
-    const validProperties = properties.filter(p => p.latitude && p.longitude);
+    const validProperties = safeProperties.filter(p => p && p.latitude && p.longitude);
 
     // Map tiles based on theme
     const tileUrl = effectiveTheme === 'dark' 

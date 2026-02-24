@@ -89,8 +89,11 @@ const ExploreProperties = () => {
     fetchProperties();
   }, []);
 
+  const safeProperties = Array.isArray(properties) ? properties : [];
+
   // Helpers (duplicated from Properties.jsx for consistency)
   const mapRoom = (room) => {
+    if (!room) return null;
     // Robust amenity parsing
     let parsedAmenities = [];
     if (Array.isArray(room.amenities)) {
@@ -129,21 +132,24 @@ const ExploreProperties = () => {
     };
   };
 
-  const mapProperty = (property) => ({
-    id: property.id,
-    name: property.title || property.name,
-    location: property.full_address || property.city || '',
-    address: property.full_address || property.city || '', // For Map
-    latitude: property.latitude,
-    longitude: property.longitude,
-    lowest_price: property.lowest_price || (Array.isArray(property.rooms) && property.rooms.length > 0 ? Math.min(...property.rooms.map(r => r.monthly_rate)) : null),
-    type: property.property_type || 'Apartment', // Default to Apartment if missing
-    description: property.description || '',
-    rating: property.rating || null,
-    rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom) : [],
-  });
+  const mapProperty = (property) => {
+    if (!property) return null;
+    return {
+      id: property.id,
+      name: property.title || property.name,
+      location: property.full_address || property.city || '',
+      address: property.full_address || property.city || '', // For Map
+      latitude: property.latitude,
+      longitude: property.longitude,
+      lowest_price: property.lowest_price || (Array.isArray(property.rooms) && property.rooms.length > 0 ? Math.min(...property.rooms.map(r => r.monthly_rate)) : null),
+      type: property.property_type || 'Apartment', // Default to Apartment if missing
+      description: property.description || '',
+      rating: property.rating || null,
+      rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom).filter(Boolean) : [],
+    };
+  };
 
-  const mapDisplayProperties = properties.map(mapProperty);
+  const mapDisplayProperties = safeProperties.map(mapProperty).filter(Boolean);
 
   // Filtering
   const filteredProperties = mapDisplayProperties.filter((p) => {
@@ -225,15 +231,18 @@ const ExploreProperties = () => {
     if (!updatedRoom || !updatedRoom.id) return;
 
     // Update properties list (raw backend objects) so mapProperty will reflect change
-    setProperties((prev) => prev.map((prop) => {
-      if (!Array.isArray(prop.rooms)) return prop;
-      const found = prop.rooms.find(r => r.id === updatedRoom.id);
-      if (!found) return prop;
-      return {
-        ...prop,
-        rooms: prop.rooms.map(r => r.id === updatedRoom.id ? { ...r, status: updatedRoom.status || 'occupied', reserved_by_me: updatedRoom.reserved_by_me || true, reservation: updatedRoom.reservation || null } : r)
-      };
-    }));
+    setProperties((prev) => {
+      if (!Array.isArray(prev)) return [];
+      return prev.map((prop) => {
+        if (!Array.isArray(prop.rooms)) return prop;
+        const found = prop.rooms.find(r => r.id === updatedRoom.id);
+        if (!found) return prop;
+        return {
+          ...prop,
+          rooms: prop.rooms.map(r => r.id === updatedRoom.id ? { ...r, status: updatedRoom.status || 'occupied', reserved_by_me: updatedRoom.reserved_by_me || true, reservation: updatedRoom.reservation || null } : r)
+        };
+      });
+    });
 
     // Update currently selected room data shown in modal if it matches
     setSelectedRoomData((prev) => {
@@ -479,7 +488,7 @@ const ExploreProperties = () => {
                   </div>
 
                   {/* SEARCH SUGGESTIONS DROPDOWN */}
-                  {search && searchSuggestions.length > 0 && (
+                  {search && Array.isArray(searchSuggestions) && searchSuggestions.length > 0 && (
                     <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in slide-in-from-top-2">
                       {searchSuggestions.map((prop) => (
                         <div
@@ -680,7 +689,7 @@ const ExploreProperties = () => {
                                     <div className="flex justify-center py-8">
                                       <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
                                     </div>
-                                  ) : drawerReviews.reviews?.length > 0 ? (
+                                  ) : Array.isArray(drawerReviews?.reviews) && drawerReviews.reviews.length > 0 ? (
                                     drawerReviews.reviews.map((review, i) => (
                                       <div key={review.id || i} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md transition-all hover:shadow-lg">
                                         <div className="flex items-center justify-between mb-2">

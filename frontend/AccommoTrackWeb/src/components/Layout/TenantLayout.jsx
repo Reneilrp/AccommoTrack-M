@@ -71,6 +71,8 @@ export default function TenantLayout({ user, onLogout, children }) {
     return 'AccommoTrack';
   };
 
+  const displayName = user?.name || (user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Tenant');
+
   return (
     <div className="flex h-screen bg-gray-200 dark:bg-gray-900">
       {/* Sidebar */}
@@ -127,13 +129,13 @@ export default function TenantLayout({ user, onLogout, children }) {
         >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
             <img
-              src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${user?.name}&background=random`}
+              src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${displayName}&background=random`}
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-sm flex-shrink-0"
             />
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{displayName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{user?.role}</p>
               </div>
             )}

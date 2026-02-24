@@ -103,7 +103,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
             <div className="mb-8">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">What this place offers</h3>
               <div className="grid grid-cols-2 gap-3">
-                {(room.amenities || ['Standard Amenities']).map((item, idx) => (
+                {(Array.isArray(room.amenities) ? room.amenities : ['Standard Amenities']).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 dark:text-gray-300 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                       <Check className="w-4 h-4 text-green-600" />
@@ -115,7 +115,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
             </div>
 
             {/* House Rules */}
-            {room.rules && (
+            {room.rules && Array.isArray(room.rules) && (
               <div className="mb-6">
                 <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-5 border border-orange-100 dark:border-orange-800/30">
                   <h3 className="text-base font-bold text-orange-800 dark:text-orange-300 mb-3 flex items-center gap-2">
@@ -301,7 +301,7 @@ const Properties = () => {
           <div className="text-center py-20 text-gray-400 dark:text-gray-500 text-lg">No properties found.</div>
         )}
 
-        {!loading && !error && properties.map((property) => {
+        {!loading && !error && (Array.isArray(properties) ? properties : []).map((property) => {
           const mappedProperty = mapProperty(property);
           return (
             <div key={mappedProperty.id} className="mb-16 last:mb-0">

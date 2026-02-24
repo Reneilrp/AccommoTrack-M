@@ -153,7 +153,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
     if (!updatedRoom || !updatedRoom.id) return;
     setProperty((prev) => {
       if (!prev) return prev;
-      const rooms = (prev.rooms || []).map(r => r.id === updatedRoom.id ? { ...r, status: updatedRoom.status || 'occupied', reserved_by_me: updatedRoom.reserved_by_me || true, reservation: updatedRoom.reservation || null } : r);
+      const rooms = (Array.isArray(prev.rooms) ? prev.rooms : []).map(r => r.id === updatedRoom.id ? { ...r, status: updatedRoom.status || 'occupied', reserved_by_me: updatedRoom.reserved_by_me || true, reservation: updatedRoom.reservation || null } : r);
       return { ...prev, rooms };
     });
     setSelectedRoom((prev) => (prev && prev.id === updatedRoom.id ? { ...prev, status: updatedRoom.status || 'occupied', reserved_by_me: updatedRoom.reserved_by_me || true, reservation: updatedRoom.reservation || null } : prev));
@@ -193,7 +193,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // --- RENDERERS ---
 
   const renderRooms = () => {
-    const rooms = property.rooms || [];
+    const rooms = Array.isArray(property.rooms) ? property.rooms : [];
     const filteredRooms = rooms.filter(room => {
       if (roomFilter === 'all') return true;
       return (room.status || '').toLowerCase() === roomFilter.toLowerCase();

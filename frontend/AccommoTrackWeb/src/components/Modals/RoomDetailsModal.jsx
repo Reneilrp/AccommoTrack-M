@@ -275,12 +275,12 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
                       <h4 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                         Amenities
                       </h4>
-                      {room.amenities && room.amenities.length > 0 ? (
+                      {room.amenities && Array.isArray(room.amenities) && room.amenities.length > 0 ? (
                         <div className="grid grid-cols-2 gap-3">
                           {room.amenities.map((amenity, idx) => (
                             <div key={idx} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 p-2 rounded-lg border border-gray-100 dark:border-gray-600">
                               <Check className="w-4 h-4 text-green-500 shrink-0" />
-                              <span className="truncate">{typeof amenity === 'string' ? amenity : amenity.name}</span>
+                              <span className="truncate">{typeof amenity === 'string' ? amenity : (amenity?.name || 'Amenity')}</span>
                             </div>
                           ))}
                         </div>
@@ -291,7 +291,7 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
                   {/* House Rules Section */}
                   <div>
                     <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-lg">House Rules</h4>
-                    {property.rules && property.rules.length > 0 ? (
+                    {property.rules && Array.isArray(property.rules) && property.rules.length > 0 ? (
                       <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-5">
                         <ul className="space-y-3">
                           {property.rules.map((rule, index) => (
