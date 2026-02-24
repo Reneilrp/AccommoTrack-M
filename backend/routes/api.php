@@ -35,6 +35,11 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/inquiries', [App\Http\Controllers\InquiryController::class, 'store']);
 
+// Forgot Password Routes
+Route::post('/forgot-password', [App\Http\Controllers\ForgotPasswordController::class, 'sendCode']);
+Route::post('/verify-code', [App\Http\Controllers\ForgotPasswordController::class, 'verifyCode']);
+Route::post('/reset-password', [App\Http\Controllers\ForgotPasswordController::class, 'resetPassword']);
+
 // Public: check if email exists
 Route::get('/check-email', [AuthController::class, 'checkEmail']);
 

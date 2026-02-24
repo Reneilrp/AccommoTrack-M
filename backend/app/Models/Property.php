@@ -294,7 +294,7 @@ class Property extends Model
     public function getImageUrlAttribute()
     {
         $firstImage = $this->images()->first();
-        return $firstImage ? asset('storage/' . $firstImage->image_path) : null;
+        return $firstImage ? asset('storage/' . $firstImage->image_url) : null;
     }
     /**
      * Relationship: Property has many amenities (many-to-many)

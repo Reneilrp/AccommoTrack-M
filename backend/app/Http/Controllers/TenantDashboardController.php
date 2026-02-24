@@ -32,25 +32,32 @@ class TenantDashboardController extends Controller
                 ->where('status', 'pending')
                 ->count();
 
-            // Revenue/Payment Stats (This month - amounts tenant needs to pay)
-            $monthlyDue = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->whereIn('payment_status', ['unpaid', 'partial'])
-                ->whereMonth('start_date', now()->month)
-                ->whereYear('start_date', now()->year)
-                ->sum('monthly_rent');
+            // Revenue/Payment Stats (This month - amounts tenant needs to pay based on INVOICES)
+            // Use invoices table to get actual due amount for current month
+            $monthlyDueCents = \App\Models\Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->whereMonth('due_date', now()->month)
+                ->whereYear('due_date', now()->year)
+                ->sum('amount_cents');
+            
+            $monthlyDue = $monthlyDueCents / 100;
 
-            // Total Due (All time unpaid/partial)
-            $totalDue = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->whereIn('payment_status', ['unpaid', 'partial'])
-                ->sum('total_amount');
+            // Total Due (All time unpaid/partial invoices)
+            $totalDueCents = \App\Models\Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->sum('amount_cents');
+            
+            $totalDue = $totalDueCents / 100;
 
-            // Paid Amount (All time)
-            $totalPaid = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->where('payment_status', 'paid')
-                ->sum('total_amount');
+            // Paid Amount (All time paid invoices)
+            $totalPaidCents = \App\Models\Invoice::where('tenant_id', $tenantId)
+                ->where('status', 'paid')
+                ->sum('amount_cents');
+            
+            $totalPaid = $totalPaidCents / 100;
+
+            // Unread Notifications
+            $unreadNotifications = Auth::user()->unreadNotifications->count();
 
             return response()->json([
                 'bookings' => [
@@ -62,6 +69,9 @@ class TenantDashboardController extends Controller
                     'monthlyDue' => (float) $monthlyDue,
                     'totalDue' => (float) $totalDue,
                     'totalPaid' => (float) $totalPaid
+                ],
+                'notifications' => [
+                    'unread' => $unreadNotifications
                 ]
             ], 200);
         } catch (\Exception $e) {
