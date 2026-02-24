@@ -18,6 +18,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RoomDetailsModal from '../../components/Modals/RoomDetailsModal';
 import bookingService from '../../services/bookingService';
+import NotFoundPage from '../NotFoundPage';
 
 // --- CUSTOM HOUSE ICON ---
 const houseSvg = encodeURIComponent(`
@@ -180,7 +181,14 @@ export default function PropertyDetails({ propertyId, onBack }) {
     );
   }
 
-  if (!property) return <div className="text-gray-900 dark:text-white">Property not found.</div>;
+  if (!property) {
+    return (
+      <NotFoundPage 
+        title="Property Not Found" 
+        message="This property may have been removed or is temporarily unavailable."
+      />
+    );
+  }
 
   // --- RENDERERS ---
 
@@ -214,7 +222,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
         {filteredRooms.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredRooms.map((room) => (
-              <div key={room.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+              <div key={room.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-shadow flex flex-col">
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                    {/* Placeholder for room image if available, or generic */}
                    {room.images && room.images.length > 0 ? (
@@ -305,7 +313,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600">
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
             <p className="text-gray-500 dark:text-gray-400">No rooms found with status "{roomFilter}".</p>
           </div>
         )}
@@ -325,22 +333,22 @@ export default function PropertyDetails({ propertyId, onBack }) {
       <div>
         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Property Highlights</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800/30 flex flex-col items-center text-center">
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/30 shadow-md flex flex-col items-center text-center">
             <BedDouble className="w-6 h-6 text-green-600 mb-2" />
             <span className="font-bold text-gray-900 dark:text-white">{property.number_of_bedrooms || 0}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Bedrooms</span>
           </div>
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/30 flex flex-col items-center text-center">
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/30 shadow-md flex flex-col items-center text-center">
             <Bath className="w-6 h-6 text-blue-600 mb-2" />
             <span className="font-bold text-gray-900 dark:text-white">{property.number_of_bathrooms || 0}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Bathrooms</span>
           </div>
-          <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800/30 flex flex-col items-center text-center">
+          <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/30 shadow-md flex flex-col items-center text-center">
             <Users className="w-6 h-6 text-orange-600 mb-2" />
             <span className="font-bold text-gray-900 dark:text-white">{property.max_occupants || 0}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Max Capacity</span>
           </div>
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800/30 flex flex-col items-center text-center">
+          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800/30 shadow-md flex flex-col items-center text-center">
             <Maximize className="w-6 h-6 text-purple-600 mb-2" />
             <span className="font-bold text-gray-900 dark:text-white">{property.total_rooms || 0}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Rooms</span>
@@ -374,7 +382,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="animate-in fade-in duration-300">
       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">House Rules & Policies</h3>
       {property.rules && property.rules.length > 0 ? (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-2xl p-6">
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-6">
           <ul className="space-y-4">
             {property.rules.map((rule, index) => (
               <li key={index} className="flex items-start gap-3">
@@ -391,7 +399,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   );
 
   const renderMap = () => (
-    <div className="h-[400px] w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm animate-in fade-in duration-300 relative z-0">
+    <div className="h-[400px] w-full rounded-xl overflow-hidden border border-gray-300 dark:border-gray-700 shadow-md animate-in fade-in duration-300 relative z-0">
       {property.latitude && property.longitude ? (
         <MapContainer
           center={[property.latitude, property.longitude]}
@@ -441,7 +449,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       ) : reviews.reviews?.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {reviews.reviews.map((review) => (
-            <div key={review.id} className="p-5 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+            <div key={review.id} className="p-5 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center font-bold text-white overflow-hidden">
                   {review.reviewer_image ? (
@@ -473,7 +481,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
           <p className="text-gray-500 dark:text-gray-400">No reviews yet</p>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Be the first to review this property after your stay!</p>
         </div>
@@ -535,7 +543,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       </div>
 
       {/* NAVIGATION TABS */}
-      <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="sticky top-0 z-[1100] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex overflow-x-auto no-scrollbar gap-6 sm:gap-8">
             {['Overview', 'Rooms', 'Amenities', 'Policies', 'Map', 'Reviews'].map((tab) => {

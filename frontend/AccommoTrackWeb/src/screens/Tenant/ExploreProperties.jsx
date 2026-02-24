@@ -250,15 +250,14 @@ const ExploreProperties = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans overflow-x-hidden">
 
       {/* HEADER */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 pb-4">
-        {/* ROW 1: Navigation & Title */}
+      <header className="sticky top-0 z-40 pb-4">
+        {/* ROW 1: Navigation & Title (Only for Guests) */}
         {!authService.isAuthenticated() && (
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-center">
-          {/* Absolute positioned Back Button */}
-          <div className="absolute left-4 sm:left-6 lg:left-8 top-1/2 -translate-y-1/2">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 h-16 flex items-center justify-center shadow-sm">
+          <div className="absolute left-4 sm:left-6 lg:left-8">
             <button
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400"
@@ -266,55 +265,55 @@ const ExploreProperties = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
           </div>
-
-          {/* Centered Title */}
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Browse Properties</h1>
         </div>
         )}
 
-        {/* ROW 2: Search Bar & Filters */}
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-4">
+        {/* ROW 2: Search Bar & Filters Card */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700 flex flex-col items-center gap-6">
+            
+            {/* Search Row */}
+            <div className="w-full flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search properties, locations..."
+                  className="w-full pl-12 pr-6 py-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 rounded-xl transition-all outline-none text-base text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 font-bold shadow-sm"
+                  value={search}
+                  onChange={handleSearchChange}
+                />
+              </div>
 
-          {/* Search Bar & Map Icon */}
-          <div className="w-full flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search properties, locations..."
-                className="w-full pl-11 pr-4 py-3 bg-gray-100 dark:bg-gray-700 border-transparent focus:bg-white dark:focus:bg-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 rounded-2xl transition-all outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 font-medium shadow-sm"
-                value={search}
-                onChange={handleSearchChange}
-              />
+              <button
+                onClick={() => updateScreenState('explore', { showMapModal: true })}
+                className="p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
+                aria-label="View Map"
+              >
+                <Map className="w-6 h-6 group-hover:text-green-600 transition-colors" />
+              </button>
             </div>
 
-            <button
-              onClick={() => updateScreenState('explore', { showMapModal: true })}
-              className="p-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-300 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
-              aria-label="View Map"
-            >
-              <Map className="w-5 h-5 group-hover:text-green-600 transition-colors" />
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="w-full overflow-x-auto no-scrollbar pb-2">
-            <div className="flex items-center justify-start md:justify-center gap-2 px-1">
-              {PROPERTY_TYPES.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => updateScreenState('explore', { selectedType: type, currentPage: 1 })}
-                  className={`
-                            px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all border
-                            ${selectedType === type
-                      ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20'
-                      : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-600'
-                    }
-                        `}
-                >
-                  {type}
-                </button>
-              ))}
+            {/* Filters Row */}
+            <div className="w-full overflow-x-auto no-scrollbar">
+              <div className="flex items-center justify-start md:justify-center gap-2 px-1">
+                {PROPERTY_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => updateScreenState('explore', { selectedType: type, currentPage: 1 })}
+                    className={`
+                              px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border
+                              ${selectedType === type
+                        ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20'
+                        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm'
+                      }
+                          `}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -334,7 +333,7 @@ const ExploreProperties = () => {
           <div className="space-y-6">
             {/* Skeleton Property Cards */}
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-700 animate-pulse">
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 animate-pulse">
                 {/* Header skeleton */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div>
@@ -353,7 +352,7 @@ const ExploreProperties = () => {
                 {/* Carousel skeleton */}
                 <div className="flex gap-4 overflow-hidden">
                   {[...Array(4)].map((_, j) => (
-                    <Skeleton key={j} className="w-72 h-64 rounded-2xl flex-shrink-0" />
+                    <Skeleton key={j} className="w-72 h-64 rounded-xl flex-shrink-0" />
                   ))}
                 </div>
               </div>
@@ -362,7 +361,7 @@ const ExploreProperties = () => {
         )}
 
         {!loading && filteredProperties.length === 0 && (
-          <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-300 dark:border-gray-600">
+          <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md">
             <p className="text-gray-400 dark:text-gray-500 text-lg font-medium">No properties found matching your search.</p>
             <button
               onClick={() => updateScreenState('explore', { search: '' })}
@@ -376,7 +375,7 @@ const ExploreProperties = () => {
         {/* LIST */}
         <div className="space-y-12">
           {paginated.map((property) => (
-            <div key={property.id} className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-300">
+            <div key={property.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300">
               {/* Header */}
               <div
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 cursor-pointer group"
@@ -418,7 +417,7 @@ const ExploreProperties = () => {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`p-2 rounded-lg border ${currentPage === 1 ? 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+              className={`p-2 rounded-lg border shadow-sm ${currentPage === 1 ? 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -430,7 +429,7 @@ const ExploreProperties = () => {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg border ${currentPage === totalPages ? 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+              className={`p-2 rounded-lg border shadow-sm ${currentPage === totalPages ? 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
             >
               <ArrowRight className="w-5 h-5" />
             </button>
@@ -443,23 +442,23 @@ const ExploreProperties = () => {
       {(selectedRoomData || modalLoading || showMapModal) && (
         <>
           {showMapModal && (
-            <div className="fixed inset-0 z-[100] bg-white">
+            <div className="fixed inset-0 z-[100] bg-white dark:bg-gray-900">
               {/* FULL SCREEN MODAL */}
-              <div className="relative w-full h-full bg-white overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="relative w-full h-full bg-white dark:bg-gray-900 overflow-hidden animate-in fade-in zoom-in duration-200">
 
                 {/* Floating Search Bar (Replaces Property Map Label) */}
                 <div className={`absolute top-6 left-6 z-[1000] w-[calc(100%-48px)] md:w-[calc(35%-48px)] animate-in slide-in-from-top-4 duration-500 shadow-2xl transition-all ease-in-out ${drawerOpen ? 'opacity-0 pointer-events-none -translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                  <div className="bg-white rounded-full flex items-center p-1.5 border border-gray-100 transition-all hover:shadow-lg focus-within:shadow-xl">
+                  <div className="bg-white dark:bg-gray-800 rounded-full flex items-center p-1.5 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-lg focus-within:shadow-xl">
                     {/* Maps Icon / Menu Trigger */}
-                    <div className="p-2.5 hover:bg-gray-50 rounded-full cursor-pointer transition-colors group">
-                      <Map className="w-5 h-5 text-gray-500 group-hover:text-gray-800" />
+                    <div className="p-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full cursor-pointer transition-colors group">
+                      <Map className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white" />
                     </div>
 
                     {/* Input Field */}
                     <input
                       type="text"
                       placeholder="Search properties..."
-                      className="flex-1 ml-2 bg-transparent border-none outline-none text-gray-800 text-sm font-medium h-10 placeholder:text-gray-400"
+                      className="flex-1 ml-2 bg-transparent border-none outline-none text-gray-800 dark:text-white text-sm font-medium h-10 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       value={search}
                       onChange={handleSearchChange}
                     />
@@ -468,7 +467,7 @@ const ExploreProperties = () => {
                     {search && (
                       <button
                         onClick={() => handleSearchChange({ target: { value: '' } })}
-                        className="p-2 hover:bg-gray-100 rounded-full text-gray-400 mr-1"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400 dark:text-gray-500 mr-1"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -481,7 +480,7 @@ const ExploreProperties = () => {
 
                   {/* SEARCH SUGGESTIONS DROPDOWN */}
                   {search && searchSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in slide-in-from-top-2">
                       {searchSuggestions.map((prop) => (
                         <div
                           key={prop.id}
@@ -489,14 +488,14 @@ const ExploreProperties = () => {
                             onMapMarkerClick(prop);
                             updateScreenState('explore', { search: '' }); 
                           }}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 flex items-center gap-3 transition-colors"
+                          className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-700 last:border-0 flex items-center gap-3 transition-colors"
                         >
-                          <div className="bg-gray-100 p-2 rounded-full text-gray-500">
+                          <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-gray-500 dark:text-gray-400">
                             <MapPin className="w-4 h-4" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold text-gray-800 truncate">{prop.name}</h4>
-                            <p className="text-xs text-gray-500 truncate">{prop.address}</p>
+                            <h4 className="text-sm font-bold text-gray-800 dark:text-white truncate">{prop.name}</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{prop.address}</p>
                           </div>
                         </div>
                       ))}
@@ -507,14 +506,14 @@ const ExploreProperties = () => {
                 {/* Floating Close Button */}
                 <button
                   onClick={() => updateScreenState('explore', { showMapModal: false })}
-                  className="absolute top-6 right-6 z-[1000] p-2.5 bg-white rounded-full text-gray-500 hover:bg-gray-50 hover:text-gray-900 shadow-lg border border-gray-200 transition-colors"
+                  className="absolute top-6 right-6 z-[1000] p-2.5 bg-white dark:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white shadow-lg border border-gray-200 dark:border-gray-700 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
 
                 <div className="w-full h-full relative flex overflow-hidden">
                   {/* SIDE DRAWER PROPERTY DETAILS */}
-                  <div className={`absolute top-0 bottom-0 left-0 w-full md:w-[35%] bg-white shadow-2xl z-[500] flex flex-col border-r border-gray-100 transition-transform duration-500 ease-in-out ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                  <div className={`absolute top-0 bottom-0 left-0 w-full md:w-[35%] bg-white dark:bg-gray-800 shadow-2xl z-[500] flex flex-col border-r border-gray-100 dark:border-gray-700 transition-transform duration-500 ease-in-out ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     {drawerData && (
                       <>
                         {/* SINGLE SCROLLABLE CONTAINER */}
@@ -552,80 +551,80 @@ const ExploreProperties = () => {
                           </div>
 
                           {/* HEADER INFO SECTION */}
-                          <div className="p-5 pb-0 bg-white">
-                            <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">{drawerData.name}</h2>
+                          <div className="p-5 pb-0 bg-white dark:bg-gray-800">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight mb-2">{drawerData.name}</h2>
 
                             <div className="flex items-center gap-2 mb-3">
-                              <div className="flex items-center text-sm font-bold text-gray-900">
+                              <div className="flex items-center text-sm font-bold text-gray-900 dark:text-white">
                                 {drawerData.rating ? drawerData.rating : 'New'}
                                 <div className="flex ml-1">
                                   {[...Array(5)].map((_, i) => (
-                                    <Star key={i} className={`w-3 h-3 ${i < Math.floor(drawerData.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                                    <Star key={i} className={`w-3 h-3 ${i < Math.floor(drawerData.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
                                   ))}
                                 </div>
                               </div>
                               <span className="text-gray-400 text-xs">•</span>
-                              <span className="text-sm text-gray-500">({drawerReviews.summary?.total_reviews || 0} reviews)</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">({drawerReviews.summary?.total_reviews || 0} reviews)</span>
                               <span className="text-gray-400 text-xs">•</span>
-                              <span className="text-sm text-gray-500">{drawerData.type}</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">{drawerData.type}</span>
                             </div>
 
-                            <div className="flex items-center gap-2 text-sm text-green-700 font-medium mb-3">
-                              <div className="w-4 h-4 rounded-full border border-green-600 flex items-center justify-center">
-                                <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-500 font-medium mb-3">
+                              <div className="w-4 h-4 rounded-full border border-green-600 dark:border-green-500 flex items-center justify-center">
+                                <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500"></div>
                               </div>
                               Open Now
-                              <span className="text-gray-400 font-normal ml-1">• Closes 9PM</span>
+                              <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">• Closes 9PM</span>
                             </div>
                           </div>
 
                           {/* TABS HEADER - STICKY */}
-                          <div className="flex items-center border-b border-gray-100 bg-white sticky top-0 z-30 px-5 pt-2 shadow-sm">
+                          <div className="flex items-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-30 px-5 pt-2 shadow-sm">
                             {['Overview', 'Reviews', 'About'].map((tab) => (
                               <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`mr-6 py-3 text-sm font-bold text-center relative transition-colors ${activeTab === tab
-                                  ? 'text-teal-700'
-                                  : 'text-gray-500 hover:text-gray-900'
+                                  ? 'text-teal-700 dark:text-teal-400'
+                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                                   }`}
                               >
                                 {tab}
                                 {activeTab === tab && (
-                                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-700 rounded-t-full" />
+                                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-700 dark:bg-teal-400 rounded-t-full" />
                                 )}
                               </button>
                             ))}
                           </div>
 
                           {/* Scrollable Content (Tabbed) */}
-                          <div className="p-5 bg-gray-50/50 min-h-[500px]">
+                          <div className="p-5 bg-gray-50/50 dark:bg-gray-900/50 min-h-[500px]">
 
                             {activeTab === 'Overview' && (
                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
 
                                 {/* Address Section */}
-                                <div className="flex items-start gap-4 border-b border-gray-100 pb-5">
-                                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                                    <MapPin className="w-5 h-5 text-blue-600" />
+                                <div className="flex items-start gap-4 border-b border-gray-100 dark:border-gray-700 pb-5">
+                                  <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                                    <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                   </div>
                                   <div className="flex-1">
-                                    <h4 className="text-sm font-bold text-gray-900 leading-tight mb-1">{drawerData.address}</h4>
-                                    <p className="text-xs text-gray-500">Zamboanga City, Philippines</p>
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-tight mb-1">{drawerData.address}</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Zamboanga City, Philippines</p>
                                   </div>
-                                  <button className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
-                                    <Map className="w-4 h-4 text-gray-600" />
+                                  <button className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors">
+                                    <Map className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                                   </button>
                                 </div>
 
                                 {/* Visit Schedule */}
-                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-start gap-3">
-                                  <div className="bg-orange-50 p-2 rounded-lg">
-                                    <div className="w-5 h-5 text-orange-500 font-bold flex items-center justify-center">🕒</div>
+                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-3">
+                                  <div className="bg-orange-50 dark:bg-orange-900/30 p-2 rounded-lg">
+                                    <div className="w-5 h-5 text-orange-500 dark:text-orange-400 font-bold flex items-center justify-center">🕒</div>
                                   </div>
                                   <div>
-                                    <h4 className="text-sm font-bold text-gray-900">Visiting Hours</h4>
-                                    <p className="text-xs text-gray-500 mt-0.5">Physical viewing schedule</p>
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">Visiting Hours</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Physical viewing schedule</p>
                                     <span className="inline-block mt-2 text-[10px] font-bold text-white bg-orange-400 px-2 py-0.5 rounded">COMING SOON</span>
                                   </div>
                                 </div>
@@ -633,15 +632,15 @@ const ExploreProperties = () => {
                                 {/* Gallery Preview */}
                                 <div>
                                   <div className="flex items-center justify-between mb-3">
-                                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Gallery</h4>
-                                    <span className="text-xs text-teal-600 font-bold cursor-pointer hover:underline">View All</span>
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Gallery</h4>
+                                    <span className="text-xs text-teal-600 dark:text-teal-400 font-bold cursor-pointer hover:underline">View All</span>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     {/* 1. Main Video/Image */}
-                                    <div className="col-span-2 h-32 bg-gray-800 rounded-xl overflow-hidden relative group">
+                                    <div className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group">
                                       <img src={drawerData.rooms?.[0]?.image} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
                                       <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40">
+                                        <div className="w-10 h-10 bg-white/20 dark:bg-black/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 dark:border-white/20">
                                           <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1"></div>
                                         </div>
                                       </div>
@@ -649,12 +648,12 @@ const ExploreProperties = () => {
                                     </div>
                                     {/* 2. Room Grid */}
                                     {(drawerData.rooms || []).slice(0, 2).map((room, idx) => (
-                                      <div key={idx} className="h-24 bg-gray-200 rounded-xl overflow-hidden relative">
+                                      <div key={idx} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative">
                                         <img src={room.image} className="w-full h-full object-cover" />
                                       </div>
                                     ))}
                                     {(drawerData.rooms?.length || 0) > 2 && (
-                                      <div className="h-24 bg-gray-100 rounded-xl flex items-center justify-center text-xs font-bold text-gray-400 border border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors">
+                                      <div className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-xs font-bold text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                                         +{(drawerData.rooms.length - 2)} More
                                       </div>
                                     )}
@@ -671,7 +670,7 @@ const ExploreProperties = () => {
                                     {drawerReviews.summary?.average_rating || drawerData.rating || 'N/A'}
                                   </div>
                                   {drawerReviews.summary?.total_reviews > 0 && (
-                                    <span className="ml-2 text-xs text-gray-500">({drawerReviews.summary.total_reviews} reviews)</span>
+                                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({drawerReviews.summary.total_reviews} reviews)</span>
                                   )}
                                 </div>
 
@@ -683,7 +682,7 @@ const ExploreProperties = () => {
                                     </div>
                                   ) : drawerReviews.reviews?.length > 0 ? (
                                     drawerReviews.reviews.map((review, i) => (
-                                      <div key={review.id || i} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                                      <div key={review.id || i} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md transition-all hover:shadow-lg">
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-400 to-green-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
@@ -694,31 +693,31 @@ const ExploreProperties = () => {
                                               )}
                                             </div>
                                             <div>
-                                              <p className="text-xs font-bold text-gray-900">{review.reviewer_name || 'Anonymous'}</p>
-                                              <p className="text-[10px] text-gray-400">{review.time_ago}</p>
+                                              <p className="text-xs font-bold text-gray-900 dark:text-white">{review.reviewer_name || 'Anonymous'}</p>
+                                              <p className="text-[10px] text-gray-400 dark:text-gray-500">{review.time_ago}</p>
                                             </div>
                                           </div>
                                           <div className="flex text-yellow-400">
                                             {[...Array(5)].map((_, starI) => (
-                                              <Star key={starI} className={`w-3 h-3 ${starI < review.rating ? 'fill-current' : 'text-gray-200'}`} />
+                                              <Star key={starI} className={`w-3 h-3 ${starI < review.rating ? 'fill-current' : 'text-gray-200 dark:text-gray-600'}`} />
                                             ))}
                                           </div>
                                         </div>
                                         {review.comment && (
-                                          <p className="text-xs text-gray-600 leading-relaxed">"{review.comment}"</p>
+                                          <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">"{review.comment}"</p>
                                         )}
                                         {review.landlord_response && (
-                                          <div className="mt-3 pl-3 border-l-2 border-teal-200 bg-teal-50/50 p-2 rounded-r-lg">
-                                            <p className="text-[10px] text-teal-700 font-semibold mb-1">Landlord Response:</p>
-                                            <p className="text-xs text-gray-600">{review.landlord_response}</p>
+                                          <div className="mt-3 pl-3 border-l-2 border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-900/20 p-2 rounded-r-lg">
+                                            <p className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold mb-1">Landlord Response:</p>
+                                            <p className="text-xs text-gray-600 dark:text-gray-300">{review.landlord_response}</p>
                                           </div>
                                         )}
                                       </div>
                                     ))
                                   ) : (
                                     <div className="text-center py-8">
-                                      <p className="text-sm text-gray-500">No reviews yet</p>
-                                      <p className="text-xs text-gray-400 mt-1">Be the first to review this property</p>
+                                      <p className="text-sm text-gray-500 dark:text-gray-400">No reviews yet</p>
+                                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Be the first to review this property</p>
                                     </div>
                                   )}
                                 </div>
@@ -730,14 +729,14 @@ const ExploreProperties = () => {
 
                                 {/* Description (Moved from Overview) */}
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description</h4>
-                                  <p className="text-gray-600 text-sm leading-relaxed bg-white p-4 rounded-xl border border-gray-100">
+                                  <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Description</h4>
+                                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
                                     {drawerData.description || "Welcome to this property. It offers a secure and comfortable environment with various amenities tailored for your needs."}
                                   </p>
                                 </div>
 
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities</h4>
+                                  <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Amenities</h4>
                                   <div className="flex flex-wrap gap-2">
                                     {/* Use amenities from rooms or property */}
                                     {(() => {
@@ -750,31 +749,31 @@ const ExploreProperties = () => {
 
                                       if (amenitiesList.length > 0) {
                                         return amenitiesList.map((item, i) => (
-                                          <span key={i} className="px-3 py-2 bg-gray-50 hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors border border-gray-100 text-gray-600 text-xs font-semibold rounded-xl">
+                                          <span key={i} className="px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-colors border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-xl shadow-sm">
                                             {item}
                                           </span>
                                         ));
                                       }
-                                      return <p className="text-xs text-gray-400">No amenities listed</p>;
+                                      return <p className="text-xs text-gray-400 dark:text-gray-500">No amenities listed</p>;
                                     })()}
                                   </div>
                                 </div>
 
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">House Rules</h4>
-                                  <ul className="space-y-2 bg-white p-4 rounded-xl border border-gray-100">
+                                  <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">House Rules</h4>
+                                  <ul className="space-y-2 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
                                     {/* Use property_rules from backend */}
                                     {(() => {
                                       const rules = drawerData.property_rules || drawerData.rules || [];
                                       if (rules.length > 0) {
                                         return rules.map((rule, idx) => (
-                                          <li key={idx} className="flex items-center gap-3 text-sm text-gray-600 py-1 border-b border-gray-50 last:border-0">
+                                          <li key={idx} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 py-1 border-b border-gray-50 dark:border-gray-700 last:border-0">
                                             <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"></div>
                                             {rule}
                                           </li>
                                         ));
                                       }
-                                      return <li className="text-xs text-gray-400">No house rules specified</li>;
+                                      return <li className="text-xs text-gray-400 dark:text-gray-500">No house rules specified</li>;
                                     })()}
                                   </ul>
                                 </div>
@@ -786,7 +785,7 @@ const ExploreProperties = () => {
                         {/* END SINGLE SCROLLABLE CONTAINER */}
 
                         {/* Footer Action */}
-                        <div className="p-5 bg-white border-t border-gray-100 z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] relative">
+                        <div className="p-5 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] relative">
                           <button
                             onClick={() => navigate(`/property/${drawerData.id}`)}
                             className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-xl shadow-lg shadow-teal-900/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"

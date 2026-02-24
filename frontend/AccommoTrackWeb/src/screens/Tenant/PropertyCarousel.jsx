@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PropertyCarousel = ({ property, onOpenDetails }) => {
   const carouselRef = useRef(null);
@@ -39,7 +40,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           onClick={() => scrollToCard('left')}
           className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-md border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 hover:border-green-600 dark:hover:border-green-400 transition-all opacity-0 group-hover/section:opacity-100 duration-200 hidden md:flex"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <ChevronLeft className="w-5 h-5" />
         </button>
       )}
 
@@ -51,7 +52,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         {property.rooms.map((room) => (
           <div
             key={room.id}
-            className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-green-200 dark:hover:border-green-700 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
+            className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg hover:border-green-200 dark:hover:border-green-700 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
           >
             {/* Image Click -> Open Room Details */}
             <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
@@ -110,7 +111,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           onClick={() => scrollToCard('right')}
           className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-md border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 hover:border-green-600 dark:hover:border-green-400 transition-all opacity-0 group-hover/section:opacity-100 duration-200 hidden md:flex"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          <ChevronRight className="w-5 h-5" />
         </button>
       )}
     </div>
