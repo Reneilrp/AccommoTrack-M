@@ -58,8 +58,8 @@ const Help = () => {
             href="mailto:support@accommotrack.com"
             className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group"
           >
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <h3 className="font-bold text-gray-900 dark:text-white mb-1">Email Us</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Get a response within 24 hours</p>

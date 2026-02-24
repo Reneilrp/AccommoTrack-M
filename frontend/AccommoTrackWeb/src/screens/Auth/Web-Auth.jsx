@@ -24,6 +24,7 @@ import { getDefaultLandingRoute } from '../../utils/userRoutes';
 import toast, { Toaster } from 'react-hot-toast';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import BlockedUserModal from '../../components/Shared/BlockedUserModal';
+import ForgotPasswordModal from '../../components/Modals/ForgotPasswordModal';
 
 // Resubmit Modal Component
 const ResubmitModal = ({ visible, onClose, theme }) => {
@@ -232,7 +233,19 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 function AuthScreen({ onLogin = () => {} }) {
   const navigate = useNavigate();
   const { effectiveTheme } = usePreferences();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(() => {
+    try {
+      const saved = localStorage.getItem('auth_is_login');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('auth_is_login', JSON.stringify(isLogin));
+  }, [isLogin]);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -241,6 +254,7 @@ function AuthScreen({ onLogin = () => {} }) {
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [showResubmitModal, setShowResubmitModal] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -267,16 +281,38 @@ function AuthScreen({ onLogin = () => {} }) {
   const emailCheckTimeout = useRef(null);
   const emailCheckAbortController = useRef(null);
   const fieldRefs = useRef({});
-  const [formData, setFormData] = useState({
-    first_name: '',
-    middle_name: '',
-    last_name: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-    role: 'tenant', // Registration is tenant-only
-    phone: '',
+  const [formData, setFormData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('auth_form_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          password: '',
+          password_confirmation: '',
+          role: 'tenant'
+        };
+      }
+    } catch {
+      // ignore parsing errors
+    }
+    return {
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      email: '',
+      password: '',
+      password_confirmation: '',
+      role: 'tenant', // Registration is tenant-only
+      phone: '',
+    };
   });
+
+  // Persist form data (excluding passwords) to localStorage
+  useEffect(() => {
+    const dataToSave = { ...formData, password: '', password_confirmation: '' };
+    localStorage.setItem('auth_form_data', JSON.stringify(dataToSave));
+  }, [formData]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -482,7 +518,17 @@ function AuthScreen({ onLogin = () => {} }) {
         const me = data.user;
         localStorage.setItem('userData', JSON.stringify(me));
         onLogin(me);
-        setFormData({ ...formData, email: '', password: '' });
+        // Clear stored form data on successful login
+        setFormData({
+          first_name: '',
+          middle_name: '',
+          last_name: '',
+          email: '',
+          password: '',
+          password_confirmation: '',
+          role: 'tenant',
+          phone: '',
+        });
         const landingRoute = getDefaultLandingRoute(me);
         navigate(landingRoute);
         return;
@@ -507,7 +553,17 @@ function AuthScreen({ onLogin = () => {} }) {
         if (me) {
           localStorage.setItem('userData', JSON.stringify(me));
           onLogin(me);
-          setFormData({ ...formData, email: '', password: '' });
+          // Clear stored form data on successful login
+          setFormData({
+            first_name: '',
+            middle_name: '',
+            last_name: '',
+            email: '',
+            password: '',
+            password_confirmation: '',
+            role: 'tenant',
+            phone: '',
+          });
           const landingRoute = getDefaultLandingRoute(me);
           navigate(landingRoute);
         } else {
@@ -675,16 +731,6 @@ function AuthScreen({ onLogin = () => {} }) {
     setError('');
     setEmailAvailable(null);
     setEmailCheckMsg('');
-    setFormData({
-      first_name: '',
-      middle_name: '',
-      last_name: '',
-      email: '',
-      password: '',
-      password_confirmation: '',
-      role: 'tenant',
-      phone: '',
-    });
   };
 
   const inputClasses = "w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-500 focus:border-green-300 dark:focus:border-green-400 transition-all";
@@ -699,6 +745,10 @@ function AuthScreen({ onLogin = () => {} }) {
         visible={showResubmitModal} 
         onClose={() => setShowResubmitModal(false)} 
         theme={effectiveTheme} 
+      />
+      <ForgotPasswordModal 
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
       />
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
         {/* Back/Sign In Button */}
@@ -821,7 +871,8 @@ function AuthScreen({ onLogin = () => {} }) {
             <div className="text-right">
               <button
                 type="button"
-                 className="text-sm text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white font-semibold transition-colors opacity-50 hover:opacity-80"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white font-semibold transition-colors opacity-50 hover:opacity-80"
               >
                  Forgot Password?
               </button>
