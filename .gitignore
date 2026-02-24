@@ -2,4 +2,3 @@ backend/vendor/
 node_modules/
 .env
 /vendor
-.gemini
