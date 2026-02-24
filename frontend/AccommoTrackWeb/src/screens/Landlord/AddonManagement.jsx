@@ -156,10 +156,10 @@ const AddonManagement = ({ propertyId }) => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex justify-between items-center mb-6">
-          <p className="text-sm text-gray-500">Manage extra services and rentals for tenants</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage extra services and rentals for tenants</p>
           <button
             onClick={() => { resetForm(); setShowModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-500/20"
           >
             <Plus className="w-5 h-5" />
             Add New Service
@@ -167,22 +167,22 @@ const AddonManagement = ({ propertyId }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-green-100 text-green-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
               {tab.count > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-xs ${
-                  activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
                   {tab.count}
                 </span>
@@ -232,9 +232,9 @@ const AddonManagement = ({ propertyId }) => {
 const ManageTab = ({ addons, onEdit, onDelete }) => {
   if (addons.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <Sparkles className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-        <p>No add-ons created yet.</p>
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        <Sparkles className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+        <p className="font-medium">No add-ons created yet.</p>
         <p className="text-sm">Create add-ons to offer extra services to your tenants.</p>
       </div>
     );
@@ -243,48 +243,48 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {addons.map((addon) => (
-        <div key={addon.id} className={`border rounded-lg p-4 ${addon.isActive ? 'border-gray-200' : 'border-gray-100 bg-gray-50'}`}>
+        <div key={addon.id} className={`border rounded-xl p-5 transition-all shadow-sm ${addon.isActive ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50'}`}>
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h4 className="font-medium text-gray-900">{addon.name}</h4>
+                <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
                 {!addon.isActive && (
-                  <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">Inactive</span>
+                  <span className="text-[10px] font-black uppercase bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">Inactive</span>
                 )}
               </div>
-              <div className="flex gap-2 mt-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  addon.priceType === 'monthly' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+              <div className="flex gap-2 mt-2">
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                  addon.priceType === 'monthly' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                 }`}>
                   {addon.priceTypeLabel}
                 </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  addon.addonType === 'rental' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                  addon.addonType === 'rental' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                 }`}>
                   {addon.addonTypeLabel}
                 </span>
               </div>
               {addon.description && (
-                <p className="text-sm text-gray-500 mt-2">{addon.description}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 leading-relaxed">{addon.description}</p>
               )}
-              <p className="text-lg font-semibold text-green-600 mt-2">
+              <p className="text-xl font-black text-green-600 dark:text-green-400 mt-3">
                 ₱{addon.price.toLocaleString()}
-                {addon.priceType === 'monthly' && <span className="text-sm font-normal">/month</span>}
+                {addon.priceType === 'monthly' && <span className="text-xs font-bold text-gray-400 dark:text-gray-500 ml-1">/ mo</span>}
               </p>
               {addon.stock !== null && (
-                <p className="text-xs text-gray-400 mt-1">Stock: {addon.stock}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-medium">Available Stock: {addon.stock}</p>
               )}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 ml-2">
               <button
                 onClick={() => onEdit(addon)}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
               >
                 <Pencil className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDelete(addon.id)}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -300,9 +300,9 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
 const RequestsTab = ({ requests, onHandle }) => {
   if (requests.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <BellRing className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-        <p>No pending requests.</p>
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        <BellRing className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+        <p className="font-medium">No pending requests.</p>
       </div>
     );
   }
@@ -310,49 +310,58 @@ const RequestsTab = ({ requests, onHandle }) => {
   return (
     <div className="space-y-4">
       {requests.map((request) => (
-        <div key={request.requestId} className="border border-amber-200 bg-amber-50 rounded-lg p-4">
+        <div key={request.requestId} className="border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 shadow-sm">
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">{request.addonName}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  request.priceType === 'monthly' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                <span className="font-bold text-gray-900 dark:text-white text-lg">{request.addonName}</span>
+                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                  request.priceType === 'monthly' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                 }`}>
                   {request.priceType === 'monthly' ? 'Monthly' : 'One-time'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-1">
-                <span className="font-medium">{request.tenant.name}</span> • Room {request.roomNumber}
-              </p>
-              <p className="text-sm text-gray-500">{request.tenant.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-black text-xs">
+                  {request.tenant.name?.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                    {request.tenant.name} <span className="mx-1 font-normal text-gray-400 dark:text-gray-500">•</span> <span className="text-amber-700 dark:text-amber-400">Room {request.roomNumber}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{request.tenant.email}</p>
+                </div>
+              </div>
               {request.requestNote && (
-                <p className="text-sm text-gray-600 mt-2 italic">"{request.requestNote}"</p>
+                <div className="mt-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-amber-100 dark:border-amber-900/20">
+                  <p className="text-xs text-gray-600 dark:text-gray-300 italic leading-relaxed">"{request.requestNote}"</p>
+                </div>
               )}
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-3 uppercase tracking-widest">
                 Requested: {new Date(request.requestedAt).toLocaleDateString()}
               </p>
             </div>
             <div className="text-right">
-              <p className="font-semibold text-green-600">
+              <p className="text-xl font-black text-green-600 dark:text-green-400">
                 ₱{request.price.toLocaleString()}
-                {request.priceType === 'monthly' && <span className="text-xs">/mo</span>}
+                {request.priceType === 'monthly' && <span className="text-xs font-bold">/mo</span>}
               </p>
               {request.stock !== null && (
-                <p className="text-xs text-gray-400">Stock: {request.stock}</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-1">STOCK: {request.stock}</p>
               )}
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 mt-4 justify-end">
                 <button
                   onClick={() => onHandle(request.bookingId, request.addonId, 'approve')}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all active:scale-95 shadow-sm"
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-3.5 h-3.5" />
                   Approve
                 </button>
                 <button
                   onClick={() => onHandle(request.bookingId, request.addonId, 'reject')}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-lg hover:bg-red-200"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all active:scale-95"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                   Reject
                 </button>
               </div>
@@ -372,37 +381,42 @@ const ActiveTab = ({ data }) => {
     <div>
       {/* Summary */}
       {summary && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-green-50 rounded-lg p-4">
-            <p className="text-sm text-green-600">Active Subscriptions</p>
-            <p className="text-2xl font-bold text-green-700">{summary.totalActive || 0}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-xl p-5 shadow-sm">
+            <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1">Active Subscriptions</p>
+            <p className="text-3xl font-black text-green-700 dark:text-green-300">{summary.totalActive || 0}</p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-4">
-            <p className="text-sm text-blue-600">Monthly Add-on Revenue</p>
-            <p className="text-2xl font-bold text-blue-700">₱{(summary.monthlyRevenue || 0).toLocaleString()}</p>
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-5 shadow-sm">
+            <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Monthly Revenue</p>
+            <p className="text-3xl font-black text-blue-700 dark:text-blue-300">₱{(summary.monthlyRevenue || 0).toLocaleString()}</p>
           </div>
         </div>
       )}
 
       {/* List */}
       {activeAddons && activeAddons.length > 0 ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activeAddons.map((item) => (
-            <div key={item.requestId} className="border border-green-200 bg-green-50 rounded-lg p-4">
+            <div key={item.requestId} className="border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 rounded-xl p-5 shadow-sm transition-all hover:shadow-md">
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="font-medium text-gray-900">{item.addonName}</span>
-                  <p className="text-sm text-gray-600">
-                    {item.tenantName} • Room {item.roomNumber}
-                  </p>
+                  <span className="font-bold text-gray-900 dark:text-white text-lg block mb-1">{item.addonName}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-green-200 dark:bg-green-900/50 flex items-center justify-center text-[10px] font-black text-green-700 dark:text-green-400">
+                      {item.tenantName?.charAt(0)}
+                    </div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                      {item.tenantName} <span className="mx-1 opacity-30">•</span> <span className="text-green-700 dark:text-green-400 font-bold">Room {item.roomNumber}</span>
+                    </p>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-green-600">
+                  <p className="text-xl font-black text-green-600 dark:text-green-400">
                     ₱{item.price.toLocaleString()}
-                    {item.priceType === 'monthly' && <span className="text-xs">/mo</span>}
+                    {item.priceType === 'monthly' && <span className="text-xs font-bold opacity-60">/mo</span>}
                   </p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    item.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                  <span className={`inline-block mt-2 text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    item.status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                   }`}>
                     {item.status}
                   </span>
@@ -412,9 +426,9 @@ const ActiveTab = ({ data }) => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 text-gray-500">
-          <Check className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-          <p>No active add-ons yet.</p>
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <Check className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <p className="font-medium">No active add-ons yet.</p>
         </div>
       )}
     </div>
@@ -423,111 +437,114 @@ const ActiveTab = ({ data }) => {
 
 // ==================== Form Modal ====================
 const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing }) => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-      <div className="p-6 border-b border-gray-100">
-        <h3 className="text-lg font-semibold">{isEditing ? 'Edit Add-on' : 'Create Add-on'}</h3>
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 flex justify-between items-center">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">{isEditing ? 'Edit Add-on' : 'Create New Add-on'}</h3>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+          <X className="w-5 h-5 text-gray-400" />
+        </button>
       </div>
-      <form onSubmit={onSubmit} className="p-6 space-y-4">
+      <form onSubmit={onSubmit} className="p-6 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Add-on Name *</label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
             required
             placeholder="e.g., Rice Cooker, Wi-Fi Upgrade"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Description</label>
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all h-24 resize-none"
             rows={2}
-            placeholder="Brief description of the add-on"
+            placeholder="Briefly describe what this service covers..."
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Price (₱) *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Price (₱) *</label>
             <input
               type="number"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
               required
               min="0"
               step="0.01"
-              placeholder="100.00"
+              placeholder="0.00"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Price Type *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Price Type *</label>
             <select
               value={formData.price_type}
               onChange={(e) => setFormData({ ...formData, price_type: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
             >
               <option value="monthly">Monthly (Recurring)</option>
-              <option value="one_time">One-time</option>
+              <option value="one_time">One-time Fee</option>
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Add-on Type *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Add-on Type *</label>
             <select
               value={formData.addon_type}
               onChange={(e) => setFormData({ ...formData, addon_type: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
             >
-              <option value="fee">Usage Fee (Tenant brings item)</option>
-              <option value="rental">Rental (You provide item)</option>
+              <option value="fee">Usage Fee (Tenant Item)</option>
+              <option value="rental">Rental (Owner Provided)</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Stock (Rentals)</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Stock (Optional)</label>
             <input
               type="number"
               value={formData.stock}
               onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none"
               min="0"
-              placeholder="Leave empty for unlimited"
+              placeholder="Unlimited"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
           <input
             type="checkbox"
             id="is_active"
             checked={formData.is_active}
             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-            className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+            className="w-5 h-5 text-green-600 rounded-lg focus:ring-green-500"
           />
-          <label htmlFor="is_active" className="text-sm text-gray-700">Active (visible to tenants)</label>
+          <label htmlFor="is_active" className="text-sm font-bold text-gray-700 dark:text-gray-200 cursor-pointer">Active (Tenant can see this)</label>
         </div>
 
         <div className="flex gap-3 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 active:scale-95 transition-all"
           >
-            {isEditing ? 'Update' : 'Create'}
+            {isEditing ? 'Save Changes' : 'Create Add-on'}
           </button>
         </div>
       </form>

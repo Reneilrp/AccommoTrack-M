@@ -16,6 +16,7 @@ import { Navigation, Pagination, Autoplay, Keyboard, A11y } from 'swiper/modules
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import NotFoundPage from '../NotFoundPage';
 
 export default function PropertySummary() {
   const { id } = useParams();
@@ -78,6 +79,7 @@ export default function PropertySummary() {
         if (typeof it === 'string') return getImageUrl(it);
         if (it.image_url) return getImageUrl(it.image_url);
         if (it.url) return getImageUrl(it.url);
+        if (it.image_path) return getImageUrl(it.image_path);
         return null;
       }).filter(Boolean);
       setImages(imgs);
@@ -150,7 +152,7 @@ export default function PropertySummary() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-transparent dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-300">Loading property...</p>
@@ -161,7 +163,7 @@ export default function PropertySummary() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-transparent dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-xl w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
           <p className="text-red-700 font-medium">Error</p>
           <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
@@ -172,12 +174,10 @@ export default function PropertySummary() {
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Building2 className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300">Property not found</p>
-        </div>
-      </div>
+      <NotFoundPage 
+        title="Property Not Found" 
+        message="The property you are looking for does not exist or has been removed." 
+      />
     );
   }
 
@@ -265,8 +265,8 @@ export default function PropertySummary() {
       {/* Two-column layout: gallery left (50%), details right (50%) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
-          <div className="mb-4 text-center">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Property Details & Information</h2>
+          <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-widest">Property Details & Information</h2>
           </div>
 
           {/* Edit button moved here (upper-right of the details card) */}
@@ -278,62 +278,37 @@ export default function PropertySummary() {
           >
             <Edit className="w-5 h-5 text-green-600" />
           </button>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 m-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 m-2 items-stretch">
           {/* Left: Gallery */}
-          <div className="w-full p-8">
-            <div className="relative w-full">
-              <div ref={galleryRef} className="relative bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden">
-                <div className="w-full relative">
+          <div className="w-full flex flex-col">
+            <div className="relative w-full h-full flex flex-col">
+              <div ref={galleryRef} className="relative flex-1 bg-black rounded-xl overflow-hidden flex flex-col min-h-[400px]">
+                <div className="w-full flex-1 relative flex flex-col">
                   {images.length > 0 ? (
                     <>
                       <Swiper
                         modules={[Navigation, Pagination, Autoplay, Keyboard, A11y]}
-                        spaceBetween={12}
+                        spaceBetween={0}
                         slidesPerView={1}
                         navigation={false}
                         pagination={false}
                         autoplay={{ delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: true }}
                         loop={images.length > 1}
-                        slidesPerGroup={1}
-                        speed={600}
-                        resistanceRatio={0.85}
-                        keyboard={{ enabled: true }}
-                        a11y={{ enabled: true }}
-                        onSlideChange={(swiper) => { setIdx(swiper.realIndex); setCurrentAspect(imageAspects[swiper.realIndex] || null); }}
+                        className="w-full h-full"
+                        onSlideChange={(swiper) => setIdx(swiper.realIndex)}
                         onSwiper={(s) => setSwiperInstance(s)}
                       >
                         {images.map((src, i) => (
-                          <SwiperSlide key={i} className="h-full">
-                                <div
-                                  className="w-full relative overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center"
-                                  style={(() => {
-                                    const defaultAspect = 9 / 16; // fallback to 16:9 while images load
-                                    const aspect = currentAspect || imageAspects[i] || defaultAspect;
-                                    if (containerWidth && aspect) {
-                                      const maxH = 420; // cap height so it doesn't take entire screen
-                                      const h = Math.min(containerWidth * aspect, maxH);
-                                      return { height: `${h}px` };
-                                    }
-                                    return { height: undefined };
-                                  })()}
-                                >
-                                  <img
-                                    src={src}
-                                    loading="lazy"
-                                    alt={`property-${i}`}
-                                    onLoad={(e) => {
-                                      const naturalW = e.target.naturalWidth || 1;
-                                      const naturalH = e.target.naturalHeight || 1;
-                                      const aspect = naturalH / naturalW;
-                                      setImageAspects((p) => ({ ...p, [i]: aspect }));
-                                      if (i === idx) setCurrentAspect(aspect);
-                                      // re-measure container width after image load so height calc updates
-                                      if (galleryRef.current) setContainerWidth(galleryRef.current.clientWidth);
-                                    }}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              </SwiperSlide>
+                          <SwiperSlide key={i} className="h-full bg-black">
+                            <div className="w-full h-full flex items-center justify-center">
+                              <img
+                                src={src}
+                                loading="lazy"
+                                alt={`property-${i}`}
+                                className="max-w-full max-h-full object-contain"
+                              />
+                            </div>
+                          </SwiperSlide>
                         ))}
                       </Swiper>
 
@@ -440,8 +415,8 @@ export default function PropertySummary() {
         {/* Room Management section below spanning both columns */}
         <div className="mt-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
-              <div className="mb-4 text-center">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Room Management</h2>
+              <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-widest">Room Management</h2>
               </div>
               <button
                 onClick={() => navigate(`/rooms?property=${id}`)}

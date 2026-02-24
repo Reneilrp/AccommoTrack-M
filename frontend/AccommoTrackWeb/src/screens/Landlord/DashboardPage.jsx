@@ -134,12 +134,37 @@ export default function DashboardPage({ user }) {
       <div className="max-w-7xl mx-auto py-8 animate-pulse">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 h-32" />
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 h-32 flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                <div className="w-16 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+              <div className="space-y-2">
+                <div className="w-24 h-8 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96" />
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96" />
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96 flex flex-col gap-4">
+            <div className="w-48 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+            {[...Array(5)].map((_, j) => (
+              <div key={j} className="flex gap-4">
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-3/4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                  <div className="w-1/2 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96 flex flex-col gap-4">
+            <div className="w-40 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+            {[...Array(4)].map((_, k) => (
+              <div key={k} className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg w-full" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -179,7 +204,7 @@ export default function DashboardPage({ user }) {
 
       {/* Main Stats Grid */}
       <div className={`grid grid-cols-1 md:grid-cols-2 ${isCaretaker ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6`}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-blue-600" /></div>
             <span className="text-xs text-green-600 font-medium">{stats?.properties.active}/{stats?.properties.total} Active</span>
@@ -188,7 +213,7 @@ export default function DashboardPage({ user }) {
           <p className="text-sm text-gray-500">Total Properties</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Home className="w-6 h-6 text-green-600" /></div>
             <span className="text-xs text-blue-600 font-medium">{stats?.rooms.occupancyRate}% Occupied</span>
@@ -197,7 +222,7 @@ export default function DashboardPage({ user }) {
           <p className="text-sm text-gray-500">{stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"><Calendar className="w-6 h-6 text-purple-600" /></div>
             {stats?.bookings.pending > 0 && <span className="text-xs text-yellow-600 font-medium">{stats?.bookings.pending} Pending</span>}
@@ -207,7 +232,7 @@ export default function DashboardPage({ user }) {
         </div>
 
         {!isCaretaker && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                  <LucidePhilippinePeso className="w-6 h-6 text-orange-600" />
@@ -222,7 +247,7 @@ export default function DashboardPage({ user }) {
 
       {/* Activities and Alerts */}
       <div className={`grid grid-cols-1 ${isCaretaker ? 'lg:grid-cols-3' : 'lg:grid-cols-3'} gap-6`}>
-        <div className={`${isCaretaker ? 'lg:col-span-2' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6`}>
+        <div className={`${isCaretaker ? 'lg:col-span-2' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-400/50 dark:border-gray-700 p-6`}>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
           <div className="space-y-4">
             {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
@@ -242,7 +267,7 @@ export default function DashboardPage({ user }) {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
             <div className="space-y-3">
               {upcomingPayments.upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
@@ -257,7 +282,7 @@ export default function DashboardPage({ user }) {
           </div>
 
           {!isCaretaker && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Invoices</h2>
               <div className="space-y-3">
                 {upcomingPayments.unpaidBookings.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">All paid up!</p> :
@@ -276,7 +301,7 @@ export default function DashboardPage({ user }) {
       </div>
 
       {/* Performance Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Performance</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {propertyPerformance.map((p) => (

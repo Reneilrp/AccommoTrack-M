@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CreditCard, MessageSquare, Inbox, ArrowLeft } from 'lucide-react';
+import { Loader2, CreditCard, MessageSquare, Inbox, ArrowLeft, Calendar } from 'lucide-react';
 import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
@@ -21,14 +21,12 @@ export default function TenantLogs() {
   const [previousPayments, setPreviousPayments] = useState(cachedData?.previousPayments || []);
   const [dueAmount, setDueAmount] = useState(cachedData?.dueAmount || 0);
   const [currentRoom, setCurrentRoom] = useState(cachedData?.currentRoom || null);
-  // `searchResults` holds either tenant search results (when multiple matches)
-  // or message-like objects if we extend this later. Renamed for clarity.
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState(null);
-  // Client-side controls for payments
-  const [paymentFilter, setPaymentFilter] = useState('all'); // 'all' | 'paid' | 'due'
+  
+  const [paymentFilter, setPaymentFilter] = useState('all'); 
   const [paymentSort, setPaymentSort] = useState({ key: 'date', dir: 'desc' });
-  const [paymentGroup, setPaymentGroup] = useState('none'); // 'none' | 'monthly' | 'yearly'
+  const [paymentGroup, setPaymentGroup] = useState('none'); 
 
   useEffect(() => {
     const load = async () => {
@@ -38,29 +36,23 @@ export default function TenantLogs() {
 
         let tenantId = id || null;
 
-        // If no id supplied but search param exists, try to find tenant by search
         if (!tenantId && searchParam) {
           try {
-            // Try common search param on API - best-effort
             const res = await api.get(`/landlord/tenants?search=${encodeURIComponent(searchParam)}`);
             const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
             if (list.length === 1) {
               tenantId = list[0].id || list[0].tenant_id || list[0].tenantId || (list[0].user && list[0].user.id) || null;
             } else if (list.length > 1) {
-              // Show search results (multiple tenants) so the user can pick one
               setTenant(null);
               setPayments([]);
               setSearchResults(list);
               setLoading(false);
               return;
             }
-          } catch (e) {
-            // ignore and proceed
-          }
+          } catch (e) { console.error(e); }
         }
 
         if (!tenantId) {
-          // nothing else we can do
           setTenant(null);
           setPayments([]);
           setSearchResults([]);
@@ -68,65 +60,53 @@ export default function TenantLogs() {
           return;
         }
 
-        // Try to fetch tenant details (may include booking/payment summary)
         let tenantData = null;
         try {
           const tRes = await api.get(`/landlord/tenants/${tenantId}`);
           tenantData = tRes.data || null;
           setTenant(tenantData);
         } catch (e) {
-          // Some backends may not support GET on this route (405) — don't treat this as fatal.
-          console.warn('Could not fetch tenant details, continuing to load payments/messages', e?.response?.status);
-          // Provide a minimal tenant object so the UI can render a header.
           tenantData = { id: tenantId, name: searchParam || `Tenant ${tenantId}` };
           setTenant(tenantData);
         }
 
-        // Payments: invoices endpoint supports filtering by tenant_id
+        let payList = [];
+        let paid = [];
+        let dueSumCents = 0;
+
         try {
           const payRes = await api.get(`/invoices?tenant_id=${tenantId}&t=${Date.now()}`);
-          // InvoiceController returns a paginated object; prefer `.data` when present
-          const payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || payRes.data || []);
+          payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || payRes.data || []);
           setPayments(payList);
 
-          // Derive previous payments (paid invoices) and outstanding due
-          const paid = (payList || []).filter(inv => (inv.status === 'paid') || inv.paid_at);
-          const unpaid = (payList || []).filter(inv => !(inv.status === 'paid' || inv.paid_at));
+          paid = payList.filter(inv => (inv.status === 'paid') || inv.paid_at);
+          const unpaid = payList.filter(inv => !(inv.status === 'paid' || inv.paid_at));
           setPreviousPayments(paid);
-          const dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
+          dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
           setDueAmount(dueSumCents / 100);
 
-          // Try to resolve current room from tenant details (use tenantData) or from the most recent invoice with booking_id
           if (tenantData && tenantData.room) {
             setCurrentRoom(tenantData.room);
           } else {
-            const invoiceWithBooking = (payList || []).find(inv => inv.booking_id);
-            if (invoiceWithBooking && invoiceWithBooking.booking_id) {
+            const invoiceWithBooking = payList.find(inv => inv.booking_id);
+            if (invoiceWithBooking?.booking_id) {
               try {
                 const bRes = await api.get(`/bookings/${invoiceWithBooking.booking_id}`);
                 const booking = bRes.data;
-                if (booking && booking.room) {
+                if (booking?.room) {
                   setCurrentRoom({
                     room_number: booking.room.room_number,
                     type_label: booking.room.room_type || booking.room.room_type_label,
                     id: booking.room.id
                   });
                 }
-              } catch (e) {
-                // ignore booking fetch errors
-              }
+              } catch (e) { /* ignore */ }
             }
           }
         } catch (e) {
-          console.warn('Failed to load invoices for tenant', e?.response?.status);
           setPayments([]);
         }
 
-        // Messages/searchResults: no dedicated messages route on this backend.
-        // Leave search results empty when we have a single tenant loaded.
-        setSearchResults([]);
-
-        // Update cache
         const combined = { 
           tenant: tenantData, 
           payments: payList, 
@@ -137,7 +117,6 @@ export default function TenantLogs() {
         updateData(cacheKey, combined);
         cacheManager.set(cacheKey, combined);
       } catch (err) {
-        console.error('Failed to load tenant logs', err);
         setError(err.response?.data?.message || err.message || 'Failed to load tenant');
       } finally {
         setLoading(false);
@@ -147,35 +126,7 @@ export default function TenantLogs() {
     load();
   }, [id, searchParam]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300">Loading tenant logs...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
-          <p className="text-red-700 dark:text-red-400 font-medium">Error</p>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
-          <div className="mt-4 text-right">
-            <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">Back</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Compute filtered and sorted payment lists based on client controls
-  const allPaid = (previousPayments || []);
-  const allDue = (payments || []).filter(inv => !(inv.status === 'paid' || inv.paid_at));
-
+  // Helper formatting functions
   const getAmountNumber = (inv) => {
     const cents = inv.amount_cents ?? inv.total_cents ?? null;
     if (typeof cents === 'number') return cents / 100;
@@ -193,18 +144,8 @@ export default function TenantLogs() {
     if (paymentSort.key === 'amount') {
       return (getAmountNumber(a) - getAmountNumber(b)) * (paymentSort.dir === 'asc' ? 1 : -1);
     }
-    // default to date
     return (getDateValue(a) - getDateValue(b)) * (paymentSort.dir === 'asc' ? 1 : -1);
   };
-
-  const sortedPaid = [...allPaid].sort(sortFn);
-  const sortedDue = [...allDue].sort(sortFn);
-
-  const displayedPaid = paymentFilter === 'due' ? [] : sortedPaid;
-  const displayedDue = paymentFilter === 'paid' ? [] : sortedDue;
-
-  // Grouping helpers
-  const monthName = (m) => new Date(2000, m - 1, 1).toLocaleString(undefined, { month: 'long' });
 
   function groupPayments(items, grouping) {
     if (!grouping || grouping === 'none') return [{ key: 'all', label: null, items }];
@@ -220,220 +161,171 @@ export default function TenantLogs() {
         label = key;
       } else if (grouping === 'monthly') {
         key = `${year}-${String(month).padStart(2, '0')}`;
-        label = month ? `${monthName(month)} ${year}` : String(year);
+        label = month ? `${new Date(2000, month - 1).toLocaleString(undefined, { month: 'long' })} ${year}` : String(year);
       }
       if (!map.has(key)) map.set(key, { key, label, items: [] });
       map.get(key).items.push(inv);
     });
-    // Convert to array and sort groups by key (desc by default)
-    const groups = Array.from(map.values()).sort((a, b) => (a.key < b.key ? 1 : -1));
-    // Within each group, sort using same sortFn
-    groups.forEach((g) => (g.items = g.items.sort(sortFn)));
-    return groups;
+    return Array.from(map.values()).sort((a, b) => (a.key < b.key ? 1 : -1));
   }
 
-  const groupedPaid = groupPayments(displayedPaid, paymentGroup);
-  const groupedDue = groupPayments(displayedDue, paymentGroup);
+  function formatAmount(inv) {
+    const val = getAmountNumber(inv);
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(d) {
+    try { return new Date(d).toLocaleDateString(); } catch (e) { return d; }
+  }
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-green-600 animate-spin mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-300">Loading tenant logs...</p>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
+        <p className="text-red-700 dark:text-red-400 font-medium">Error</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
+        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">Back</button>
+      </div>
+    </div>
+  );
+
+  const allPaid = (previousPayments || []);
+  const allDue = (payments || []).filter(inv => !(inv.status === 'paid' || inv.paid_at));
+  const displayedItems = [...(paymentFilter === 'due' ? [] : allPaid), ...(paymentFilter === 'paid' ? [] : allDue)].sort(sortFn);
+  const groupedData = groupPayments(displayedItems, paymentGroup);
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 space-y-6 pb-10">
       {/* Controls Bar */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between mx-4 md:mx-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all" title="Go Back">
+          <button onClick={() => navigate(-1)} className="p-2 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
           <span className="text-sm font-bold text-gray-700 dark:text-white">
-            Logs for {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant'}
+            Activity Logs: {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant'}
           </span>
         </div>
       </div>
 
-      <div className="min-h-0">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center w-full">User Profile</h3>
-            <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{tenant?.email || tenant?.contact || 'No contact'}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Status: <span className="font-medium">{tenant?.tenantProfile?.status || '—'}</span></p>
-            <div className="mt-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Current Room</p>
-              <p className="font-medium text-sm dark:text-gray-200">{currentRoom ? `Room ${currentRoom.room_number} ${currentRoom.type_label ? `• ${currentRoom.type_label}` : ''}` : '—'}</p>
+      <div className="px-4 md:px-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Column 1: Profile */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
+            <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 font-black text-lg">
+                {tenant?.first_name?.charAt(0) || tenant?.name?.charAt(0) || '?'}
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{tenant?.email || 'No email provided'}</p>
+              </div>
             </div>
-            <div className="mt-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding Due</p>
-              <p className="font-medium text-sm text-red-700 dark:text-red-400">₱{dueAmount ? dueAmount.toFixed(2) : '0.00'}</p>
+            
+            <div className="space-y-4">
+              <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase mb-1">Current Room</p>
+                <p className="font-bold text-sm text-gray-900 dark:text-gray-200">
+                  {currentRoom ? `Room ${currentRoom.room_number} • ${currentRoom.type_label || 'Active'}` : 'No active room'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
+                <p className="text-[10px] font-black text-red-400 uppercase mb-1">Total Outstanding</p>
+                <p className="font-black text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
+              </div>
             </div>
           </div>
 
-          <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 justify-center"><CreditCard className="w-4 h-4"/> Payments</h3>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setPaymentFilter('all')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'all' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>All</button>
-                <button onClick={() => setPaymentFilter('paid')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'paid' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>Paid</button>
-                <button onClick={() => setPaymentFilter('due')} className={`px-2 py-1 rounded text-sm ${paymentFilter === 'due' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>Due</button>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 dark:text-gray-400">Sort</label>
-                <select
-                  value={`${paymentSort.key}_${paymentSort.dir}`}
-                  onChange={(e) => {
-                    const [key, dir] = e.target.value.split('_');
-                    setPaymentSort({ key, dir });
-                  }}
-                  className="text-sm p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                >
-                  <option value="date_desc">Date ▾</option>
-                  <option value="date_asc">Date ▴</option>
-                  <option value="amount_desc">Amount ▾</option>
-                  <option value="amount_asc">Amount ▴</option>
-                </select>
-                <label className="text-xs text-gray-500 dark:text-gray-400 ml-2">Group</label>
-                <select
-                  value={paymentGroup}
-                  onChange={(e) => setPaymentGroup(e.target.value)}
-                  className="text-sm p-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                >
-                  <option value="none">None</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
+          {/* Column 2-3: Ledger */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between mb-6 border-b dark:border-gray-700 pb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-green-500" /> Payment Ledger
+              </h3>
+              <select
+                value={paymentGroup}
+                onChange={(e) => setPaymentGroup(e.target.value)}
+                className="text-xs font-bold uppercase p-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-white"
+              >
+                <option value="none">No Grouping</option>
+                <option value="monthly">By Month</option>
+                <option value="yearly">By Year</option>
+              </select>
             </div>
-            {payments.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No payments found.</p>
-            ) : (
-              <>
-                {paymentFilter !== 'due' && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{paymentFilter === 'paid' ? 'Paid Payments' : 'Paid Payments'}</p>
-                )}
-                {paymentGroup === 'none' ? (
-                  <ul className="space-y-2 mb-3">
-                    {displayedPaid.map((p) => (
-                      <li key={p.id || `${p.reference}-${p.created_at}`} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex justify-between items-center">
+
+            <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar">
+              {['all', 'paid', 'due'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setPaymentFilter(f)}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin">
+              {payments.length === 0 ? (
+                <div className="text-center py-12">
+                  <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                  <p className="text-gray-400 dark:text-gray-500 font-medium">No transaction records found</p>
+                </div>
+              ) : (
+                groupedData.map((group) => (
+                  <div key={group.key} className="space-y-3">
+                    {group.label && (
+                      <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                        <Calendar className="w-3 h-3" /> {group.label}
+                      </h4>
+                    )}
+                    {group.items.map((inv, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
                         <div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Payment'}</div>
-                            {/* booking room badge if available */}
-                            {((p.booking && p.booking.room) || currentRoom) && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">{p.booking?.room?.room_number ? `Room ${p.booking.room.room_number}` : (currentRoom ? `Room ${currentRoom.room_number}` : null)}</div>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{p.paid_at ? formatDate(p.paid_at) : (p.created_at ? formatDate(p.created_at) : '')}</div>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">₱{formatAmount(inv)}</p>
+                          <p className="text-[10px] text-gray-500 uppercase">{formatDate(inv.paid_at || inv.due_date || inv.created_at)}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm font-semibold dark:text-white">₱{formatAmount(p)}</div>
-                          {/* show payment status badge */}
-                          <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(p.status || p.payment_status)}`}>
-                            {(p.status || p.payment_status || '').toString().charAt(0).toUpperCase() + (p.status || p.payment_status || '').toString().slice(1) || ''}
-                          </span>
-                          {/* show booking status if present */}
-                          {p.booking?.status && (
-                            <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(p.booking.status)}`}>
-                              {p.booking.status.charAt(0).toUpperCase() + p.booking.status.slice(1)}
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="space-y-4 mb-3">
-                    {groupedPaid.map((g) => (
-                      <div key={g.key}>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2">{g.label}</div>
-                        <ul className="space-y-2">
-                          {g.items.map((p) => (
-                            <li key={p.id || `${p.reference}-${p.created_at}`} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex justify-between items-center">
-                              <div>
-                                <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Payment'}</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">{p.paid_at ? formatDate(p.paid_at) : (p.created_at ? formatDate(p.created_at) : '')}</div>
-                              </div>
-                              <div className="text-sm font-semibold dark:text-white">₱{formatAmount(p)}</div>
-                            </li>
-                          ))}
-                        </ul>
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {(inv.status === 'paid' || inv.paid_at) ? 'PAID' : 'DUE'}
+                        </span>
                       </div>
                     ))}
                   </div>
-                )}
-
-                {paymentFilter !== 'paid' && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Outstanding / Due</p>
-                )}
-
-                {paymentGroup === 'none' ? (
-                  <ul className="space-y-2 mb-3">
-                    {displayedDue.map((p) => (
-                      <li key={`due-${p.id || p.reference}`} className="p-3 bg-white dark:bg-gray-800 rounded border border-yellow-100 dark:border-yellow-900 flex justify-between items-center">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Invoice'}</div>
-                            {((p.booking && p.booking.room) || currentRoom) && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">{p.booking?.room?.room_number ? `Room ${p.booking.room.room_number}` : (currentRoom ? `Room ${currentRoom.room_number}` : null)}</div>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">₱{formatAmount(p)}</div>
-                          <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(p.status || p.payment_status)}`}>
-                            {(p.status || p.payment_status || '').toString().charAt(0).toUpperCase() + (p.status || p.payment_status || '').toString().slice(1) || ''}
-                          </span>
-                          {p.booking?.status && (
-                            <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(p.booking.status)}`}>
-                              {p.booking.status.charAt(0).toUpperCase() + p.booking.status.slice(1)}
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="space-y-4 mb-3">
-                    {groupedDue.map((g) => (
-                      <div key={g.key}>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2">{g.label}</div>
-                        <ul className="space-y-2">
-                          {g.items.map((p) => (
-                            <li key={`due-${p.id || p.reference}`} className="p-3 bg-white dark:bg-gray-800 rounded border border-yellow-100 dark:border-yellow-900 flex justify-between items-center">
-                              <div>
-                                <div className="text-sm font-medium dark:text-white">{p.reference || p.description || 'Invoice'}</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</div>
-                              </div>
-                              <div className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">₱{formatAmount(p)}</div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 justify-center"><MessageSquare className="w-4 h-4"/> Messages / Search Results</h3>
+        {/* Messages / Search Results Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-green-500"/> Messages / Search Results
+          </h3>
           {searchResults.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No messages or requests from this tenant.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No alternate tenant matches or messages found.</p>
           ) : (
             <ul className="space-y-2">
               {searchResults.map((m) => {
                 const tenantId = m.id || m.tenant_id || m.tenantId || (m.user && m.user.id);
-                const displayName = m.first_name ? `${m.first_name} ${m.last_name || ''}` : (m.name || m.email || m.contact || 'Unknown');
+                const displayName = m.first_name ? `${m.first_name} ${m.last_name || ''}` : (m.name || m.email || 'Unknown');
                 return (
-                  <li key={tenantId || m.created_at || JSON.stringify(m)} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex justify-between items-center">
+                  <li key={tenantId} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 flex justify-between items-center">
                     <div>
                       <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{displayName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{m.email || m.contact || (m.created_at ? formatDate(m.created_at) : '')}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{m.email || 'No email'}</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => tenantId && navigate(`/tenants/${tenantId}`)} className="px-3 py-1 bg-green-600 text-white rounded text-sm">Open</button>
-                    </div>
+                    <button onClick={() => navigate(`/tenants/${tenantId}`)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-bold">Open</button>
                   </li>
                 );
               })}
@@ -443,50 +335,4 @@ export default function TenantLogs() {
       </div>
     </div>
   );
-
-  // Helper functions for formatting
-  function formatAmount(inv) {
-    const cents = inv.amount_cents ?? inv.total_cents ?? null;
-    if (typeof cents === 'number') return (cents / 100).toFixed(2);
-    if (inv.amount) {
-      const asNum = Number(inv.amount);
-      if (!Number.isNaN(asNum)) return asNum.toFixed(2);
-      return inv.amount;
-    }
-    return '—';
-  }
-
-  function formatDate(d) {
-    try {
-      return new Date(d).toLocaleString();
-    } catch (e) {
-      return d;
-    }
-  }
-
-  // Reuse bookings status/payment badge colors for consistency
-  function getStatusColor(status) {
-    if (!status) return 'bg-gray-100 text-gray-800';
-    switch ((status || '').toString().toLowerCase()) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      case 'partial-completed': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  }
-
-  function getPaymentColor(status) {
-    if (!status) return 'bg-gray-100 text-gray-800';
-    switch ((status || '').toString().toLowerCase()) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'partial': return 'bg-yellow-100 text-yellow-800';
-      case 'unpaid': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'refunded': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  }
 }

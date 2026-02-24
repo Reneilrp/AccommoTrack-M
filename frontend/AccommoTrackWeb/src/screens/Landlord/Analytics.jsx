@@ -27,8 +27,10 @@ import api from '../../utils/api';
 import { SkeletonStatCard, SkeletonChart, Skeleton } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 export default function Analytics({ user }) {
+  const { effectiveTheme } = usePreferences();
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_analytics || cacheManager.get('landlord_analytics');
   const accessibleProperties = uiState.data?.accessible_properties || cacheManager.get('accessible_properties');
@@ -193,42 +195,53 @@ export default function Analytics({ user }) {
   return (
     <div className="space-y-6">
       {/* Filters and Actions */}
-      <div className="flex flex-row items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
-        <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap">
-          <Building2 className="w-5 h-5 text-gray-400" />
-          <select
-            value={selectedProperty}
-            onChange={(e) => setSelectedProperty(e.target.value)}
-            className="border-none bg-transparent focus:ring-0 text-sm font-semibold text-gray-700 dark:text-white"
+      <div className="flex flex-col lg:flex-row lg:items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex-1 lg:flex-none">
+            <Building2 className="w-5 h-5 text-gray-400" />
+            <select
+              value={selectedProperty}
+              onChange={(e) => setSelectedProperty(e.target.value)}
+              className="border-none bg-transparent focus:ring-0 text-sm font-bold text-gray-700 dark:text-white flex-1"
+            >
+              <option value="all">All Properties</option>
+              {properties?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+          
+          <button 
+            onClick={downloadAnalyticsCSV} 
+            disabled={loading || !analytics} 
+            className="flex items-center justify-center gap-2 p-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50 lg:hidden"
+            title="Download CSV Report"
           >
-            <option value="all">All Properties</option>
-            {properties?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-          </select>
+            <Download className="w-5 h-5 text-green-600" />
+          </button>
         </div>
         
-        <div className="flex items-center gap-2 whitespace-nowrap">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
             {['week', 'month', 'year'].map(r => (
               <button 
                 key={r} 
                 onClick={() => setTimeRange(r)} 
-                className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1.5 rounded-md text-[10px] font-black transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {r.toUpperCase()}
               </button>
             ))}
           </div>
-        </div>
 
-        <button 
-          onClick={downloadAnalyticsCSV} 
-          disabled={loading || !analytics} 
-          className="ml-auto flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
-          title="Download CSV Report"
-        >
-          <Download className="w-4 h-4 text-green-600" />
-          <span className="hidden sm:inline">Export CSV</span>
-        </button>
+          <button 
+            onClick={downloadAnalyticsCSV} 
+            disabled={loading || !analytics} 
+            className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
+            title="Download CSV Report"
+          >
+            <Download className="w-4 h-4 text-green-600" />
+            <span>Export CSV</span>
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0">
@@ -240,131 +253,143 @@ export default function Analytics({ user }) {
           analytics ? (
             <>
               {/* Key Metrics - Business Overview & Inventory */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                 {/* Row 1: Financials */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <LucidePhilippinePeso className="w-6 h-6 text-green-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cumulative</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Cumulative</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.total_revenue.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Revenue</p>
+                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.total_revenue.toLocaleString()}</p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-emerald-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Current Month</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Month</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Monthly Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.monthly_revenue.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Monthly Revenue</p>
+                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.monthly_revenue.toLocaleString()}</p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-6 h-6 text-blue-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Target: 100%</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Target: 100%</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Collection Rate</p>
-                  <p className={`text-2xl font-bold ${analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Collection Rate</p>
+                  <p className={`text-lg md:text-2xl font-bold ${analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>
                     {analytics.revenue.collection_rate}%
                   </p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                      <LucidePhilippinePeso className="w-6 h-6 text-indigo-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overall</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Payment Success Rate</p>
-                  <p className={`text-2xl font-bold ${analytics.payments.payment_rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Payment Rate</p>
+                  <p className={`text-lg md:text-2xl font-bold ${analytics.payments.payment_rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
                     {analytics.payments.payment_rate}%
                   </p>
                 </div>
 
                 {/* Row 2: Operations */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Home className="w-6 h-6 text-blue-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Home className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Occupancy</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Occupancy</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Occupancy Rate</p>
-                  <p className={`text-2xl font-bold ${analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}`}>
-                    {analytics.overview.occupancy_rate}% <span className="text-sm font-normal text-gray-500">({analytics.overview.occupied_rooms}/{analytics.overview.total_rooms})</span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Occupancy Rate</p>
+                  <p className={`text-lg md:text-2xl font-bold ${analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}`}>
+                    {analytics.overview.occupancy_rate}%
                   </p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-purple-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Building2 className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Inventory</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Inventory</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {analytics.overview.total_rooms} <span className="text-sm font-normal text-gray-500">({analytics.overview.available_rooms} Available)</span>
-                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
+                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.total_rooms}</p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-6 h-6 text-pink-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                      <Users className="w-5 h-5 md:w-6 md:h-6 text-pink-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Active</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Active</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active Tenants</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {analytics.overview.active_tenants} <span className="text-sm font-bold text-green-600 ml-1">+{analytics.overview.new_tenants_this_month} New</span>
-                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Active Tenants</p>
+                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.active_tenants}</p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-6 h-6 text-yellow-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
                     </div>
-                    <span className="text-xs font-bold text-gray-400">Avg Duration</span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Stay</span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Tenant Retention</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months} <span className="text-sm font-normal text-gray-500">months</span></p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tenant Retention</p>
+                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months} mo</p>
                 </div>
               </div>
 
               {/* Revenue Trend */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 mb-8">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Revenue Trend</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.revenue.monthly_trend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="month" stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }} formatter={(value) => ['₱' + Number(value).toLocaleString(), 'Revenue']} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                    <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                    <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff', 
+                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb', 
+                        borderRadius: '8px',
+                        color: effectiveTheme === 'dark' ? '#fff' : '#000'
+                      }} 
+                      itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000' }}
+                      formatter={(value) => ['₱' + Number(value).toLocaleString(), 'Revenue']} 
+                    />
                     <Line type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 4 }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Payment Status */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 mb-8">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Payment Status</h2>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={paymentChartData} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={totalPaymentCount === 0 ? '#f3f4f6' : '#f0f0f0'} />
-                    <XAxis type="number" stroke={totalPaymentCount === 0 ? '#d1d5db' : '#6b7280'} style={{ fontSize: '12px' }} />
-                    <YAxis type="category" dataKey="name" stroke={totalPaymentCount === 0 ? '#d1d5db' : '#6b7280'} style={{ fontSize: '12px' }} />
-                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : (totalPaymentCount === 0 ? '#f3f4f6' : '#f0f0f0')} />
+                    <XAxis type="number" stroke={effectiveTheme === 'dark' ? '#9ca3af' : (totalPaymentCount === 0 ? '#d1d5db' : '#6b7280')} style={{ fontSize: '12px' }} />
+                    <YAxis type="category" dataKey="name" stroke={effectiveTheme === 'dark' ? '#9ca3af' : (totalPaymentCount === 0 ? '#d1d5db' : '#6b7280')} style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff', 
+                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb', 
+                        borderRadius: '8px',
+                        color: effectiveTheme === 'dark' ? '#fff' : '#000'
+                      }} 
+                    />
                     <Bar dataKey="value" radius={[0, 8, 8, 0]} opacity={totalPaymentCount === 0 ? 0.4 : 1}>
                       {paymentChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                     </Bar>
@@ -373,8 +398,8 @@ export default function Analytics({ user }) {
               </div>
 
               {/* Property Performance Breakdown */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
-                <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden mb-8">
+                <div className="p-6 border-b border-gray-300 dark:border-gray-700">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Property Performance Breakdown</h2>
                 </div>
                 <div className="overflow-x-auto">

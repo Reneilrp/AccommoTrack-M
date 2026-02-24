@@ -198,19 +198,19 @@ export default function MyProperties({ user }) {
   // Skeleton for property list item
   const SkeletonPropertyListItem = () => (
     <div className="p-4 animate-pulse">
-      <div className="flex items-start gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
         {/* Image skeleton */}
-        <Skeleton className="w-60 h-48 rounded-lg flex-shrink-0" />
+        <Skeleton className="w-full lg:w-60 lg:h-48 h-56 rounded-xl flex-shrink-0" />
         
         {/* Content skeleton */}
-        <div className="flex-1 pt-5">
+        <div className="flex-1 pt-0 lg:pt-5">
           <div className="flex items-center gap-3 mb-3">
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-5 w-16 rounded-full" />
           </div>
           <Skeleton className="h-4 w-64 mb-3" />
           <Skeleton className="h-6 w-20 rounded mb-4" />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div>
               <Skeleton className="h-3 w-20 mb-2" />
               <Skeleton className="h-4 w-8" />
@@ -226,7 +226,7 @@ export default function MyProperties({ user }) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-transparent dark:bg-gray-900">
       {/* Verification Warning Banner */}
       {isVerified === false && (
         <div className="bg-yellow-50 border-b border-yellow-200">
@@ -263,25 +263,25 @@ export default function MyProperties({ user }) {
         )}
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {loading ? (
             // Skeleton stats
             [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
           ) : (
             <>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Active Listings</p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.activeListings}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Inactive Listings</p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.inactiveListings}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Rooms</p>
                 <p className="text-3xl font-bold text-green-600">{stats.totalRooms}</p>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Inquiries</p>
                 <p className="text-3xl font-bold text-orange-500">{stats.totalInquiries.toLocaleString()}</p>
               </div>
@@ -290,71 +290,53 @@ export default function MyProperties({ user }) {
         </div>
 
         {/* Tabs and Search */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-400/50 dark:border-gray-700 mb-4 shadow-md overflow-hidden">
+          <div className="flex flex-col p-4 border-b border-gray-300 dark:border-gray-700 gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 All Properties ({filteredProperties.length})
               </h2>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search properties..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                />
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search properties..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+
+                {/* Filter Button */}
+                <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex-shrink-0">
+                  <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </button>
               </div>
 
-              {/* Filter */}
-              <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-              </button>
-
-              {/* Tabs */}
-              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'all' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setActiveTab('active')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'active' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Active
-                </button>
-                <button
-                  onClick={() => setActiveTab('inactive')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'inactive' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Inactive
-                </button>
-                <button
-                  onClick={() => setActiveTab('pending')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'pending' ? 'bg-green-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Pending
-                </button>
+              {/* Tabs - Scrollable on mobile */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 overflow-x-auto no-scrollbar">
+                {['all', 'active', 'inactive', 'pending'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex-1 md:flex-none px-4 py-1.5 text-xs md:text-sm font-bold rounded-md transition-colors whitespace-nowrap ${
+                      activeTab === tab ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
           {/* Properties List */}
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          <div className="divide-y divide-gray-300 dark:divide-gray-700">
             {loading ? (
               // Skeleton property items
               [...Array(3)].map((_, i) => <SkeletonPropertyListItem key={i} />)
@@ -366,88 +348,102 @@ export default function MyProperties({ user }) {
               </div>
             ) : (
               filteredProperties.map((property) => {
-                // Get the image URL using the utility function
-                const imageUrl = property.images && property.images.length > 0 
-                  ? getImageUrl(property.images[0].image_url)
-                  : null;
+                // Get the image URL using the utility function - more robust check
+                const firstImage = property.images && property.images.length > 0 ? property.images[0] : null;
+                const imageUrl = firstImage 
+                  ? getImageUrl(typeof firstImage === 'string' ? firstImage : (firstImage.image_url || firstImage.url || firstImage.image_path || property.image_url))
+                  : (property.image_url ? getImageUrl(property.image_url) : null);
 
                 // Debug log (you can remove this later)
                 if (property.images && property.images.length > 0) {
                   console.log('🖼️ Property:', property.title);
-                  console.log('🖼️ Raw image_url:', property.images[0].image_url);
+                  console.log('🖼️ Raw first image:', firstImage);
                   console.log('🖼️ Final URL:', imageUrl);
                 }
 
                 return (
                   <div
                     key={property.id}
-                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                    className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700/80 transition-colors cursor-pointer group"
                     role="button"
                     tabIndex={0}
                     onClick={() => handleViewProperty(property.id)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewProperty(property.id); } }}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-6 flex-1">
-                        {/* Property Image */}
-                        <div className="w-60 h-48 min-w-60 min-h-48 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 flex-shrink-0">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={property.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.error('❌ Image failed to load:', e.target.src);
-                                e.target.onerror = null;
-                                e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg></div>';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Home className="w-8 h-8 text-gray-400" />
-                            </div>
-                          )}
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                      {/* Property Image */}
+                      <div className="w-full lg:w-60 lg:h-48 h-56 rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 flex-shrink-0">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={property.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('❌ Image failed to load:', e.target.src);
+                              e.target.onerror = null;
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg></div>';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Home className="w-8 h-8 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Property Details */}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-4 mb-2 pt-0 lg:pt-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white truncate">{property.title}</h3>
+                            <span className="hidden sm:inline text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest flex-shrink-0">
+                              • {property.property_type?.replace(/([A-Z])/g, ' $1').trim()}
+                            </span>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize flex-shrink-0 ${
+                              property.current_status === 'active'
+                                ? 'bg-green-100 text-green-700'
+                                : property.current_status === 'inactive'
+                                ? 'bg-gray-100 text-gray-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}
+                          >
+                            {property.current_status}
+                          </span>
                         </div>
 
-                        {/* Property Details */}
-                        <div className="flex-1 flex-row-3">
-                          <div className="flex items-center gap-3 mb-1 pt-5">
-                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white text-center">{property.title}</h3>
-                            <span
-                              className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
-                                property.current_status === 'active'
-                                  ? 'bg-green-100 text-green-700'
-                                  : property.current_status === 'inactive'
-                                  ? 'bg-gray-100 text-gray-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }`}
-                            >
-                              {property.current_status}
-                            </span>
-                          </div>
+                        {/* Mobile-only type display (if hidden in header) */}
+                        <div className="sm:hidden mb-2">
+                          <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest">
+                            {property.property_type?.replace(/([A-Z])/g, ' $1').trim()}
+                          </span>
+                        </div>
 
-                          <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 mb-3">
-                            <MapPin className="w-4 h-4" />
-                            {property.street_address}, {property.city}
-                          </div>
+                        <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 mb-2">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span className="truncate">{property.street_address}, {property.city}</span>
+                        </div>
 
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium rounded capitalize">
-                              {property.property_type}
-                            </span>
-                          </div>
+                        {property.description && (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-4 leading-relaxed">
+                            {property.description}
+                          </p>
+                        )}
 
-                          {/* Property Stats */}
-                          <div className="grid grid-cols-3 gap-4">
-                            <div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Rooms</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.available_rooms || 0}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.total_rooms || 0}</p>
-                            </div>
+                        {/* Property Stats */}
+                        <div className="flex items-center gap-8 mt-auto pt-4 justify-center sm:justify-start">
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Rooms</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.available_rooms || 0}</p>
+                          </div>
+                          
+                          <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
+
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.total_rooms || 0}</p>
                           </div>
                         </div>
                       </div>

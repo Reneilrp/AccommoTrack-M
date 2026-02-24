@@ -29,7 +29,10 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 
 
+import { usePreferences } from '../../contexts/PreferencesContext';
+
 export default function AddProperty({ onBack, onSave }) {
+  const { effectiveTheme } = usePreferences();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +48,11 @@ export default function AddProperty({ onBack, onSave }) {
     iconRetinaUrl: markerIcon2x,
     shadowUrl: markerShadow,
   });
+
+  // Map tiles based on theme
+  const tileUrl = effectiveTheme === 'dark' 
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 
   function DraggableMarker({ position, setPosition }) {
@@ -382,24 +390,24 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-3 items-center">
             <div className="flex items-center">
               <button
                 onClick={onBack}
-                className="flex items-center gap-2 text-green-600 hover:text-green-800"
+                className="flex items-center gap-2 text-green-600 hover:text-green-800 dark:text-green-500 dark:hover:text-green-400"
                 aria-label="Back to Properties"
               >
-                <ArrowLeft className="w-5 h-5 text-green-600" />
+                <ArrowLeft className="w-5 h-5" />
                 <span className="sr-only">Back to Properties</span>
               </button>
             </div>
 
             <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900">Add New Property</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add New Property</h1>
             </div>
 
             <div />
@@ -410,10 +418,10 @@ export default function AddProperty({ onBack, onSave }) {
       {/* Error Message */}
       {error && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <span className="text-red-700 text-sm">{error}</span>
+              <span className="text-red-700 dark:text-red-400 text-sm">{error}</span>
             </div>
             <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
               <X className="w-5 h-5" />
@@ -425,11 +433,11 @@ export default function AddProperty({ onBack, onSave }) {
       {/* Verification Warning Banner */}
       {isVerified === false && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-3">
             <ShieldAlert className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h4 className="text-yellow-800 font-semibold">Account Verification Required</h4>
-              <p className="text-yellow-700 text-sm mt-1">
+              <h4 className="text-yellow-800 dark:text-yellow-300 font-semibold">Account Verification Required</h4>
+              <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-1">
                 Your account is pending verification. You can create and save properties as drafts, 
                 but you won't be able to submit them for approval or publish until your documents are verified.
               </p>
@@ -439,7 +447,7 @@ export default function AddProperty({ onBack, onSave }) {
       )}
 
       {/* Progress Steps */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
@@ -447,20 +455,20 @@ export default function AddProperty({ onBack, onSave }) {
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${currentStep >= step.number
                     ? 'bg-green-600 text-white'
-                    : 'bg-gray-200 text-gray-600'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                     }`}>
                     {step.number}
                   </div>
                   <div className="text-center mt-2">
-                    <p className={`text-sm font-medium ${currentStep >= step.number ? 'text-gray-900' : 'text-gray-500'
+                    <p className={`text-sm font-medium ${currentStep >= step.number ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
                       }`}>
                       {step.title}
                     </p>
-                    <p className="text-xs text-gray-500">{step.description}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">{step.description}</p>
                   </div>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`h-0.5 flex-1 mx-4 ${currentStep > step.number ? 'bg-green-600' : 'bg-gray-200'
+                  <div className={`h-0.5 flex-1 mx-4 ${currentStep > step.number ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`} />
                 )}
               </div>
@@ -474,15 +482,15 @@ export default function AddProperty({ onBack, onSave }) {
         {/* Step 1: Property Information */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Basic Information</h2>
-                <p className="text-sm text-gray-600">Property will be pending until approved by admin</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">Basic Information</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Property will be pending until approved by admin</p>
               </div>
 
               <div className="grid grid-cols-5 gap-4">
                 <div className="col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Property Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -490,18 +498,18 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Sunset Apartments"
                     value={formData.propertyName}
                     onChange={(e) => handleInputChange('propertyName', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
 
                 <div className={formData.propertyType === 'others' ? 'col-span-1' : 'col-span-2'}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Property Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.propertyType}
                     onChange={(e) => handleInputChange('propertyType', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                   >
                     <option value="" disabled hidden>Select type</option>
                     <option value="dormitory">Dormitory</option>
@@ -514,7 +522,7 @@ export default function AddProperty({ onBack, onSave }) {
 
                 {formData.propertyType === 'others' && (
                   <div className="col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Specify <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -522,14 +530,14 @@ export default function AddProperty({ onBack, onSave }) {
                       placeholder="e.g., Studio"
                       value={formData.otherPropertyType}
                       onChange={(e) => handleInputChange('otherPropertyType', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
                 </label>
                 <textarea
@@ -537,7 +545,7 @@ export default function AddProperty({ onBack, onSave }) {
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={6}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
@@ -767,11 +775,11 @@ export default function AddProperty({ onBack, onSave }) {
         {currentStep === 3 && (
           <div className="space-y-6">
             {/* Amenities */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Amenities</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Amenities</h2>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Add Amenity</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Add Amenity</label>
                 <div className="flex gap-3">
                   <input
                     type="text"
@@ -784,7 +792,7 @@ export default function AddProperty({ onBack, onSave }) {
                         addAmenity();
                       }
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                   />
                   <button
                     onClick={addAmenity}
@@ -795,19 +803,19 @@ export default function AddProperty({ onBack, onSave }) {
                     Add
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Press Enter or click Add to include a custom amenity</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Press Enter or click Add to include a custom amenity</p>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-3">Common Amenities:</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Common Amenities:</p>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   {amenitiesList.map((amenity) => (
                     <button
                       key={amenity}
                       onClick={() => toggleAmenity(amenity)}
                       className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.amenities.includes(amenity)
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                     >
                       {amenity}
@@ -819,17 +827,17 @@ export default function AddProperty({ onBack, onSave }) {
               {/* Current selected amenities (added + selected) */}
               {Array.isArray(formData.amenities) && formData.amenities.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-3">Your Amenities:</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Your Amenities:</p>
                   <div className="grid grid-cols-3 gap-3">
                     {formData.amenities.map((amenity, index) => (
                       <div
                         key={index}
-                        className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 group hover:border-gray-300 transition-colors"
+                        className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
                       >
                         <div className="flex-shrink-0 mt-0.5">
                           <CheckCircle className="w-5 h-5 text-green-600" />
                         </div>
-                        <p className="flex-1 text-sm text-gray-700">{amenity}</p>
+                        <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">{amenity}</p>
                         <button
                           onClick={() => removeAmenity(index)}
                           className="flex-shrink-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -844,14 +852,14 @@ export default function AddProperty({ onBack, onSave }) {
             </div>
 
             {/* Property Rules */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Property Rules</h2>
-                <p className="text-sm text-gray-600">Add house rules and policies for your property</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">Property Rules</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Add house rules and policies for your property</p>
               </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Add Rule
               </label>
               <div className="flex gap-3">
@@ -866,7 +874,7 @@ export default function AddProperty({ onBack, onSave }) {
                       addRule();
                     }
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                 />
                 <button
                   onClick={addRule}
@@ -877,12 +885,12 @@ export default function AddProperty({ onBack, onSave }) {
                   Add
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Press Enter or click Add to include the rule</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Press Enter or click Add to include the rule</p>
             </div>
 
             {/* Common Rules Suggestions */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-3">Common Rules:</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Common Rules:</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   'No smoking',
@@ -908,8 +916,8 @@ export default function AddProperty({ onBack, onSave }) {
                       });
                     }}
                     className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${formData.rules.includes(suggestion)
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
                   >
                     {suggestion}
@@ -921,17 +929,17 @@ export default function AddProperty({ onBack, onSave }) {
             {/* Rules List */}
             {Array.isArray(formData.rules) && formData.rules.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-3">Your Property Rules:</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Your Property Rules:</p>
                 <div className="grid grid-cols-3 gap-3">
                   {formData.rules.map((rule, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 group hover:border-gray-300 transition-colors"
+                      className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
                     >
                       <div className="flex-shrink-0 mt-0.5">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                       </div>
-                      <p className="flex-1 text-sm text-gray-700">{rule}</p>
+                      <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">{rule}</p>
                       <button
                         onClick={() => removeRule(index)}
                         className="flex-shrink-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -945,10 +953,10 @@ export default function AddProperty({ onBack, onSave }) {
             )}
 
             {(!Array.isArray(formData.rules) || formData.rules.length === 0) && (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600 text-sm">No rules added yet</p>
-                <p className="text-gray-500 text-xs mt-1">Add rules to help tenants understand your property policies</p>
+              <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <FileText className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                <p className="text-gray-600 dark:text-gray-400 text-sm">No rules added yet</p>
+                <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">Add rules to help tenants understand your property policies</p>
               </div>
             )}
             </div>
@@ -958,9 +966,9 @@ export default function AddProperty({ onBack, onSave }) {
         {/* Step 4: Credentials (Eligibility + Documents) */}
         {currentStep === 4 && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Credentials for Approval</h2>
-              <p className="text-sm text-gray-600 mb-4">If your property is eligible for direct admin approval, upload supporting documents (e.g., proof of ownership, permits).</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Credentials for Approval</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">If your property is eligible for direct admin approval, upload supporting documents (e.g., proof of ownership, permits).</p>
 
               <div className="flex items-center gap-3 mb-4">
                 <label className="flex items-center gap-2">
@@ -968,13 +976,13 @@ export default function AddProperty({ onBack, onSave }) {
                     type="checkbox"
                     checked={formData.isEligible}
                     onChange={(e) => setFormData(prev => ({ ...prev, isEligible: e.target.checked }))}
-                    className="form-checkbox h-4 w-4 text-green-600"
+                    className="form-checkbox h-4 w-4 text-green-600 dark:bg-gray-700 dark:border-gray-600"
                   />
-                  <span className="text-sm text-gray-700">Mark property as eligible for admin approval</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Mark property as eligible for admin approval</span>
                 </label>
               </div>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
                 <input
                   type="file"
                   multiple
@@ -986,21 +994,21 @@ export default function AddProperty({ onBack, onSave }) {
 
                 {formData.credentials.length === 0 ? (
                   <label htmlFor="credential-upload" className="cursor-pointer block text-center">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 mb-1">Click to upload credential documents</p>
-                    <p className="text-sm text-gray-500">PDF, PNG, JPG</p>
+                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-1">Click to upload credential documents</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">PDF, PNG, JPG</p>
                   </label>
                 ) : (
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 gap-3">
                       {formData.credentials.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                           <div className="flex items-center gap-3">
-                            <FileText className="w-5 h-5 text-gray-500" />
-                            <p className="text-sm text-gray-700">{file.name}</p>
+                            <FileText className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{file.name}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <label htmlFor="credential-upload" className="text-sm text-gray-500 cursor-pointer mr-2">Add more</label>
+                            <label htmlFor="credential-upload" className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer mr-2">Add more</label>
                             <button onClick={() => removeCredential(index)} className="text-red-500 hover:text-red-700">
                               <X className="w-5 h-5" />
                             </button>
@@ -1021,8 +1029,8 @@ export default function AddProperty({ onBack, onSave }) {
             onClick={handlePrevious}
             disabled={currentStep === 1 || loading}
             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${currentStep === 1 || loading
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+              : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
           >
             <ArrowLeft className="w-5 h-5" />
@@ -1035,7 +1043,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <button
                     onClick={() => handleSubmit(true)}
                     disabled={loading}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Saving...' : 'Save as Draft'}
                   </button>
@@ -1058,9 +1066,9 @@ export default function AddProperty({ onBack, onSave }) {
                     )}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <Clock className="w-5 h-5 text-yellow-600" />
-                    <span className="text-sm text-yellow-800 font-medium">Verify account to submit</span>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                    <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Verify account to submit</span>
                   </div>
                 )}
               </>
