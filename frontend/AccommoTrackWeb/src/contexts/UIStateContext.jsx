@@ -39,7 +39,8 @@ const INITIAL_STATE = {
     landlord_property_details: {}, // Store by propertyId
     landlord_rooms: null,
     landlord_tenants: null,
-    landlord_dorm_profiles: {} // Store by propertyId
+    landlord_dorm_profiles: {}, // Store by propertyId
+    landlord_property_view: 'list' // 'list', 'add'
   }
 };
 
