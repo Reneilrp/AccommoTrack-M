@@ -60,6 +60,7 @@ class TenantProfile extends Model
         'current_address',
         'preference',
         'date_of_birth',
+        'gender',
     ];
 
     protected $casts = [

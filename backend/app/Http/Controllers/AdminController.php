@@ -24,7 +24,8 @@ class AdminController extends Controller
                 // For landlords: their properties and verification
                 'properties:id,landlord_id,title',
                 'landlordVerification:id,user_id,status',
-                // For tenants: their bookings with property and room info
+                // For tenants: their bookings with property and room info, and profile
+                'tenantProfile:user_id,gender',
                 'bookings' => function ($query) {
                     $query->where('status', 'confirmed')
                         ->orWhere('status', 'active')
@@ -58,6 +59,8 @@ class AdminController extends Controller
 
                 // Add property/room info for tenants
                 if ($user->role === 'tenant') {
+                    $userData['gender'] = $user->tenantProfile->gender ?? null;
+                    
                     $currentProperty = null;
 
                     // First check bookings (confirmed/active)
@@ -239,7 +242,7 @@ class AdminController extends Controller
     public function blockUser(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $user->is_active = false;
+        $user->is_blocked = true;
         $user->save();
 
         return response()->json(['user' => $user, 'message' => 'User blocked']);
@@ -251,7 +254,7 @@ class AdminController extends Controller
     public function unblockUser(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $user->is_active = true;
+        $user->is_blocked = false;
         $user->save();
 
         return response()->json(['user' => $user, 'message' => 'User unblocked']);
@@ -418,7 +421,7 @@ class AdminController extends Controller
         $landlords = User::where('role', 'landlord')->count();
         $tenants = User::where('role', 'tenant')->count();
         $activeUsers = User::where('role', '!=', 'admin')->where('is_active', true)->count();
-        $blockedUsers = User::where('role', '!=', 'admin')->where('is_active', false)->count();
+        $blockedUsers = User::where('role', '!=', 'admin')->where('is_blocked', true)->count();
 
         $totalProperties = Property::count();
         $approvedProperties = Property::where('current_status', 'active')->count();

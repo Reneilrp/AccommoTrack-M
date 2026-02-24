@@ -8,10 +8,8 @@ export const authService = {
             password,
             password_confirmation
         });
-        
-        if (response.data.token) {
-            localStorage.setItem('auth_token', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (response.data.user) {
+            localStorage.setItem('userData', JSON.stringify(response.data.user));
         }
         
         return response.data;
@@ -22,10 +20,8 @@ export const authService = {
             email,
             password
         });
-        
-        if (response.data.token) {
-            localStorage.setItem('auth_token', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (response.data.user) {
+            localStorage.setItem('userData', JSON.stringify(response.data.user));
         }
         
         return response.data;
@@ -35,17 +31,36 @@ export const authService = {
         try {
             await api.post('/logout');
         } finally {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user');
+            localStorage.removeItem('userData');
         }
     },
 
     getCurrentUser() {
-        const user = localStorage.getItem('user');
+        const user = localStorage.getItem('userData');
         return user ? JSON.parse(user) : null;
     },
 
     isAuthenticated() {
-        return !!localStorage.getItem('auth_token');
+        return !!localStorage.getItem('userData');
+    },
+
+    async forgotPassword(email) {
+        const response = await api.post('/forgot-password', { email });
+        return response.data;
+    },
+
+    async verifyCode(email, code) {
+        const response = await api.post('/verify-code', { email, code });
+        return response.data;
+    },
+
+    async resetPassword(email, code, password, password_confirmation) {
+        const response = await api.post('/reset-password', {
+            email,
+            code,
+            password,
+            password_confirmation
+        });
+        return response.data;
     }
 };

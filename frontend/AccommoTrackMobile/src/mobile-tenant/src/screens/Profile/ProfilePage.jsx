@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  StatusBar,
-  Alert,
-  ActivityIndicator
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  StatusBar, 
+  ActivityIndicator, 
+  Alert, 
+  Platform, 
+  Switch, 
+  Image, 
+  StyleSheet 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { styles } from '../../../../styles/Tenant/ProfilePage.js';
-import { API_BASE_URL as API_URL } from '../../../../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import { styles } from '../../../../styles/Tenant/ProfilePage.js';
+import ProfileService from '../../../../services/ProfileService';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
@@ -25,8 +30,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: '',
     firstName: '',
     middleName: '',
     lastName: '',
@@ -48,48 +53,33 @@ export default function ProfilePage() {
     loadUserProfile();
   }, []);
 
-  const getAuthHeaders = async () => {
-    let token = await AsyncStorage.getItem('auth_token');
-    if (!token) {
-      token = await AsyncStorage.getItem('token');
-    }
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json',
-    };
-  };
-
   const loadUserProfile = async () => {
     try {
       setLoading(true);
-      const headers = await getAuthHeaders();
-      
-      const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'GET',
-        headers,
-      });
+      const res = await ProfileService.getProfile();
 
-      if (response.ok) {
-        const data = await response.json();
+      if (res.success) {
+        const data = res.data;
         
-        const fullName = [data.first_name, data.middle_name, data.last_name]
-          .filter(Boolean)
-          .join(' ');
+        // Calculate age from DOB if age is missing but DOB exists
+        let calculatedAge = data.age ? String(data.age) : '';
+        if (!calculatedAge && data.tenant_profile?.date_of_birth) {
+            calculatedAge = String(calculateAge(new Date(data.tenant_profile.date_of_birth)));
+        }
 
         setProfileData(prev => ({
           ...prev,
-          name: fullName || 'User',
           firstName: data.first_name || '',
           middleName: data.middle_name || '',
           lastName: data.last_name || '',
           email: data.email || '',
           phone: data.phone || '',
-          age: data.age ? String(data.age) : '',
+          age: calculatedAge,
           dateOfBirth: data.tenant_profile?.date_of_birth || '',
           bio: data.tenant_profile?.notes || '',
           profileImage: data.profile_image || null,
           preferences: data.tenant_profile?.preference 
-            ? JSON.parse(data.tenant_profile.preference) 
+            ? (typeof data.tenant_profile.preference === 'string' ? JSON.parse(data.tenant_profile.preference) : data.tenant_profile.preference)
             : prev.preferences,
         }));
       } else {
@@ -99,11 +89,11 @@ export default function ProfilePage() {
           const user = JSON.parse(userString);
           setProfileData(prev => ({
             ...prev,
-            name: [user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' ') || 'User',
             firstName: user.first_name || '',
             middleName: user.middle_name || '',
             lastName: user.last_name || '',
             email: user.email || '',
+            phone: user.phone || '',
           }));
         }
       }
@@ -112,6 +102,37 @@ export default function ProfilePage() {
       Alert.alert('Error', 'Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateAge = (dob) => {
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || (profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : new Date());
+    setShowDatePicker(Platform.OS === 'ios');
+    
+    if (event.type === 'set' || Platform.OS === 'ios') {
+        const age = calculateAge(currentDate);
+        if (age < 18) {
+             Alert.alert('Age Restriction', 'You must be at least 18 years old.');
+             return;
+        }
+        
+        const formattedDate = currentDate.toISOString().split('T')[0];
+        setProfileData(prev => ({
+            ...prev,
+            dateOfBirth: formattedDate,
+            age: String(age)
+        }));
     }
   };
 
@@ -132,46 +153,39 @@ export default function ProfilePage() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const headers = await getAuthHeaders();
       
-      // Create form data for multipart upload
-      const formData = new FormData();
-      
-      // Parse the full name back to parts if user edited name field
-      const nameParts = profileData.name.trim().split(' ');
-      formData.append('first_name', profileData.firstName || nameParts[0] || '');
-      formData.append('middle_name', profileData.middleName || (nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : ''));
-      formData.append('last_name', profileData.lastName || nameParts[nameParts.length - 1] || '');
-      formData.append('phone', profileData.phone || '');
-      formData.append('notes', profileData.bio || '');
-      formData.append('preference', JSON.stringify(profileData.preferences));
-      
-      if (profileData.dateOfBirth) {
-        formData.append('date_of_birth', profileData.dateOfBirth);
-      }
+      const updateData = {
+        first_name: profileData.firstName,
+        middle_name: profileData.middleName,
+        last_name: profileData.lastName,
+        phone: profileData.phone || '',
+        notes: profileData.bio || '',
+        preference: profileData.preferences,
+        date_of_birth: profileData.dateOfBirth || null,
+      };
 
-      const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'PUT',
-        headers: {
-          ...headers,
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
+      const res = await ProfileService.updateProfile(updateData);
 
-      if (response.ok) {
-        const result = await response.json();
-        Alert.alert('Success', 'Profile updated successfully!', [
-          { text: 'OK', onPress: () => setIsEditing(false) }
-        ]);
+      if (res.success) {
+        const u = res.data;
+        const tp = u.tenant_profile || {};
         
-        // Update local storage with new user data
-        if (result.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(result.user));
-        }
+        setProfileData(prev => ({
+          ...prev,
+          firstName: u.first_name || '',
+          middleName: u.middle_name || '',
+          lastName: u.last_name || '',
+          phone: u.phone || '',
+          bio: tp.notes || '',
+          dateOfBirth: tp.date_of_birth || '',
+          preferences: typeof tp.preference === 'string' ? JSON.parse(tp.preference) : (tp.preference || prev.preferences)
+        }));
+
+        await AsyncStorage.setItem('user', JSON.stringify(u));
+        setIsEditing(false);
+        Alert.alert('Success', 'Profile updated successfully!');
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to update profile');
+        Alert.alert('Error', res.error || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -183,7 +197,6 @@ export default function ProfilePage() {
 
   const handleChangePhoto = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
@@ -191,7 +204,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // Show options
       Alert.alert(
         'Change Profile Photo',
         'Choose an option',
@@ -247,59 +259,25 @@ export default function ProfilePage() {
   const uploadProfileImage = async (imageAsset) => {
     try {
       setSaving(true);
-      const headers = await getAuthHeaders();
-
-      const formData = new FormData();
       
-      // Get file extension from URI
-      const uriParts = imageAsset.uri.split('.');
-      const fileType = uriParts[uriParts.length - 1];
+      const updateData = {
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+      };
 
-      formData.append('profile_image', {
-        uri: imageAsset.uri,
-        name: `profile_${Date.now()}.${fileType}`,
-        type: `image/${fileType}`,
-      });
+      const res = await ProfileService.updateProfile(updateData, imageAsset);
 
-      // Include current user data to prevent losing other fields
-      formData.append('first_name', profileData.firstName);
-      formData.append('last_name', profileData.lastName);
+      if (res.success) {
+        const u = res.data;
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: u.profile_image || imageAsset.uri,
+        }));
 
-      const response = await fetch(`${API_URL}/tenant/profile`, {
-        method: 'PUT',
-        headers: {
-          ...headers,
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Update local state with new image URL
-        if (result.user?.profile_image) {
-          setProfileData(prev => ({
-            ...prev,
-            profileImage: result.user.profile_image,
-          }));
-        } else {
-          // Use local URI temporarily
-          setProfileData(prev => ({
-            ...prev,
-            profileImage: imageAsset.uri,
-          }));
-        }
-
-        // Update local storage
-        if (result.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(result.user));
-        }
-
+        await AsyncStorage.setItem('user', JSON.stringify(u));
         Alert.alert('Success', 'Profile photo updated!');
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to upload photo');
+        Alert.alert('Error', res.error || 'Failed to upload photo');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -311,83 +289,93 @@ export default function ProfilePage() {
 
   const getProfileImageSource = () => {
     if (profileData.profileImage) {
-      // Check if it's a remote URL or local URI
-      if (profileData.profileImage.startsWith('http') || profileData.profileImage.startsWith('file://')) {
+      if (typeof profileData.profileImage === 'string' && (profileData.profileImage.startsWith('http') || profileData.profileImage.startsWith('file://'))) {
         return { uri: profileData.profileImage };
       }
       return { uri: profileData.profileImage };
     }
-    // Default placeholder
     return null;
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle="light-content" />
-        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
-          <View style={{ width: 50 }} />
-        </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={['top']}>
+          <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+            <View style={homeStyles.headerSide}>
+              <TouchableOpacity style={homeStyles.headerIcon} onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+              </TouchableOpacity>
+            </View>
+            <View style={homeStyles.headerCenter}>
+              <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
+            </View>
+            <View style={homeStyles.headerSide} />
+          </View>
+        </SafeAreaView>
+        <View style={localStyles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={{ marginTop: 12, color: theme.colors.textSecondary }}>Loading profile...</Text>
+          <Text style={[localStyles.loadingText, { color: theme.colors.textSecondary }]}>Loading profile...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={() => {
-            if (isEditing) {
-              handleSave();
-            } else {
-              setIsEditing(true);
-            }
-          }}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.editButtonText}>
-              {isEditing ? 'Save' : 'Edit'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Header wrapped in its own SafeAreaView to ensure full width and correct positioning */}
+      <SafeAreaView style={{ backgroundColor: theme.colors.primary }} edges={['top']}>
+        <View style={[homeStyles.header, { backgroundColor: theme.colors.primary }]}> 
+          <View style={homeStyles.headerSide}>
+            <TouchableOpacity 
+              style={homeStyles.headerIcon}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+          </View>
+          <View style={homeStyles.headerCenter}>
+            <Text style={[homeStyles.headerTitle, { color: theme.colors.textInverse }]}>Profile</Text>
+          </View>
+          <View style={homeStyles.headerSide}>
+            <TouchableOpacity 
+              style={homeStyles.headerIcon}
+              onPress={() => {
+                if (isEditing) {
+                  handleSave();
+                } else {
+                  setIsEditing(true);
+                }
+              }}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={theme.colors.textInverse} />
+              ) : (
+                <Ionicons name={isEditing ? "save-outline" : "create-outline"} size={22} color={theme.colors.textInverse} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Photo Section */}
-        <View style={styles.photoSection}>
+        <View style={[styles.photoSection, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
           <View style={styles.photoContainer}>
             {getProfileImageSource() ? (
-              <Image source={getProfileImageSource()} style={styles.profilePhoto} />
+              <Image source={getProfileImageSource()} style={[styles.profilePhoto, { borderColor: theme.colors.primary }]} />
             ) : (
-              <View style={[styles.profilePhoto, { backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
+              <View style={[styles.profilePhoto, { backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center', borderColor: theme.colors.primary }]}>
                 <Ionicons name="person" size={60} color={theme.colors.primary} />
               </View>
             )}
             {isEditing && (
               <TouchableOpacity 
-                style={[styles.changePhotoButton, { backgroundColor: theme.colors.primary }]}
+                style={[styles.changePhotoButton, { backgroundColor: theme.colors.primary, borderColor: theme.colors.surface }]}
                 onPress={handleChangePhoto}
                 disabled={saving}
               >
@@ -400,23 +388,57 @@ export default function ProfilePage() {
             )}
           </View>
           {!isEditing && (
-            <Text style={styles.userName}>{profileData.name}</Text>
+            <Text style={[styles.userName, { color: theme.colors.text }]}>
+                {[profileData.firstName, profileData.lastName].filter(Boolean).join(' ')}
+            </Text>
           )}
         </View>
 
         {/* Form Section */}
         <View style={styles.formSection}>
-          {/* Name */}
+          {/* First Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>First Name</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
               <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
-                value={profileData.name}
-                onChangeText={(text) => handleInputChange('name', text)}
+                value={profileData.firstName}
+                onChangeText={(text) => handleInputChange('firstName', text)}
                 editable={isEditing}
-                placeholder="Enter your name"
+                placeholder="First Name"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+            </View>
+          </View>
+
+          {/* Middle Name */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Middle Name</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
+              <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                value={profileData.middleName}
+                onChangeText={(text) => handleInputChange('middleName', text)}
+                editable={isEditing}
+                placeholder="Middle Name"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+            </View>
+          </View>
+
+          {/* Last Name */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Last Name</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
+              <Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                value={profileData.lastName}
+                onChangeText={(text) => handleInputChange('lastName', text)}
+                editable={isEditing}
+                placeholder="Last Name"
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
@@ -424,8 +446,8 @@ export default function ProfilePage() {
 
           {/* Email */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <View style={[styles.inputContainer, styles.inputDisabled]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Email</Text>
+            <View style={[styles.inputContainer, styles.inputDisabled, { borderColor: theme.colors.border }]}>
               <Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
@@ -437,18 +459,39 @@ export default function ProfilePage() {
             <Text style={styles.helperText}>Email cannot be changed</Text>
           </View>
 
-          {/* Age */}
+          {/* Date of Birth & Age */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Age</Text>
-            <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
-              <Ionicons name="calendar-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <Text style={[styles.label, { color: theme.colors.text }]}>Date of Birth</Text>
+            <TouchableOpacity
+              onPress={() => isEditing && setShowDatePicker(true)}
+              style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}
+              disabled={!isEditing}
+            >
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+              <Text style={[styles.input, { color: theme.colors.text, paddingTop: Platform.OS === 'ios' ? 0 : 4 }]}>
+                {profileData.dateOfBirth ? profileData.dateOfBirth : 'Select Date of Birth'}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+                <DateTimePicker
+                    value={profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateChange}
+                    maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                />
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Age</Text>
+            <View style={[styles.inputContainer, styles.inputDisabled, { borderColor: theme.colors.border }]}>
+              <Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 value={profileData.age}
-                onChangeText={(text) => handleInputChange('age', text)}
-                editable={isEditing}
-                keyboardType="numeric"
-                placeholder="Enter your age"
+                editable={false}
+                placeholder="Age"
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
@@ -456,11 +499,11 @@ export default function ProfilePage() {
 
           {/* Phone */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <View style={[styles.inputContainer, !isEditing && styles.inputDisabled]}>
-              <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <Text style={[styles.label, { color: theme.colors.text }]}>Phone Number</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
+              <Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 value={profileData.phone}
                 onChangeText={(text) => handleInputChange('phone', text)}
                 editable={isEditing}
@@ -473,10 +516,10 @@ export default function ProfilePage() {
 
           {/* Bio */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>About Me</Text>
-            <View style={[styles.textAreaContainer, !isEditing && styles.inputDisabled]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>About Me</Text>
+            <View style={[styles.textAreaContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }, !isEditing && styles.inputDisabled]}>
               <TextInput
-                style={styles.textArea}
+                style={[styles.textArea, { color: theme.colors.text }]}
                 value={profileData.bio}
                 onChangeText={(text) => handleInputChange('bio', text)}
                 editable={isEditing}
@@ -490,102 +533,89 @@ export default function ProfilePage() {
 
           {/* Preferences */}
           <View style={styles.preferencesSection}>
-            <Text style={styles.sectionTitle}>Preferences</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Preferences</Text>
             
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('quiet')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="volume-mute" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>Quiet Environment</Text>
-                  <Text style={styles.preferenceDescription}>I prefer a peaceful place</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>Quiet Environment</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I prefer a peaceful place</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.quiet && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.quiet && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.quiet}
+                onValueChange={() => handlePreferenceToggle('quiet')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.quiet ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('petFriendly')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="paw" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>Pet Friendly</Text>
-                  <Text style={styles.preferenceDescription}>I have or plan to have pets</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>Pet Friendly</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I have or plan to have pets</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.petFriendly && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.petFriendly && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.petFriendly}
+                onValueChange={() => handlePreferenceToggle('petFriendly')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.petFriendly ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('smoking')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="ban" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>No Smoking</Text>
-                  <Text style={styles.preferenceDescription}>I prefer smoke-free areas</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>No Smoking</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I prefer smoke-free areas</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.smoking && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.smoking && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.smoking}
+                onValueChange={() => handlePreferenceToggle('smoking')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.smoking ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.preferenceItem}
-              onPress={() => isEditing && handlePreferenceToggle('cooking')}
-              disabled={!isEditing}
-            >
+            <View style={[styles.preferenceItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.preferenceLeft}>
                 <Ionicons name="restaurant" size={24} color={theme.colors.primary} />
                 <View style={styles.preferenceText}>
-                  <Text style={styles.preferenceTitle}>Cooking Allowed</Text>
-                  <Text style={styles.preferenceDescription}>I like to cook my own meals</Text>
+                  <Text style={[styles.preferenceTitle, { color: theme.colors.text }]}>Cooking Allowed</Text>
+                  <Text style={[styles.preferenceDescription, { color: theme.colors.textSecondary }]}>I like to cook my own meals</Text>
                 </View>
               </View>
-              <View style={[
-                styles.toggle,
-                profileData.preferences.cooking && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleCircle,
-                  profileData.preferences.cooking && styles.toggleCircleActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+              <Switch
+                value={profileData.preferences.cooking}
+                onValueChange={() => handlePreferenceToggle('cooking')}
+                disabled={!isEditing}
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (profileData.preferences.cooking ? '#FFFFFF' : '#F4F3F4')}
+              />
+            </View>
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+    },
+});

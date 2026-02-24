@@ -1,18 +1,58 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SkeletonNotificationsTab } from '../../Shared/Skeleton';
+import { tenantService } from '../../../services/tenantService';
+import { useUIState } from '../../../contexts/UIStateContext';
+import toast from 'react-hot-toast';
 
-const NotificationsTab = ({ loading = false }) => {
+const NotificationsTab = ({ loading: initialLoading = false }) => {
+	const { uiState, updateData } = useUIState();
+	const cachedProfile = uiState.data?.profile;
+
 	const [isEditing, setIsEditing] = useState(false);
 	const [saving, setSaving] = useState(false);
+	const [loading, setLoading] = useState(!cachedProfile && (initialLoading || true));
+	
 	const [savedSettings, setSavedSettings] = useState({
 		email_booking_updates: true,
 		email_payment_reminders: true,
-		email_marketing: false,
+		email_maintenance: false,
 		push_messages: true,
 		push_booking_updates: true,
 	});
-  
+
 	const [settings, setSettings] = useState(savedSettings);
+
+	// Load prefs from backend on mount
+	useEffect(() => {
+		if (cachedProfile) {
+			mapDataToSettings(cachedProfile);
+		}
+		loadPrefs();
+	}, []); // Run once on mount
+
+	const mapDataToSettings = (profile) => {
+		if (profile.notification_preferences) {
+			const backendPrefs = profile.notification_preferences;
+			const merged = { ...savedSettings, ...backendPrefs };
+			setSavedSettings(merged);
+			setSettings(merged);
+		}
+	};
+
+	const loadPrefs = async () => {
+		try {
+			if (!cachedProfile) setLoading(true);
+			const profile = await tenantService.getProfile();
+			
+			mapDataToSettings(profile);
+			updateData('profile', profile);
+
+		} catch (error) {
+			console.error('Failed to load notification prefs', error);
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	const handleToggle = (key) => {
 		if (!isEditing) return;
@@ -29,13 +69,35 @@ const NotificationsTab = ({ loading = false }) => {
 		setSettings(savedSettings);
 	};
 
-	const handleSave = () => {
+	const handleSave = async () => {
 		setSaving(true);
-		setTimeout(() => {
+		try {
+			const formData = new FormData();
+			// Send as JSON string (or individual fields if backend expects array, but we configured cast 'array')
+			// Since we use FormData for the endpoint, and the backend expects 'notification_preferences' as array/json.
+			// Laravel's $casts to array handles JSON string automatically if passed correctly? 
+			// Actually, with FormData, sending nested arrays/objects can be tricky.
+			// Let's iterate and send as array or just send individual keys if we mapped them.
+			// But we added 'notification_preferences' column.
+			// Best to send: notification_preferences[key] = value
+			
+			// Strategy: Loop keys and append `notification_preferences[key]`
+			Object.keys(settings).forEach(key => {
+				// Convert boolean to 1/0 or string 'true'/'false'
+				formData.append(`notification_preferences[${key}]`, settings[key] ? '1' : '0');
+			});
+
+			await tenantService.updateProfile(formData);
+			
 			setSavedSettings(settings);
 			setIsEditing(false);
+			toast.success('Preferences saved successfully');
+		} catch (error) {
+			console.error('Failed to save notification prefs', error);
+			toast.error('Failed to save preferences');
+		} finally {
 			setSaving(false);
-		}, 800);
+		}
 	};
 
 	return (
@@ -48,7 +110,7 @@ const NotificationsTab = ({ loading = false }) => {
 				{!isEditing && (
 					<button
 						onClick={handleEdit}
-						className="px-4 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 rounded-lg hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-colors"
+						className="px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
 					>
 						Edit Preferences
 					</button>
@@ -74,11 +136,11 @@ const NotificationsTab = ({ loading = false }) => {
 							onChange={() => handleToggle('email_payment_reminders')}
 						/>
 						 <ToggleItem 
-							label="Marketing & Promos"
-							description="Receive news about new properties and features."
-							checked={settings.email_marketing}
+							label="Maintenance requests"
+							description="Receive updates about maintenance requests."
+							checked={settings.email_maintenance}
 							disabled={!isEditing}
-							onChange={() => handleToggle('email_marketing')}
+							onChange={() => handleToggle('email_maintenance')}
 						/>
 					</div>
 				</div>
@@ -115,7 +177,7 @@ const NotificationsTab = ({ loading = false }) => {
 						<button
 							onClick={handleSave}
 							disabled={saving}
-							className="px-6 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-70"
+							className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-70"
 						>
 							{saving ? 'Saving...' : 'Save Changes'}
 						</button>
@@ -141,8 +203,8 @@ const ToggleItem = ({ label, description, checked, disabled, onChange }) => (
 		) : (
 			<button
 				onClick={onChange}
-				className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-600 dark:focus:ring-brand-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-					checked ? 'bg-brand-600' : 'bg-gray-200 dark:bg-gray-600'
+				className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-600 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+					checked ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
 				}`}
 			>
 				<span

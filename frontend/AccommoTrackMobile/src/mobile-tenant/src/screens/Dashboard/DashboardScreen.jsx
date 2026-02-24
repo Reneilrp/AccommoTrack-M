@@ -5,10 +5,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  StyleSheet,
   RefreshControl,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +15,8 @@ import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { DashboardStatSkeleton, PropertyCardSkeleton, BookingCardSkeleton } from '../../../../components/Skeletons/index';
 import { showError } from '../../../../utils/toast';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
+import Header from '../../components/Header.jsx';
+import styles from '../../../../styles/Tenant/DashboardScreen.js';
 
 const DashboardScreen = () => {
   const navigation = useNavigation();
@@ -85,30 +85,74 @@ const DashboardScreen = () => {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
+    // If an object is passed, try common string fields
+    if (typeof imagePath === 'object') {
+      const candidates = ['url', 'image_url', 'imageUrl', 'image', 'path', 'file', 'file_path'];
+      for (const k of candidates) {
+        const v = imagePath[k];
+        if (typeof v === 'string' && v.trim()) {
+          imagePath = v.trim();
+          break;
+        }
+      }
+      // Fallback: take first string value found in the object
+      if (typeof imagePath === 'object') {
+        for (const v of Object.values(imagePath)) {
+          if (typeof v === 'string' && v.trim()) {
+            imagePath = v.trim();
+            break;
+          }
+        }
+      }
+    }
+
+    if (typeof imagePath !== 'string') return null;
+    imagePath = imagePath.trim();
     if (imagePath.startsWith('http')) return imagePath;
-    return `${process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.4:8000'}/storage/${imagePath}`;
+
+    const base = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.4:8000';
+    // If already starts with /storage, just prefix base
+    if (imagePath.startsWith('/storage')) return `${base}${imagePath}`;
+    // If contains storage segment already, ensure no duplicate slashes
+    if (imagePath.includes('/storage/')) return `${base}/${imagePath.replace(/^\/+/, '')}`;
+    // Default: assume path is a filename stored under storage
+    return `${base}/storage/${imagePath.replace(/^\/+/, '')}`;
   };
 
-  const getAvatarUrl = (name) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=100`;
+  const getAvatarUrl = (nameOrObj, size = 48) => {
+    let nameStr = '';
+    if (!nameOrObj) {
+      nameStr = 'User';
+    } else if (typeof nameOrObj === 'object') {
+      if (typeof nameOrObj.name === 'string' && nameOrObj.name.trim()) nameStr = nameOrObj.name.trim();
+      else if (typeof nameOrObj.full === 'string' && nameOrObj.full.trim()) nameStr = nameOrObj.full.trim();
+      else if ((nameOrObj.first_name || nameOrObj.last_name) && (nameOrObj.first_name || nameOrObj.last_name)) {
+        nameStr = `${nameOrObj.first_name || ''} ${nameOrObj.last_name || ''}`.trim();
+      } else {
+        for (const v of Object.values(nameOrObj)) {
+          if (typeof v === 'string' && v.trim()) { nameStr = v.trim(); break; }
+        }
+      }
+    } else {
+      nameStr = String(nameOrObj).trim();
+    }
+
+    if (!nameStr) nameStr = 'User';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(nameStr)}&background=random&size=${encodeURIComponent(String(size))}`;
   };
 
   const loading = stayLoading || statsLoading;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <View style={styles.headerSpacer} />
-          <View style={styles.headerTextContainer}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              Dashboard Overview
-            </Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
-      </SafeAreaView>
+      <Header
+        onMenuPress={() => navigation.openDrawer()}
+        onProfilePress={() => navigation.navigate('Notifications')}
+        isGuest={false}
+        title="Dashboard"
+        showProfile={true}
+        notificationCount={stats?.notifications?.unread || 0}
+      />
 
       {/* Content Area */}
       <View style={styles.contentContainer}>
@@ -196,14 +240,18 @@ const DashboardScreen = () => {
                 <View style={[styles.propertyCard, { backgroundColor: theme.colors.surface }]}>
             <Image
               source={{
-                uri:
-                  getImageUrl(stayData.property?.images?.[0]?.image_url) ||
-                  'https://via.placeholder.com/800x400',
+                uri: (
+                  getImageUrl(stayData.property?.images?.[0]) ||
+                  getImageUrl(stayData.property?.cover_image) ||
+                  getImageUrl(stayData.property?.image) ||
+                  getImageUrl(stayData.property?.photo) ||
+                  'https://via.placeholder.com/800x400'
+                ),
               }}
               style={styles.propertyImage}
             />
                   <View style={styles.propertyOverlay}>
-                    <Text style={styles.propertyTitle}>{stayData.property?.title}</Text>
+                    <Text style={styles.propertyTitle}>{stayData.property?.title || stayData.property?.name || stayData.property?.property_name}</Text>
                     <Text style={styles.propertyAddress}>{stayData.property?.address}</Text>
                   </View>
 
@@ -212,9 +260,7 @@ const DashboardScreen = () => {
                     <View style={[styles.landlordSection, { backgroundColor: theme.colors.backgroundSecondary }]}>
                       <Image
                         source={{
-                          uri:
-                            getImageUrl(stayData.landlord?.profile_image) ||
-                            getAvatarUrl(stayData.landlord?.name),
+                          uri: getImageUrl(stayData.landlord?.profile_image) || getAvatarUrl(stayData.landlord, 48),
                         }}
                         style={styles.landlordAvatar}
                       />
@@ -258,34 +304,13 @@ const DashboardScreen = () => {
                   </View>
                   <TouchableOpacity
                     style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => navigation.navigate('Wallet')}
+                    onPress={() => navigation.navigate('Payments')}
                   >
                     <Text style={styles.primaryButtonText}>View Wallet</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Quick Actions */}
-                <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Quick Actions</Text>
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: theme.colors.backgroundSecondary }]}
-                    onPress={() =>
-                      navigation.navigate('PropertyDetails', { propertyId: stayData.property?.id })
-                    }
-                  >
-                    <Text style={[styles.actionText, { color: theme.colors.text }]}>
-                      View Property Details
-                    </Text>
-                    <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: theme.colors.backgroundSecondary }]}
-                    onPress={() => navigation.navigate('MyBookings')}
-                  >
-                    <Text style={[styles.actionText, { color: theme.colors.text }]}>Booking History</Text>
-                    <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
-                  </TouchableOpacity>
-                </View>
+                {/* Quick Actions removed per request */}
               </>
             ) : (
               // Empty State
@@ -328,275 +353,8 @@ const DashboardScreen = () => {
           </ScrollView>
         )}
       </View>
-
-      {/* Bottom Navigation */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation />
-      </SafeAreaView>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    paddingTop: 35,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  headerTextContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 24,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  spacer: {
-    height: 16,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statSubLabel: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  propertyCard: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  propertyImage: {
-    width: '100%',
-    height: 200,
-  },
-  propertyOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-    padding: 16,
-  },
-  propertyTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  propertyAddress: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-  },
-  propertyContent: {
-    padding: 16,
-  },
-  landlordSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 12,
-  },
-  landlordAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  landlordInfo: {
-    flex: 1,
-  },
-  landlordLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  landlordName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  messageButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  card: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  paymentLabel: {
-    fontSize: 14,
-  },
-  paymentValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  divider: {
-    height: 1,
-    marginVertical: 8,
-  },
-  primaryButton: {
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyState: {
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  upcomingCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginTop: 24,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  upcomingIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#BFDBFE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  upcomingContent: {
-    flex: 1,
-  },
-  upcomingTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    marginBottom: 4,
-  },
-  upcomingText: {
-    fontSize: 13,
-    color: '#1E40AF',
-    lineHeight: 18,
-  },
-  upcomingBold: {
-    fontWeight: 'bold',
-  },
-  upcomingLink: {
-    fontSize: 13,
-    color: '#1E40AF',
-    fontWeight: '600',
-    marginTop: 8,
-  },
-});
 
 export default DashboardScreen;

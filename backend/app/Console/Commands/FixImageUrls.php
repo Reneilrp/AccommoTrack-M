@@ -13,7 +13,7 @@ class FixImageUrls extends Command
      *
      * @var string
      */
-    protected $signature = 'fix:image-urls {--old=http://localhost:8000} {--new=}';
+    protected $signature = 'fix:image-urls {--old=http://192.168.43.142:8000} {--new=}';
 
     /**
      * The console command description.

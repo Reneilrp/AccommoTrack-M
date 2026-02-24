@@ -18,6 +18,7 @@ class CaretakerController extends Controller
     public function index(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
 
         // Get landlord's properties for reference
         $landlordProperties = Property::where('landlord_id', $context['landlord_id'])
@@ -65,10 +66,7 @@ class CaretakerController extends Controller
     public function store(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
-
-        if ($context['is_caretaker']) {
-            throw new AccessDeniedHttpException('Caretakers cannot create other caretakers.');
-        }
+        $this->assertNotCaretaker($context);
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
@@ -159,10 +157,7 @@ class CaretakerController extends Controller
     public function update(Request $request, $assignmentId)
     {
         $context = $this->resolveLandlordContext($request);
-
-        if ($context['is_caretaker']) {
-            throw new AccessDeniedHttpException('Caretakers cannot update other caretaker permissions.');
-        }
+        $this->assertNotCaretaker($context);
 
         $validated = $request->validate([
             'permissions' => 'sometimes|array',
@@ -249,6 +244,7 @@ class CaretakerController extends Controller
     public function destroy(Request $request, $assignmentId)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
 
         $assignment = CaretakerAssignment::where('landlord_id', $context['landlord_id'])
             ->findOrFail($assignmentId);
@@ -266,10 +262,7 @@ class CaretakerController extends Controller
     public function resetPassword(Request $request, $assignmentId)
     {
         $context = $this->resolveLandlordContext($request);
-
-        if ($context['is_caretaker']) {
-            throw new AccessDeniedHttpException('Caretakers cannot reset other credentials.');
-        }
+        $this->assertNotCaretaker($context);
 
         $assignment = CaretakerAssignment::where('landlord_id', $context['landlord_id'])
             ->with('caretaker')

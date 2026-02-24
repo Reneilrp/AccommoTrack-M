@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 // --- CUSTOM HOUSE ICON ---
 const houseSvg = encodeURIComponent(`
@@ -53,11 +54,18 @@ const MapController = ({ centerOn }) => {
 };
 
 const PropertyMap = ({ properties, onMarkerClick, centerOn }) => {
+    const { effectiveTheme } = usePreferences();
+    
     // Default center (Manila)
     const defaultCenter = [14.5995, 120.9842]; 
 
     // Filter properties with valid coordinates
     const validProperties = properties.filter(p => p.latitude && p.longitude);
+
+    // Map tiles based on theme
+    const tileUrl = effectiveTheme === 'dark' 
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
     return (
         <MapContainer 
@@ -67,8 +75,8 @@ const PropertyMap = ({ properties, onMarkerClick, centerOn }) => {
             zoomControl={false} // Disable default zoom controls (+/-)
         >
             <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url={tileUrl}
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             />
             {/* Only auto-fit bounds if we are NOT focusing on a specific item, or strictly on mount */}
             {!centerOn && <MapUpdater properties={validProperties} />}

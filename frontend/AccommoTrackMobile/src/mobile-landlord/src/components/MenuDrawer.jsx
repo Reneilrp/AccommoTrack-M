@@ -5,7 +5,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const menuItems = [
-  { id: 1, title: 'My Properties', icon: 'business-outline', color: '#10b981', screen: 'MyProperties' },
+  { id: 1, title: 'My Properties', icon: 'business-outline', color: '#16a34a', screen: 'MyProperties' },
   { id: 2, title: 'Room Management', icon: 'bed-outline', color: '#8B5CF6', screen: 'RoomManagement' },
   { id: 3, title: 'Tenants', icon: 'people-outline', color: '#2196F3', screen: 'Tenants' },
   { id: 4, title: 'Bookings', icon: 'calendar-outline', color: '#FF9800', screen: 'Bookings' },

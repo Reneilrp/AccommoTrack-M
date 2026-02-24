@@ -1,6 +1,7 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const sideWidth = Math.max(56, Math.round(width * 0.05));
 
 export const styles = StyleSheet.create({
   container: {
@@ -8,12 +9,13 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  // HEADER STYLES - Green Bar
+  // HEADER STYLES
   header: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 15,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 0,
+    // Use a fixed app-bar height so SafeArea inset + header padding don't stack
+    height: 56,
+    marginTop: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -21,12 +23,66 @@ export const styles = StyleSheet.create({
   headerIcon: {
     padding: 8,
   },
+  headerSide: {
+    width: sideWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flex1: {
+    flex: 1,
+  },
+  flex1MarginLeft12: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  buttonFlex: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contentContainerPadding: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  surfaceCardSmall: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  surfaceCardMedium: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  modalContentBase: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    padding: 16,
+    maxHeight: '70%',
+  },
+  rowSpaceBetweenCenter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
-    flex: 1,
+    // avoid fixed height or flex here; let container control vertical centering
+    paddingHorizontal: 8,
   },
 
   // MENU DRAWER STYLES
@@ -101,8 +157,10 @@ export const styles = StyleSheet.create({
   // SEARCH BAR STYLES
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 5,
+    paddingVertical: 6,
     backgroundColor: '#FFFFFF',
+    height: 72,
+    justifyContent: 'center',
   },
   searchBar: {
     backgroundColor: '#FFFFFF',
@@ -110,14 +168,14 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
-    paddingVertical: 5,
+    height: 48,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
@@ -126,7 +184,7 @@ export const styles = StyleSheet.create({
     color: '#212121',
   },
   searchButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 25,
@@ -138,11 +196,12 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
   filterButtonsRow: {
-  marginTop: 10,
-  marginBottom: 15,
+  marginTop: 8,
+  marginBottom: 12,
+  height: 56,
   },
   filterButton: {
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 16,
     backgroundColor: '#f0f0f0',
     borderRadius: 20,
@@ -154,7 +213,7 @@ export const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   filterOptionsContainer: {
     padding: 20,
@@ -163,9 +222,10 @@ export const styles = StyleSheet.create({
   flexDirection: 'row',
   paddingHorizontal: 10,
   gap: 8,
+  alignItems: 'center',
 },
   filterButtonActive: {
-  backgroundColor: '#10b981',
+  backgroundColor: '#16a34a',
   },
   filterButtonText: {
   color: '#757575',
@@ -188,7 +248,7 @@ export const styles = StyleSheet.create({
   },
   filterOptionActive: {
     backgroundColor: '#E8F5E9',
-    borderColor: '#10b981',
+    borderColor: '#16a34a',
   },
   filterOptionContent: {
     flexDirection: 'row',
@@ -201,7 +261,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   filterOptionTextActive: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   activeFilterContainer: {
@@ -219,7 +279,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   activeFilterText: {
-    color: '#10b981',
+    color: '#16a34a',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -239,10 +299,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F0F0F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   imageContainer: {
     width: '100%',
@@ -263,7 +323,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
@@ -296,7 +356,7 @@ export const styles = StyleSheet.create({
   availabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#DCFCE7',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -305,7 +365,7 @@ export const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: 13,
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
     marginLeft: 6,
   },
@@ -321,7 +381,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#16a34a',
   },
   priceLabel: {
     fontSize: 12,
@@ -329,7 +389,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   viewButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 25,
@@ -340,9 +400,9 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Horizontal card layout (alternative)
+  // Horizontal card layout
   cardRow: {
-    flexDirection: 'column', // Changed to column for vertical layout
+    flexDirection: 'column',
     width: '100%',
   },
   cardHeader: {
@@ -404,7 +464,7 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   clearButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -447,10 +507,10 @@ export const styles = StyleSheet.create({
   borderRadius: 12,
   marginBottom: 16,
   shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 3,
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.03,
+  shadowRadius: 2,
+  elevation: 1,
   overflow: 'hidden',
 },
 
@@ -469,7 +529,7 @@ typeBadge: {
   position: 'absolute',
   top: 12,
   left: 12,
-  backgroundColor: '#10b981',
+  backgroundColor: '#16a34a',
   paddingHorizontal: 12,
   paddingVertical: 6,
   borderRadius: 6,
@@ -518,7 +578,7 @@ availabilityBadge: {
 
 availabilityText: {
   fontSize: 12,
-  color: '#10b981',
+  color: '#16a34a',
   marginLeft: 4,
   fontWeight: '500',
 },
@@ -530,7 +590,7 @@ cardFooter: {
 },
 
 viewButton: {
-  backgroundColor: '#10b981',
+  backgroundColor: '#16a34a',
   paddingVertical: 12,
   paddingHorizontal: 40,
   borderRadius: 8,
@@ -548,8 +608,8 @@ viewButtonText: {
   bottomNav: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    paddingVertical: 8,
-    paddingBottom: 4,
+    paddingVertical: 6,
+    paddingBottom: 0,
     elevation: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -559,15 +619,15 @@ viewButtonText: {
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingTop: 6,
-    marginBottom: 24,
+    paddingVertical: 6,
+    paddingTop: 4,
+    marginBottom: 6,
   },
   fabContainer: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    marginTop: -32,
+    paddingVertical: 6,
+    marginTop: -24,
   },
   fabButton: {
     width: 56,
@@ -586,7 +646,7 @@ viewButtonText: {
     fontSize: 11,
     marginTop: 4,
   },
-  // Legacy styles kept for backward compatibility (can be removed if not used elsewhere)
+  // Legacy styles kept for backward compatibility
   navItem: {
     flex: 1,
     alignItems: 'center',

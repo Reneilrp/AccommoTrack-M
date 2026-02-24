@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   headerTitle: {
     fontSize: 18,
@@ -124,7 +124,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
   },
   emptyState: {
     alignItems: 'center',
@@ -145,7 +145,7 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import PropertyDetails from '../Guest/PropertyDetails';
+import PropertyDetails from './PropertyDetails';
 import { useSidebar } from '../../contexts/SidebarContext';
 
 const TenantPropertyDetails = () => {

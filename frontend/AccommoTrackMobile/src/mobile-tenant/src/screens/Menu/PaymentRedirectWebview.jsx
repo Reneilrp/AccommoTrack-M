@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { WebView } from 'react-native-webview';
 import PaymentService from '../../../../services/PaymentService';
 
@@ -36,13 +37,13 @@ export default function PaymentRedirectWebview({ route, navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={homeStyles.flex1}>
       <WebView
         ref={webviewRef}
         source={{ uri: checkoutUrl }}
         onNavigationStateChange={handleNavStateChange}
         startInLoadingState
-        renderLoading={() => <ActivityIndicator size="large" style={{flex:1}}/>}
+        renderLoading={() => <ActivityIndicator size="large" style={homeStyles.flex1}/>}
       />
     </View>
   );

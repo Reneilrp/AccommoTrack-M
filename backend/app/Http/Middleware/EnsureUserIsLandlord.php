@@ -12,8 +12,8 @@ class EnsureUserIsLandlord
     {
         $user = $request->user();
 
-        if (!$user || $user->role !== 'landlord') {
-            abort(403, 'Landlord access only.');
+        if (!$user || !in_array($user->role, ['landlord', 'caretaker'])) {
+            abort(403, 'Landlord or caretaker access only.');
         }
 
         return $next($request);

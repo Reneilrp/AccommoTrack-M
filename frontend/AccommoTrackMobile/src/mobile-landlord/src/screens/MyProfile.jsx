@@ -130,9 +130,6 @@ export default function MyProfileScreen({ navigation }) {
     }
   };
 
-  // Base URL for images
-  // const BASE_URL = 'http://192.168.254.184:8000';
-
   // Get profile image URL
   const getProfileImage = () => {
     if (selectedImage) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// SafeAreaView handled by shared ScreenLayout
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { styles } from '../../../../styles/Menu/MyBookings.js';
@@ -9,7 +9,8 @@ import { Alert } from 'react-native';
 import { BASE_URL as API_BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { BookingCardSkeleton } from '../../../../components/Skeletons';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
+import Header from '../../components/Header.jsx';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
 
 export default function MyBookings() {
   const navigation = useNavigation();
@@ -87,6 +88,7 @@ export default function MyBookings() {
           return {
             id: booking.id,
             name: booking.propertyTitle || 'Unknown Property',
+            propertyId: booking.property?.id || null,
             image: imageUri,
             location: location,
             roomLabel,
@@ -96,7 +98,8 @@ export default function MyBookings() {
             status: statusMap[booking.status] || booking.status || 'Pending',
             statusRaw: booking.status,
             paymentStatus: booking.paymentStatus,
-            bookingReference: booking.bookingReference
+            bookingReference: booking.bookingReference,
+            hasReview: booking.hasReview
           };
         });
         
@@ -163,28 +166,15 @@ export default function MyBookings() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <View style={{ width: 40 }} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Bookings</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
-
-      {/* Content Area */}
-      <View style={{ flex: 1 }}>
-        <ScrollView 
-          style={[styles.content, { backgroundColor: theme.colors.background }]} 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
-          }
-        >
+    <View style={homeStyles.flex1}>
+      <ScrollView 
+        style={[styles.content, { backgroundColor: theme.colors.background }]} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={homeStyles.contentContainerPadding}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+        }
+      >
           {loading ? (
             <>
               <BookingCardSkeleton />
@@ -194,11 +184,11 @@ export default function MyBookings() {
             </>
           ) : bookings.length > 0 ? (
             bookings.map((booking) => (
-            <TouchableOpacity key={booking.id} style={styles.bookingCard}>
+            <TouchableOpacity key={booking.id} style={[styles.bookingCard, { backgroundColor: theme.colors.surface }]} onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.propertyId })}>
               <Image source={booking.image} style={styles.bookingImage} />
               <View style={styles.bookingInfo}>
                 <View style={styles.bookingHeader}>
-                  <Text style={styles.bookingName}>{booking.name}</Text>
+                  <Text style={[styles.bookingName, { color: theme.colors.text }]}>{booking.name}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.status)}20` }]}>
                     <Text style={[styles.statusText, { color: getStatusColor(booking.status) }]}>
                       {booking.status}
@@ -206,35 +196,35 @@ export default function MyBookings() {
                   </View>
                 </View>
                 <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={16} color="#6B7280" />
-                  <Text style={styles.locationText}>{booking.location}</Text>
+                  <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
+                  <Text style={[styles.locationText, { color: theme.colors.textSecondary }]}>{booking.location}</Text>
                 </View>
                 {booking.roomLabel ? (
                   <View style={styles.locationRow}>
-                    <Ionicons name="bed-outline" size={16} color="#6B7280" />
-                    <Text style={styles.locationText}>Room {booking.roomLabel}</Text>
+                    <Ionicons name="bed-outline" size={16} color={theme.colors.textSecondary} />
+                    <Text style={[styles.locationText, { color: theme.colors.textSecondary }]}>Room {booking.roomLabel}</Text>
                   </View>
                 ) : null}
-                <View style={styles.dateRow}>
+                <View style={[styles.dateRow, { backgroundColor: theme.colors.backgroundSecondary || '#F3F4F6' }]}>
                   <View style={styles.dateItemLeft}>
-                    <Text style={styles.dateLabel}>Check-in</Text>
-                    <Text style={styles.dateValue}>{booking.checkIn}</Text>
+                    <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>Check-in</Text>
+                    <Text style={[styles.dateValue, { color: theme.colors.text }]}>{booking.checkIn}</Text>
                   </View>
                   <View style={styles.dateIconContainer}>
-                    <Ionicons name="arrow-forward" size={16} color="#9CA3AF" />
+                    <Ionicons name="arrow-forward" size={16} color={theme.colors.textTertiary} />
                   </View>
                   <View style={styles.dateItemRight}>
-                    <Text style={styles.dateLabel}>Check-out</Text>
-                    <Text style={styles.dateValue}>{booking.checkOut}</Text>
+                    <Text style={[styles.dateLabel, { color: theme.colors.textSecondary }]}>Check-out</Text>
+                    <Text style={[styles.dateValue, { color: theme.colors.text }]}>{booking.checkOut}</Text>
                   </View>
                 </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Monthly Rent:</Text>
-                  <Text style={styles.price}>₱{booking.price.toLocaleString()}/month</Text>
+                <View style={[styles.priceRow, { borderTopColor: theme.colors.border }]}>
+                  <Text style={[styles.priceLabel, { color: theme.colors.textSecondary }]}>Monthly Rent:</Text>
+                  <Text style={[styles.price, { color: theme.colors.primary }]}>₱{booking.price.toLocaleString()}/month</Text>
                 </View>
                 {booking.paymentStatus && (
-                  <View style={styles.paymentStatusRow}>
-                    <Text style={styles.paymentStatusLabel}>Payment:</Text>
+                  <View style={[styles.paymentStatusRow, { borderTopColor: theme.colors.border }]}>
+                    <Text style={[styles.paymentStatusLabel, { color: theme.colors.textSecondary }]}>Payment:</Text>
                     <Text style={[styles.paymentStatusText, { 
                        color: booking.paymentStatus === 'paid' ? theme.colors.primary : 
                              booking.paymentStatus === 'partial' ? '#3B82F6' : 
@@ -246,16 +236,28 @@ export default function MyBookings() {
                     </Text>
                   </View>
                 )}
-                {/* Cancel button for pending or confirmed bookings */}
-                {(booking.statusRaw === 'pending' || booking.statusRaw === 'confirmed') && (
-                  <View style={styles.cancelContainer}>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => handleCancel(booking.id)}
+                {((booking.statusRaw === 'completed' || booking.statusRaw === 'confirmed') && !booking.hasReview) && (
+                  <View style={styles.reviewBtnContainer}>
+                    <TouchableOpacity onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: booking.propertyId })} style={[styles.reviewBtn, { backgroundColor: theme.colors.primary }]}>
+                      <Text style={{ color: theme.colors.textInverse, fontWeight: '600' }}>{booking.statusRaw === 'confirmed' ? 'Review Property' : 'Leave Review'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => navigation.navigate('ReportProperty', { propertyId: booking.propertyId, propertyTitle: booking.name })} 
+                      style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', marginLeft: 8, borderWidth: 1, borderColor: '#FECACA' }]}
                     >
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                      <Text style={{ color: '#991B1B', fontWeight: '600' }}>Report</Text>
                     </TouchableOpacity>
                   </View>
+                )}
+                {booking.hasReview && (
+                   <View style={styles.reviewBtnContainer}>
+                      <TouchableOpacity 
+                        onPress={() => navigation.navigate('ReportProperty', { propertyId: booking.propertyId, propertyTitle: booking.name })} 
+                        style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA', width: '100%' }]}
+                      >
+                        <Text style={{ color: '#991B1B', fontWeight: '600', textAlign: 'center' }}>Report Issue with Listing</Text>
+                      </TouchableOpacity>
+                   </View>
                 )}
               </View>
               </TouchableOpacity>
@@ -270,13 +272,7 @@ export default function MyBookings() {
               </TouchableOpacity>
             </View>
           )}
-        </ScrollView>
-      </View>
-
-      {/* Bottom Navigation */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation />
-      </SafeAreaView>
+      </ScrollView>
     </View>
   );
 }

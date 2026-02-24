@@ -15,7 +15,8 @@ class AuthController extends Controller
     public function checkEmail(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            // Use email:rfc,dns to validate syntax and DNS/MX records
+            'email' => 'required|email:rfc,dns',
         ]);
         $exists = User::where('email', $request->email)->exists();
         return response()->json([
@@ -29,12 +30,14 @@ class AuthController extends Controller
             'first_name' => 'required|string|max:100',
             'middle_name' => 'nullable|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => 'required|string|email|max:255|unique:users',
+            // Require RFC syntax and DNS/MX check during registration
+            'email' => 'required|string|email:rfc,dns|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:landlord,tenant',
             'phone' => 'nullable|string|max:20',
         ], [
             'email.unique' => 'This email is already taken. Please use a different email address.',
+            'email.email' => 'Email address is not valid or cannot receive mail.',
         ]);
 
         $user = User::create([
@@ -79,6 +82,34 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->is_blocked) {
+            return response()->json([
+                'status' => 'blocked',
+                'message' => 'Your account has been blocked by the administrator. Please contact support for assistance.'
+            ], 403);
+        }
+
+        // Check landlord verification status
+        if ($user->role === 'landlord') {
+            $verification = $user->landlordVerification;
+            
+            if ($verification) {
+                if ($verification->status === 'pending') {
+                    return response()->json([
+                        'status' => 'pending_verification',
+                        'message' => 'Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.'
+                    ], 403);
+                }
+                // Allow login if rejected, but frontend will handle the modal
+            } elseif (!$user->is_verified) {
+                // Fallback for unverified landlords without a verification record
+                return response()->json([
+                    'status' => 'pending_verification',
+                    'message' => 'Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.'
+                ], 403);
+            }
+        }
+
         // Load caretaker assignment if user is a caretaker
         if ($user->role === 'caretaker') {
             $user->load('caretakerAssignment');
@@ -86,11 +117,20 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
+        $responseData = [
             'user' => $user,
             'token' => $token,
             'message' => 'Login successful'
-        ]);
+        ];
+
+        // Add verification info for landlords
+        if ($user->role === 'landlord' && !$user->is_verified) {
+            $verification = $user->landlordVerification;
+            $responseData['verification_status'] = $verification ? $verification->status : 'pending';
+            $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
+        }
+
+        return response()->json($responseData);
     }
 
     public function logout(Request $request)
@@ -130,6 +170,7 @@ class AuthController extends Controller
                 'payment_methods_settings' => 'nullable|array',
                 'payment_methods_settings.allowed' => 'nullable|array',
                 'payment_methods_settings.details' => 'nullable|array',
+                'notification_preferences' => 'nullable|array',
             ]);
 
             // Handle profile image upload

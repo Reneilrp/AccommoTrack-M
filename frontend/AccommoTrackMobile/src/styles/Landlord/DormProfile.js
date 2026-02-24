@@ -6,32 +6,31 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6'
   },
   header: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14
+    paddingHorizontal: 8,
+    height: 60
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center'
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconButtonBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)'
   },
   badge: {
     paddingHorizontal: 10,
@@ -125,7 +124,7 @@ export const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#16a34a',
     textAlign: 'center',
   },
   statLabel: {
@@ -149,7 +148,7 @@ export const styles = StyleSheet.create({
   },
   pillActive: {
     backgroundColor: '#DCFCE7',
-    borderColor: '#34D399'
+    borderColor: '#4ADE80'
   },
   pillText: {
     fontSize: 13,
@@ -305,7 +304,7 @@ export const styles = StyleSheet.create({
     color: '#111827',
   },
   inlineAddButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,

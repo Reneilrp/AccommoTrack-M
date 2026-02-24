@@ -88,4 +88,9 @@ class Invoice extends Model
     {
         return $this->belongsTo(Property::class, 'property_id');
     }
+
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class, 'booking_id');
+    }
 }

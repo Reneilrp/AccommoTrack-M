@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     
     // Header
     header: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         paddingHorizontal: 16,
         paddingVertical: 16,
         flexDirection: 'row',
@@ -29,9 +29,9 @@ export const styles = StyleSheet.create({
 
     // Search
     searchContainer: {
-        backgroundColor: '#10b981',
+        backgroundColor: 'transparent',
         paddingHorizontal: 16,
-        paddingBottom: 16,
+        paddingVertical: 6,
     },
     searchBar: {
         backgroundColor: '#FFFFFF',
@@ -40,6 +40,10 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#FFFFFF',
+        shadowColor: 'transparent',
+        elevation: 0,
     },
     searchInput: {
         flex: 1,
@@ -90,7 +94,7 @@ export const styles = StyleSheet.create({
         borderBottomColor: '#F3F4F6',
     },
     newConversation: {
-        backgroundColor: '#E0F2F1', // A light green color
+        backgroundColor: '#E0F2F1', 
     },
     avatarContainer: {
         marginRight: 12,
@@ -99,14 +103,14 @@ export const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: '#D1FAE5',
+        backgroundColor: '#DCFCE7',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#10b981',
+        color: '#16a34a',
     },
     conversationInfo: {
         flex: 1,
@@ -127,7 +131,7 @@ export const styles = StyleSheet.create({
     },
     propertyName: {
         fontSize: 12,
-        color: '#10b981',
+        color: '#16a34a',
         marginTop: 2,
     },
     lastMessage: {
@@ -136,7 +140,7 @@ export const styles = StyleSheet.create({
         marginTop: 4,
     },
     unreadBadge: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         borderRadius: 12,
         minWidth: 24,
         height: 24,
@@ -152,11 +156,14 @@ export const styles = StyleSheet.create({
 
     // Chat Header
     chatScreenHeader: {
-        backgroundColor: '#10b981',
-        paddingHorizontal: 8,
-        paddingVertical: 12,
+        backgroundColor: '#16a34a',
+        paddingHorizontal: 0,
+        paddingTop: 8,
+        paddingBottom: 8,
+        minHeight: 56,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
     },
     backButton: {
         padding: 8,
@@ -256,7 +263,6 @@ export const styles = StyleSheet.create({
     theirMessageWrapper: {
         justifyContent: 'flex-start',
     },
-    // Column container that holds the bubble and the timestamp
     messageContent: {
         flexDirection: 'column',
         maxWidth: '92%',
@@ -274,12 +280,12 @@ export const styles = StyleSheet.create({
         borderRadius: 16,
     },
     myMessageBubble: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         borderBottomRightRadius: 4,
         alignSelf: 'flex-end',
     },
     theirMessageBubble: {
-        backgroundColor: '#D1FAE5',
+        backgroundColor: '#DCFCE7',
         borderBottomLeftRadius: 4,
         borderWidth: 0,
         alignSelf: 'flex-start',
@@ -298,12 +304,6 @@ export const styles = StyleSheet.create({
         fontSize: 11,
         marginTop: 6,
         color: '#9CA3AF',
-    },
-    myMessageTime: {
-        // kept for potential overrides; timestamp color handled by messageTime
-    },
-    theirMessageTime: {
-        // kept for potential overrides; timestamp color handled by messageTime
     },
 
     // Input
@@ -331,7 +331,7 @@ export const styles = StyleSheet.create({
         color: '#1F2937',
     },
     sendButton: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#16a34a',
         width: 40,
         height: 40,
         borderRadius: 20,
@@ -342,6 +342,25 @@ export const styles = StyleSheet.create({
     sendButtonDisabled: {
         backgroundColor: '#9CA3AF',
     },
+
+    // Skeletons & Spacing
+    skeletonHeader: {
+        flexDirection: 'row', 
+        gap: 12, 
+        marginBottom: 16
+    },
+    skeletonSpacer: {
+        height: 16
+    },
+    scrollContent: {
+        padding: 16
+    },
+    listContent: {
+        paddingBottom: 16
+    },
+    placeholder: {
+        width: 40
+    }
 });
 
 export default styles;

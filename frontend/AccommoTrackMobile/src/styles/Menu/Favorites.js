@@ -109,10 +109,10 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: '#16a34a',
   },
   typeBadge: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: '#DCFCE7',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
   typeBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#10b981',
+    color: '#16a34a',
   },
   emptyState: {
     alignItems: 'center',
@@ -141,7 +141,7 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,

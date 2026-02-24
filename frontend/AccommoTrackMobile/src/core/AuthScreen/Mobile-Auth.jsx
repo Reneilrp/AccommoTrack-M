@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,225 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  StatusBar
+  StatusBar,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL as API_URL } from '../../config';
+import BlockedUserModal from '../../components/BlockedUserModal';
+import ForgotPasswordModal from '../../components/ForgotPasswordModal';
+
+const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) => {
+  const isPending = data.status === 'pending_verification';
+  
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 25, width: '85%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isPending ? '#FEF3C7' : '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+            <Ionicons name={isPending ? "time-outline" : "close-circle-outline"} size={45} color={isPending ? "#D97706" : "#EF4444"} />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 10, textAlign: 'center' }}>{data.title}</Text>
+          <Text style={{ fontSize: 15, color: '#4B5563', textAlign: 'center', marginBottom: isPending ? 25 : 15, lineHeight: 22 }}>
+            {data.message}
+          </Text>
+
+          {!isPending && data.reason ? (
+            <View style={{ backgroundColor: '#FEF2F2', borderLeftWidth: 4, borderLeftColor: '#EF4444', padding: 12, borderRadius: 8, marginBottom: 25, width: '100%' }}>
+              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#B91C1C', textTransform: 'uppercase', marginBottom: 4 }}>Reason:</Text>
+              <Text style={{ fontSize: 14, color: '#7F1D1D', fontStyle: 'italic' }}>"{data.reason}"</Text>
+            </View>
+          ) : null}
+
+          <View style={{ width: '100%', gap: 10 }}>
+            {!isPending && (
+              <TouchableOpacity 
+                onPress={onResubmitPress}
+                style={{ backgroundColor: '#EF4444', paddingVertical: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+              >
+                <Ionicons name="refresh-outline" size={20} color="white" />
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Resubmit Documents</Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity 
+              onPress={onClose}
+              style={{ backgroundColor: isPending ? '#16a34a' : '#F3F4F6', paddingVertical: 12, borderRadius: 12, width: '100%' }}
+            >
+              <Text style={{ color: isPending ? 'white' : '#4B5563', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
+                {isPending ? 'Got it, thanks!' : 'Close'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const ResubmitModal = ({ visible, onClose }) => {
+  const [loading, setLoading] = useState(false);
+  const [idTypes, setIdTypes] = useState([]);
+  const [form, setForm] = useState({
+    validIdType: '',
+    validIdOther: '',
+    validId: null,
+    permit: null
+  });
+
+  useEffect(() => {
+    if (visible) {
+      fetch(`${API_URL}/valid-id-types`)
+        .then(res => res.json())
+        .then(data => setIdTypes(data))
+        .catch(() => setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'UMID', 'Postal ID', 'Other']));
+    }
+  }, [visible]);
+
+  const pickImage = async (field) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setForm(prev => ({ ...prev, [field]: result.assets[0] }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form.validIdType || !form.validId || !form.permit) {
+      Alert.alert('Error', 'Please fill in all fields and upload both documents.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('valid_id_type', form.validIdType);
+      if (form.validIdType === 'Other') formData.append('valid_id_other', form.validIdOther);
+      
+      const idUri = form.validId.uri;
+      const idExt = idUri.split('.').pop();
+      formData.append('valid_id', {
+        uri: idUri,
+        name: `valid_id.${idExt}`,
+        type: `image/${idExt}`
+      });
+
+      const permitUri = form.permit.uri;
+      const permitExt = permitUri.split('.').pop();
+      formData.append('permit', {
+        uri: permitUri,
+        name: `permit.${permitExt}`,
+        type: `image/${permitExt}`
+      });
+
+      const token = await AsyncStorage.getItem('token');
+      const response = await fetch(`${API_URL}/tenant/resubmit-verification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', 'Documents resubmitted successfully! Please wait for admin review.');
+        onClose();
+      } else {
+        Alert.alert('Error', data.message || 'Failed to resubmit documents.');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An error occurred while resubmitting documents.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      <View style={{ flex: 1, backgroundColor: 'white', padding: 20, paddingTop: 60 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#16a34a' }}>Resubmit Documents</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={28} color="#4B5563" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={{ color: '#6B7280', marginBottom: 20, lineHeight: 20 }}>
+            Only your verification documents need to be re-uploaded. Your personal information will remain the same.
+          </Text>
+
+          <Text style={{ fontWeight: 'bold', marginBottom: 8, color: '#374151' }}>Valid ID Type</Text>
+          <View style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, marginBottom: 20, overflow: 'hidden' }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ padding: 10 }}>
+              {idTypes.map(type => (
+                <TouchableOpacity 
+                  key={type} 
+                  onPress={() => setForm(prev => ({ ...prev, validIdType: type }))}
+                  style={{ padding: 8, backgroundColor: form.validIdType === type ? '#16a34a' : '#F3F4F6', borderRadius: 8, marginRight: 10 }}
+                >
+                  <Text style={{ color: form.validIdType === type ? 'white' : '#374151' }}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <TouchableOpacity 
+            onPress={() => pickImage('validId')}
+            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.validId ? '#16a34a' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: form.validId ? '#F0FDF4' : '#F9FAFB' }}
+          >
+            {form.validId ? (
+              <Image source={{ uri: form.validId.uri }} style={{ width: '100%', height: '100%', borderRadius: 10 }} />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload-outline" size={32} color="#9CA3AF" />
+                <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Upload Valid ID</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => pickImage('permit')}
+            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.permit ? '#16a34a' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 30, backgroundColor: form.permit ? '#F0FDF4' : '#F9FAFB' }}
+          >
+            {form.permit ? (
+              <Image source={{ uri: form.permit.uri }} style={{ width: '100%', height: '100%', borderRadius: 10 }} />
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={32} color="#9CA3AF" />
+                <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Upload Business Permit</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={handleSubmit}
+            disabled={loading}
+            style={{ backgroundColor: '#16a34a', paddingVertical: 15, borderRadius: 12, alignItems: 'center' }}
+          >
+            {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>Submit Re-verification</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+};
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,7 +237,22 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [pendingModalVisible, setPendingModalVisible] = useState(false);
+  const [resubmitModalVisible, setResubmitModalVisible] = useState(false);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
+  const [emailAvailable, setEmailAvailable] = useState(null);
+  const [emailCheckMsg, setEmailCheckMsg] = useState('');
+  const [emailCheckLoading, setEmailCheckLoading] = useState(false);
+  const [passwordChecks, setPasswordChecks] = useState({
+    minLen: false,
+    hasUpper: false,
+    hasLower: false,
+    hasNumber: false,
+  });
   const [formData, setFormData] = useState({
     firstName: '',
     middleName: '',
@@ -38,43 +265,92 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
 
   const navigation = useNavigation();
 
+  useEffect(() => {
+    const emailCheckTimeout = setTimeout(async () => {
+      if (!isLogin && signupStep === 2 && formData.email) {
+        const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+        if (emailRegex.test(formData.email)) {
+          setEmailCheckLoading(true);
+          try {
+            const response = await fetch(`${API_URL}/check-email?email=${formData.email}`);
+            const data = await response.json();
+            setEmailAvailable(data.available);
+            setEmailCheckMsg(data.message);
+          } catch (err) {
+            // In case of network error, don't block the user
+            setEmailAvailable(null);
+            setEmailCheckMsg('');
+          } finally {
+            setEmailCheckLoading(false);
+          }
+        } else {
+          setEmailAvailable(null);
+          setEmailCheckMsg('');
+        }
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(emailCheckTimeout);
+  }, [formData.email, isLogin, signupStep]);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    if (field === 'email') {
+      setEmailAvailable(null);
+      setEmailCheckMsg('');
+    }
+    if (field === 'password' && !isLogin) {
+      setPasswordChecks({
+        minLen: value.length >= 8,
+        hasUpper: /[A-Z]/.test(value),
+        hasLower: /[a-z]/.test(value),
+        hasNumber: /\d/.test(value),
+      });
+    }
   };
 
   const validateStep1 = () => {
-    if (!formData.firstName || !formData.lastName) {
-      setError('Please enter your first and last name');
+    const errors = {};
+    if (!formData.firstName) errors.firstName = 'First name is required';
+    if (!formData.lastName) errors.lastName = 'Last name is required';
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix the errors below.');
       return false;
     }
+
     return true;
   };
 
   const validateStep2 = () => {
-    if (!formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Please fill in all fields');
-      return false;
-    }
+    const errors = {};
+    if (!formData.email) errors.email = 'Email is required';
+    if (!formData.password) errors.password = 'Password is required';
+    if (!formData.confirmPassword) errors.confirmPassword = 'Please confirm your password';
 
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
-      return false;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
+      errors.confirmPassword = 'Passwords do not match';
     }
 
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return false;
+    if (!passwordChecks.minLen || !passwordChecks.hasUpper || !passwordChecks.hasLower || !passwordChecks.hasNumber) {
+        errors.password = 'Password does not meet all requirements.';
     }
 
     if (!agreedToTerms) {
-      setError('You must agree to the terms and conditions');
+      errors.terms = 'You must agree to the terms and conditions';
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix the errors below.');
       return false;
     }
 
@@ -82,14 +358,18 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   };
 
   const validateLoginForm = () => {
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
-      return false;
-    }
+    const errors = {};
+    if (!formData.email) errors.email = 'Email is required';
+    if (!formData.password) errors.password = 'Password is required';
 
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
+    if (formData.email && !emailRegex.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fill in all fields.');
       return false;
     }
 
@@ -135,22 +415,56 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       const data = await response.json();
 
       if (response.ok) {
-        // Save token under both keys for consistency across the app
-        await AsyncStorage.setItem('auth_token', data.token);
-        await AsyncStorage.setItem('token', data.token);
+        // If login succeeded but account is unverified landlord, we handle it
+        if (data.user && data.user.role === 'landlord' && !data.user.is_verified) {
+          if (data.verification_status === 'rejected') {
+            setPendingModalData({
+              status: 'rejected_verification',
+              title: 'Account Rejected',
+              message: 'Your landlord verification was rejected.',
+              reason: data.rejection_reason || 'No reason provided'
+            });
+            // Still save token because resubmit might need it
+            if (data.token) await AsyncStorage.setItem('token', data.token);
+            setPendingModalVisible(true);
+            return;
+          }
+        }
+
+        // Persist token inside the user object for standardized access across the app
+        const userObj = { ...(data.user || {}), token: data.token || (data.user && data.user.token) };
+        await AsyncStorage.setItem('user', JSON.stringify(userObj));
+        // Keep legacy `token` key for backward compatibility
+        if (data.token) {
+          await AsyncStorage.setItem('token', data.token);
+        }
         await AsyncStorage.setItem('user_id', String(data.user.id));
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
         await AsyncStorage.setItem('hasLaunched', 'true');
 
         
         console.log('✅ Login successful! Role:', data.user.role);
-        console.log('✅ Token saved as auth_token');
+        console.log('✅ Token saved');
         console.log('✅ User ID saved:', data.user.id);
         
         if (onLoginSuccess) {
           onLoginSuccess(data.user.role);
         }
       } else {
+        // Check for pending verification (restricted)
+        if (response.status === 403 && data.status === 'pending_verification') {
+          setPendingModalData({
+            status: data.status,
+            title: 'Account Pending Review',
+            message: data.message
+          });
+          setPendingModalVisible(true);
+          return;
+        }
+        // Check for blocked user
+        if (response.status === 403 && data.status === 'blocked') {
+          setShowBlockedModal(true);
+          return;
+        }
         setError(data.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
@@ -253,6 +567,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   return (
     <View style={{flex: 1, backgroundColor: 'white'}}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <BlockedUserModal visible={showBlockedModal} onClose={() => setShowBlockedModal(false)} />
+      <PendingVerificationModal 
+        visible={pendingModalVisible} 
+        onClose={() => setPendingModalVisible(false)} 
+        data={pendingModalData}
+        onResubmitPress={() => {
+          setPendingModalVisible(false);
+          setResubmitModalVisible(true);
+        }}
+      />
+      <ResubmitModal 
+        visible={resubmitModalVisible} 
+        onClose={() => setResubmitModalVisible(false)} 
+      />
+      <ForgotPasswordModal 
+        visible={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -318,6 +650,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                     onSubmitEditing={() => { /* move focus or let user press Return on password */ }}
                 />
               </View>
+              {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
 
               {/* Password Field */}
               <View style={styles.inputContainer}>
@@ -345,9 +678,13 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   />
                 </TouchableOpacity>
               </View>
+              {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 
               {/* Forgot Password */}
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity 
+                style={styles.forgotPassword}
+                onPress={() => setShowForgotPasswordModal(true)}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
@@ -388,6 +725,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                         onSubmitEditing={() => { /* proceed to next field */ }}
                     />
                   </View>
+                  {fieldErrors.firstName && <Text style={styles.inlineErrorText}>{fieldErrors.firstName}</Text>}
 
                   {/* Middle Name (optional) */}
                   <View style={styles.inputContainer}>
@@ -420,6 +758,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       onSubmitEditing={handleNextStep}
                     />
                   </View>
+                  {fieldErrors.lastName && <Text style={styles.inlineErrorText}>{fieldErrors.lastName}</Text>}
 
                   {/* Next Button */}
                   <TouchableOpacity
@@ -434,7 +773,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 <View style={styles.form}>
                   {/* Back Button */}
                   <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
-                    <Ionicons name="arrow-back" size={20} color="#10b981" />
+                    <Ionicons name="arrow-back" size={20} color="#16a34a" />
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
 
@@ -453,7 +792,14 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       returnKeyType="next"
                       onSubmitEditing={() => { /* focus password */ }}
                     />
+                    {emailCheckLoading && <ActivityIndicator style={{ position: 'absolute', right: 15 }} />}
                   </View>
+                  {emailCheckMsg && (
+                    <Text style={{ color: emailAvailable ? 'green' : 'red', fontSize: 12, marginTop: -10, marginBottom: 10, paddingHorizontal: 5 }}>
+                      {emailCheckMsg}
+                    </Text>
+                  )}
+                  {fieldErrors.email && <Text style={styles.inlineErrorText}>{fieldErrors.email}</Text>}
 
                   {/* Password */}
                   <View style={styles.inputContainer}>
@@ -481,6 +827,25 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       />
                     </TouchableOpacity>
                   </View>
+                  <View style={{ marginTop: 10, paddingHorizontal: 5, marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                      <Ionicons name={passwordChecks.minLen ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.minLen ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.minLen ? '#16a34a' : '#9CA3AF' }}>Minimum 8 characters</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                      <Ionicons name={passwordChecks.hasUpper ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasUpper ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.hasUpper ? '#16a34a' : '#9CA3AF' }}>At least one uppercase letter</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                      <Ionicons name={passwordChecks.hasLower ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasLower ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.hasLower ? '#16a34a' : '#9CA3AF' }}>At least one lowercase letter</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                      <Ionicons name={passwordChecks.hasNumber ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasNumber ? '#16a34a' : '#9CA3AF'} />
+                      <Text style={{ marginLeft: 5, color: passwordChecks.hasNumber ? '#16a34a' : '#9CA3AF' }}>At least one number</Text>
+                    </View>
+                  </View>
+                  {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 
                   {/* Confirm Password */}
                   <View style={styles.inputContainer}>
@@ -508,6 +873,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       />
                     </TouchableOpacity>
                   </View>
+                  {fieldErrors.confirmPassword && <Text style={styles.inlineErrorText}>{fieldErrors.confirmPassword}</Text>}
 
                   {/* Terms and Conditions */}
                   <TouchableOpacity
@@ -527,6 +893,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       <Text style={styles.termsLink}>privacy policy</Text>
                     </Text>
                   </TouchableOpacity>
+                  {fieldErrors.terms && <Text style={styles.inlineErrorText}>{fieldErrors.terms}</Text>}
 
                   {/* Submit Button */}
                   <TouchableOpacity

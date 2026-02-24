@@ -6,14 +6,19 @@ const STORAGE_URL = `${BASE_URL}/storage`;
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
 
 const getAuthToken = async () => {
-    const token =
-        (await AsyncStorage.getItem('auth_token')) ||
-        (await AsyncStorage.getItem('token'));
-
+    // Prefer token stored inside the persisted `user` object
+    const userJson = await AsyncStorage.getItem('user');
+    if (userJson) {
+        try {
+            const user = JSON.parse(userJson);
+            const t = user?.token;
+            if (t) return t;
+        } catch (e) {}
+    }
+    const token = (await AsyncStorage.getItem('token'));
     if (!token) {
         throw new Error('No authentication token found');
     }
-
     return token;
 };
 
@@ -103,11 +108,9 @@ const PropertyService = {
             console.log('Response data is array?', Array.isArray(response.data));
             console.log('Response data:', JSON.stringify(response.data).substring(0, 200));
 
-            // Axios automatically puts the response in response.data
-            // So if Laravel returns an array directly, it's in response.data
             return {
                 success: true,
-                data: response.data, // This is already the array from Laravel
+                data: response.data,
                 error: null
             };
         } catch (error) {
@@ -376,14 +379,21 @@ const PropertyService = {
     async updateProperty(propertyId, propertyData) {
         try {
             const token = await getAuthToken();
-            const headers = buildHeaders(token, {
+            let payload = propertyData;
+            let headers = buildHeaders(token, {
                 contentType: isFormData(propertyData)
                     ? 'multipart/form-data'
                     : 'application/json'
             });
+
+            // For multipart/form-data with PUT, use POST + _method=PUT spoofing
+            if (isFormData(propertyData)) {
+                propertyData.append('_method', 'PUT');
+            }
+
             const response = await axios.post(
-                `${LANDLORD_PREFIX}/properties/${propertyId}?_method=PUT`,
-                propertyData,
+                `${LANDLORD_PREFIX}/properties/${propertyId}`,
+                payload,
                 { headers }
             );
 
@@ -540,10 +550,20 @@ const PropertyService = {
     async updateRoom(roomId, roomData) {
         try {
             const token = await getAuthToken();
-            const headers = buildHeaders(token, {
+            let payload = roomData;
+            let headers = buildHeaders(token, {
                 contentType: isFormData(roomData) ? 'multipart/form-data' : 'application/json'
             });
-            const response = await axios.post(`${API_BASE_URL}/rooms/${roomId}?_method=PUT`, roomData, { headers });
+
+            if (isFormData(roomData)) {
+                roomData.append('_method', 'PUT');
+            }
+
+            const url = isFormData(roomData) 
+                ? `${API_BASE_URL}/rooms/${roomId}`
+                : `${API_BASE_URL}/rooms/${roomId}?_method=PUT`;
+
+            const response = await axios.post(url, payload, { headers });
             return {
                 success: true,
                 data: response.data,
@@ -626,6 +646,33 @@ const PropertyService = {
             };
         } catch (error) {
             console.error('Error adding property amenity:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: null,
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
+    /**
+     * Add rule to property catalog
+     * Matches: POST /api/landlord/properties/{id}/rules
+     */
+    async addPropertyRule(propertyId, rule) {
+        try {
+            const token = await getAuthToken();
+            const response = await axios.post(
+                `${LANDLORD_PREFIX}/properties/${propertyId}/rules`,
+                { rule },
+                { headers: buildHeaders(token, { contentType: 'application/json' }) }
+            );
+            return {
+                success: true,
+                data: response.data,
+                error: null
+            };
+        } catch (error) {
+            console.error('Error adding property rule:', error.response?.data || error.message);
             return {
                 success: false,
                 data: null,

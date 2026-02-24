@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../../styles/Landlord/Settings';
 import { useTheme } from '../../../contexts/ThemeContext';
 
+import ProfileService from '../../../services/ProfileService';
+
 const SettingRow = ({ item, onPress, onToggle }) => {
   const { theme } = useTheme();
   const content = (
@@ -34,7 +36,7 @@ const SettingRow = ({ item, onPress, onToggle }) => {
         <Switch
           value={item.value}
           onValueChange={() => onToggle(item)}
-          trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+          trackColor={{ false: '#D1D5DB', true: theme.colors.brand200 }}
           thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
         />
       );
@@ -64,7 +66,9 @@ const SettingRow = ({ item, onPress, onToggle }) => {
 };
 
 export default function SettingsScreen({ navigation, onLogout }) {
+  const { theme } = useTheme();
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
     messages: true,
@@ -74,20 +78,33 @@ export default function SettingsScreen({ navigation, onLogout }) {
   });
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('user');
-        if (!stored) return;
-        const parsed = JSON.parse(stored);
-        setUser(parsed);
-      } catch (error) {
-        console.error('Failed to load user info:', error.message);
-      }
-    };
-    loadUser();
+    loadSettings();
   }, []);
 
-  const { theme } = useTheme();
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const res = await ProfileService.getProfile();
+      if (res.success && res.data) {
+        setUser(res.data);
+        const prefs = res.data.notification_preferences;
+        if (prefs) {
+          const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
+          setNotificationPrefs({
+            payments: parsed.payments ?? true,
+            messages: parsed.messages ?? true,
+            maintenance: parsed.maintenance ?? false,
+            push: parsed.push ?? true,
+            email: parsed.email ?? true
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user info:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -129,15 +146,54 @@ export default function SettingsScreen({ navigation, onLogout }) {
     }
   };
 
-  const handleToggle = (item) => {
-    setNotificationPrefs((prev) => ({
-      ...prev,
-      [item.stateKey]: !prev[item.stateKey]
-    }));
+  const handleToggle = async (item) => {
+    const newPrefs = {
+      ...notificationPrefs,
+      [item.stateKey]: !notificationPrefs[item.stateKey]
+    };
+    setNotificationPrefs(newPrefs);
+
+    try {
+      // Use profile update to save notification preferences
+      await ProfileService.updateProfile({
+        notification_preferences: newPrefs
+      });
+      
+      // Update local storage for consistency
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.notification_preferences = newPrefs;
+        await AsyncStorage.setItem('user', JSON.stringify(parsed));
+      }
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+    }
   };
 
   const sections = useMemo(
     () => [
+      {
+        title: 'Account',
+        items: [
+          {
+            id: 'verification',
+            label: 'Verification Status',
+            description: 'ID and business permit status',
+            icon: 'shield-checkmark-outline',
+            type: 'navigate',
+            target: 'VerificationStatus'
+          },
+          {
+            id: 'caretakers',
+            label: 'Caretaker Management',
+            description: 'Manage access and permissions',
+            icon: 'people-outline',
+            type: 'navigate',
+            target: 'Caretakers'
+          }
+        ]
+      },
       {
         title: 'Notifications',
         items: [
@@ -271,7 +327,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footerNote}>© 2025 AccommoTrack. All rights reserved.</Text>
+        <Text style={styles.footerNote}>© 2026 AccommoTrack. All rights reserved.</Text>
       </ScrollView>
     </SafeAreaView>
   );

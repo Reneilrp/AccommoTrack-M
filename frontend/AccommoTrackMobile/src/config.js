@@ -1,14 +1,31 @@
-export const IP_ADDRESS = '192.168.110.13';
+import { 
+  API_URL, 
+  WEB_URL, 
+  ECHO_HOST, 
+  ECHO_PORT, 
+  ECHO_SCHEME,
+  REVERB_APP_KEY 
+} from '@env';
 
-export const PORT = '8000';
-export const WEB_PORT = '5173';
-
-// Derived Base URLs
-export const BASE_URL = `http://${IP_ADDRESS}:${PORT}`;
+// 1. Backend 
+export const BASE_URL = API_URL; 
 export const API_BASE_URL = `${BASE_URL}/api`;
-export const WEB_BASE_URL = `http://${IP_ADDRESS}:${WEB_PORT}`;
 
-// Echo / Pusher Config
-export const ECHO_HOST = IP_ADDRESS;
-export const ECHO_PORT = 8080;
-export const ECHO_AUTH_ENDPOINT = `${API_BASE_URL}/broadcasting/auth`;
+// 2. Web Frontend
+export const WEB_BASE_URL = WEB_URL;
+
+// 3. Echo / Reverb Config
+export const ECHO_CONFIG = {
+    broadcaster: 'reverb',
+    key: REVERB_APP_KEY,
+    wsHost: ECHO_HOST,
+    wsPort: parseInt(ECHO_PORT),
+    wssPort: parseInt(ECHO_PORT),
+    forceTLS: ECHO_SCHEME === 'https',
+    enabledTransports: ['ws', 'wss'],
+    authEndpoint: `${API_BASE_URL}/broadcasting/auth`,
+};
+
+// Legacy Support
+export const IP_ADDRESS = ECHO_HOST;
+export const PORT = ECHO_PORT;

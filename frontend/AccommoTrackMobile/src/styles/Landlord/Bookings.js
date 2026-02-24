@@ -113,7 +113,7 @@ export const styles = StyleSheet.create({
     color: '#475569'
   },
   filterTextActive: {
-    color: '#065F46'
+    color: '#166534'
   },
   listContent: {
     paddingHorizontal: 16,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   X,
@@ -12,9 +13,12 @@ import {
   Save,
   GripVertical,
   Star,
+  Home,
+  Users,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '../../utils/api';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 // Editable map (react-leaflet)
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -58,6 +62,8 @@ const greenMarkerIcon = new L.Icon({
 });
 
 export default function DormProfileSettings({ propertyId, onBack, onDeleteRequested }) {
+  const { effectiveTheme } = usePreferences();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,6 +79,11 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
   const [deletedImageIds, setDeletedImageIds] = useState([]);
   const [draggedImageIndex, setDraggedImageIndex] = useState(null);
+
+  // Map tiles based on theme
+  const tileUrl = effectiveTheme === 'dark' 
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   useEffect(() => {
     if (propertyId) {
@@ -681,17 +692,17 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="sticky top-0 z-[1100] bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="grid grid-cols-3 items-center">
             {/* Left: Back button */}
             <div className="flex items-center">
               <button
                 onClick={onBack}
-                className="flex items-center gap-2 text-green-600 hover:text-green-800"
+                className="flex items-center gap-2 text-green-600 hover:text-green-800 dark:text-green-500 dark:hover:text-green-400"
                 aria-label="Back to Properties"
               >
-                <ArrowLeft className="w-5 h-5 text-green-600" />
+                <ArrowLeft className="w-5 h-5" />
                 <span className="sr-only">Back to Properties</span>
               </button>
             </div>
@@ -699,7 +710,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
             {/* Center: Title */}
             <div className="text-center">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Property Profile & Settings</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your property information</p>
             </div>
 
             {/* Right: Actions */}
@@ -710,7 +720,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   <button
                     onClick={() => handleDeleteProperty(dormData?.id)}
                     disabled={loading}
-                    className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors disabled:opacity-50 mr-2"
+                    className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors disabled:opacity-50 mr-2 shadow-lg shadow-red-500/20"
                     title="Delete Property"
                     aria-label="Delete Property"
                   >
@@ -738,7 +748,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 <button
                   onClick={handleSubmitDraft}
                   disabled={loading}
-                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 mr-2"
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-green-600 transition-colors font-bold shadow-md shadow-yellow-500/20 disabled:opacity-50 mr-2"
                 >
                   {loading ? 'Submitting...' : 'Submit for Approval'}
                 </button>
@@ -748,7 +758,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 <button
                   onClick={() => handleSave()}
                   disabled={loading}
-                  className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                  className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors font-medium disabled:opacity-50 shadow-lg shadow-green-500/20"
                   title="Save Changes"
                   aria-label="Save Changes"
                 >
@@ -764,9 +774,9 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   onClick={() => setIsEditing(true)}
                   disabled={loading}
                   aria-label="Edit Property"
-                  className="w-10 h-10 bg-white dark:bg-gray-700 text-green-600 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                  className="w-10 h-10 bg-white dark:bg-gray-700 text-green-600 dark:text-green-500 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 shadow-md border border-gray-100 dark:border-gray-700"
                 >
-                  <Edit className="w-5 h-5 text-green-600" />
+                  <Edit className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -830,7 +840,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
-                    <option value="pending">Pending</option>
                     <option value="maintenance">Maintenance</option>
                   </select>
                 </div>
@@ -925,14 +934,17 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 {/* Editable Map */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Map (drag marker or click map to set location)</label>
-                  <div className="w-full h-72 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                  <div className="w-full h-72 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                     <MapContainer
                       center={[dormData.latitude ?? 14.5995, dormData.longitude ?? 120.9842]}
                       zoom={13}
                       style={{ height: '100%', width: '100%' }}
                       whenCreated={(map) => setTimeout(() => map.invalidateSize(), 200)}
                     >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url={tileUrl}
+                      />
                       <Marker
                         position={[dormData.latitude ?? 14.5995, dormData.longitude ?? 120.9842]}
                         draggable={isEditing}

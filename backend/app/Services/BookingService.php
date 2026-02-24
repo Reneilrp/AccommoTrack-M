@@ -17,45 +17,61 @@ class BookingService
      */
     public function createBooking(array $data, int $tenantId): Booking
     {
-        $room = Room::with('property')->findOrFail($data['room_id']);
+        return DB::transaction(function() use ($data, $tenantId) {
+            $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
 
-        // Check if room has available slots
-        if (!$room->isAvailable() || $room->available_slots <= 0) {
-            throw new \Exception('Room is not available for booking');
-        }
+            // Check if there are any pending bookings for this room
+            $hasPending = Booking::where('room_id', $room->id)
+                ->where('status', 'pending')
+                ->exists();
 
-        $startDate = Carbon::parse($data['start_date']);
-        $endDate = Carbon::parse($data['end_date']);
-        $days = $startDate->diffInDays($endDate) + 1;
+            if ($hasPending) {
+                throw new \Exception('Room is currently pending confirmation for another user.');
+            }
 
-        // Enforce minimum stay if configured
-        $minStay = $room->min_stay_days ?? null;
-        if ($minStay && $days < $minStay) {
-            throw new \Exception("Minimum stay is {$minStay} days");
-        }
+            // Check if room has available slots
+            if (!$room->isAvailable() || $room->available_slots <= 0) {
+                throw new \Exception('Room is not available for booking');
+            }
 
-        // Calculate pricing (use calendar-period-aware calculation)
-        $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
-        $totalAmount = $priceResult['total'];
-        $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
+            $startDate = Carbon::parse($data['start_date']);
+            $endDate = Carbon::parse($data['end_date']);
+            $days = $startDate->diffInDays($endDate) + 1;
 
-        $bookingReference = 'BK-' . strtoupper(Str::random(8));
+            // Enforce minimum stay if configured
+            $minStay = $room->min_stay_days ?? null;
+            if ($minStay && $days < $minStay) {
+                throw new \Exception("Minimum stay is {$minStay} days");
+            }
 
-        return Booking::create([
-            'property_id' => $room->property_id,
-            'tenant_id' => $tenantId,
-            'landlord_id' => $room->property->landlord_id,
-            'room_id' => $room->id,
-            'booking_reference' => $bookingReference,
-            'start_date' => $startDate->format('Y-m-d'),
-            'end_date' => $endDate->format('Y-m-d'),
-            'total_months' => $totalMonths,
-            'monthly_rent' => $room->monthly_rate,
-            'total_amount' => $totalAmount,
-            'status' => 'pending',
-            'payment_status' => 'unpaid',
-            'notes' => $data['notes'] ?? null
-        ]);
+            // Calculate pricing (use calendar-period-aware calculation)
+            $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
+            $totalAmount = $priceResult['total'];
+            $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
+
+            $bookingReference = 'BK-' . strtoupper(Str::random(8));
+
+            $booking = Booking::create([
+                'property_id' => $room->property_id,
+                'tenant_id' => $tenantId,
+                'landlord_id' => $room->property->landlord_id,
+                'room_id' => $room->id,
+                'booking_reference' => $bookingReference,
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d'),
+                'total_months' => $totalMonths,
+                'monthly_rent' => $room->monthly_rate,
+                'total_amount' => $totalAmount,
+                'status' => 'pending',
+                'payment_status' => 'unpaid',
+                'notes' => $data['notes'] ?? null
+            ]);
+
+            // Mark room as occupied immediately to prevent double booking
+            $room->update(['status' => 'occupied']);
+
+            return $booking;
+        });
     }
 
     /**
@@ -131,6 +147,30 @@ class BookingService
                 'booking_id' => $booking->id
             ]
         );
+
+        // Auto-generate initial invoice if it doesn't exist
+        $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
+        if (!$existingInvoice) {
+            $reference = 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+            \App\Models\Invoice::create([
+                'reference' => $reference,
+                'landlord_id' => $booking->landlord_id,
+                'property_id' => $booking->property_id,
+                'booking_id' => $booking->id,
+                'tenant_id' => $booking->tenant_id,
+                'description' => 'Initial invoice for booking ' . $booking->booking_reference,
+                'amount_cents' => (int) round($booking->total_amount * 100),
+                'currency' => 'PHP',
+                'status' => 'pending',
+                'issued_at' => now(),
+                'due_date' => Carbon::parse($booking->start_date)->addDays(3), // Due shortly after move-in
+            ]);
+
+            Log::info('Auto-generated invoice for confirmed booking', [
+                'booking_id' => $booking->id,
+                'reference' => $reference
+            ]);
+        }
 
         Log::info('Booking confirmed - Tenant assigned to room', [
             'booking_id' => $booking->id,
@@ -221,6 +261,12 @@ class BookingService
 
         $booking->save();
 
+        // Synchronize with invoices
+        $booking->invoices()->update(['status' => $paymentStatus]);
+        if ($paymentStatus === 'paid') {
+            $booking->invoices()->update(['paid_at' => now()]);
+        }
+
         return [
             'booking' => $booking,
             'status_upgraded' => $statusUpgraded
@@ -243,32 +289,6 @@ class BookingService
             'confirmed' => (clone $baseQuery)->where('status', 'confirmed')->count(),
             'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
             'completed' => (clone $baseQuery)->whereIn('status', ['completed', 'partial-completed'])->count()
-        ];
-    }
-
-    /**
-     * Transform booking for API response
-     */
-    public function transformForList(Booking $booking): array
-    {
-        return [
-            'id' => $booking->id,
-            'guestName' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name,
-            'email' => $booking->tenant->email,
-            'phone' => $booking->tenant->phone ?? 'N/A',
-            'roomType' => $booking->room ? $booking->room->room_type : 'N/A',
-            'roomNumber' => $booking->room ? $booking->room->room_number : 'N/A',
-            'propertyTitle' => $booking->property->title,
-            'checkIn' => $booking->start_date,
-            'checkOut' => $booking->end_date,
-            'duration' => $booking->total_months . ' month' . ($booking->total_months > 1 ? 's' : ''),
-            'amount' => (float) $booking->total_amount,
-            'monthlyRent' => (float) $booking->monthly_rent,
-            'status' => $booking->status,
-            'paymentStatus' => $booking->payment_status,
-            'bookingReference' => $booking->booking_reference,
-            'notes' => $booking->notes,
-            'created_at' => $booking->created_at,
         ];
     }
 }

@@ -32,25 +32,32 @@ class TenantDashboardController extends Controller
                 ->where('status', 'pending')
                 ->count();
 
-            // Revenue/Payment Stats (This month - amounts tenant needs to pay)
-            $monthlyDue = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->whereIn('payment_status', ['unpaid', 'partial'])
-                ->whereMonth('start_date', now()->month)
-                ->whereYear('start_date', now()->year)
-                ->sum('monthly_rent');
+            // Revenue/Payment Stats (This month - amounts tenant needs to pay based on INVOICES)
+            // Use invoices table to get actual due amount for current month
+            $monthlyDueCents = \App\Models\Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->whereMonth('due_date', now()->month)
+                ->whereYear('due_date', now()->year)
+                ->sum('amount_cents');
+            
+            $monthlyDue = $monthlyDueCents / 100;
 
-            // Total Due (All time unpaid/partial)
-            $totalDue = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->whereIn('payment_status', ['unpaid', 'partial'])
-                ->sum('total_amount');
+            // Total Due (All time unpaid/partial invoices)
+            $totalDueCents = \App\Models\Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->sum('amount_cents');
+            
+            $totalDue = $totalDueCents / 100;
 
-            // Paid Amount (All time)
-            $totalPaid = Booking::where('tenant_id', $tenantId)
-                ->where('status', 'confirmed')
-                ->where('payment_status', 'paid')
-                ->sum('total_amount');
+            // Paid Amount (All time paid invoices)
+            $totalPaidCents = \App\Models\Invoice::where('tenant_id', $tenantId)
+                ->where('status', 'paid')
+                ->sum('amount_cents');
+            
+            $totalPaid = $totalPaidCents / 100;
+
+            // Unread Notifications
+            $unreadNotifications = Auth::user()->unreadNotifications->count();
 
             return response()->json([
                 'bookings' => [
@@ -62,6 +69,9 @@ class TenantDashboardController extends Controller
                     'monthlyDue' => (float) $monthlyDue,
                     'totalDue' => (float) $totalDue,
                     'totalPaid' => (float) $totalPaid
+                ],
+                'notifications' => [
+                    'unread' => $unreadNotifications
                 ]
             ], 200);
         } catch (\Exception $e) {
@@ -197,6 +207,7 @@ class TenantDashboardController extends Controller
                     'property.landlord',
                     'property.images',
                     'landlord',
+                    'review',
                     'addons' => function ($query) {
                         $query->wherePivotIn('status', ['approved', 'active', 'pending']);
                     },
@@ -310,6 +321,7 @@ class TenantDashboardController extends Controller
                     'monthlyRent' => (float) $booking->monthly_rent,
                     'totalAmount' => (float) $booking->total_amount,
                     'paymentStatus' => $booking->payment_status,
+                    'hasReview' => (bool) $booking->review,
                     'daysRemaining' => $today->diffInDays($booking->end_date),
                     'monthsRemaining' => $today->diffInMonths($booking->end_date)
                 ],
@@ -343,22 +355,23 @@ class TenantDashboardController extends Controller
                     'monthlyRent' => (float) $booking->monthly_rent,
                     'monthlyAddons' => (float) $monthlyAddonTotal,
                     'monthlyTotal' => (float) ($booking->monthly_rent + $monthlyAddonTotal),
-                    'payments' => $booking->payments->take(5)->map(function ($payment) {
-                        return [
-                            'id' => $payment->id,
-                            'amount' => (float) $payment->amount,
-                            'status' => $payment->status,
-                            'paymentDate' => $payment->payment_date,
-                            'paymentMethod' => $payment->payment_method ?? null
-                        ];
-                    }),
-                    'invoices' => $booking->invoices->take(5)->map(function ($invoice) {
+                    'invoices' => $booking->invoices->map(function ($invoice) {
                         return [
                             'id' => $invoice->id,
                             'amount' => (float) ($invoice->total_cents / 100),
                             'status' => $invoice->status,
-                            'dueDate' => $invoice->due_date,
-                            'description' => $invoice->description ?? null
+                            'dueDate' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : null,
+                            'description' => $invoice->description ?? null,
+                            'issuedAt' => $invoice->issued_at ? $invoice->issued_at->format('Y-m-d') : $invoice->created_at->format('Y-m-d'),
+                            'transactions' => $invoice->transactions->map(function($tx) {
+                                return [
+                                    'id' => $tx->id,
+                                    'amount' => (float) $tx->amount_cents / 100,
+                                    'status' => $tx->status,
+                                    'method' => $tx->method,
+                                    'date' => $tx->created_at->format('Y-m-d H:i')
+                                ];
+                            })
                         ];
                     })
                 ]
@@ -395,7 +408,8 @@ class TenantDashboardController extends Controller
                         $query->wherePivotIn('status', ['active', 'completed']);
                     },
                     'payments',
-                    'invoices'
+                    'invoices',
+                    'review'
                 ])
                 ->orderBy('end_date', 'desc')
                 ->paginate(10);
@@ -442,7 +456,8 @@ class TenantDashboardController extends Controller
                         ];
                     }),
                     'cancelledAt' => $booking->cancelled_at,
-                    'cancellationReason' => $booking->cancellation_reason
+                    'cancellationReason' => $booking->cancellation_reason,
+                    'review' => $booking->review ? ['id' => $booking->review->id, 'rating' => $booking->review->rating] : null
                 ];
             });
 
@@ -460,6 +475,103 @@ class TenantDashboardController extends Controller
                 'message' => 'Failed to fetch booking history',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Get available addons for current active booking (tenant)
+     */
+    public function getAvailableAddons()
+    {
+        try {
+            $tenantId = Auth::id();
+            $today = now();
+
+            $booking = Booking::where('tenant_id', $tenantId)
+                ->where('status', 'confirmed')
+                ->where('start_date', '<=', $today)
+                ->where('end_date', '>=', $today)
+                ->first();
+
+            if (!$booking) {
+                return response()->json(['message' => 'No active booking found'], 404);
+            }
+
+            $requestedAddonIds = $booking->addons->pluck('id')->toArray();
+            $availableAddons = Addon::where('property_id', $booking->property_id)
+                ->where('is_active', true)
+                ->whereNotIn('id', $requestedAddonIds)
+                ->get()
+                ->map(function ($addon) {
+                    return [
+                        'id' => $addon->id,
+                        'name' => $addon->name,
+                        'description' => $addon->description,
+                        'price' => (float) $addon->price,
+                        'price_type' => $addon->price_type,
+                        'addon_type' => $addon->addon_type,
+                        'has_stock' => $addon->hasStock(),
+                        'stock' => $addon->stock
+                    ];
+                });
+
+            return response()->json(['available' => $availableAddons], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch available addons', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get addon requests (pending/active) for current active booking
+     */
+    public function getAddonRequests()
+    {
+        try {
+            $tenantId = Auth::id();
+            $today = now();
+
+            $booking = Booking::where('tenant_id', $tenantId)
+                ->where('status', 'confirmed')
+                ->where('start_date', '<=', $today)
+                ->where('end_date', '>=', $today)
+                ->with(['addons'])
+                ->first();
+
+            if (!$booking) {
+                return response()->json(['message' => 'No active booking found'], 404);
+            }
+
+            $pending = $booking->addons
+                ->where('pivot.status', 'pending')
+                ->map(function ($addon) {
+                    return [
+                        'id' => $addon->id,
+                        'pivot_id' => $addon->pivot->id,
+                        'name' => $addon->name,
+                        'quantity' => $addon->pivot->quantity,
+                        'price' => (float) $addon->pivot->price_at_booking,
+                        'request_note' => $addon->pivot->request_note,
+                        'requested_at' => $addon->pivot->created_at
+                    ];
+                })->values();
+
+            $active = $booking->addons
+                ->whereIn('pivot.status', ['active', 'approved'])
+                ->map(function ($addon) {
+                    return [
+                        'id' => $addon->id,
+                        'pivot_id' => $addon->pivot->id,
+                        'name' => $addon->name,
+                        'quantity' => $addon->pivot->quantity,
+                        'price' => (float) $addon->pivot->price_at_booking,
+                        'status' => $addon->pivot->status,
+                        'approved_at' => $addon->pivot->approved_at
+                    ];
+                })->values();
+
+            return response()->json(['pending' => $pending, 'active' => $active], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch addon requests', 'error' => $e->getMessage()], 500);
         }
     }
 

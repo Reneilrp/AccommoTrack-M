@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
-import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, X, ChevronLeft, ChevronRight } from 'lucide-react'; 
+import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, X, ChevronLeft, ChevronRight, ShieldCheck, CreditCard } from 'lucide-react'; 
 
 const HomePage = ({ onGetStarted }) => {
   const [modalImages, setModalImages] = useState([]);
@@ -167,7 +167,7 @@ const HomePage = ({ onGetStarted }) => {
                 </div>
                 <div data-aos="fade-up" data-aos-delay="100" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
                   <div className="bg-blue-100 dark:bg-blue-900/30 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                    <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <ShieldCheck className="w-7 h-7 text-blue-600" />
                   </div>
                   <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Verified Landlords</h3>
                   <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
@@ -176,7 +176,7 @@ const HomePage = ({ onGetStarted }) => {
                 </div>
                 <div data-aos="fade-up" data-aos-delay="200" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
                   <div className="bg-purple-100 dark:bg-purple-900/30 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                    <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    <CreditCard className="w-7 h-7 text-purple-600" />
                   </div>
                   <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Easy Payments</h3>
                   <p className="text-gray-500 dark:text-gray-400 leading-relaxed">

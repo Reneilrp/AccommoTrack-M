@@ -14,7 +14,7 @@ import {
   View
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import MessageService from '../../../services/MessageService';
@@ -65,6 +65,7 @@ const resolveSenderId = (message) =>
 
 export default function MessagesScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -328,7 +329,7 @@ export default function MessagesScreen({ navigation, route }) {
   };
 
   const renderListScreen = () => (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -383,11 +384,7 @@ export default function MessagesScreen({ navigation, route }) {
     const tenant = selectedConversation?.other_user;
     const propertyName = selectedConversation?.property?.title;
     return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
         <View style={styles.chatScreenHeader}>
           <TouchableOpacity style={styles.backButton} onPress={() => setSelectedConversation(null)}>
@@ -409,118 +406,123 @@ export default function MessagesScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          ref={messageScrollRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={scrollToBottom}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-          {propertyName ? (
-            <View style={styles.propertyCard}>
-              <Ionicons name="home-outline" size={24} color={theme.colors.primary} />
-              <View style={styles.propertyCardInfo}>
-                <Text style={styles.propertyCardTitle}>{propertyName}</Text>
-                <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
+          <ScrollView
+            ref={messageScrollRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={scrollToBottom}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
+          >
+            {propertyName ? (
+              <View style={styles.propertyCard}>
+                <Ionicons name="home-outline" size={24} color={theme.colors.primary} />
+                <View style={styles.propertyCardInfo}>
+                  <Text style={styles.propertyCardTitle}>{propertyName}</Text>
+                  <Text style={styles.propertyCardSubtitle}>Conversation about this property</Text>
+                </View>
               </View>
-            </View>
-          ) : null}
+            ) : null}
 
-          {loadingMessages ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Loading messages...</Text>
-            </View>
-          ) : null}
+            {loadingMessages ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Loading messages...</Text>
+              </View>
+            ) : null}
 
-          {!loadingMessages && messages.length === 0 ? (
-            <View style={styles.emptyMessagesContainer}>
-              <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyMessagesText}>No messages yet</Text>
-              <Text style={styles.emptyMessagesSubtext}>Say hello to start the conversation!</Text>
-            </View>
-          ) : null}
+            {!loadingMessages && messages.length === 0 ? (
+              <View style={styles.emptyMessagesContainer}>
+                <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyMessagesText}>No messages yet</Text>
+                <Text style={styles.emptyMessagesSubtext}>Say hello to start the conversation!</Text>
+              </View>
+            ) : null}
 
-          {messages.map((message) => {
-            const senderId = resolveSenderId(message);
-            const isMine = senderId && currentUserId && Number(senderId) === Number(currentUserId);
-            return (
-              <View
-                key={message.id || message.created_at || Math.random().toString()}
-                style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}
-              >
+            {messages.map((message) => {
+              const senderId = resolveSenderId(message);
+              const isMine = senderId && currentUserId && Number(senderId) === Number(currentUserId);
+              return (
                 <View
-                  style={[
-                    styles.messageContent,
-                    isMine ? styles.myMessageContent : styles.theirMessageContent
-                  ]}
+                  key={message.id || message.created_at || Math.random().toString()}
+                  style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}
                 >
                   <View
                     style={[
-                      styles.messageBubble,
-                      isMine ? styles.myMessageBubble : styles.theirMessageBubble
+                      styles.messageContent,
+                      isMine ? styles.myMessageContent : styles.theirMessageContent
                     ]}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.messageText,
-                        isMine ? styles.myMessageText : styles.theirMessageText
+                        styles.messageBubble,
+                        isMine ? styles.myMessageBubble : styles.theirMessageBubble
                       ]}
                     >
-                      {message.message || message.body || ''}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.messageText,
+                          isMine ? styles.myMessageText : styles.theirMessageText
+                        ]}
+                      >
+                        {message.message || message.body || ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.messageTime}>{formatTime(message.created_at || message.updated_at)}</Text>
                   </View>
-                  <Text style={styles.messageTime}>{formatTime(message.created_at || message.updated_at)}</Text>
                 </View>
-              </View>
-            );
-          })}
-        </ScrollView>
+              );
+            })}
+          </ScrollView>
 
-          <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-            <Ionicons name="add-circle" size={28} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Type a message..."
-            placeholderTextColor="#9CA3AF"
-            value={messageText}
-            onChangeText={setMessageText}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
-            onPress={handleSendMessage}
-            disabled={!messageText.trim() || sending}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="send" size={20} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+          <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 8 }]}>
+            <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
+              <Ionicons name="add-circle" size={28} color={theme.colors.primary} />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Type a message..."
+              placeholderTextColor="#9CA3AF"
+              value={messageText}
+              onChangeText={setMessageText}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
+              onPress={handleSendMessage}
+              disabled={!messageText.trim() || sending}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="send" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     );
   };
 
   if (initialLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Opening conversation...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <View style={styles.container}>
       {selectedConversation ? renderChatScreen() : renderListScreen()}
-    </SafeAreaView>
+    </View>
   );
 }
-

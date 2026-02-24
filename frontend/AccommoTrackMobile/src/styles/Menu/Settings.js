@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   headerTitle: {
     fontSize: 18,
@@ -65,13 +65,13 @@ export const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: '#DCFCE7',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   settingIconHighlight: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a34a',
   },
   settingLabel: {
     fontSize: 16,
@@ -79,7 +79,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   settingLabelHighlight: {
-    color: '#10b981',
+    color: '#16a34a',
     fontWeight: '600',
   },
   settingRight: {
@@ -107,4 +107,15 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#EF4444',
   },
+  cardInner: {
+    padding: 12,
+  },
+  cardTitle: {
+    fontSize: 16, 
+    fontWeight: '700', 
+    marginBottom: 8,
+  },
+  switchRow: {
+    paddingVertical: 8,
+  }
 });

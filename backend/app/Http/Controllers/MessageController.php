@@ -24,7 +24,7 @@ class MessageController extends Controller
             $q->where('user_one_id', $ownerId)
               ->orWhere('user_two_id', $ownerId);
         })
-        ->with(['userOne:id,first_name,last_name,role', 'userTwo:id,first_name,last_name,role', 'property:id,title', 'lastMessage'])
+        ->with(['userOne:id,first_name,last_name,role,profile_image', 'userTwo:id,first_name,last_name,role,profile_image', 'property', 'lastMessage'])
         ->withCount(['messages as unread_count' => function ($q) use ($ownerId) {
             $q->where('receiver_id', $ownerId)
               ->where('is_read', false);
@@ -36,7 +36,11 @@ class MessageController extends Controller
             return [
                 'id' => $conv->id,
                 'other_user' => $otherUser,
-                'property' => $conv->property,
+                'property' => $conv->property ? [
+                    'id' => $conv->property->id,
+                    'title' => $conv->property->title,
+                    'image_url' => $conv->property->image_url,
+                ] : null,
                 'last_message' => $conv->lastMessage,
                 'unread_count' => $conv->unread_count,
                 'last_message_at' => $conv->last_message_at,
@@ -97,10 +101,18 @@ class MessageController extends Controller
             'conversation_id' => 'required_without:recipient_id|exists:conversations,id',
             'recipient_id' => 'required_without:conversation_id|exists:users,id',
             'property_id' => 'nullable|exists:properties,id',
-            'message' => 'required|string|max:2000',
+            'message' => 'required_without:image|nullable|string|max:2000',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
         
         $userId = $actorUserId;
+
+        // Handle Image Upload
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('message_images', 'public');
+            $imageUrl = $path;
+        }
 
         // Find or create conversation
         if ($request->conversation_id) {
@@ -139,7 +151,8 @@ class MessageController extends Controller
             'actual_sender_id' => $actualSenderId,
             'sender_role' => $senderRole,
             'receiver_id' => $recipientId,
-            'message' => $request->message,
+            'message' => $request->message ?? '',
+            'image_url' => $imageUrl,
             'is_read' => false,
         ]);
 
@@ -147,8 +160,13 @@ class MessageController extends Controller
 
         $message->load('sender:id,first_name,last_name', 'actualSender:id,first_name,last_name');
 
-        // Broadcast the message
-        broadcast(new MessageSent($message))->toOthers();
+        // Broadcast the message gracefully
+        try {
+            broadcast(new MessageSent($message))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('Broadcasting failed: ' . $e->getMessage());
+            // We continue because the message was already saved to DB
+        }
 
         return response()->json($message);
     }
@@ -192,9 +210,20 @@ class MessageController extends Controller
             ]);
         }
 
-        return response()->json(
-            $conversation->load(['userOne:id,first_name,last_name', 'userTwo:id,first_name,last_name', 'property:id,title'])
-        );
+        $conversation->load(['userOne:id,first_name,last_name,role,profile_image', 'userTwo:id,first_name,last_name,role,profile_image', 'property']);
+        
+        return response()->json([
+            'id' => $conversation->id,
+            'other_user' => $conversation->getOtherUser($userId),
+            'property' => $conversation->property ? [
+                'id' => $conversation->property->id,
+                'title' => $conversation->property->title,
+                'image_url' => $conversation->property->image_url,
+            ] : null,
+            'last_message' => $conversation->lastMessage,
+            'unread_count' => 0,
+            'last_message_at' => $conversation->last_message_at,
+        ]);
     }
 
     // Get unread message count

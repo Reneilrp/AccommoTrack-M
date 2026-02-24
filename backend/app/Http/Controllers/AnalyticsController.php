@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class AnalyticsController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     protected AnalyticsService $analyticsService;
 
     public function __construct(AnalyticsService $analyticsService)
@@ -22,15 +25,14 @@ class AnalyticsController extends Controller
     public function getDashboardAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
 
             $data = $this->analyticsService->getDashboardAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null,
                 $timeRange
             );
@@ -51,14 +53,13 @@ class AnalyticsController extends Controller
     public function getOverviewStats(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculateOverviewStats(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null
             );
 
@@ -78,16 +79,15 @@ class AnalyticsController extends Controller
     public function getRevenueAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
 
             $data = $this->analyticsService->calculateRevenueAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null,
                 $dateRange
             );
@@ -108,14 +108,13 @@ class AnalyticsController extends Controller
     public function getOccupancyAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculateOccupancyAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null
             );
 
@@ -135,14 +134,13 @@ class AnalyticsController extends Controller
     public function getRoomTypeAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculateRoomTypeAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null
             );
 
@@ -162,12 +160,10 @@ class AnalyticsController extends Controller
     public function getPropertyComparison(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
 
-            $data = $this->analyticsService->calculatePropertyComparison($landlordId);
+            $data = $this->analyticsService->calculatePropertyComparison($context['landlord_id']);
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
@@ -185,16 +181,15 @@ class AnalyticsController extends Controller
     public function getTenantAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
 
             $data = $this->analyticsService->calculateTenantAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null,
                 $dateRange
             );
@@ -215,14 +210,13 @@ class AnalyticsController extends Controller
     public function getPaymentAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
 
             $data = $this->analyticsService->calculatePaymentAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null
             );
 
@@ -242,16 +236,15 @@ class AnalyticsController extends Controller
     public function getBookingAnalytics(Request $request)
     {
         try {
-            $landlordId = Auth::id();
-            if (is_null($landlordId)) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
-            }
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
             $propertyId = $request->query('property_id');
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
 
             $data = $this->analyticsService->calculateBookingAnalytics(
-                $landlordId,
+                $context['landlord_id'],
                 $propertyId ? (int) $propertyId : null,
                 $dateRange
             );

@@ -5,11 +5,16 @@ import { API_BASE_URL as API_URL } from '../config';
 class PaymentService {
   async getAuthToken() {
     try {
-      // Check both possible token keys for compatibility
-      let token = await AsyncStorage.getItem('auth_token');
-      if (!token) {
-        token = await AsyncStorage.getItem('token');
+      // Prefer token stored on the user object
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          if (user?.token) return user.token;
+        } catch (e) {}
       }
+      // Fallback to legacy `token` key
+      const token = await AsyncStorage.getItem('token');
       return token;
     } catch (error) {
       console.error('Error getting auth token:', error);
@@ -216,6 +221,73 @@ class PaymentService {
     } catch (error) {
       console.error('Error recording offline payment:', error.response?.data || error.message);
       return { success: false, error: error.response?.data?.message || 'Failed to record offline payment' };
+    }
+  }
+
+  /**
+   * LANDLORD: Get all invoices
+   */
+  async getInvoices() {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.get(`${API_URL}/invoices`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      return { success: false, error: error.response?.data?.message || error.message || 'Failed to fetch invoices' };
+    }
+  }
+
+  /**
+   * LANDLORD: Get invoices for a specific tenant
+   */
+  async getInvoicesByTenant(tenantId) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.get(`${API_URL}/invoices?tenant_id=${tenantId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error fetching tenant invoices:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch tenant invoices' };
+    }
+  }
+
+  /**
+   * LANDLORD: Update booking payment status
+   */
+  async updateBookingPayment(bookingId, payload) {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) return { success: false, error: 'Authentication required' };
+
+      const response = await axios.patch(`${API_URL}/bookings/${bookingId}/payment`, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error updating booking payment:', error);
+      return { success: false, error: error.response?.data?.message || error.message || 'Failed to update payment' };
     }
   }
 

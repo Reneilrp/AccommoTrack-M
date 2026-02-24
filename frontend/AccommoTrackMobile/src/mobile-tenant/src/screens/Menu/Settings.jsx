@@ -1,50 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, RefreshControl, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../../styles/Menu/Settings.js';
-import { WEB_BASE_URL } from '../../../../config';
-import { useTheme } from '../../../../contexts/ThemeContext';
-import { ListItemSkeleton } from '../../../../components/Skeletons';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
+import ProfileService from '../../../../services/ProfileService';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   
-  const [notifications, setNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [locationServices, setLocationServices] = useState(true);
+  const [notificationSettings, setNotificationSettings] = useState({
+    notifications: true,
+    emailNotifications: true,
+    pushNotifications: true,
+    locationServices: true
+  });
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkGuestMode();
   }, [isGuest]);
 
   const checkGuestMode = async () => {
+    let guest = false;
     if (isGuest !== undefined) {
-      setIsGuestMode(isGuest);
-      return;
+      guest = isGuest;
+    } else {
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        guest = !userJson;
+      } catch (error) {
+        console.error('Error checking guest mode:', error);
+      }
     }
+    setIsGuestMode(guest);
+    
+    if (!guest) {
+      loadSettings();
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const loadSettings = async () => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-      setIsGuestMode(!token);
+      setLoading(true);
+      const res = await ProfileService.getProfile();
+      if (res.success && res.data) {
+        const prefs = res.data.notification_preferences;
+        if (prefs) {
+          const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
+          setNotificationSettings({
+            notifications: parsed.notifications ?? true,
+            emailNotifications: parsed.emailNotifications ?? true,
+            pushNotifications: parsed.pushNotifications ?? true,
+            locationServices: parsed.locationServices ?? true
+          });
+        }
+      }
     } catch (error) {
-      console.error('Error checking guest mode:', error);
+      console.error('Error loading settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = async (key, value) => {
+    if (isGuestMode) return;
+    
+    const newSettings = { ...notificationSettings, [key]: value };
+    setNotificationSettings(newSettings);
+    
+    try {
+      await ProfileService.updateSettings({
+        notification_preferences: newSettings
+      });
+      
+      // Update local storage too for consistency
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        user.notification_preferences = newSettings;
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+      }
+    } catch (error) {
+      console.error('Error updating setting:', error);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // Simulate refresh - reload settings/preferences
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // You can add actual data refresh logic here if needed
+      if (!isGuestMode) {
+        await loadSettings();
+      }
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
@@ -54,14 +100,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
   const handleSettingPress = (label) => {
     switch(label) {
-      case "Edit Profile":
+      case "Profile":
         navigation.navigate('Profile');
         break;
-      case "Change Password":
-        Alert.alert('Change Password', 'This feature will be implemented soon');
+      case "Notification Preferences":
+        // Scroll to notifications or navigate if separate
         break;
-      case "Privacy Settings":
-        Alert.alert('Privacy Settings', 'This feature will be implemented soon');
+      case "Account Security":
+        navigation.navigate('UpdatePassword');
         break;
       case "Help Center":
         navigation.navigate('HelpSupport');
@@ -97,40 +143,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const handleBecomeLandlord = () => {
     Alert.alert(
       'Become a Landlord',
-      'You will be redirected to our web portal to register as a landlord.\n\nAfter creating your account, you can:\n• Continue managing on web portal\n• Login on this app as landlord',
+      'You will be redirected to our web portal to register as a landlord.\n\nAfter creating your account, you can login here in the app as a landlord.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Open Web Portal', 
           onPress: () => {
             // Open web admin portal for landlord registration
-            Linking.openURL(`${WEB_BASE_URL}/login`);
-            
-            // Show follow-up after a delay
-            setTimeout(() => {
-              showPostRegistrationOptions();
-            }, 2000);
-          }
-        }
-      ]
-    );
-  };
-
-  const showPostRegistrationOptions = () => {
-    Alert.alert(
-      'Already Registered?',
-      'If you\'ve created your landlord account on the web portal, you can now login here in the app.',
-      [
-        { text: 'Stay as Guest', style: 'cancel' },
-        {
-          text: 'Login as Landlord',
-          onPress: () => {
-            // Navigate to auth screen
-            if (onLoginPress) {
-              onLoginPress();
-            } else {
-              navigation.navigate('Auth');
-            }
+            Linking.openURL(`${WEB_BASE_URL}/become-landlord`);
           }
         }
       ]
@@ -169,20 +189,12 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   // Settings sections - different for guests vs logged in users
   const getSettingSections = () => {
     if (isGuestMode) {
-      // Guest mode - show limited options + login/landlord options
       return [
         {
           title: "Account",
           items: [
             { id: 1, label: "Login / Sign Up", icon: "log-in-outline", arrow: true, highlight: true },
             { id: 2, label: "Become a Landlord", icon: "business-outline", arrow: true },
-          ]
-        },
-        {
-          title: "App Settings",
-          items: [
-            { id: 10, label: "Location Services", icon: "location-outline", toggle: true, value: locationServices, onChange: setLocationServices },
-            { id: 11, label: "App Version", icon: "information-circle-outline", value: "1.0.0" },
           ]
         },
         {
@@ -202,24 +214,30 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       {
         title: "Account",
         items: [
-          { id: 1, label: "Edit Profile", icon: "person-outline", arrow: true },
-          { id: 2, label: "Change Password", icon: "lock-closed-outline", arrow: true },
-          { id: 3, label: "Privacy Settings", icon: "shield-checkmark-outline", arrow: true },
+          { id: 1, label: "Profile", icon: "person-outline", arrow: true },
+          { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
           { id: 4, label: "Become a Landlord", icon: "business-outline", arrow: true },
         ]
       },
       {
         title: "Notifications",
         items: [
-          { id: 7, label: "Push Notifications", icon: "notifications-outline", toggle: true, value: pushNotifications, onChange: setPushNotifications },
-          { id: 8, label: "Email Notifications", icon: "mail-outline", toggle: true, value: emailNotifications, onChange: setEmailNotifications },
-        ]
-      },
-      {
-        title: "App Settings",
-        items: [
-          { id: 10, label: "Location Services", icon: "location-outline", toggle: true, value: locationServices, onChange: setLocationServices },
-          { id: 11, label: "App Version", icon: "information-circle-outline", value: "1.0.0" },
+          { 
+            id: 8, 
+            label: "Push Notifications", 
+            icon: "notifications-outline", 
+            toggle: true, 
+            value: notificationSettings.pushNotifications,
+            onChange: (val) => updateSetting('pushNotifications', val)
+          },
+          { 
+            id: 9, 
+            label: "Email Notifications", 
+            icon: "mail-outline", 
+            toggle: true, 
+            value: notificationSettings.emailNotifications,
+            onChange: (val) => updateSetting('emailNotifications', val)
+          },
         ]
       },
       {
@@ -237,25 +255,17 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const settingSections = getSettingSections();
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <View style={{ width: 40 }} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Settings & Profile</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
-
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <StatusBar barStyle="light-content" />
+        <Header
+          title="Settings"
+          onBack={navigation.canGoBack() ? () => navigation.goBack() : null}
+          showProfile={false}
+        />
       {/* Content Area */}
-      <View style={{ flex: 1 }}>
+      <View style={homeStyles.flex1}>
         {loading ? (
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
+          <ScrollView style={homeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
             <ListItemSkeleton />
             <ListItemSkeleton />
             <ListItemSkeleton />
@@ -264,7 +274,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           <ScrollView 
             style={styles.content} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+            contentContainerStyle={homeStyles.contentContainerPadding}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -274,27 +284,29 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
               />
             }
           >
+
         {settingSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.settingsCard}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{section.title}</Text>
+            <View style={[styles.settingsCard, { backgroundColor: theme.colors.surface }]}>
               {section.items.map((item, itemIndex) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
                     styles.settingItem,
-                    itemIndex !== section.items.length - 1 && styles.settingItemBorder,
-                    item.highlight && styles.settingItemHighlight
+                    itemIndex !== section.items.length - 1 && [styles.settingItemBorder, { borderBottomColor: theme.colors.border }],
+                    item.highlight && styles.settingItemHighlight,
+                    item.highlight && { backgroundColor: theme.colors.primary + '10' }
                   ]}
                   disabled={item.toggle || item.label === "App Version"}
                   onPress={() => handleSettingPress(item.label)}
                   activeOpacity={item.toggle ? 1 : 0.7}
                 >
                   <View style={styles.settingLeft}>
-                    <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight]}>
+                    <View style={[styles.settingIcon, item.highlight && styles.settingIconHighlight, item.highlight && { backgroundColor: theme.colors.primary }]}>
                       <Ionicons name={item.icon} size={22} color={item.highlight ? "#FFFFFF" : theme.colors.primary} />
                     </View>
-                    <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight]}>{item.label}</Text>
+                    <Text style={[styles.settingLabel, item.highlight && styles.settingLabelHighlight, item.highlight && { color: theme.colors.primary }, { color: theme.colors.text }]}>{item.label}</Text>
                   </View>
                   
                   <View style={styles.settingRight}>
@@ -302,13 +314,13 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                         <Switch
                         value={item.value}
                         onValueChange={item.onChange}
-                        trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+                        trackColor={{ false: '#D1D5DB', true: theme.colors.brand200 }}
                         thumbColor={item.value ? theme.colors.primary : '#F3F4F6'}
                       />
                     ) : (
                       <>
                         {item.value && (
-                          <Text style={styles.settingValue}>{item.value}</Text>
+                          <Text style={[styles.settingValue, { color: theme.colors.textSecondary }]}>{item.value}</Text>
                         )}
                         {item.arrow && (
                           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -326,24 +338,19 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         {!isGuestMode && (
           <View style={styles.section}>
             <TouchableOpacity 
-              style={styles.dangerButton}
+              style={[styles.dangerButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.error + '20' }]}
               onPress={handleLogout}
             >
-              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <Text style={styles.dangerButtonText}>Logout</Text>
+              <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+              <Text style={[styles.dangerButtonText, { color: theme.colors.error }]}>Logout</Text>
             </TouchableOpacity>
           </View>
         )}
 
-            <View style={{ height: 40 }} />
+            <View style={homeStyles.spacer} />
           </ScrollView>
         )}
       </View>
-
-      {/* Bottom Navigation */}
-      <SafeAreaView style={{ backgroundColor: theme.colors.surface }}>
-        <BottomNavigation />
-      </SafeAreaView>
     </View>
   );
 }

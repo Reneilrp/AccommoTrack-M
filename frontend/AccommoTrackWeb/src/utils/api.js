@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// Base URL configuration from environment variables
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_APP_URL;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 
@@ -10,17 +9,8 @@ const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
     }
-});
-    
-// Add token to requests if it exists
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
 });
 
 // Response interceptor for error handling
@@ -28,9 +18,13 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Handle unauthorized - redirect to login
-            localStorage.removeItem('auth_token');
-            window.location.href = '/login';
+            try {
+                localStorage.removeItem('userData');
+                localStorage.removeItem('authToken');
+                window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+            } catch (e) {
+                // ignore
+            }
         }
         return Promise.reject(error);
     }
@@ -45,11 +39,10 @@ api.interceptors.response.use(
  * @returns {Object} Headers object
  */
 export const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
+
     return {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        'Accept': 'application/json'
     };
 };
 
@@ -71,15 +64,26 @@ export const apiUrl = (endpoint) => {
 export const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
-    // If it's already a full URL, return it
+    // If it's a full URL, we want to ensure it uses the CURRENT domain
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         try {
             const url = new URL(imagePath);
             const storageMarker = '/storage/';
             const markerIndex = url.pathname.indexOf(storageMarker);
+            
             if (markerIndex !== -1) {
-                const storagePath = url.pathname.substring(markerIndex + 1); // keep leading 'storage'
+                // Standard Laravel storage path: preserve everything after the domain
+                const storagePath = url.pathname.substring(markerIndex + 1);
                 return `${BASE_URL}/${storagePath}`;
+            } else {
+                // If it doesn't have /storage/ but IS a full URL, it might be an old absolute path 
+                // or a different storage structure. We still want to use our current BASE_URL domain.
+                // We'll take the path and ensure it's prefixed with storage/ if it looks like a property image
+                let path = url.pathname.replace(/^\/+/, '');
+                if (!path.startsWith('storage/') && (path.includes('property_images') || path.includes('room_images'))) {
+                    return `${STORAGE_URL}/${path}`;
+                }
+                return `${BASE_URL}/${path}`;
             }
         } catch (err) {
             console.warn('Failed to parse image URL', err);
@@ -87,20 +91,24 @@ export const getImageUrl = (imagePath) => {
         return imagePath;
     }
     
-    // Remove leading slash if present
     const cleanPath = imagePath.replace(/^\/+/, '');
     
-    // If path already includes 'storage/', use it as is
     if (cleanPath.startsWith('storage/')) {
         return `${BASE_URL}/${cleanPath}`;
     }
     
-    // Otherwise, assume it's relative to storage directory
     return `${STORAGE_URL}/${cleanPath}`;
 };
 
-// Export the axios instance as default
 export default api;
 
-// Re-export axios isCancel for convenience
 export const isCancel = axios.isCancel;
+
+export const ROOT_BASE_URL = BASE_URL;
+export const rootApi = axios.create({
+    baseURL: BASE_URL,
+    withCredentials: true,
+    headers: {
+        'Accept': 'application/json',
+    }
+});

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import PropertyCarousel from './PropertyCarousel';
+import PropertyCarousel from '../Tenant/PropertyCarousel';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react';
 import api from '../../utils/api';
+import { propertyService } from '../../services/propertyServices';
 
 // --- ROO DETAILS MODAL COMPONENT ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -166,18 +167,20 @@ const Properties = () => {
 
   // Fetch properties from backend
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    api.get('/public/properties')
-      .then((res) => {
-        setProperties(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
+    const fetchProperties = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await propertyService.getAllProperties();
+        setProperties(data);
+      } catch (err) {
         console.error(err);
         setError(err.response?.data?.message || 'Error fetching properties');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    fetchProperties();
   }, []);
 
   // Disable body scroll when modal is open
@@ -247,6 +250,8 @@ const Properties = () => {
     image: room.images && room.images.length > 0 ? room.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
     price: room.monthly_rate || 0,
     status: room.status ? (room.status.charAt(0).toUpperCase() + room.status.slice(1)) : 'Available',
+    reserved_by_me: room.reserved_by_me || false,
+    reservation: room.reservation || null,
     size: room.size || '',
     capacity: room.capacity ? `${room.capacity} Person${room.capacity > 1 ? 's' : ''}` : '',
     description: room.description || '',

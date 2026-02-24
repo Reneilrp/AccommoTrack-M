@@ -105,27 +105,6 @@ class PaymongoWebhookController extends Controller
                                                 Log::error('Failed to update booking payment_status: ' . $be->getMessage());
                                             }
                                         }
-                                            // Create a Payment record for tenant UI if one doesn't already exist
-                                            try {
-                                                $gatewayRef = $tx->gateway_reference ?? $id;
-                                                $exists = Payment::where('reference_number', $gatewayRef)->exists();
-                                                if (!$exists) {
-                                                    Payment::create([
-                                                        'tenant_id' => $tx->tenant_id,
-                                                        'booking_id' => $invoice->booking_id ?? null,
-                                                        'room_id' => null,
-                                                        'amount' => ($tx->amount_cents / 100),
-                                                        'payment_date' => now()->toDateString(),
-                                                        'due_date' => $invoice->due_date ?? null,
-                                                        'status' => 'paid',
-                                                        'payment_method' => 'gcash',
-                                                        'reference_number' => $gatewayRef,
-                                                        'notes' => 'Recorded from PayMongo webhook',
-                                                    ]);
-                                                }
-                                            } catch (\Exception $pe) {
-                                                Log::error('Failed to create Payment record from webhook: ' . $pe->getMessage());
-                                            }
                             }
                         }
                     } else {
@@ -172,27 +151,6 @@ class PaymongoWebhookController extends Controller
                                 } catch (\Exception $be) {
                                     Log::error('Failed to update booking payment_status (payment event): ' . $be->getMessage());
                                 }
-                            }
-                            // Create a Payment record for tenant UI if one doesn't already exist
-                            try {
-                                $gatewayRef = $tx->gateway_reference ?? ($payment['id'] ?? $id);
-                                $exists = Payment::where('reference_number', $gatewayRef)->exists();
-                                if (!$exists) {
-                                    Payment::create([
-                                        'tenant_id' => $tx->tenant_id,
-                                        'booking_id' => $invoice->booking_id ?? null,
-                                        'room_id' => null,
-                                        'amount' => ($tx->amount_cents / 100),
-                                        'payment_date' => now()->toDateString(),
-                                        'due_date' => $invoice->due_date ?? null,
-                                        'status' => 'paid',
-                                        'payment_method' => 'gcash',
-                                        'reference_number' => $gatewayRef,
-                                        'notes' => 'Recorded from PayMongo webhook (payment event)',
-                                    ]);
-                                }
-                            } catch (\Exception $pe) {
-                                Log::error('Failed to create Payment record from webhook (payment event): ' . $pe->getMessage());
                             }
                         }
                     }

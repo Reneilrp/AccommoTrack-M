@@ -5,7 +5,14 @@ import { API_BASE_URL as API_URL } from '../config';
 class BookingService {
   async getAuthToken() {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          if (user?.token) return user.token;
+        } catch (e) {}
+      }
+      const token = await AsyncStorage.getItem('token');
       return token;
     } catch (error) {
       console.error('Error getting auth token:', error);

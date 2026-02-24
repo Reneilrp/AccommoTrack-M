@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadPrefsMobile, DEFAULT_PREFS } from '../../../../shared/notificationPrefs';
 import { StyleSheet } from 'react-native';
 
 import BookingServices from '../../../../services/BookingServices.js';
@@ -38,6 +40,7 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
+
 export default function TenantNotifications({ navigation }) {
   const { theme } = useTheme();
   const notificationTypeMap = getNotificationTypeMap(theme);
@@ -45,6 +48,7 @@ export default function TenantNotifications({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterType, setFilterType] = useState('all'); // 'all' | 'bookings' | 'payments'
+  const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -95,17 +99,35 @@ export default function TenantNotifications({ navigation }) {
     }
   }, []);
 
-  // derive displayed notifications using filters
+  // derive displayed notifications using filters and user preferences
   const displayedNotifications = notifications.filter((n) => {
     // type filter
     if (filterType === 'bookings' && n.type !== 'booking') return false;
     if (filterType === 'payments' && n.type !== 'payment') return false;
+
+    // Respect saved preferences: hide types user disabled
+    if (n.type === 'booking' && prefs.email_booking === false) return false;
+    if (n.type === 'payment' && prefs.email_payment === false) return false;
+    if (n.type === 'message' && prefs.push_messages === false) return false;
+
     return true;
   });
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // load saved notification preferences and apply to feed
+  useEffect(() => {
+    (async () => {
+      try {
+        const next = await loadPrefsMobile(AsyncStorage);
+        setPrefs(next);
+      } catch (e) {
+        console.warn('Load prefs error', e);
+      }
+    })();
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -286,3 +308,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

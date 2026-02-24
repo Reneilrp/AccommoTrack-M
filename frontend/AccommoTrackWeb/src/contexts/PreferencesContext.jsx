@@ -2,12 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 const PreferencesContext = createContext(null);
 
-// Font scale values (multipliers) - constrained to reasonable limits
 const FONT_SIZES = {
-  small: 0.9,      // 90% - slightly smaller
-  medium: 1,       // 100% - default
-  large: 1.15,     // 115% - comfortable for most
-  'x-large': 1.3   // 130% - max limit to prevent layout breaks
+  small: 0.9,
+  medium: 1,
+  large: 1.15,
+  'x-large': 1.3 
 };
 
 const FONT_SIZE_LABELS = {
@@ -52,7 +51,6 @@ export function PreferencesProvider({ children }) {
     return DEFAULT_PREFERENCES;
   });
 
-  // Helper to determine if dark mode should be active
   const getEffectiveTheme = useCallback((themePreference) => {
     if (themePreference === 'system') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -64,11 +62,9 @@ export function PreferencesProvider({ children }) {
   useEffect(() => {
     const root = document.documentElement;
     
-    // Apply font scale CSS variable (for targeted text scaling only)
     const scale = FONT_SIZES[preferences.fontSize] || FONT_SIZES.medium;
     root.style.setProperty('--font-scale', scale);
     
-    // Add font-scaled class to body for CSS targeting
     document.body.classList.add('font-scaled');
     
     // Apply theme

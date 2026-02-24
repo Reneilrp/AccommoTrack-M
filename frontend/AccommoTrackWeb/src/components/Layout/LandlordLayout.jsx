@@ -4,6 +4,22 @@ import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import api, { getImageUrl } from '../../utils/api';
+import NotificationDropdown from '../Shared/NotificationDropdown';
+import { useUIState } from '../../contexts/UIStateContext';
+import { 
+  Plus, 
+  Banknote, 
+  LayoutDashboard, 
+  Building2, 
+  Users, 
+  Calendar, 
+  MessageSquare, 
+  BarChart3, 
+  Settings as SettingsIcon,
+  LogOut,
+  Menu,
+  ChevronLeft
+} from 'lucide-react';
 
 export default function LandlordLayout({
   user,
@@ -13,6 +29,7 @@ export default function LandlordLayout({
 }) {
 
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
+  const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [caretakerProperties, setCaretakerProperties] = useState([]);
   const [selectedCaretakerProperty, setSelectedCaretakerProperty] = useState(() => {
@@ -29,83 +46,50 @@ export default function LandlordLayout({
     { 
       path: '/dashboard', 
       label: 'Dashboard', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      )
+      icon: <LayoutDashboard className="w-5 h-5" />
     },
     { 
       path: '/properties', 
       label: 'My Properties', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-        </svg>
-      )
+      icon: <Building2 className="w-5 h-5" />
     },
     {
       path: '/tenants',
       label: 'Tenants',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/>
-        </svg>
-      )
-      ,
+      icon: <Users className="w-5 h-5" />,
       onlyCaretaker: true
     },
     
     { 
       path: '/bookings', 
       label: 'Bookings', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      )
+      icon: <Calendar className="w-5 h-5" />
     },
     { 
       path: '/payments', 
       label: 'Payments', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-3.866 0-7 1.79-7 4v4h14v-4c0-2.21-3.134-4-7-4zM12 8V5m0 0L9 8m3-3 3 3" />
-        </svg>
-      )
+      icon: <Banknote className="w-5 h-5" />
     },
     { 
       path: '/messages', 
       label: 'Messages', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      ),
+      icon: <MessageSquare className="w-5 h-5" />
     },
     { 
       path: '/analytics', 
       label: 'Analytics', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
+      icon: <BarChart3 className="w-5 h-5" />
     },
-    { 
-      path: '/settings', 
-      label: 'Settings', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      )
+    {
+      path: '/settings',
+      label: 'Settings',
+      icon: <SettingsIcon className="w-5 h-5" />
     }
   ];
 
   const caretakerAllowedPaths = new Set([
     caretakerPermissions.rooms ? '/rooms' : null,
+    caretakerPermissions.rooms ? '/maintenance' : null,
     caretakerPermissions.bookings ? '/bookings' : null,
     caretakerPermissions.tenants ? '/tenants' : null,
     caretakerPermissions.messages ? '/messages' : null,
@@ -155,8 +139,28 @@ export default function LandlordLayout({
     onLogout();
   };
 
+  const getPageTitle = () => {
+    const item = landlordMenu.find(m => m.path === location.pathname);
+    if (item) return item.label;
+    if (location.pathname === '/settings') return 'Settings';
+    
+    // Dynamic Property Title
+    if (location.pathname.startsWith('/properties/')) {
+      const parts = location.pathname.split('/');
+      const propId = parts[2];
+      if (propId && propId !== 'new') {
+        const propData = uiState.data?.landlord_property_details?.[propId]?.property;
+        if (propData?.title) return propData.title;
+      }
+      return 'Property Details';
+    }
+
+    if (location.pathname.startsWith('/tenants/')) return 'Tenant Logs';
+    return 'AccommoTrack';
+  };
+
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
       <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
         isSidebarOpen ? 'w-64' : 'w-20'
@@ -189,9 +193,7 @@ export default function LandlordLayout({
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
           >
-            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
@@ -202,9 +204,7 @@ export default function LandlordLayout({
               onClick={() => setIsSidebarOpen(true)}
               className="w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400 mx-auto" />
             </button>
           </div>
         )}
@@ -231,10 +231,10 @@ export default function LandlordLayout({
             </div>
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={`${user?.first_name} ${user?.last_name}`}>
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={user?.email}>{user?.email}</p>
                 {isCaretaker && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">Caretaker Access</p>
                 )}
@@ -256,11 +256,12 @@ export default function LandlordLayout({
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 } ${!isSidebarOpen && 'justify-center'}`
               }
+              title={!isSidebarOpen ? item.label : ''}
             >
               {item.icon}
               {isSidebarOpen && (
                 <>
-                  <span className="flex-1 text-left font-medium">{item.label}</span>
+                  <span className="flex-1 text-left font-medium truncate" title={item.label}>{item.label}</span>
                   {item.badge && (
                     <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                       {item.badge}
@@ -284,7 +285,10 @@ export default function LandlordLayout({
 
             <div className="mb-2">
               <div className="text-xs text-gray-500 dark:text-gray-400">Monitoring</div>
-              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1">
+              <div 
+                className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1 truncate"
+                title={selectedCaretakerProperty ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`) : ''}
+              >
                 {selectedCaretakerProperty
                   ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`)
                   : 'No assigned property'}
@@ -298,12 +302,12 @@ export default function LandlordLayout({
                     to={`/rooms?property=${selectedCaretakerProperty}`}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 7h18M3 7l9-4 9 4M4 7v14h16V7"/></svg>
+                    <Building2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                     <span>Rooms</span>
                   </NavLink>
                 ) : (
                   <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700" aria-disabled="true">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 7h18M3 7l9-4 9 4M4 7v14h16V7"/></svg>
+                    <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span>Rooms</span>
                   </div>
                 )
@@ -315,12 +319,12 @@ export default function LandlordLayout({
                     to={`/tenants?property=${selectedCaretakerProperty}`}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <Users className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                     <span>Tenants</span>
                   </NavLink>
                 ) : (
                   <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700" aria-disabled="true">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 11a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span>Tenants</span>
                   </div>
                 )
@@ -329,25 +333,79 @@ export default function LandlordLayout({
           </div>
         )}
 
-        {/* Logout */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto space-y-2">
           <button
             onClick={handleLogoutClick}
             className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
               !isSidebarOpen && 'justify-center'
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {isSidebarOpen && <span className="font-medium">Logout</span>}
+            <LogOut className="w-5 h-5" />
+            {isSidebarOpen && <span className="font-medium">Log out</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto transition-all ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
-        {children}
+      <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
+        {/* Top Header - Excluded on specific pages */}
+        {!(
+          (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
+          (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') ||
+          location.pathname === '/rooms' ||
+          location.pathname.startsWith('/rooms/') ||
+          location.pathname === '/tenants' ||
+          location.pathname.startsWith('/tenants/') ||
+          location.pathname === '/maintenance' ||
+          location.pathname === '/reviews'
+        ) && (
+          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+              {getPageTitle()}
+            </h1>
+            <div className="absolute right-4 lg:right-8 flex items-center gap-4">
+              {location.pathname === '/properties' && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}
+                  className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="hidden lg:inline">Add Property</span>
+                </button>
+              )}
+              {location.pathname === '/bookings' && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-booking'))}
+                  className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="hidden lg:inline">Add Booking</span>
+                </button>
+              )}
+              {location.pathname === '/dashboard' && <NotificationDropdown />}
+            </div>
+          </header>
+        )}
+
+        {/* Page Content */}
+        <div 
+          className={`flex-1 overflow-y-auto ${
+            (
+              (location.pathname.startsWith('/properties/') && location.pathname !== '/properties') ||
+              (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') ||
+              location.pathname === '/rooms' ||
+              location.pathname.startsWith('/rooms/') ||
+              location.pathname === '/tenants' ||
+              location.pathname.startsWith('/tenants/') ||
+              location.pathname === '/maintenance' ||
+              location.pathname === '/reviews'
+            ) ? 'p-0' : 'p-4 lg:p-8'
+          }`}
+          style={{ scrollbarGutter: 'stable' }}
+        >
+          {children}
+        </div>
       </main>
 
       {/* Logout Confirmation Modal */}

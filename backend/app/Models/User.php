@@ -80,6 +80,8 @@ class User extends Authenticatable
         'is_verified',
         'is_active',
         'payment_methods_settings',
+        'notification_preferences',
+        'is_blocked',
     ];
 
     protected $hidden = [
@@ -91,6 +93,8 @@ class User extends Authenticatable
         'is_verified' => 'boolean',
         'is_active' => 'boolean',
         'payment_methods_settings' => 'array',
+        'notification_preferences' => 'array',
+        'is_blocked' => 'boolean',
     ];
 
     protected $appends = [
@@ -228,6 +232,22 @@ class User extends Authenticatable
     public function getFullNameAttribute()
     {
         return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+    }
+
+    /**
+     * Custom notifications relationship to override the default Laravel one.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'user_id')->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Custom unread notifications relationship.
+     */
+    public function unreadNotifications()
+    {
+        return $this->notifications()->where('is_read', false);
     }
 
     public function getCaretakerPermissionsAttribute(): array

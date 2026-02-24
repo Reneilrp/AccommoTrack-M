@@ -9,12 +9,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\User;
 use App\Models\Room;
 
 
 class PropertyController extends Controller
 {
+    use ResolvesLandlordAccess;
+
     // ====================================================================
     // PUBLIC ROUTES (No auth needed - for tenants)
     // ====================================================================
@@ -169,7 +172,10 @@ class PropertyController extends Controller
                         $q->with('amenities', 'images');
                     },
                     'images',
-                    'landlord:id,first_name,last_name,email,phone,payment_methods_settings'
+                    'landlord:id,first_name,last_name,email,phone,payment_methods_settings',
+                    'reviews' => function($q) {
+                        $q->where('is_published', true);
+                    }
                 ])
                 ->findOrFail($id);
 
@@ -180,6 +186,11 @@ class PropertyController extends Controller
 
             $primaryImage = $property->images->where('is_primary', true)->first();
             $coverImage = $primaryImage ?? $property->images->first();
+
+            // Calculate average rating from reviews
+            $avgRating = $property->reviews->count() > 0 
+                ? round($property->reviews->avg('rating'), 1) 
+                : null;
 
             return response()->json([
                 'id' => $property->id,
@@ -205,6 +216,8 @@ class PropertyController extends Controller
                         ? '₱' . number_format($minPrice, 0)
                         : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
                     : 'Contact for price',
+                'rating' => $avgRating,
+                'reviews_count' => $property->reviews->count(),
                 'image' => $coverImage
                     ? (str_starts_with($coverImage->image_url, 'http')
                         ? $coverImage->image_url
@@ -361,6 +374,9 @@ class PropertyController extends Controller
 
     public function store(Request $request)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -484,54 +500,6 @@ class PropertyController extends Controller
     }
 
     /**
-     * Show property details for tenants (public view)
-     * This allows tenants to view any property and includes landlord info
-     */
-    public function showForTenant($id)
-    {
-        $property = Property::with([
-            'rooms' => function ($query) {
-                $query->select(
-                    'id',
-                    'property_id',
-                    'room_number',
-                    'room_type',
-                    'capacity',
-                    'monthly_rate',
-                    'status',
-                    'description'
-                )
-                    ->orderBy('room_number');
-            },
-            'images' => function ($query) {
-                $query->select('id', 'property_id', 'image_url');
-            },
-            'amenities' => function ($query) {
-                $query->select('amenities.id', 'amenities.name');
-            },
-            'landlord:id,first_name,last_name,email,phone'
-        ])->findOrFail($id);
-
-        // Format images with proper URLs
-        $property->images->transform(function ($image) {
-            $image->image_url = asset('storage/' . $image->image_url);
-            return $image;
-        });
-
-        // Format amenities
-        $property->amenities_list = $property->amenities->pluck('name')->toArray();
-
-        // Add landlord_id and landlord_name to the root level for easier access
-        $propertyArray = $property->toArray();
-        $propertyArray['landlord_id'] = $property->landlord->id ?? null;
-        $propertyArray['landlord_name'] = $property->landlord
-            ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
-            : 'Unknown';
-
-        return response()->json($propertyArray, 200);
-    }
-
-    /**
      * Show property details (for landlord - existing method)
      */
     public function show($id)
@@ -604,7 +572,10 @@ class PropertyController extends Controller
 
     public function update(Request $request, $id)
     {
-        $property = Property::where('landlord_id', Auth::id())->findOrFail($id);
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
+        $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
@@ -823,11 +794,14 @@ class PropertyController extends Controller
      */
     public function verifyPassword(Request $request)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $request->validate([
             'password' => 'required|string',
         ]);
 
-        $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail($context['user']->id);
 
         if (!Hash::check($request->password, $user->password)) {
             return response()->json([
@@ -847,11 +821,14 @@ class PropertyController extends Controller
      */
     public function addAmenity(Request $request, $id)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         $request->validate([
             'amenity' => 'required|string|max:255'
         ]);
 
-        $property = Property::where('landlord_id', Auth::id())->findOrFail($id);
+        $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
 
         // Find or create the amenity
         $amenity = \App\Models\Amenity::firstOrCreate([
@@ -871,9 +848,12 @@ class PropertyController extends Controller
 
     public function destroy($id, Request $request)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         // Verify password if provided
         if ($request->has('password')) {
-            $user = User::findOrFail(Auth::id());
+            $user = User::findOrFail($context['user']->id);
             if (!Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'message' => 'Incorrect password. Please try again.',
@@ -885,7 +865,7 @@ class PropertyController extends Controller
         DB::beginTransaction();
 
         try {
-            $property = Property::where('landlord_id', Auth::id())
+            $property = Property::where('landlord_id', $context['landlord_id'])
                 ->with(['rooms', 'bookings', 'images'])
                 ->findOrFail($id);
 

@@ -18,7 +18,7 @@ class TenantBookingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Booking::with(['property.images', 'landlord', 'room'])
+            $query = Booking::with(['property.images', 'landlord', 'room', 'review'])
                 ->where('tenant_id', Auth::id());
 
             // Filter by status if provided
@@ -69,6 +69,7 @@ class TenantBookingController extends Controller
                         'bookingReference' => $booking->booking_reference,
                         'notes' => $booking->notes,
                         'created_at' => $booking->created_at,
+                        'hasReview' => (bool) $booking->review,
                     ];
                 });
 
@@ -143,11 +144,74 @@ class TenantBookingController extends Controller
     public function show($id)
     {
         try {
-            $booking = Booking::with(['property', 'landlord', 'room'])
+            $booking = Booking::with(['property.images', 'landlord', 'room.images', 'room.amenities', 'addons', 'maintenanceRequests'])
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
-            return response()->json($booking, 200);
+            // Map property images
+            $property = $booking->property;
+            $images = [];
+            if ($property && $property->images) {
+                $images = $property->images->map(function ($image) {
+                    return [
+                        'id' => $image->id,
+                        'image_url' => $image->image_url,
+                        'is_primary' => $image->is_primary ?? false,
+                    ];
+                })->toArray();
+            }
+
+            $roomDetails = null;
+            if ($booking->room) {
+                $roomDetails = [
+                    'id' => $booking->room->id,
+                    'room_number' => $booking->room->room_number,
+                    'room_type' => $booking->room->type,
+                    'capacity' => $booking->room->capacity,
+                    'description' => $booking->room->description,
+                    'images' => $booking->room->images,
+                    'amenities' => $booking->room->amenities,
+                ];
+            }
+
+            $data = [
+                'id' => $booking->id,
+                'landlordName' => $booking->landlord->first_name . ' ' . $booking->landlord->last_name,
+                'email' => $booking->landlord->email,
+                'phone' => $booking->landlord->phone ?? 'N/A',
+                'landlord' => [
+                    'id' => $booking->landlord->id,
+                    'first_name' => $booking->landlord->first_name,
+                    'last_name' => $booking->landlord->last_name,
+                    'email' => $booking->landlord->email,
+                    'phone' => $booking->landlord->phone ?? 'N/A',
+                ],
+                'room' => $roomDetails,
+                'propertyTitle' => $booking->property->title,
+                'property' => [
+                    'id' => $property->id,
+                    'title' => $property->title,
+                    'city' => $property->city,
+                    'province' => $property->province,
+                    'country' => $property->country,
+                    'property_type' => $property->property_type,
+                    'images' => $images
+                ],
+                'checkIn' => $booking->start_date,
+                'checkOut' => $booking->end_date,
+                'duration' => $booking->total_months . ' month' . ($booking->total_months > 1 ? 's' : ''),
+                'amount' => (float) $booking->total_amount,
+                'monthlyRent' => (float) $booking->monthly_rent,
+                'status' => $booking->status,
+                'paymentStatus' => $booking->payment_status,
+                'bookingReference' => $booking->booking_reference,
+                'notes' => $booking->notes,
+                'created_at' => $booking->created_at,
+                'addons' => $booking->addons,
+                'maintenance_requests' => $booking->maintenanceRequests
+            ];
+
+            return response()->json($data, 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Booking not found',

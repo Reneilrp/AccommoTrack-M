@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, ScrollView, FlatList, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
-import Header from '../../components/Header.jsx';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import PropertyCard from '../../components/PropertyCard.jsx';
-import BottomNavigation from '../../components/BottomNavigation.jsx';
+import { PropertyCardSkeleton } from '../../../../components/Skeletons';
+import Header from '../../components/Header.jsx';
 
 import PropertyService from '../../../../services/PropertyServices.js';
 
@@ -170,24 +169,20 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     setMenuModalVisible(false);
 
     if (isGuest) {
-      const protectedItems = ['Dashboard', 'My Bookings', 'Favorites', 'Payments', 'Settings', 'Notifications'];
+      const protectedItems = [
+        'Dashboard', 
+        'My Bookings', 
+        'Favorites', 
+        'Payments', 
+        'Notifications',
+        'My Maintenance Requests',
+        'My Addon Requests'
+      ];
       
       if (protectedItems.includes(itemTitle)) {
-        Alert.alert(
-          'Sign In Required',
-          `You need to sign in to access ${itemTitle}.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Sign In', 
-              onPress: () => {
-                if (onAuthRequired) {
-                  onAuthRequired();
-                }
-              }
-            }
-          ]
-        );
+        if (onAuthRequired) {
+          onAuthRequired();
+        }
         return;
       }
     }
@@ -216,6 +211,12 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
         break;
       case 'Help & Support':
         navigation.navigate('HelpSupport');
+        break;
+      case 'My Maintenance Requests':
+        navigation.navigate('MyMaintenanceRequests');
+        break;
+      case 'My Addon Requests':
+        navigation.navigate('Addons');
         break;
       case 'Logout':
         if (isGuest) {
@@ -253,7 +254,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   };
 
   const handleAccommodationPress = (accommodation) => {
-    navigation.navigate('AccommodationDetails', { accommodation });
+    navigation.navigate('AccommodationDetails', { accommodation, hideLayout: true });
   };
 
   const handleLikePress = async (id) => {
@@ -291,174 +292,146 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
   if (loading && properties.length === 0) {
     return (
-      <View style={{flex: 1, backgroundColor: styles.container.backgroundColor}}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <StatusBar barStyle="light-content" />
-        <Header
-          onMenuPress={() => setMenuModalVisible(true)}
-          onProfilePress={handleProfilePress}
-          isGuest={isGuest}
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchPress={handleSearch}
+          selectedFilter={selectedFilter}
+          onClearFilter={handleClearFilter}
+          properties={properties}
+          userRole={isGuest ? 'guest' : 'authenticated'}
+          onSelectProperty={() => {}}
         />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading properties...</Text>
-        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterButtonsRow}
+          contentContainerStyle={styles.filterButtonsContainer}
+        >
+          {filterOptions.map((filter) => (
+            <TouchableOpacity
+              key={filter.value}
+              style={[
+                styles.filterButton,
+                selectedFilter === filter.value && { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() => handleFilterSelect(filter.value)}
+            >
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  selectedFilter === filter.value && styles.filterButtonTextActive,
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <ScrollView contentContainerStyle={styles.contentContainerPadding}>
+          <PropertyCardSkeleton />
+          <PropertyCardSkeleton />
+          <PropertyCardSkeleton />
+          <PropertyCardSkeleton />
+        </ScrollView>
         <MenuDrawer
           visible={menuModalVisible}
           onClose={() => setMenuModalVisible(false)}
           onMenuItemPress={handleMenuItemPress}
           isGuest={isGuest}
         />
-        <SafeAreaView>
-            <BottomNavigation
-            activeTab={activeNavTab}
-            onTabPress={setActiveNavTab}
-            isGuest={isGuest}
-            onAuthRequired={onAuthRequired}
-            />
-        </SafeAreaView>
       </View>
     );
   }
 
   return (
-    <View style={{flex: 1, backgroundColor: styles.container.backgroundColor}}>
-      <StatusBar barStyle="light-content" />
-        <ScrollView
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
-            />
-            }
-        >
-            <Header
-            onMenuPress={() => setMenuModalVisible(true)}
-            onProfilePress={handleProfilePress}
-            isGuest={isGuest}
-            />
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchPress={handleSearch}
+          properties={properties}
+          userRole={isGuest ? 'guest' : 'authenticated'}
+          onSelectProperty={handleAccommodationPress}
+        />
 
-            {isGuest && (
-            <TouchableOpacity 
-                style={styles.guestBanner}
-                onPress={() => onAuthRequired && onAuthRequired()}
-            >
-                <View style={styles.guestBannerContent}>
-                <Text style={styles.guestBannerText}>
-                    👋 Browse properties as a guest or{' '}
-                    <Text style={styles.guestBannerLink}>Sign In</Text>
-                    {' '}to book
-                </Text>
-                </View>
+        {isGuest && (
+          <TouchableOpacity
+            style={styles.guestBanner}
+            onPress={() => onAuthRequired && onAuthRequired()}
+          >
+            <View style={styles.guestBannerContent}>
+              <Text style={styles.guestBannerText}>
+                👋 Browse properties as a guest or{' '}
+                <Text style={styles.guestBannerLink}>Sign In</Text>
+                {' '}to book
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={loadProperties} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
-            )}
+          </View>
+        )}
 
-            <SearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onSearchPress={handleSearch}
-            selectedFilter={selectedFilter}
-            onClearFilter={handleClearFilter}
-            properties={properties}
-            userRole={isGuest ? 'guest' : 'authenticated'}
-            onSelectProperty={(data) => {
-              if (data && data.property) {
-                handleAccommodationPress(data.property);
-              }
-            }}
+        <FlatList
+          data={filteredProperties}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <PropertyCard
+              accommodation={item}
+              onPress={handleAccommodationPress}
+              onLikePress={handleLikePress}
             />
+          )}
+          contentContainerStyle={styles.contentContainerPadding}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={!loading ? (
+            <View style={styles.noResultsContainer}>
+              <Text style={styles.noResultsText}>
+                {searchQuery.trim()
+                  ? `No properties found for "${searchQuery}"`
+                  : 'No properties available at the moment'
+                }
+              </Text>
+              {searchQuery.trim() && (
+                <TouchableOpacity onPress={handleClearFilter} style={styles.clearButton}>
+                  <Text style={styles.clearButtonText}>Clear Search</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null}
+        />
 
-            <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterButtonsRow}
-            contentContainerStyle={styles.filterButtonsContainer}
+        {filteredProperties.length > 0 && filteredProperties.length >= 10 && (
+          <View style={styles.loadMoreContainer}>
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={() => {
+                Alert.alert('Coming Soon', 'Pagination will be implemented soon!');
+              }}
             >
-            {filterOptions.map((filter) => (
-                <TouchableOpacity
-                key={filter.value}
-                style={[
-                  styles.filterButton,
-                  selectedFilter === filter.value && { backgroundColor: theme.colors.primary }
-                ]}
-                onPress={() => handleFilterSelect(filter.value)}
-                >
-                <Text style={[
-                  styles.filterButtonText,
-                  selectedFilter === filter.value && styles.filterButtonTextActive
-                ]}>
-                    {filter.label}
-                </Text>
-                </TouchableOpacity>
-            ))}
-            </ScrollView>
-
-            {error && (
-            <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity onPress={loadProperties} style={styles.retryButton}>
-                <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-            </View>
-            )}
-
-            <View style={styles.cardsContainer}>
-            {filteredProperties.length > 0 ? (
-                filteredProperties.map((accommodation) => (
-                <PropertyCard
-                    key={accommodation.id}
-                    accommodation={accommodation}
-                    onPress={handleAccommodationPress}
-                    onLikePress={handleLikePress}
-                />
-                ))
-            ) : !loading ? (
-                <View style={styles.noResultsContainer}>
-                <Text style={styles.noResultsText}>
-                    {searchQuery.trim()
-                    ? `No properties found for "${searchQuery}"`
-                    : 'No properties available at the moment'
-                    }
-                </Text>
-                {searchQuery.trim() && (
-                    <TouchableOpacity onPress={handleClearFilter} style={styles.clearButton}>
-                    <Text style={styles.clearButtonText}>Clear Search</Text>
-                    </TouchableOpacity>
-                )}
-                </View>
-            ) : null}
-            </View>
-
-            {filteredProperties.length > 0 && filteredProperties.length >= 10 && (
-            <View style={styles.loadMoreContainer}>
-                <TouchableOpacity
-                style={styles.loadMoreButton}
-                onPress={() => {
-                    Alert.alert('Coming Soon', 'Pagination will be implemented soon!');
-                }}
-                >
-                <Text style={styles.loadMoreText}>Load More</Text>
-                </TouchableOpacity>
-            </View>
-            )}
-        </ScrollView>
+              <Text style={styles.loadMoreText}>Load More</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <MenuDrawer
-            visible={menuModalVisible}
-            onClose={() => setMenuModalVisible(false)}
-            onMenuItemPress={handleMenuItemPress}
-            isGuest={isGuest}
+          visible={menuModalVisible}
+          onClose={() => setMenuModalVisible(false)}
+          onMenuItemPress={handleMenuItemPress}
+          isGuest={isGuest}
         />
-        <SafeAreaView>
-            <BottomNavigation
-                activeTab={activeNavTab}
-                onTabPress={setActiveNavTab}
-                isGuest={isGuest}
-                onAuthRequired={onAuthRequired}
-            />
-        </SafeAreaView>
     </View>
   );
 }

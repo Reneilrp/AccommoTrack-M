@@ -375,12 +375,6 @@ export const SkeletonHistory = () => (
  */
 export const SkeletonProfileTab = () => (
   <div className="animate-pulse">
-    {/* Header */}
-    <div className="flex items-center justify-between mb-6">
-      <Skeleton className="h-7 w-48" />
-      <Skeleton className="h-10 w-28 rounded-lg" />
-    </div>
-    
     {/* Profile Image Section */}
     <div className="flex items-center gap-6 mb-8">
       <div className="relative">
@@ -441,12 +435,6 @@ export const SkeletonProfileTab = () => (
  */
 export const SkeletonPreferencesTab = () => (
   <div className="animate-pulse">
-    {/* Header */}
-    <div className="flex items-center justify-between mb-6">
-      <Skeleton className="h-7 w-52" />
-      <Skeleton className="h-10 w-32 rounded-lg" />
-    </div>
-    
     {/* Basic Preferences */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       {[...Array(2)].map((_, i) => (
@@ -479,11 +467,6 @@ export const SkeletonPreferencesTab = () => (
  */
 export const SkeletonWallet = () => (
   <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6 lg:p-8">
-    <div className="mb-6">
-      <h1 className="h-8 bg-transparent" />
-      <div className="h-4 bg-transparent" />
-    </div>
-
     {/* Stats skeleton */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
       <SkeletonStatCard />
@@ -492,8 +475,8 @@ export const SkeletonWallet = () => (
     </div>
 
     {/* Payment History skeleton: container matches TenantWallet structure exactly */}
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600">
-      <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="w-48 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
 
         <div className="flex items-center gap-2">
@@ -548,11 +531,6 @@ export const SkeletonWallet = () => (
  */
 export const SkeletonAccountTab = () => (
   <div className="w-full md:w-[40%] min-w-[300px] space-y-8">
-    <div className="flex items-center justify-between mb-6">
-      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
-      <div className="h-9 w-28 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
-    </div>
-
     <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
       <div className="h-5 bg-gray-200 dark:bg-gray-600 rounded w-40 mb-2 animate-pulse" />
       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-64 mb-4 animate-pulse" />
@@ -583,11 +561,6 @@ export const SkeletonAccountTab = () => (
  */
 export const SkeletonNotificationsTab = () => (
   <div className="space-y-8">
-    <div className="flex items-center justify-between mb-6">
-      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-64 animate-pulse" />
-      <div className="h-9 w-36 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
-    </div>
-
     <div className="space-y-6">
       {[...Array(2)].map((_, section) => (
         <div key={section}>
@@ -619,11 +592,6 @@ export const SkeletonNotificationsTab = () => (
  */
 export const SkeletonAppearanceTab = () => (
   <div className="space-y-8">
-    <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-2 animate-pulse" />
-      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-96 animate-pulse" />
-    </div>
-
     <div className="space-y-4">
       <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-40 animate-pulse" />
       <div className="grid grid-cols-3 gap-4">

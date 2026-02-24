@@ -47,44 +47,38 @@ export const styles = StyleSheet.create({
     marginLeft: 6
   },
   header: {
-    position: 'relative',
     backgroundColor: '#16A34A',
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 16,
+    paddingHorizontal: 8,
+    height: 60,
     flexDirection: 'row',
-    justifyContent: 'flex-start',
     alignItems: 'center',
-    gap: 12
+    justifyContent: 'space-between',
   },
   menuButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center'
   },
   headerTextContainer: {
     flex: 1,
-    marginLeft: 12
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   greeting: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#FFFFFF',
     opacity: 0.9
   },
   userName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginTop: 4
+    textAlign: 'center'
   },
   notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -409,7 +403,7 @@ export const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#10B981'
+    backgroundColor: '#16a34a'
   },
   performanceRow: {
     flexDirection: 'row',
@@ -419,9 +413,41 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280'
   },
-  performanceStatValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827'
-  }
-});
+    performanceStatValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#111827'
+    },
+    verificationBanner: {
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+    },
+    bannerNotSubmitted: {
+      backgroundColor: '#FFF7ED',
+      borderColor: '#FED7AA',
+    },
+    bannerPending: {
+      backgroundColor: '#FFFBEB',
+      borderColor: '#FDE68A',
+    },
+    bannerRejected: {
+      backgroundColor: '#FEF2F2',
+      borderColor: '#FECACA',
+    },
+    bannerTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      marginBottom: 2,
+    },
+    bannerText: {
+      fontSize: 12,
+      color: '#4B5563',
+      lineHeight: 16,
+    }
+  });
+  

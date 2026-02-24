@@ -1,14 +1,18 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 import TenantHomePage from '../screens/TenantHomePage/ExploreScreen.jsx';
 import MessagesPage from '../screens/Messages/MessagesPage.jsx';
+import ChatScreen from '../screens/Messages/ChatScreen.jsx';
 import AccommodationDetails from '../components/PropertyDetailsScreen.jsx';
 import ProfilePage from '../screens/Profile/ProfilePage.jsx';
+import UpdatePassword from '../screens/Profile/UpdatePassword.jsx';
+import NotificationPreferences from '../screens/Menu/NotificationPreferences.jsx';
 import MyBookings from '../screens/Menu/MyBookings.jsx';
 import WalletScreen from '../screens/Menu/WalletScreen.jsx';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
-import DemoUIScreen from '../screens/Demo/DemoUIScreen.jsx';
 import Notifications from '../screens/Menu/Notifications.jsx';
 import TenantMenuModal from '../screens/TenantHomePage/TenantMenuModal.jsx';
 import PaymentDetail from '../screens/Menu/PaymentDetail.jsx';
@@ -19,92 +23,155 @@ import Settings from '../screens/Menu/Settings.jsx';
 import HelpSupport from '../screens/Menu/HelpSupport.jsx';
 import RoomListScreen from '../components/RoomListScreen.jsx';
 import RoomDetailsScreen from '../components/RoomDetailsScreen.jsx';
+import CreateRequest from '../screens/Maintenance/CreateRequest.jsx';
+import AddonsScreen from '../screens/Addons/AddonsScreen.jsx';
+import MyRequests from '../screens/Maintenance/MyRequests.jsx';
+import LeaveReview from '../screens/Reviews/LeaveReview.jsx';
+import MyReviews from '../screens/Reviews/MyReviews.jsx';
+import BookingDetails from '../screens/Menu/BookingDetails.jsx';
+import ReportProperty from '../screens/Menu/ReportProperty.jsx';
+import ServiceRequests from '../screens/ServiceRequests/ServiceRequests.jsx';
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const MainStack = createNativeStackNavigator();
+
+function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
+  const { theme } = useTheme();
+
+  return (
+    <View style={{ flex: 1 }}>
+      <MainStack.Navigator
+        initialRouteName="TenantHome"
+        screenOptions={{
+          headerShown: false,
+          animation: 'none',
+          animationTypeForReplace: 'pop',
+        }}
+      >
+        <MainStack.Screen name="TenantHome" options={{ animation: 'none' }}>
+          {(props) => (
+            <TenantHomePage 
+              {...props} 
+              onLogout={onLogout}
+              isGuest={isGuest}
+              onAuthRequired={onAuthRequired}
+            />
+          )}
+        </MainStack.Screen>
+
+        <MainStack.Screen name="AccommodationDetails" options={{ animation: 'none' }}>
+          {(props) => (
+            <AccommodationDetails 
+              {...props}
+              isGuest={isGuest}
+            />
+          )}
+        </MainStack.Screen>
+
+        <MainStack.Screen name="RoomsList" options={{ animation: 'none' }}>
+          {(props) => (
+            <RoomListScreen 
+              {...props}
+              isGuest={isGuest}
+            />
+          )}
+        </MainStack.Screen>
+
+        <MainStack.Screen name="RoomDetails" options={{ animation: 'none' }}>
+          {(props) => (
+            <RoomDetailsScreen 
+              {...props}
+              isGuest={isGuest}
+              onAuthRequired={onAuthRequired}
+            />
+          )}
+        </MainStack.Screen>
+
+        {/* Settings - Available for both guests and authenticated users */}
+        <MainStack.Screen name="Settings" options={{ animation: 'none' }}>
+          {(props) => (
+            <Settings 
+              {...props} 
+              onLogout={onLogout}
+              isGuest={isGuest}
+              onLoginPress={onAuthRequired}
+            />
+          )}
+        </MainStack.Screen>
+
+        <MainStack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
+        
+        <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
+          {(props) => (
+            <MessagesPage {...props} />
+          )}
+        </MainStack.Screen>
+
+        {/* Chat route - full screen, no bottom nav or header */}
+        <MainStack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none', headerShown: false }} />
+
+        {/* Protected Routes - Only for authenticated users */}
+        {!isGuest && (
+          <>
+            <MainStack.Screen name="Dashboard" options={{ animation: 'none' }}>
+              {(props) => (
+                <DashboardScreen {...props} />
+              )}
+            </MainStack.Screen>
+            <MainStack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
+            <MainStack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
+            <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
+            <MainStack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
+
+            <MainStack.Screen name="MyBookings" options={{ animation: 'none' }}>
+              {(props) => (
+                <MyBookings {...props} />
+              )}
+            </MainStack.Screen>
+            <MainStack.Screen name="Payments" component={WalletScreen} options={{ animation: 'none' }} />
+            <MainStack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
+            <MainStack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
+            <MainStack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />
+            <MainStack.Screen name="PaymentRedirectWebview" component={PaymentRedirectWebview} options={{ animation: 'none' }} />
+            <MainStack.Screen name="CreateMaintenanceRequest" component={CreateRequest} options={{ animation: 'none' }} />
+            <MainStack.Screen name="Addons" component={AddonsScreen} options={{ animation: 'none' }} />
+            <MainStack.Screen name="MyMaintenanceRequests" component={MyRequests} options={{ animation: 'none' }} />
+            <MainStack.Screen name="ServiceRequests" component={ServiceRequests} options={{ animation: 'none' }} />
+            <MainStack.Screen name="BookingDetails" component={BookingDetails} options={{ animation: 'none' }} />
+            <MainStack.Screen name="LeaveReview" component={LeaveReview} options={{ animation: 'none' }} />
+            <MainStack.Screen name="MyReviews" component={MyReviews} options={{ animation: 'none' }} />
+            <MainStack.Screen name="ReportProperty" component={ReportProperty} options={{ animation: 'none' }} />
+          </>
+        )}
+      </MainStack.Navigator>
+
+      {/* BottomNavigation moved to TenantLayout so it can be hidden per-route */}
+    </View>
+  );
+}
 
 export default function TenantNavigator({ onLogout, isGuest = false, onAuthRequired }) {
   return (
-    <Stack.Navigator
-      initialRouteName="TenantHome"
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-        animationTypeForReplace: 'pop',
-      }}
+    <RootStack.Navigator
+      screenOptions={{ headerShown: false }}
     >
-      <Stack.Screen name="TenantHome" options={{ animation: 'none' }}>
+      <RootStack.Screen name="Main">
         {(props) => (
-          <TenantHomePage 
-            {...props} 
-            onLogout={onLogout}
-            isGuest={isGuest}
-            onAuthRequired={onAuthRequired}
-          />
+          <TenantMain {...props} onLogout={onLogout} isGuest={isGuest} onAuthRequired={onAuthRequired} />
         )}
-      </Stack.Screen>
+      </RootStack.Screen>
+
       {/* Menu modal accessible from bottom nav */}
-      <Stack.Screen name="MenuModal" component={TenantMenuModal} options={{ presentation: 'transparentModal', animation: 'none' }} />
-      
-      <Stack.Screen name="AccommodationDetails" options={{ animation: 'none' }}>
+      <RootStack.Screen name="MenuModal" options={{ presentation: 'transparentModal', animation: 'none' }}>
         {(props) => (
-          <AccommodationDetails 
-            {...props}
-            isGuest={isGuest}
-          />
-        )}
-      </Stack.Screen>
-      
-      <Stack.Screen name="RoomsList" options={{ animation: 'none' }}>
-        {(props) => (
-          <RoomListScreen 
-            {...props}
-            isGuest={isGuest}
-          />
-        )}
-      </Stack.Screen>
-      
-      <Stack.Screen name="RoomDetails" options={{ animation: 'none' }}>
-        {(props) => (
-          <RoomDetailsScreen 
+          <TenantMenuModal
             {...props}
             isGuest={isGuest}
             onAuthRequired={onAuthRequired}
-          />
-        )}
-      </Stack.Screen>
-
-      {/* Settings - Available for both guests and authenticated users */}
-      <Stack.Screen name="Settings" options={{ animation: 'none' }}>
-        {(props) => (
-          <Settings 
-            {...props} 
             onLogout={onLogout}
-            isGuest={isGuest}
-            onLoginPress={onAuthRequired}
           />
         )}
-      </Stack.Screen>
-
-      {/* Demo UI - Available for all users */}
-      <Stack.Screen name="DemoUI" component={DemoUIScreen} options={{ animation: 'none' }} />
-
-      {/* Protected Routes - Only for authenticated users */}
-      {!isGuest && (
-        <>
-          <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ animation: 'none' }} />
-          <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
-          <Stack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
-          <Stack.Screen name="Messages" component={MessagesPage} options={{ animation: 'none' }} />
-          <Stack.Screen name="MyBookings" component={MyBookings} options={{ animation: 'none' }} />
-          {/* Keep route name as 'Payments' but render the WalletScreen component */}
-          <Stack.Screen name="Payments" component={WalletScreen} options={{ animation: 'none' }} />
-          <Stack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
-          <Stack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
-          <Stack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />
-          <Stack.Screen name="PaymentRedirectWebview" component={PaymentRedirectWebview} options={{ animation: 'none' }} />
-          <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
-        </>
-      )}
-    </Stack.Navigator>
+      </RootStack.Screen>
+    </RootStack.Navigator>
   );
 }

@@ -17,7 +17,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
 // Get base storage URL from environment
-const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000/storage';
+const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://192.168.43.142:8000/storage';
 
 // Normalize image URL to use frontend's configured base URL
 const normalizeImageUrl = (url) => {
@@ -211,36 +211,36 @@ export default function VerificationStatus() {
       case 'approved':
         return {
           icon: CheckCircle,
-          color: 'text-green-600',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
+          color: 'text-green-600 dark:text-green-400',
+          bgColor: 'bg-green-50 dark:bg-green-900/20',
+          borderColor: 'border-green-200 dark:border-green-800',
           label: 'Verified',
           description: 'Your account is verified. You can create and publish properties.',
         };
       case 'rejected':
         return {
           icon: XCircle,
-          color: 'text-red-600',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
+          color: 'text-red-600 dark:text-red-400',
+          bgColor: 'bg-red-50 dark:bg-red-900/20',
+          borderColor: 'border-red-200 dark:border-red-800',
           label: 'Rejected',
           description: 'Your verification was rejected. Please review the reason below and resubmit.',
         };
       case 'pending':
         return {
           icon: Clock,
-          color: 'text-yellow-600',
-          bgColor: 'bg-yellow-50',
-          borderColor: 'border-yellow-200',
+          color: 'text-yellow-600 dark:text-yellow-400',
+          bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+          borderColor: 'border-yellow-200 dark:border-yellow-800',
           label: 'Pending Review',
           description: 'Your documents are under review. This typically takes 1-3 business days.',
         };
       default:
         return {
           icon: AlertTriangle,
-          color: 'text-gray-600',
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
+          color: 'text-gray-600 dark:text-gray-400',
+          bgColor: 'bg-gray-50 dark:bg-gray-800',
+          borderColor: 'border-gray-200 dark:border-gray-700',
           label: 'Not Submitted',
           description: 'Please submit your verification documents.',
         };
@@ -283,32 +283,30 @@ export default function VerificationStatus() {
   return (
     <div className="space-y-6">
       {/* Status Card */}
-      <div className={`${statusConfig.bgColor} ${statusConfig.borderColor} border rounded-xl p-6`}>
+      <div className={`${statusConfig.bgColor} ${statusConfig.borderColor} border rounded-xl p-6 shadow-sm`}>
         <div className="flex items-start gap-4">
           <div className={`p-3 ${statusConfig.bgColor} rounded-full`}>
             <StatusIcon className={`w-8 h-8 ${statusConfig.color}`} />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className={`text-xl font-bold ${statusConfig.color}`}>
+              <h3 className={`text-xl font-black ${statusConfig.color} uppercase tracking-tight`}>
                 {statusConfig.label}
               </h3>
               {verification?.status === 'pending' && (
-                <span className="px-2 py-1 bg-yellow-200 text-yellow-800 text-xs font-semibold rounded-full animate-pulse">
+                <span className="px-2 py-1 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 text-[10px] font-black uppercase rounded-full animate-pulse">
                   Under Review
                 </span>
               )}
             </div>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">{statusConfig.description}</p>
+            <p className="text-gray-600 dark:text-gray-300 mt-1 font-medium">{statusConfig.description}</p>
             
             {verification?.reviewed_at && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium uppercase tracking-wider">
                 Last reviewed: {new Date(verification.reviewed_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
+                  day: 'numeric'
                 })}
               </p>
             )}

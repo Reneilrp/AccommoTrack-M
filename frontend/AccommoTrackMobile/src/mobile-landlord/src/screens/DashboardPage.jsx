@@ -17,6 +17,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 import MenuDrawer from '../components/MenuDrawer';
 import PropertyService from '../../../services/PropertyServices';
+import ProfileService from '../../../services/ProfileService';
 import LandlordDashboardService from '../../../services/LandlordDashboardService';
 
 const activityColorMap = {
@@ -75,6 +76,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const [dashboardError, setDashboardError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState(null);
 
   const [firstProperty, setFirstProperty] = useState(null);
   const [loadingProperty, setLoadingProperty] = useState(true);
@@ -83,12 +85,15 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const { theme } = useTheme();
 
   const quickActions = [
-    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'MyProperties' },
+    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties' },
     { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement' },
     { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants' },
     { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings' },
-    { id: 5, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics' },
-    { id: 6, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' }
+    { id: 5, title: 'Payments', icon: 'cash', color: '#16a34a', screen: 'Payments' },
+    { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics' },
+    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' },
+    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests' },
+    { id: 9, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews' }
   ];
 
   // Reset mounted ref on each mount
@@ -121,6 +126,17 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     }
   }, []);
 
+  const fetchVerification = useCallback(async () => {
+    try {
+      const response = await ProfileService.getVerificationStatus();
+      if (isMountedRef.current && response.success) {
+        setVerificationStatus(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+    }
+  }, []);
+
   const initializeDashboard = useCallback(async () => {
     if (!isMountedRef.current) return;
     
@@ -128,7 +144,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     setDashboardError('');
     
     try {
-      await fetchDashboard();
+      await Promise.all([fetchDashboard(), fetchVerification()]);
     } catch (error) {
       if (isMountedRef.current) {
         setDashboardError(error.message || 'Failed to initialize dashboard');
@@ -173,9 +189,9 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchDashboard(), fetchFirstProperty()]);
+    await Promise.all([fetchDashboard(), fetchFirstProperty(), fetchVerification()]);
     setRefreshing(false);
-  }, [fetchDashboard, fetchFirstProperty]);
+  }, [fetchDashboard, fetchFirstProperty, fetchVerification]);
 
   const handleRetry = () => {
     initializeDashboard();
@@ -228,7 +244,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
       subtitle: 'Room 101 • 2 hours ago',
       amount: 5000,
       icon: 'checkmark-circle',
-      iconColor: '#10b981'
+      iconColor: '#16a34a'
     },
     {
       id: 2,
@@ -247,38 +263,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
       iconColor: '#FF9800'
     }
   ]);
-
-  const quickActions = [
-    { id: 1, title: 'Properties', 
-      icon: 'business', 
-      color: '#10b981', 
-      screen: 'MyProperties' },
-    { id: 2, 
-      title: 'Rooms', 
-      icon: 'bed', 
-      color: '#8B5CF6', 
-      screen: 'RoomManagement' },
-    { id: 3, 
-      title: 'Tenants', 
-      icon: 'people', 
-      color: '#2196F3', 
-      screen: 'Tenants' },
-    { id: 4, 
-      title: 'Bookings', 
-      icon: 'calendar', 
-      color: '#FF9800', 
-      screen: 'Bookings' },
-    { id: 5, 
-      title: 'Analytics', 
-      icon: 'bar-chart', 
-      color: '#9C27B0', 
-      screen: 'Analytics' },
-    { id: 6, 
-      title: 'Messages', 
-      icon: 'chatbubbles', 
-      color: '#10b981', 
-      screen: 'Messages' }
-  ];
+ 
 
   const stats = dashboardData.stats;
   const activities = dashboardData.activities || [];
@@ -310,7 +295,45 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     ? `${occupancyRate}% Full`
     : `${derivedOccupancyPercent}% Full`;
   const tenantCount = occupiedRooms ?? 0;
-  const pendingNotifications = stats?.bookings?.pending ?? 0;
+  
+  // Calculate total pending notifications (Bookings + Maintenance + Addons)
+  const pendingNotifications = (stats?.bookings?.pending ?? 0) + 
+                               (stats?.requests?.maintenance ?? 0) + 
+                               (stats?.requests?.addons ?? 0);
+
+  const renderVerificationBanner = () => {
+    if (!verificationStatus || verificationStatus.status === 'approved') return null;
+
+    const isRejected = verificationStatus.status === 'rejected';
+    const isPending = verificationStatus.status === 'pending';
+
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.verificationBanner, 
+          isRejected ? styles.bannerRejected : isPending ? styles.bannerPending : styles.bannerNotSubmitted
+        ]}
+        onPress={() => navigation.navigate('VerificationStatus')}
+      >
+        <Ionicons 
+          name={isRejected ? "alert-circle" : isPending ? "time" : "shield-checkmark"} 
+          size={24} 
+          color={isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412"} 
+        />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={[styles.bannerTitle, { color: isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412" }]}>
+            Verification: {verificationStatus.status.replace('_', ' ').toUpperCase()}
+          </Text>
+          <Text style={styles.bannerText}>
+            {isRejected ? "Your documents were rejected. Tap to view reason." : 
+             isPending ? "Your documents are being reviewed." : 
+             "Submit your documents to verify your account."}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+      </TouchableOpacity>
+    );
+  };
 
   if (dashboardLoading) {
     return (
@@ -338,7 +361,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
       {/* Menu Drawer */}
@@ -358,8 +381,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           <Ionicons name="menu" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.first_name || 'Landlord'}</Text>
+          <Text style={styles.userName}>{user?.first_name || 'Dashboard'}</Text>
         </View>
         <TouchableOpacity
           style={styles.notificationButton}
@@ -385,6 +407,8 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           />
         }
       >
+        {renderVerificationBanner()}
+
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statsGrid}>
@@ -592,7 +616,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           ) : firstProperty ? (
             <Button
               style={styles.propertyCard}
-              onPress={() => navigation.navigate('MyProperties')}
+              onPress={() => navigation.navigate('Properties')}
               type="transparent"
             >
               <View style={styles.propertyHeader}>

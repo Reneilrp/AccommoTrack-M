@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
+import homeStyles from '../../../styles/Tenant/HomePage';
 import BookingService from '../../../services/BookingServices';
 import PropertyService from '../../../services/PropertyServices';
 import { BASE_URL as API_BASE_URL } from '../../../config';
@@ -60,6 +61,28 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setRoomData(room);
     setPropertyData(property);
   }, [room, property]);
+
+  // Hide parent tab bar and mark route to hide layout (TenantLayout)
+  useEffect(() => {
+    try {
+      navigation.setParams?.({ hideLayout: true });
+    } catch (e) {}
+    const parent = navigation.getParent?.();
+    try {
+      parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
+    } catch (e) {}
+    return () => {
+      try { navigation.setParams?.({ hideLayout: false }); } catch (e) {}
+      try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (e) {}
+    };
+  }, [navigation]);
+
+  // Set a friendly title for TenantLayout to use
+  useEffect(() => {
+    const title = (roomData && (roomData.title || roomData.name)) || (room && (room.title || room.name)) || (propertyData && (propertyData.title || propertyData.name));
+    try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (e) {}
+    return () => { try { navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); } catch (e) {} };
+  }, [roomData, room, propertyData, property, navigation]);
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
   const activeRoom = roomData || room;
@@ -543,15 +566,16 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+      <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, backgroundColor: theme.colors.primary, borderBottomWidth: 0.5, borderBottomColor: theme.colors.primary }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse || '#fff'} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Room Details</Text>
-        <View style={styles.placeholder} />
+
+        <Text style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: theme.colors.textInverse || '#fff' }}>Room Details</Text>
+
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView

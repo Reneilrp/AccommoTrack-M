@@ -41,4 +41,11 @@ trait ResolvesLandlordAccess
             throw new AccessDeniedHttpException('Caretaker does not have permission to access this data.');
         }
     }
+
+    protected function assertNotCaretaker(array $context): void
+    {
+        if ($context['is_caretaker']) {
+            throw new AccessDeniedHttpException('This module is restricted to landlords only.');
+        }
+    }
 }

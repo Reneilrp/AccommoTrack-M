@@ -28,7 +28,7 @@ class AnalyticsService
         }
 
         $overview = $this->calculateOverviewStats($landlordId, $propertyId);
-        $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange);
+        $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange, $timeRange);
         $payments = $this->calculatePaymentAnalytics($landlordId, $propertyId);
         $tenants = $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange);
         $properties = $this->calculatePropertyComparison($landlordId);
@@ -109,11 +109,10 @@ class AnalyticsService
         $end = Carbon::now();
 
         $start = match ($timeRange) {
-            'week' => Carbon::now()->subWeek(),
-            'month' => Carbon::now()->subMonth(),
-            'quarter' => Carbon::now()->subQuarter(),
-            'year' => Carbon::now()->subYear(),
-            default => Carbon::now()->subMonth(),
+            'week' => Carbon::now()->subDays(6)->startOfDay(), // Last 7 days including today
+            'month' => Carbon::now()->startOfMonth(),         // Current calendar month
+            'year' => Carbon::now()->startOfYear(),           // Current calendar year
+            default => Carbon::now()->startOfMonth(),
         };
 
         return ['start' => $start, 'end' => $end];
@@ -169,7 +168,7 @@ class AnalyticsService
     /**
      * Calculate Revenue Analytics with trends
      */
-    public function calculateRevenueAnalytics(int $landlordId, ?int $propertyId, array $dateRange): array
+    public function calculateRevenueAnalytics(int $landlordId, ?int $propertyId, array $dateRange, string $timeRange = 'month'): array
     {
         $query = Booking::forLandlord($landlordId)
             ->confirmed()
@@ -179,19 +178,46 @@ class AnalyticsService
             $query->where('property_id', $propertyId);
         }
 
-        // Monthly revenue trend
-        $monthlyTrend = (clone $query)
+        // Determine grouping and label format based on time range
+        $grouping = match ($timeRange) {
+            'week' => 'DATE_FORMAT(created_at, "%Y-%m-%d") as period',
+            'month' => 'CONCAT("Week ", FLOOR((DAY(created_at) - 1) / 7) + 1) as period',
+            'year' => 'DATE_FORMAT(created_at, "%Y-%m") as period',
+            default => 'DATE_FORMAT(created_at, "%Y-%m") as period',
+        };
+
+        // Get actual trend from DB
+        $results = (clone $query)
             ->select(
-                DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+                DB::raw($grouping),
                 DB::raw('SUM(total_amount) as revenue')
             )
-            ->groupBy('month')
-            ->orderBy('month')
+            ->groupBy('period')
+            ->orderBy('period')
             ->get()
-            ->map(fn($item) => [
-                'month' => $item->month,
-                'revenue' => (float) $item->revenue,
-            ]);
+            ->pluck('revenue', 'period')
+            ->toArray();
+
+        // Fill gaps to ensure current periods are shown even if 0
+        $trend = [];
+        if ($timeRange === 'week') {
+            for ($i = 0; $i < 7; $i++) {
+                $date = (clone $dateRange['start'])->addDays($i)->format('Y-m-d');
+                $trend[] = ['month' => $date, 'revenue' => (float) ($results[$date] ?? 0)];
+            }
+        } elseif ($timeRange === 'month') {
+            $maxWeek = (int) ceil(now()->day / 7);
+            // Ensure we at least show up to the current week of the month
+            for ($w = 1; $w <= max(4, $maxWeek); $w++) {
+                $key = "Week $w";
+                $trend[] = ['month' => $key, 'revenue' => (float) ($results[$key] ?? 0)];
+            }
+        } elseif ($timeRange === 'year') {
+            for ($m = 1; $m <= 12; $m++) {
+                $monthKey = now()->year . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
+                $trend[] = ['month' => $monthKey, 'revenue' => (float) ($results[$monthKey] ?? 0)];
+            }
+        }
 
         // Expected (potential) vs actual revenue for current month
         $expectedMonthly = $this->calculatePotentialRevenue($landlordId, $propertyId);
@@ -208,8 +234,8 @@ class AnalyticsService
             : 0;
 
         return [
-            'monthly_trend' => $monthlyTrend,
-            'total_revenue' => round($query->sum('total_amount'), 2),
+            'monthly_trend' => $trend,
+            'total_revenue' => round(Booking::forLandlord($landlordId)->confirmed()->sum('total_amount'), 2),
             'expected_monthly' => round($expectedMonthly, 2),
             'actual_monthly' => round($actualMonthly, 2),
             'collection_rate' => $collectionRate,
@@ -305,8 +331,7 @@ class AnalyticsService
                 'occupied_rooms' => $property->occupied_rooms,
                 'available_rooms' => $property->available_rooms,
                 'occupancy_rate' => $property->rooms_count > 0
-                    ? round(($property->occupied_rooms / $property->rooms_count) * 100, 1)
-                    : 0,
+                    ? round(($property->occupied_rooms / $property->rooms_count) * 100, 1) : 0,
                 'monthly_revenue' => round($property->monthly_revenue ?? 0, 2),
                 'total_revenue' => round($property->total_revenue ?? 0, 2),
             ])

@@ -17,9 +17,22 @@ let tokenWarningShown = false;
 // Automatically add Bearer token to every request (for authenticated calls)
 api.interceptors.request.use(async (config) => {
   try {
-    const token =
-      (await AsyncStorage.getItem('auth_token')) ||
-      (await AsyncStorage.getItem('token'));
+    // Prefer the stored `user` object which may contain the token
+    let token = null;
+    const userJson = await AsyncStorage.getItem('user');
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        token = user?.token || null;
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+
+    // Fallback to legacy keys for backwards compatibility
+    if (!token) {
+      token = (await AsyncStorage.getItem('token')) || null;
+    }
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

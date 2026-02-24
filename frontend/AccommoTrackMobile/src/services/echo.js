@@ -6,10 +6,20 @@ import { ECHO_HOST, ECHO_PORT, ECHO_AUTH_ENDPOINT } from '../config';
 window.Pusher = Pusher;
 
 const createEcho = async () => {
-  const bearerToken =
-    (await AsyncStorage.getItem('token')) ||
-    (await AsyncStorage.getItem('auth_token')) ||
-    '';
+  // Prefer token stored on the `user` object
+  let bearerToken = '';
+  try {
+    const userJson = await AsyncStorage.getItem('user');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      bearerToken = user?.token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+  if (!bearerToken) {
+    bearerToken = (await AsyncStorage.getItem('token')) || '';
+  }
 
   return new Echo({
     broadcaster: 'reverb',

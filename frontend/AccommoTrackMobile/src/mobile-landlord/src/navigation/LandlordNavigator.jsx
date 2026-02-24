@@ -23,7 +23,16 @@ import AddProperty from '../screens/AddProperty.jsx';
 import DormProfile from '../screens/DormProfile.jsx';
 import Notifications from '../screens/Notifications.jsx';
 import AllActivities from '../screens/AllActivities.jsx';
+import AddonManagement from '../screens/AddonManagement.jsx';
+import AddBooking from '../screens/AddBooking.jsx';
+import Payments from '../screens/Payments.jsx';
+import VerificationStatus from '../screens/VerificationStatus.jsx';
+import PropertyActivityLogs from '../screens/PropertyActivityLogs.jsx';
+import TenantLogs from '../screens/TenantLogs.jsx';
 import PropertyDetailsScreen from '../../../mobile-tenant/src/components/PropertyDetailsScreen.jsx';
+import MaintenanceRequests from '../screens/MaintenanceRequests.jsx';
+import Reviews from '../screens/Reviews.jsx';
+import Caretakers from '../screens/Caretakers.jsx';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,7 +55,7 @@ const CustomTabBarButton = ({ children, onPress }) => (
         borderRadius: 32,
         backgroundColor: COLORS.primary,
         borderWidth: 4,
-        borderColor: '#F8FAFC', // Matches app background
+        borderColor: COLORS.background, // Uses theme background
         justifyContent: 'center',
         alignItems: 'center',
       }}
@@ -106,7 +115,7 @@ function MainTabs({ onLogout }) {
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: COLORS.border,
           paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
           height: 60 + insets.bottom,
@@ -144,7 +153,7 @@ function MainTabs({ onLogout }) {
         name="Bookings" 
         component={Bookings}
         options={{
-          tabBarLabel: 'Bookings',
+          tabBarLabel: () => null,
           tabBarButton: (props) => (
             <CustomTabBarButton {...props} />
           )
@@ -155,7 +164,7 @@ function MainTabs({ onLogout }) {
         name="Messages" 
         component={Messages}
         options={{
-          tabBarBadge: 3,
+          tabBarBadge: undefined,
           tabBarBadgeStyle: {
             backgroundColor: COLORS.danger,
             color: '#FFFFFF',
@@ -187,6 +196,7 @@ export default function LandlordNavigator({ onLogout }) {
       />
       
       {/* Additional Screens */}
+      <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
       <Stack.Screen name="DashboardPage" component={LandlordDashboard} options={{ animation: 'none' }}/>
       <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
       <Stack.Screen name="RoomManagement" component={RoomManagement} options={{ animation: 'none' }}/>
@@ -200,6 +210,15 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="DevTeam" component={DevTeam} options={{ animation: 'none', headerShown: false }} />
       <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
       <Stack.Screen name="AllActivities" component={AllActivities} options={{ animation: 'none' }} />
+      <Stack.Screen name="AddonManagement" component={AddonManagement} options={{ animation: 'none' }} />
+      <Stack.Screen name="AddBooking" component={AddBooking} options={{ animation: 'none' }} />
+      <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+      <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
+      <Stack.Screen name="PropertyActivityLogs" component={PropertyActivityLogs} options={{ animation: 'none' }} />
+      <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
+      <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
+      <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
+      <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>

@@ -38,10 +38,20 @@ export default function SearchBar({
           <Ionicons name="map-outline" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
-      <MapModal visible={mapOpen} onClose={() => setMapOpen(false)} properties={properties} userRole={userRole} onSelectProperty={(data) => {
-        // forward event to parent if provided
-        if(onSelectProperty) onSelectProperty(data);
-      }} />
+      <MapModal 
+        visible={mapOpen} 
+        onClose={() => setMapOpen(false)} 
+        properties={properties} 
+        userRole={userRole} 
+        onSelectProperty={(data) => {
+          // Only forward actual property selections, not debug/init messages
+          if (data && (data.action === 'open_property' || data.action === 'marker_click')) {
+            if (data.property && onSelectProperty) {
+              onSelectProperty(data.property);
+            }
+          }
+        }} 
+      />
     </View>
   );
 }

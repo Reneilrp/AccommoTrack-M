@@ -1,22 +1,39 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { navigationRef } from '../../../navigation/RootNavigation';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { styles } from '../../../styles/Tenant/HomePage.js';
 
-export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired }) {
+export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired, currentRouteName: propRouteName }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [isNavigating, setIsNavigating] = useState(false);
-  
-  // Get the current route name to determine active tab
-  const currentRouteName = useNavigationState((state) => {
-    if (!state || !state.routes || state.routes.length === 0) return 'TenantHome';
-    return state.routes[state.index]?.name || 'TenantHome';
-  });
 
-  // Define tabs array matching demo UI
+  // Determine current route name. Prefer propRouteName (provided by layout),
+  // otherwise fall back to navigationRef (safe outside navigator hooks).
+  let currentRouteName = propRouteName;
+  if (!currentRouteName) {
+    try {
+      const r = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
+      const getDeepest = (route) => {
+        if (!route) return null;
+        let rr = route;
+        while (rr.state && typeof rr.state.index === 'number') {
+          const idx = rr.state.index;
+          rr = rr.state.routes && rr.state.routes[idx] ? rr.state.routes[idx] : rr;
+        }
+        return rr?.name || null;
+      };
+      currentRouteName = getDeepest(r) || 'TenantHome';
+    } catch (e) {
+      currentRouteName = 'TenantHome';
+    }
+  }
+
   const tabs = [
     { id: 'Dashboard', icon: 'grid', label: 'Dashboard', route: 'Dashboard' },
     { id: 'Bookings', icon: 'calendar', label: 'My Booking', route: 'MyBookings' },
@@ -25,12 +42,12 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
     { id: 'Settings', icon: 'settings', label: 'Settings', route: 'Settings' },
   ];
 
-  // Map route names to tab IDs
   const getActiveTabFromRoute = (routeName) => {
     switch (routeName) {
       case 'Dashboard':
         return 'Dashboard';
       case 'MyBookings':
+      case 'BookingDetails':
         return 'Bookings';
       case 'TenantHome':
         return 'Explore';
@@ -43,118 +60,128 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
     }
   };
 
-  // Use route-based active tab instead of prop-based
   const activeTab = getActiveTabFromRoute(currentRouteName);
 
   const handleTabPress = (tab) => {
-    // Prevent multiple rapid clicks
     if (isNavigating) return;
-
-    // Don't navigate if already on the same tab
     if (activeTab === tab.id) return;
 
-    // Check authentication requirements
     if (isGuest) {
-      // Dashboard and Bookings require authentication
-      if (tab.id === 'Dashboard' || tab.id === 'Bookings') {
-        if (onAuthRequired) {
-          onAuthRequired();
-        }
-        return;
-      }
-      // Messages require authentication
-      if (tab.id === 'Messages') {
-        if (onAuthRequired) {
-          onAuthRequired();
-        }
+      if (tab.id === 'Dashboard' || tab.id === 'Bookings' || tab.id === 'Messages') {
+        if (onAuthRequired) onAuthRequired();
         return;
       }
     }
-    
-    if (onTabPress) {
-      onTabPress(tab.id);
-    }
-    
+
+    if (onTabPress) onTabPress(tab.id);
+
     setIsNavigating(true);
-    
-    // Navigate to the route
-    navigation.navigate(tab.route);
-    
-    // Reset navigating state after a short delay
-    setTimeout(() => {
-      setIsNavigating(false);
-    }, 300);
+    // Navigate into the nested Main stack so child stack handles the screen
+    navigation.navigate('Main', { screen: tab.route });
+
+    setTimeout(() => setIsNavigating(false), 300);
   };
 
+  const fabTab = tabs.find(t => t.id === 'Explore');
+
   return (
-    <View style={[styles.bottomNav, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-      {/* Floating menu button to open global MenuDrawer modal */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate('MenuModal')}
-        style={{ position: 'absolute', left: 12, top: -28, zIndex: 999 }}
+    <View style={{ backgroundColor: theme.colors.surface, position: 'relative', paddingBottom: insets.bottom }}>
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+            height: 60,
+            paddingVertical: 0,
+            paddingBottom: 0,
+            alignItems: 'center',
+          },
+        ]}
       >
-        <Ionicons name="menu" size={28} color={theme.colors.textTertiary} />
-      </TouchableOpacity>
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.id;
-        
-        // Special handling for Explore tab (FAB)
-        if (tab.id === 'Explore') {
-          return (
-            <View key={tab.id} style={styles.fabContainer}>
-              <TouchableOpacity
-                style={[styles.fabButton, { backgroundColor: theme.colors.primary }]}
-                onPress={() => handleTabPress(tab)}
-                disabled={isNavigating}
-              >
-                <Ionicons
-                  name={isActive ? tab.icon : `${tab.icon}-outline`}
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-              <Text
-                style={[
-                  styles.tabLabel,
-                  {
-                    color: isActive ? theme.colors.primary : theme.colors.textTertiary,
-                    fontWeight: isActive ? '600' : '400',
-                  },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </View>
-          );
-        }
-        
-        // Regular tabs
-        return (
+        {/* Render tabs with a center placeholder so FAB has an empty slot */}
+        {(() => {
+          const nonFab = tabs.filter(t => t.id !== 'Explore');
+          const slots = nonFab.length + 1; // +1 for placeholder slot
+          const centerIndex = Math.floor(slots / 2);
+          const items = [];
+          let ni = 0;
+          for (let i = 0; i < slots; i++) {
+            if (i === centerIndex) {
+              // placeholder should not block touches; allow touches to pass through
+              items.push(
+                <View key="placeholder" style={[styles.tabButton, { height: '100%' }]} pointerEvents="none" />
+              );
+            } else {
+              const tab = nonFab[ni++];
+              const isTabActive = activeTab === tab.id;
+              items.push(
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[styles.tabButton, { height: '100%', justifyContent: 'center' }]}
+                  onPress={() => handleTabPress(tab)}
+                  disabled={isNavigating}
+                >
+                  <Ionicons
+                    name={isTabActive ? tab.icon : `${tab.icon}-outline`}
+                    size={24}
+                    color={isTabActive ? theme.colors.primary : theme.colors.textTertiary}
+                  />
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      {
+                        color: isTabActive ? theme.colors.primary : theme.colors.textTertiary,
+                        fontWeight: isTabActive ? '600' : '400',
+                      },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }
+          }
+          return items;
+        })()}
+      </View>
+
+      {/* FAB: absolutely positioned centered above the bottom bar */}
+      {fabTab ? (
+        // allow touches to pass through this overlay except for its children (the FAB)
+        <View 
+          pointerEvents="box-none" 
+          style={{ 
+            position: 'absolute', 
+            left: 0, 
+            right: 0, 
+            bottom: insets.bottom + 10,
+            zIndex: 30, 
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            height: 100,
+          }}
+        >
           <TouchableOpacity
-            key={tab.id}
-            style={styles.tabButton}
-            onPress={() => handleTabPress(tab)}
+            style={[styles.fabButton, { backgroundColor: theme.colors.primary, marginBottom: 0 }]}
+            onPress={() => handleTabPress(fabTab)}
             disabled={isNavigating}
           >
-            <Ionicons
-              name={isActive ? tab.icon : `${tab.icon}-outline`}
-              size={24}
-              color={isActive ? theme.colors.primary : theme.colors.textTertiary}
-            />
-            <Text
-              style={[
-                styles.tabLabel,
-                {
-                  color: isActive ? theme.colors.primary : theme.colors.textTertiary,
-                  fontWeight: isActive ? '600' : '400',
-                },
-              ]}
-            >
-              {tab.label}
-            </Text>
+            <Ionicons name={activeTab === fabTab.id ? fabTab.icon : `${fabTab.icon}-outline`} size={28} color="#fff" />
           </TouchableOpacity>
-        );
-      })}
+          <Text
+            style={{
+              ...styles.tabLabel,
+              color: activeTab === fabTab.id ? theme.colors.primary : theme.colors.textTertiary,
+              fontWeight: activeTab === fabTab.id ? '600' : '400',
+              textAlign: 'center',
+              marginTop: 4,
+            }}
+          >
+            {fabTab.label}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }

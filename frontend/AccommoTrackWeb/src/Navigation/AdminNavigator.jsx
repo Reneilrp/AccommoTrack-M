@@ -3,7 +3,9 @@ import { SidebarProvider } from '../contexts/SidebarContext.jsx';
 import AdminLayout from '../components/Layout/AdminLayout.jsx';
 import AdminDashboard from '../screens/Admin/AdminDashboard.jsx';
 import UserManagement from '../screens/Admin/UserManagement.jsx';
+import InquiryManagement from '../screens/Admin/InquiryManagement.jsx';
 import Approvals from '../screens/Admin/Approvals.jsx';
+import Reports from '../screens/Admin/Reports.jsx';
 
 export default function AdminNavigator({ user, onLogout }) {
   return (
@@ -30,6 +32,22 @@ export default function AdminNavigator({ user, onLogout }) {
           element={
             <AdminLayout user={user} onLogout={onLogout}>
               <Approvals />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <AdminLayout user={user} onLogout={onLogout}>
+              <Reports />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/inquiries"
+          element={
+            <AdminLayout user={user} onLogout={onLogout}>
+              <InquiryManagement />
             </AdminLayout>
           }
         />
