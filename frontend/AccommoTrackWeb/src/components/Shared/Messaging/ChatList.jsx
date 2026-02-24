@@ -34,8 +34,8 @@ const ChatList = ({
   });
 
   return (
-    <div className="w-full h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="w-full h-full bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 flex flex-col overflow-hidden">
+      <div className="p-4 border-b border-gray-300 dark:border-gray-700">
         {/* Search and Filter Row */}
         <div className="flex gap-2 mb-2">
           <div className="relative flex-1">
@@ -67,7 +67,7 @@ const ChatList = ({
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
+          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Filters</span>
               {activeFiltersCount > 0 && (
@@ -103,7 +103,7 @@ const ChatList = ({
         )}
 
         {caretakerMessagingRestricted && (
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2 text-amber-800 text-sm">
+          <div className="mt-3 p-3 bg-amber-50 border border-gray-300 rounded-lg flex gap-2 text-amber-800 text-sm">
             <AlertTriangle className="w-4 h-4 mt-0.5" />
             <p>Read-only access.</p>
           </div>
@@ -112,7 +112,7 @@ const ChatList = ({
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="divide-y divide-gray-300 dark:divide-gray-700">
             {[...Array(6)].map((_, i) => (
               <SkeletonConversation key={i} />
             ))}
@@ -127,7 +127,7 @@ const ChatList = ({
             <button
               key={conv.id}
               onClick={() => setSelectedChat(conv)}
-              className={`w-full p-4 flex items-start gap-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+              className={`w-full p-4 flex items-start gap-3 border-b border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
                 selectedChat?.id === conv.id ? 'bg-green-50 dark:bg-green-900/30' : ''
               }`}
             >

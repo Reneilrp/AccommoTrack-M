@@ -20,26 +20,26 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto z-10">
-        <div className="flex items-start justify-between p-4 border-b border-gray-100">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto z-10">
+        <div className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{room.title || `Room ${room.room_number}`}</h3>
-            <p className="text-sm text-gray-500">{room.type_label || room.room_type} {room.floor_label ? `• ${room.floor_label}` : ''}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{room.type_label || room.room_type} {room.floor_label ? `• ${room.floor_label}` : ''}</p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowActivity(s => !s)}
-              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} 
+              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`} 
               title="Activity logs"
               aria-pressed={showActivity}
             >
-              <List className={`w-4 h-4 ${showActivity ? 'text-white' : 'text-gray-600'}`} />
+              <List className={`w-4 h-4 ${showActivity ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`} />
               <span className="text-sm">Activity</span>
             </button>
 
-            <button onClick={onClose} className="p-2 rounded-md hover:bg-gray-50">
-              <X className="w-5 h-5 text-gray-600" />
+            <button onClick={onClose} className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
           </div>
         </div>
@@ -49,7 +49,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
               Age, Contact No., Payments, Due Day, Extension */}
           <div className="mb-4">
             {/* Header row for md+ */}
-            <div className="hidden md:grid grid-cols-4 gap-3 text-xs text-gray-500 mb-2 px-1">
+            <div className="hidden md:grid grid-cols-4 gap-3 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">
               <div>Tenant Name</div>
               <div>Contact No.</div>
               <div>Payments</div>
@@ -57,13 +57,13 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
             </div>
 
             {tenants.length === 0 ? (
-              <div className="text-sm text-gray-500">No tenant assigned.</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">No tenant assigned.</div>
             ) : (
               <div className="space-y-2">
                 {tenants.map((t, i) => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center bg-gray-50 p-3 rounded-md border border-gray-100">
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-100 dark:border-gray-700">
                     <div>
-                      <div className="text-xs text-gray-500 md:hidden">Tenant Name</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Tenant Name</div>
                       <button
                         onClick={() => {
                           const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
@@ -75,20 +75,20 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                             navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
                           }
                         }}
-                        className="font-medium text-gray-800 text-left hover:underline"
+                        className="font-medium text-gray-800 dark:text-white text-left hover:underline"
                       >
                         {t.name || `${t.first_name ? `${t.first_name} ${t.last_name}` : t}`}
                       </button>
-                      {t.email && <div className="text-sm text-gray-500 hidden md:block">{t.email}</div>}
+                      {t.email && <div className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">{t.email}</div>}
                     </div>
 
                     <div>
-                      <div className="text-xs text-gray-500 md:hidden">Contact No.</div>
-                      <div className="font-medium text-gray-800">{t.phone || t.contact || '—'}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Contact No.</div>
+                      <div className="font-medium text-gray-800 dark:text-gray-200">{t.phone || t.contact || '—'}</div>
                     </div>
 
                     <div>
-                      <div className="text-xs text-gray-500 md:hidden">Payments</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Payments</div>
                       <button
                         onClick={() => {
                           const tenantId = t?.id || t?.tenant_id || t?.tenantId || t?.user_id || t?.user?.id || null;
@@ -99,14 +99,14 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                             navigate(`/tenants/logs?search=${encodeURIComponent(displayName)}`);
                           }
                         }}
-                        className="font-medium text-gray-800 hover:underline text-left"
+                        className="font-medium text-gray-800 dark:text-gray-200 hover:underline text-left"
                       >
                         {room.monthly_rate ? `₱${Number(room.monthly_rate).toLocaleString()}` : (room.daily_rate ? `₱${Number(room.daily_rate).toLocaleString()}` : '—')}
                       </button>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="text-xs text-gray-500 md:hidden">Extension</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Extension</div>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -119,7 +119,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                             const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
                             setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
                           }}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded-md"
+                          className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                           aria-label="Extension days"
                         />
                           <button
@@ -175,16 +175,16 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
           {/* Activity panel (shown when activity button clicked) */}
           {showActivity && (
             <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-800 mb-2">Activity Logs</h4>
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Activity Logs</h4>
               {activity.length === 0 ? (
-                <p className="text-sm text-gray-500">No activity recorded for this room.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">No activity recorded for this room.</p>
               ) : (
                 <ul className="space-y-2">
                   {activity.map((a, i) => (
-                    <li key={i} className="p-3 bg-gray-50 rounded-md border border-gray-100">
-                      <div className="text-sm text-gray-800 font-medium">{a.title || a.action || 'Activity'}</div>
-                      <div className="text-xs text-gray-500">{a.by || a.user || 'System'} — {a.created_at || a.time || ''}</div>
-                      {a.details && <div className="mt-1 text-sm text-gray-700">{a.details}</div>}
+                    <li key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-100 dark:border-gray-700">
+                      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{a.title || a.action || 'Activity'}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{a.by || a.user || 'System'} — {a.created_at || a.time || ''}</div>
+                      {a.details && <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{a.details}</div>}
                     </li>
                   ))}
                 </ul>

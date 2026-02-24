@@ -475,8 +475,8 @@ export const SkeletonWallet = () => (
     </div>
 
     {/* Payment History skeleton: container matches TenantWallet structure exactly */}
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600">
-      <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="w-48 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
 
         <div className="flex items-center gap-2">
