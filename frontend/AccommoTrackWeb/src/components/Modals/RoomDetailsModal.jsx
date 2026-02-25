@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Calendar, Check, Info, Users, BedDouble, DollarSign, Layers, Shield, ArrowLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import bookingServiceDefault from '../../services/bookingService';
 
@@ -120,7 +121,7 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
     }
 
     if (!startDate || !endDate) {
-      alert('Please select both check-in and check-out dates.');
+      toast.error('Please select both check-in and check-out dates.');
       return;
     }
 
@@ -129,7 +130,7 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
     today.setHours(0, 0, 0, 0);
 
     if (start < today) {
-      alert('Check-in date cannot be in the past.');
+      toast.error('Check-in date cannot be in the past.');
       return;
     }
 
@@ -140,7 +141,7 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
 
     if (startMonth !== currentMonth || startYear !== currentYear) {
       if (!isStartWithinCurrentMonth(startDate)) {
-        alert('Check-in must be within the current month.');
+        toast.error('Check-in must be within the current month.');
         return;
       }
     }
@@ -178,7 +179,7 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
     } catch (error) {
       console.error('Booking failed', error?.response?.data || error);
       const errMsg = error?.response?.data?.message || error?.message || 'Failed to submit booking request.';
-      alert(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }

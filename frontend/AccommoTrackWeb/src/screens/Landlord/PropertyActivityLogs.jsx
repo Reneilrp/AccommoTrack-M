@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen, onClose }) {
@@ -91,7 +91,7 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === f 
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filter === f 
                   ? 'bg-green-600 text-white shadow-md shadow-green-500/20' 
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
@@ -119,7 +119,7 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
                     <div className="flex-1 min-w-0">
                       <div className="text-sm text-gray-800 dark:text-gray-200 font-bold leading-tight">{a.title || a.action || a.type || 'Activity'}</div>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
                           {a.by || a.user || a.actor || 'System'}
                         </span>
                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
@@ -129,7 +129,7 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
                       {a.details && <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic border-l-2 border-gray-200 dark:border-gray-700 pl-3">{a.details}</div>}
                     </div>
                     {a.amount_cents || a.amount ? (
-                      <div className="text-sm font-black text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-lg border border-green-100 dark:border-green-900/30">
+                      <div className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-lg border border-green-100 dark:border-green-900/30">
                         {a.amount ? a.amount : `₱${Number(a.amount_cents || 0) / 100}`}
                       </div>
                     ) : null}

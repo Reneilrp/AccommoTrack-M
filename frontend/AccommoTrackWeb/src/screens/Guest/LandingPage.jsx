@@ -41,22 +41,23 @@ const LandingPage = ({ user }) => {
       
       {/* --- HEADER (Sticky + Glassmorphism) --- */}
       <header className="sticky top-0 z-50 w-full transition-all duration-300 border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-sm">
-        {/* Changed w-[90%] to w-full px-4 for better edge spacing on mobile */}
-        <div className="relative w-full max-w-7xl mx-auto h-[72px] px-4 md:px-8 flex items-center justify-between">
+        {/* Reduced height on mobile (h-14) vs desktop (h-18) */}
+        <div className="relative w-full max-w-7xl mx-auto h-14 md:h-18 px-4 md:px-8 flex items-center justify-between">
           
           {/* Left: Logo (Icon only on Mobile/Tablet, Icon+Text on Desktop) */}
           <div className="flex items-center flex-none z-20">
             <a 
               href="#top" 
-              className="flex items-center gap-2 no-underline group"
+              className="flex items-center gap-1.5 md:gap-2 no-underline group"
               onClick={e => { 
                 e.preventDefault(); 
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
-              <img src={logo} alt="AccommoTrack Logo" className="h-10 w-10 transition-transform group-hover:rotate-12" />
+              {/* Scaled down logo on mobile */}
+              <img src={logo} alt="AccommoTrack Logo" className="h-7 w-7 md:h-10 md:w-10 transition-transform group-hover:rotate-12" />
               {/* Text hidden on mobile/tablet (lg:block) */}
-              <span className="hidden lg:block font-black text-[28px] no-scale tracking-tighter text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-500 transition-colors">
+              <span className="hidden lg:block font-black text-xl xl:text-2xl no-scale tracking-tighter text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-500 transition-colors">
                 AccommoTrack
               </span>
             </a>
@@ -64,7 +65,7 @@ const LandingPage = ({ user }) => {
 
           {/* Center Mobile/Tablet: Text Title (Absolute Center) */}
           <div className="lg:hidden absolute left-0 right-0 top-1/2 transform -translate-y-1/2 z-10 text-center pointer-events-none">
-             <span className="font-black text-[28px] no-scale tracking-tighter text-gray-900 dark:text-white pointer-events-auto">
+             <span className="font-black text-lg md:text-2xl no-scale tracking-tighter text-gray-900 dark:text-white pointer-events-auto">
                 AccommoTrack
              </span>
           </div>
@@ -75,7 +76,7 @@ const LandingPage = ({ user }) => {
               <a 
                 key={item}
                 href={`#${item.toLowerCase()}`}
-                className="px-5 py-2 rounded-full text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all duration-200"
+                className="px-4 py-1.5 rounded-full text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all duration-200"
                 onClick={e => { 
                   e.preventDefault(); 
                   document.getElementById(item.toLowerCase()).scrollIntoView({ behavior: 'smooth' }); 
@@ -87,19 +88,19 @@ const LandingPage = ({ user }) => {
           </nav>
 
           {/* Right: Login + Burger Menu */}
-          <div className="flex items-center gap-2 flex-none relative z-20">
+          <div className="flex items-center gap-1.5 md:gap-2 flex-none relative z-20">
             {/* Sign In Button - Hidden on mobile/tablet (lg:flex) */}
             {user ? (
                <a 
                 href="/dashboard" 
-                className="hidden lg:flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
+                className="hidden lg:flex items-center justify-center px-5 py-2 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
               >
                 Dashboard
               </a>
             ) : (
               <a 
                 href="/login" 
-                className="hidden lg:flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
+                className="hidden lg:flex items-center justify-center px-5 py-2 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
               >
                 Sign in
               </a>
@@ -118,21 +119,21 @@ const LandingPage = ({ user }) => {
             {/* Theme Toggle - Hidden on mobile/tablet, shown only on desktop (lg:flex) */}
             <button
               onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}
-              className={`hidden lg:inline-flex relative h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+              className={`hidden lg:inline-flex relative h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
                 effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-green-100'
               }`}
               title={`Switch to ${effectiveTheme === 'dark' ? 'light' : 'dark'} mode`}
             >
               <span className="sr-only">Toggle theme</span>
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center ${
-                  effectiveTheme === 'dark' ? 'translate-x-9' : 'translate-x-1'
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center ${
+                  effectiveTheme === 'dark' ? 'translate-x-8' : 'translate-x-1'
                 }`}
               >
                 {effectiveTheme === 'dark' ? (
-                  <Moon className="w-3.5 h-3.5 text-gray-700" />
+                  <Moon className="w-3 h-3 text-gray-700" />
                 ) : (
-                  <Sun className="w-3.5 h-3.5 text-orange-500" />
+                  <Sun className="w-3 h-3 text-orange-500" />
                 )}
               </span>
             </button>
@@ -179,11 +180,11 @@ function BurgerMenu({ user, theme, setTheme, effectiveTheme }) {
   return (
     <div className="relative" ref={menuRef}>
       <button
-        className="ml-2 flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm"
+        className="ml-1 md:ml-2 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm"
         aria-label="Menu"
         onClick={() => setOpen((v) => !v)}
       >
-        <Menu className="w-6 h-6" />
+        <Menu className="w-5 h-5 md:w-6 md:h-6" />
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 animate-fade-in overflow-hidden">

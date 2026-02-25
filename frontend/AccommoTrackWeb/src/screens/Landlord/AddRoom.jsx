@@ -590,11 +590,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-        {error && (
-          <div className="px-4 py-2 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
-            {error}
-          </div>
-        )}
         {successMessage && (
           <div className="px-4 py-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
             {successMessage}
@@ -602,10 +597,13 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
         )}
         {/* Basic Information */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Basic Information</h3>
-            {/* For dormitory/boarding properties the Room Type select will include
-                both Single and Bed Spacer options. No separate toggle is needed. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white shrink-0">Basic Information</h3>
+            {(error || Object.keys(fieldErrors).length > 0) && (
+              <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                {Object.values(fieldErrors).join(' • ') || (error !== 'Please fix highlighted errors' ? error : '')}
+              </p>
+            )}
           </div>
 
           {/* Row 2: Room Number | Floor | Room Type */}
@@ -620,11 +618,8 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   ref={roomNumberRef}
                   value={formData.roomNumber}
                   onChange={(e) => handleInputChange('roomNumber', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.roomNumber ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                 />
-                {fieldErrors.roomNumber && (
-                  <p className="text-sm text-red-600 mt-1">{fieldErrors.roomNumber}</p>
-                )}
             </div>
 
             <div>
@@ -687,14 +682,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   ref={monthlyRateRef}
                   value={formData.monthlyRate}
                   onChange={(e) => handleInputChange('monthlyRate', e.target.value)}
-                  className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${formData.billingPolicy === 'daily' ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
+                  className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${formData.billingPolicy === 'daily' ? 'bg-gray-50 dark:bg-gray-600' : ''} ${fieldErrors.monthlyRate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   min="0"
                   step="0.01"
                   disabled={formData.billingPolicy === 'daily'}
                 />
-                {fieldErrors.monthlyRate && (
-                  <p className="text-sm text-red-600 mt-1">{fieldErrors.monthlyRate}</p>
-                )}
             </div>
 
             <div>
@@ -710,14 +702,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                   ref={dailyRateRef}
                   value={formData.dailyRate}
                   onChange={(e) => handleInputChange('dailyRate', e.target.value)}
-                  className={`w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50 dark:bg-gray-600' : ''}`}
+                  className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily') ? 'bg-gray-50 dark:bg-gray-600' : ''} ${fieldErrors.dailyRate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   min="0"
                   step="0.01"
                   disabled={!(formData.billingPolicy === 'daily' || formData.billingPolicy === 'monthly_with_daily')}
                 />
-                {fieldErrors.dailyRate && (
-                  <p className="text-sm text-red-600 mt-1">{fieldErrors.dailyRate}</p>
-                )}
             </div>
           </div>
 
@@ -730,7 +719,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                 placeholder="e.g., 30"
                 value={formData.minStayDays}
                 onChange={(e) => handleInputChange('minStayDays', e.target.value)}
-                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.minStayDays ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                 min="1"
                 step="1"
               />
@@ -757,14 +746,11 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
                       ref={capacityRef}
                       value={displayValue}
                       onChange={(e) => { if (!capacityDisabled) handleInputChange('capacity', e.target.value); }}
-                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${capacityDisabled ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''}`}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${capacityDisabled ? 'bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : ''} ${fieldErrors.capacity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                       min="1"
                       max="10"
                       disabled={capacityDisabled}
                     />
-                    {fieldErrors.capacity && (
-                      <p className="text-sm text-red-600 mt-1">{fieldErrors.capacity}</p>
-                    )}
                   </>
                 );
               })()}
@@ -792,9 +778,6 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             </p>
             
             <div className="space-y-2">
-                  {fieldErrors.minStayDays && (
-                    <p className="text-sm text-red-600 mt-1">{fieldErrors.minStayDays}</p>
-                  )}
               {/* Full Room Price - NOT shown for bedSpacer */}
               {formData.roomType !== 'bedSpacer' && (
                 <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
@@ -963,11 +946,18 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
           )}
         </div>
 
-        {/* Images */}
+          {/* Images */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Room Images</h3>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white shrink-0">Room Images</h3>
+            {fieldErrors.images && (
+              <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                {fieldErrors.images}
+              </p>
+            )}
+          </div>
           
-          <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
+          <div className={`border-2 border-dashed rounded-lg p-6 ${fieldErrors.images ? 'border-red-500 bg-red-50/10' : 'border-gray-300 dark:border-gray-600'}`}>
             <input
               type="file"
               multiple

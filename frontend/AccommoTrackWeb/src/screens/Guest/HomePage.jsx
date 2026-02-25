@@ -127,23 +127,23 @@ const HomePage = ({ onGetStarted }) => {
           </div>
         )} */}
 
-        <section className="min-h-[calc(100vh-72px)] w-full flex flex-col items-center px-6 max-w-7xl mx-auto relative overflow-hidden py-12 md:py-0">
+        <section className="min-h-[calc(100vh-56px)] md:min-h-[calc(100vh-72px)] w-full flex flex-col items-center px-6 max-w-7xl mx-auto relative overflow-hidden py-8 md:py-0">
           
           {/* Main Hero Content - Dynamic Centering */}
-          <div data-aos="fade-up" className="flex-1 flex flex-col items-center justify-center text-center max-w-[900px] z-10 w-full py-12 md:py-16">
-            <h1 className="no-scale text-[clamp(40px,6vw,72px)] font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
+          <div data-aos="fade-up" className="flex-1 flex flex-col items-center justify-center text-center max-w-[900px] z-10 w-full py-8 md:py-16">
+            <h1 className="no-scale text-[clamp(32px,8vw,64px)] lg:text-7xl font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
               Find Your Next <br className="md:hidden" />
               Home <span className="md:hidden no-scale text-[0.7em] opacity-90 font-bold">in</span> <br className="hidden md:block" />
-              <span className="no-scale text-green-600 inline-block mb-[15px] md:mb-[25px]">
+              <span className="no-scale text-green-600 inline-block mb-[10px] md:mb-[20px]">
                 <span className="hidden md:inline no-scale text-[0.7em] text-gray-500 dark:text-gray-400 font-bold">in </span>Zamboanga City.
               </span>
             </h1>
-            <p className="text-base md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-10 md:mb-12 leading-relaxed">
+            <p className="text-sm md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-8 md:mb-12 leading-relaxed">
               Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-md mx-auto">
-              <button onClick={onGetStarted} className="flex items-center justify-center gap-2 bg-green-600 text-white px-8 py-4 text-lg font-bold rounded-xl shadow-lg shadow-green-600/20 transition-all duration-200 hover:scale-105 hover:bg-green-700 hover:shadow-green-600/30">
-                Browse Properties <Search className="w-5 h-5" />
+            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-md mx-auto">
+              <button onClick={onGetStarted} className="flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg shadow-green-600/20 transition-all duration-200 hover:scale-105 hover:bg-green-700 hover:shadow-green-600/30">
+                Browse Properties <Search className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>

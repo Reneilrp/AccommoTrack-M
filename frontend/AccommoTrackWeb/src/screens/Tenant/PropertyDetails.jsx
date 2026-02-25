@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
 import {
   MapPin,
   Star,
@@ -68,7 +69,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // Contact Landlord handler
   const handleContactLandlord = () => {
     if (!isAuthenticated) {
-      alert("Please login to contact the landlord.");
+      toast.error("Please login to contact the landlord.", {
+        position: 'top-center',
+        duration: 4000,
+      });
       return;
     }
     
@@ -76,7 +80,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
     
     if (!landlordId) {
       console.error("Landlord ID missing", property);
-      alert("Cannot contact landlord: Owner information is missing.");
+      toast.error("Cannot contact landlord: Owner information is missing.", {
+        position: 'top-center',
+      });
       return;
     }
 
@@ -494,6 +500,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
+      <Toaster />
       {/* HEADER */}
       <div className="relative w-full h-[350px] md:h-[450px]">
         <img
@@ -507,9 +514,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
           <div className="mt-4 flex justify-between items-start">
             <button 
               onClick={onBack} 
-              className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white p-2 rounded-full transition-all"
+              className="z-[10] bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 text-gray-900 dark:text-white p-2.5 rounded-full transition-all shadow-lg border border-gray-200 dark:border-gray-700 group"
+              aria-label="Go back"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6 text-green-600 group-hover:scale-110 transition-transform" />
             </button>
             
             {/* Contact Landlord Button */}

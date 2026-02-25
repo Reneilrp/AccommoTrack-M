@@ -21,7 +21,7 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
+    <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
       <div className="relative h-48">
         {url ? (
           <img src={url} className="w-full h-full object-cover" alt={`room-${room.id}`} />

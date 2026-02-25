@@ -6,7 +6,8 @@ backend/vendor/
 .env
 .env.local
 .env.production
-
+.env.staging
+.env.example
 # Build outputs
 .next/
 dist/

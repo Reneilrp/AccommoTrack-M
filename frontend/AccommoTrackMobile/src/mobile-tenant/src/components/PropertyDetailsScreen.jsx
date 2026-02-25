@@ -410,14 +410,38 @@ export default function PropertyDetailsScreen({ route }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, backgroundColor: theme.colors.primary, borderBottomWidth: 0.5, borderBottomColor: theme.colors.primary }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse || '#fff'} />
+      <View style={{ 
+        height: 56, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 12, 
+        backgroundColor: theme.colors.primary, 
+        borderBottomWidth: 0.5, 
+        borderBottomColor: 'rgba(0,0,0,0.1)' 
+      }}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={{ 
+            padding: 10, 
+            marginRight: 10,
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={26} color="#ffffff" />
         </TouchableOpacity>
 
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: theme.colors.textInverse || '#fff' }}>Property Details</Text>
-
-        <View style={{ width: 40 }} />
+        <Text style={{ 
+          flex: 1, 
+          textAlign: 'center', 
+          fontSize: 18, 
+          fontWeight: '700', 
+          color: '#ffffff',
+          marginRight: 46 // Offset for the back button to center title
+        }}>
+          Property Details
+        </Text>
       </View>
 
       <ScrollView
