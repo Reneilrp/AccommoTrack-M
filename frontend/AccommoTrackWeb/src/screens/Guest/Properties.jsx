@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import PropertyCarousel from '../Tenant/PropertyCarousel';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import { propertyService } from '../../services/propertyServices';
+import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 
 // --- ROO DETAILS MODAL COMPONENT ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -206,18 +207,7 @@ const Properties = () => {
         ? fullProperty.rooms.find(r => r.id === room.id)
         : null;
       setSelectedRoomData({
-        room: fullRoom ? {
-          id: fullRoom.id,
-          name: fullRoom.room_type || fullRoom.type_label || 'Room',
-          image: fullRoom.images && fullRoom.images.length > 0 ? fullRoom.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
-          price: fullRoom.monthly_rate || 0,
-          status: fullRoom.status ? (fullRoom.status.charAt(0).toUpperCase() + fullRoom.status.slice(1)) : 'Available',
-          size: fullRoom.size || '',
-          capacity: fullRoom.capacity ? `${fullRoom.capacity} Person${fullRoom.capacity > 1 ? 's' : ''}` : '',
-          description: fullRoom.description || '',
-          amenities: fullRoom.amenities || [],
-          rules: fullRoom.rules || [],
-        } : room,
+        room: fullRoom ? mapRoom(fullRoom) : room,
         property: {
           id: fullProperty.id,
           name: fullProperty.title || fullProperty.name,
@@ -242,32 +232,6 @@ const Properties = () => {
   const handlePropertyClick = (propertyId) => {
     navigate(`/property/${propertyId}`);
   };
-
-  // Helper: Map backend room to UI room
-  const mapRoom = (room) => ({
-    id: room.id,
-    name: room.room_type || room.type_label || 'Room',
-    image: getImageUrl(room.images && room.images.length > 0 ? room.images[0] : null) || 'https://via.placeholder.com/400x200?text=No+Image',
-    price: room.monthly_rate || 0,
-    status: room.status ? (room.status.charAt(0).toUpperCase() + room.status.slice(1)) : 'Available',
-    reserved_by_me: room.reserved_by_me || false,
-    reservation: room.reservation || null,
-    size: room.size || '',
-    capacity: room.capacity ? `${room.capacity} Person${room.capacity > 1 ? 's' : ''}` : '',
-    description: room.description || '',
-    amenities: room.amenities || [],
-    rules: room.rules || [],
-  });
-
-  // Helper: Map backend property to UI property
-  const mapProperty = (property) => ({
-    id: property.id,
-    name: property.title || property.name,
-    location: property.full_address || property.city || '',
-    description: property.description || '',
-    rating: property.rating || null, // If available
-    rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom) : [],
-  });
 
   return (
     <>
