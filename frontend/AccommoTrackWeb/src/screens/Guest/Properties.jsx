@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PropertyCarousel from '../Tenant/PropertyCarousel';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import { propertyService } from '../../services/propertyServices';
 
 // --- ROO DETAILS MODAL COMPONENT ---

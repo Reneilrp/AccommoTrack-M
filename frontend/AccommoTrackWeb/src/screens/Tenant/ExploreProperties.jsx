@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PropertyCarousel from './PropertyCarousel';
 import PropertyMap from '../../components/Shared/PropertyMap';
 import { X, Check, MapPin, Star, Shield, Search, ArrowLeft, ArrowRight, Filter, Map } from 'lucide-react';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import { Skeleton } from '../../components/Shared/Skeleton';
 import { authService } from '../../services/authServices';
 import RoomDetailsModal from '../../components/Modals/RoomDetailsModal';
