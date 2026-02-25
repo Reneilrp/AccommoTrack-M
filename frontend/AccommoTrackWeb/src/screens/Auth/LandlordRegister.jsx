@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Check, 
+  RefreshCw, 
+  ChevronLeft, 
+  AlertCircle,
+  FileText,
+  Upload,
+  X,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 import logo from '../../assets/Logo.png';
 import api, { isCancel } from '../../utils/api';
 
@@ -71,8 +82,23 @@ const LandlordRegister = () => {
     const { name, value, files, type, checked } = e.target;
     if (type === 'checkbox') {
       setForm((prev) => ({ ...prev, [name]: checked }));
-    } else if (files) {
-      setForm((prev) => ({ ...prev, [name]: files[0] }));
+    } else if (files && files[0]) {
+      const file = files[0];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+
+      if (!allowedTypes.includes(file.type)) {
+        setFieldErrors(prev => ({ ...prev, [name]: 'Invalid file type. Only JPG, PNG, and PDF are allowed.' }));
+        return;
+      }
+
+      if (file.size > maxSize) {
+        setFieldErrors(prev => ({ ...prev, [name]: 'File size exceeds 10MB limit.' }));
+        return;
+      }
+
+      setForm((prev) => ({ ...prev, [name]: file }));
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
       // Live behaviors
@@ -189,99 +215,106 @@ const LandlordRegister = () => {
 
   // Step validation
   const validateStep = () => {
+    const errors = {};
+    
     if (step === 1) {
-      const errors = {};
       const nameRegex = /^[\p{L} '\-]+$/u;
 
-      if (!form.firstName) {
+      if (!form.firstName?.trim()) {
         errors.firstName = 'First name is required';
-      } else if (!nameRegex.test(form.firstName)) {
-        errors.firstName = 'First name contains invalid characters';
+      } else if (!nameRegex.test(form.firstName.trim())) {
+        errors.firstName = 'First name contains invalid characters (letters, spaces, hyphens only)';
       }
 
-      if (form.middleName && form.middleName.trim() !== '' && !nameRegex.test(form.middleName)) {
+      if (form.middleName?.trim() && !nameRegex.test(form.middleName.trim())) {
         errors.middleName = 'Middle name contains invalid characters';
       }
 
-      if (!form.lastName) {
+      if (!form.lastName?.trim()) {
         errors.lastName = 'Last name is required';
-      } else if (!nameRegex.test(form.lastName)) {
-        errors.lastName = 'Last name contains invalid characters';
-      }
-
-      setFieldErrors(errors);
-      if (Object.keys(errors).length) {
-        setError('Please fix the highlighted fields');
-        return false;
+      } else if (!nameRegex.test(form.lastName.trim())) {
+        errors.lastName = 'Last name contains invalid characters (letters, spaces, hyphens only)';
       }
     } else if (step === 2) {
-      const errors = {};
       // DOB required + age >= 20
       if (!form.dob) {
         errors.dob = 'Date of birth is required';
       } else {
         const bd = new Date(form.dob);
-        if (isNaN(bd)) {
-          errors.dob = 'Invalid date of birth';
+        if (isNaN(bd.getTime())) {
+          errors.dob = 'Please enter a valid date of birth';
         } else {
           const today = new Date();
           let age = today.getFullYear() - bd.getFullYear();
           const m = today.getMonth() - bd.getMonth();
           if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
-          if (age < 20) errors.dob = 'You must be at least 20 years old to register';
+          
+          if (age < 20) {
+            errors.dob = 'You must be at least 20 years old to register as a landlord';
+          } else if (age > 100) {
+            errors.dob = 'Please enter a valid date of birth';
+          }
         }
       }
 
       // Required email/password
-      if (!form.email) errors.email = 'Email is required';
-      if (!form.password) errors.password = 'Password is required';
-      if (!form.confirmPassword) errors.confirmPassword = 'Please confirm your password';
+      const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+      if (!form.email?.trim()) {
+        errors.email = 'Email address is required';
+      } else if (!emailRegex.test(form.email.trim())) {
+        errors.email = 'Please enter a valid email address';
+      } else if (emailAvailable === false) {
+        errors.email = emailCheckMsg || 'This email is already associated with an account';
+      }
 
-      // Passwords match
-      if (form.password && form.confirmPassword && form.password !== form.confirmPassword) {
+      if (!form.password) {
+        errors.password = 'Password is required';
+      } else {
+        const pwd = form.password;
+        if (pwd.length < 8) errors.password = 'Password must be at least 8 characters';
+        else if (!/[A-Z]/.test(pwd)) errors.password = 'Password must include at least one uppercase letter';
+        else if ((pwd.match(/\d/g) || []).length < 2) errors.password = 'Password must include at least two numbers';
+        else if (!/[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd)) errors.password = 'Password must include at least one special character';
+      }
+
+      if (!form.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (form.password !== form.confirmPassword) {
         errors.confirmPassword = 'Passwords do not match';
       }
 
-      // Password complexity checks
-      const pwd = form.password || '';
-      const pwdChecks = {
-        minLen: pwd.length >= 8,
-        hasUpper: /[A-Z]/.test(pwd),
-        numCount: (pwd.match(/\d/g) || []).length >= 2,
-        hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
-      };
-      setPasswordChecks(pwdChecks);
-      if (!pwdChecks.minLen || !pwdChecks.hasUpper || !pwdChecks.numCount || !pwdChecks.hasSpecial) {
-        errors.password = 'Password does not meet complexity requirements';
-      }
-
       // Phone validation (optional)
-      if (form.phone && form.phone.trim() !== '') {
-        const digits = (form.phone || '').replace(/\D/g, '');
+      if (form.phone?.trim()) {
+        const digits = form.phone.replace(/\D/g, '');
         if (!(digits.length === 11 && digits.startsWith('09'))) {
-          errors.phone = 'Phone must be 11 digits and start with 09';
+          errors.phone = 'Philippine mobile number must be 11 digits starting with 09';
         }
       }
-
-      setFieldErrors(errors);
-      if (Object.keys(errors).length) {
-        setError('Please fix the highlighted fields');
-        return false;
-      }
     } else if (step === 3) {
-      if (!form.validIdType || (form.validIdType === 'other' && !form.validIdOther)) {
-        setError('Please select or specify a valid ID type.');
-        return false;
+      if (!form.validIdType) {
+        errors.validIdType = 'Please select a valid ID type';
+      } else if (form.validIdType === 'other' && !form.validIdOther?.trim()) {
+        errors.validIdOther = 'Please specify the type of ID';
       }
-      if (!form.validId || !form.permit) {
-        setError('Please upload all required documents.');
-        return false;
+      
+      if (!form.validId) {
+        errors.validId = 'Please upload a copy of your valid ID';
+      }
+      if (!form.permit) {
+        errors.permit = 'Please upload your accommodation or business permit';
       }
       if (!form.agree) {
-        setError('You must agree to the terms and conditions.');
-        return false;
+        errors.agree = 'You must agree to the terms and conditions to proceed';
       }
     }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      setError(firstError);
+      return false;
+    }
+    
     setError('');
     return true;
   };
@@ -446,10 +479,16 @@ const LandlordRegister = () => {
           </div>
           <form className="space-y-4" onSubmit={step === 3 ? handleSubmit : handleNext}>
             {error && (
-              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm font-semibold">{error}</div>
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                <span className="text-red-700 dark:text-red-300 text-sm font-medium">{error}</span>
+              </div>
             )}
             {success && (
-              <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg text-green-700 dark:text-green-300 text-sm font-semibold">{success}</div>
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded flex items-center gap-3">
+                <Check className="w-5 h-5 text-green-500 shrink-0" />
+                <span className="text-green-700 dark:text-green-300 text-sm font-medium">{success}</span>
+              </div>
             )}
             {step === 1 && (
               <>
@@ -462,12 +501,12 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.firstName = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.firstName ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                     placeholder="Enter your first name"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.firstName && <div className="text-xs text-red-600 mt-1">{fieldErrors.firstName}</div>}
+                  {fieldErrors.firstName && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.firstName}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
@@ -478,11 +517,11 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.middleName = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.middleName ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                     placeholder="Enter your middle name"
                     disabled={submitting}
                   />
-                  {fieldErrors.middleName && <div className="text-xs text-red-600 mt-1">{fieldErrors.middleName}</div>}
+                  {fieldErrors.middleName && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.middleName}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Last Name <span className="text-red-500">*</span></label>
@@ -493,15 +532,15 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.lastName = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.lastName ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                     placeholder="Enter your last name"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.lastName && <div className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</div>}
+                  {fieldErrors.lastName && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.lastName}</div>}
                 </div>
                 <div className="flex justify-end mt-4">
-                  <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold" onClick={handleNext} disabled={submitting}>Next</button>
+                  <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition shadow-md" onClick={handleNext} disabled={submitting}>Next</button>
                 </div>
               </>
             )}
@@ -538,21 +577,17 @@ const LandlordRegister = () => {
                       }}
                       max={new Date(new Date().getFullYear() - 20, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
                       ref={el => fieldRefs.current.dob = el}
-                      className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer transition-colors ${fieldErrors.dob ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                       required
                       disabled={submitting}
                     />
                   </div>
-                  {fieldErrors.dob && <div className="text-xs text-red-600 mt-1">{fieldErrors.dob}</div>}
+                  {fieldErrors.dob && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.dob}</div>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
-                    <span>Email Address</span>
-                    <span className="text-red-500">*</span>
-                    {(form.email && (emailCheckMsg || (error && error.toLowerCase().includes('email')))) && (
-                      <span className="text-red-400 text-xs font-normal ml-2">{emailCheckMsg ? emailCheckMsg : error}</span>
-                    )}
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center justify-between">
+                    <span>Email Address <span className="text-red-500">*</span></span>
                   </label>
                   <input
                     type="email"
@@ -562,11 +597,13 @@ const LandlordRegister = () => {
                     onBlur={handleEmailBlur}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.email = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.email ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                     placeholder="Enter your email"
                     required
                     disabled={submitting}
                   />
+                  {fieldErrors.email && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.email}</div>}
+                  {emailAvailable === true && !fieldErrors.email && <div className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1 font-medium"><Check size={14}/> Email is available</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Phone Number <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
@@ -581,11 +618,11 @@ const LandlordRegister = () => {
                       // normalize phone on blur
                       setForm(prev => ({ ...prev, phone: (prev.phone || '').replace(/[^0-9]/g, '') }));
                     }}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter your phone number"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.phone ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
+                    placeholder="Enter your phone number (09123456789)"
                     disabled={submitting}
                   />
-                  {fieldErrors.phone && <div className="text-xs text-red-600 mt-1">{fieldErrors.phone}</div>}
+                  {fieldErrors.phone && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.phone}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Password <span className="text-red-500">*</span></label>
@@ -596,21 +633,32 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.password = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                     placeholder="Create a password"
                     required
                     disabled={submitting}
-                    minLength="8"
                   />
                   {form.password && (
-                    <div className="mt-1 text-xs">
-                      {!passwordChecks.minLen && <div className="text-red-600">• Minimum 8 characters</div>}
-                      {!passwordChecks.hasUpper && <div className="text-red-600">• At least one uppercase letter</div>}
-                      {!passwordChecks.numCount && <div className="text-red-600">• At least two numbers</div>}
-                      {!passwordChecks.hasSpecial && <div className="text-red-600">• At least one special character</div>}
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                      <div className={`text-[10px] flex items-center gap-1.5 ${passwordChecks.minLen ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                        {passwordChecks.minLen ? <Check size={10} /> : <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>}
+                        8+ characters
+                      </div>
+                      <div className={`text-[10px] flex items-center gap-1.5 ${passwordChecks.hasUpper ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                        {passwordChecks.hasUpper ? <Check size={10} /> : <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>}
+                        One uppercase letter
+                      </div>
+                      <div className={`text-[10px] flex items-center gap-1.5 ${passwordChecks.numCount ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                        {passwordChecks.numCount ? <Check size={10} /> : <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>}
+                        Two numbers
+                      </div>
+                      <div className={`text-[10px] flex items-center gap-1.5 ${passwordChecks.hasSpecial ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                        {passwordChecks.hasSpecial ? <Check size={10} /> : <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>}
+                        One special character
+                      </div>
                     </div>
                   )}
-                  {fieldErrors.password && <div className="text-xs text-red-600 mt-1">{fieldErrors.password}</div>}
+                  {fieldErrors.password && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.password}</div>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Confirm Password <span className="text-red-500">*</span></label>
@@ -621,17 +669,16 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.confirmPassword = el}
-                    className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500 focus:ring-red-200 dark:focus:ring-red-900/30' : 'border-green-200 dark:border-gray-600 focus:ring-green-200 dark:focus:ring-green-700'}`}
                     placeholder="Confirm your password"
                     required
                     disabled={submitting}
-                    minLength="8"
                   />
-                  {fieldErrors.confirmPassword && <div className="text-xs text-red-600 mt-1">{fieldErrors.confirmPassword}</div>}
+                  {fieldErrors.confirmPassword && <div className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.confirmPassword}</div>}
                 </div>
                 <div className="flex justify-between mt-4">
-                  <button type="button" className="bg-gray-300 dark:bg-gray-600 text-green-800 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
-                  <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold" onClick={handleNext} disabled={submitting}>Next</button>
+                  <button type="button" className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition" onClick={handleBack} disabled={submitting}>Back</button>
+                  <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition shadow-md" onClick={handleNext} disabled={submitting}>Next</button>
                 </div>
               </>
             )}
@@ -640,15 +687,21 @@ const LandlordRegister = () => {
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Valid ID Type <span className="text-red-500">*</span></label>
                   {idTypesLoading ? (
-                    <div className="text-green-700 dark:text-green-400 text-sm">Loading ID types...</div>
+                    <div className="text-green-700 dark:text-green-400 text-sm flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Loading ID types...
+                    </div>
                   ) : idTypesError ? (
-                    <div className="text-red-600 dark:text-red-400 text-sm mb-2">{idTypesError} <button type="button" className="underline" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button></div>
+                    <div className="text-red-600 dark:text-red-400 text-sm mb-2 flex flex-col gap-1">
+                      <span>{idTypesError}</span>
+                      <button type="button" className="text-green-700 dark:text-green-400 underline self-start text-xs font-bold" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button>
+                    </div>
                   ) : (
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => !submitting && setIsIdDropdownOpen(!isIdDropdownOpen)}
-                        className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-left flex justify-between items-center"
+                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-left flex justify-between items-center transition-colors ${fieldErrors.validIdType ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                         disabled={submitting}
                       >
                         <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-400 dark:text-gray-500"}>
@@ -674,6 +727,8 @@ const LandlordRegister = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
+                      {fieldErrors.validIdType && <div className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.validIdType}</div>}
+                      
                       {isIdDropdownOpen && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
@@ -699,6 +754,7 @@ const LandlordRegister = () => {
                                 onClick={() => {
                                   setForm(prev => ({ ...prev, validIdType: option.value }));
                                   setIsIdDropdownOpen(false);
+                                  setFieldErrors(prev => ({ ...prev, validIdType: '' }));
                                   setError('');
                                 }}
                               >
@@ -721,11 +777,13 @@ const LandlordRegister = () => {
                                         onChange={handleChange}
                                         onKeyDown={handleKeyDown}
                                         ref={el => fieldRefs.current.validIdOther = el}
-                                        className="w-full px-4 py-3 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
                                         placeholder="Enter your ID type"
                                         required
                                         disabled={submitting}
-                                      />                  </div>
+                                      />
+                                      {fieldErrors.validIdOther && <div className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.validIdOther}</div>}
+                  </div>
                 )}
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Valid ID <span className="text-red-500">*</span></label>
@@ -736,7 +794,7 @@ const LandlordRegister = () => {
                       accept="image/*,.pdf"
                       onChange={handleChange}
                       ref={el => { fileInputRefs.current.validId = el; }}
-                      className="w-full pr-20 px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className={`w-full pr-20 px-2 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validId ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
                       required={!form.validId}
                       disabled={submitting}
                     />
@@ -748,6 +806,7 @@ const LandlordRegister = () => {
                           onClick={() => {
                             try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (e) {}
                             setForm(prev => ({ ...prev, validId: null }));
+                            setFieldErrors(prev => ({ ...prev, validId: '' }));
                           }}
                           disabled={submitting}
                         >
@@ -756,6 +815,8 @@ const LandlordRegister = () => {
                       </div>
                     )}
                   </div>
+                  {fieldErrors.validId && <div className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.validId}</div>}
+                  <p className="text-[10px] text-gray-500 mt-1">Max 10MB (JPG, PNG, PDF)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Accommodation/Business Permit <span className="text-red-500">*</span></label>
@@ -766,7 +827,7 @@ const LandlordRegister = () => {
                       accept="image/*,.pdf"
                       onChange={handleChange}
                       ref={el => { fileInputRefs.current.permit = el; }}
-                      className="w-full pr-20 px-2 py-2 border border-green-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className={`w-full pr-20 px-2 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.permit ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
                       required={!form.permit}
                       disabled={submitting}
                     />
@@ -778,6 +839,7 @@ const LandlordRegister = () => {
                           onClick={() => {
                             try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (e) {}
                             setForm(prev => ({ ...prev, permit: null }));
+                            setFieldErrors(prev => ({ ...prev, permit: '' }));
                           }}
                           disabled={submitting}
                         >
@@ -786,28 +848,40 @@ const LandlordRegister = () => {
                       </div>
                     )}
                   </div>
+                  {fieldErrors.permit && <div className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1 font-medium"><span className="w-1 h-1 bg-red-600 rounded-full"></span>{fieldErrors.permit}</div>}
+                  <p className="text-[10px] text-gray-500 mt-1">Max 10MB (JPG, PNG, PDF)</p>
                 </div>
-                <div className="flex items-center mt-2">
-                  <input
-                    type="checkbox"
-                    name="agree"
-                    checked={form.agree}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    className="mr-2"
-                    disabled={submitting}
-                    required
-                  />
-                  <label className="text-sm text-green-800 dark:text-green-300">I agree to the <a href="/terms" className="underline text-green-700 dark:text-green-400">terms and conditions</a>.</label>
+                <div className="flex items-start mt-2">
+                  <div className="flex items-center h-5">
+                    <input
+                      type="checkbox"
+                      name="agree"
+                      checked={form.agree}
+                      onChange={handleChange}
+                      onKeyDown={handleKeyDown}
+                      className={`w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 transition-colors ${fieldErrors.agree ? 'border-red-500' : ''}`}
+                      disabled={submitting}
+                      required
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label className="text-green-800 dark:text-green-300">I agree to the <a href="/terms" className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</a>.</label>
+                    {fieldErrors.agree && <div className="text-[10px] text-red-600 dark:text-red-400 mt-1 font-medium">{fieldErrors.agree}</div>}
+                  </div>
                 </div>
-                <div className="flex justify-between mt-4">
-                  <button type="button" className="bg-gray-300 dark:bg-gray-600 text-green-800 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold" onClick={handleBack} disabled={submitting}>Back</button>
+                <div className="flex justify-between mt-6">
+                  <button type="button" className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition" onClick={handleBack} disabled={submitting}>Back</button>
                   <button
                     type="submit"
-                    className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-60"
+                    className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition shadow-md disabled:opacity-60 flex items-center gap-2"
                     disabled={submitting}
                   >
-                    {submitting ? 'Submitting...' : 'Register as Landlord'}
+                    {submitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : 'Register as Landlord'}
                   </button>
                 </div>
               </>
