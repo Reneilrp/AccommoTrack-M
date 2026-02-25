@@ -69,13 +69,13 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
     });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-6 font-sans">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto z-10">
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Activity Logs</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Activity Logs</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Property activity — ordered by time</p>
           </div>
           <div className="flex items-center gap-2">
@@ -117,12 +117,12 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
                 <li key={i} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-800 transition-colors shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-800 dark:text-gray-200 font-bold leading-tight">{a.title || a.action || a.type || 'Activity'}</div>
+                      <div className="text-sm text-gray-800 dark:text-gray-200 font-semibold leading-tight">{a.title || a.action || a.type || 'Activity'}</div>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
                           {a.by || a.user || a.actor || 'System'}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">
                           {a.created_at || a.time || ''}
                         </span>
                       </div>
