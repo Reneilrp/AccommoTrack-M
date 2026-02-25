@@ -25,6 +25,7 @@ use App\Http\Controllers\LandlordVerificationController;
 use App\Http\Controllers\AddonController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\MaintenanceRequestController;
+use App\Http\Controllers\InquiryController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 
@@ -33,7 +34,7 @@ use App\Http\Middleware\EnsureUserIsLandlord;
 // ====================================
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/inquiries', [App\Http\Controllers\InquiryController::class, 'store']);
+Route::post('/inquiries', [InquiryController::class, 'store']);
 
 // Forgot Password Routes
 Route::post('/forgot-password', [App\Http\Controllers\ForgotPasswordController::class, 'sendCode']);
@@ -243,9 +244,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
 
         // Admin: Inquiries
-        Route::get('/inquiries', [App\Http\Controllers\InquiryController::class, 'index']);
-        Route::patch('/inquiries/{id}', [App\Http\Controllers\InquiryController::class, 'update']);
-        Route::delete('/inquiries/{id}', [App\Http\Controllers\InquiryController::class, 'destroy']);
+        Route::get('/inquiries', [InquiryController::class, 'index']);
+        Route::patch('/inquiries/{id}', [InquiryController::class, 'update']);
+        Route::delete('/inquiries/{id}', [InquiryController::class, 'destroy']);
+	Route::post('/inquiries/{id}/reply', [InquiryController::class, 'reply']);
 
         // Admin: list all landlord verifications
         Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
@@ -255,7 +257,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Admin: Reports
         Route::get('/reports', [App\Http\Controllers\ReportController::class, 'index']);
         Route::patch('/reports/{id}', [App\Http\Controllers\ReportController::class, 'update']);
-    });
+ });
 
     Route::prefix('messages')->group(function () {
         Route::get('/conversations', [MessageController::class, 'getConversations']);
