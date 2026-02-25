@@ -13,20 +13,20 @@ const About = () => (
         AccommoTrack is your trusted platform for finding, comparing, and booking the best properties in our city. We make property management and searching simple, secure, and efficient for both tenants and landlords.
       </p>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-        <div className="text-center p-6 rounded-3xl hover:bg-[#FDF8F0] dark:hover:bg-gray-700 transition-colors duration-300">
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-6 md:gap-10 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-1">
+        <div className="flex-none w-full md:w-auto snap-start text-center p-6 rounded-3xl hover:bg-[#FDF8F0] dark:hover:bg-gray-700 transition-colors duration-300 bg-gray-50/50 dark:bg-gray-900/20 md:bg-transparent">
           <div className="text-5xl mb-6">🎯</div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Our Mission</h3>
           <p className="text-gray-600 dark:text-gray-300">Empowering tenants and landlords with seamless, secure, and transparent property solutions.</p>
         </div>
 
-        <div className="text-center p-6 rounded-3xl hover:bg-[#FDF8F0] dark:hover:bg-gray-700 transition-colors duration-300">
+        <div className="flex-none w-full md:w-auto snap-start text-center p-6 rounded-3xl hover:bg-[#FDF8F0] dark:hover:bg-gray-700 transition-colors duration-300 bg-gray-50/50 dark:bg-gray-900/20 md:bg-transparent">
           <div className="text-5xl mb-6">🤝</div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Our Team</h3>
           <p className="text-gray-600 dark:text-gray-300">A passionate group of students from WMSU dedicated to creating innovative property solutions.</p>
         </div>
 
-        <div className="text-center p-6 rounded-3xl hover:bg-[#FDF8F0] dark:hover:bg-gray-700 transition-colors duration-300">
+        <div className="flex-none w-full md:w-auto snap-start text-center p-6 rounded-3xl hover:bg-[#FDF8F0] dark:hover:bg-gray-700 transition-colors duration-300 bg-gray-50/50 dark:bg-gray-900/20 md:bg-transparent">
           <div className="text-5xl mb-6">💡</div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Our Values</h3>
           <p className="text-gray-600 dark:text-gray-300">Integrity, innovation, and customer focus drive everything we do at AccommoTrack.</p>
