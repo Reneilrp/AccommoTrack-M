@@ -114,8 +114,8 @@ const ExploreProperties = () => {
       floor: room.floor,
       floor_label: room.floor_label,
       raw_capacity: room.capacity,
-      image: room.images && room.images.length > 0 ? room.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
-      images: room.images || [],
+      image: getImageUrl(room.images && room.images.length > 0 ? room.images[0] : null) || 'https://via.placeholder.com/400x200?text=No+Image',
+      images: (room.images || []).map(img => getImageUrl(img)),
       // keep `price` for older consumers, but expose canonical fields expected by modal
       price: room.monthly_rate || room.price || 0,
       monthly_rate: room.monthly_rate ?? room.monthlyRate ?? room.price ?? 0,
@@ -265,7 +265,7 @@ const ExploreProperties = () => {
       <header className="sticky top-0 z-40 pb-4">
         {/* ROW 1: Navigation & Title (Only for Guests) */}
         {!authService.isAuthenticated() && (
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 h-16 flex items-center justify-center shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 h-14 md:h-16 flex items-center justify-center shadow-sm">
           <div className="absolute left-4 sm:left-6 lg:left-8">
             <button
               onClick={() => navigate(-1)}
@@ -274,22 +274,22 @@ const ExploreProperties = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
           </div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Browse Properties</h1>
+          <h1 className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Browse Properties</h1>
         </div>
         )}
 
         {/* ROW 2: Search Bar & Filters Card */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700 flex flex-col items-center gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border border-gray-300 dark:border-gray-700 flex flex-col items-center gap-4 md:gap-6">
             
             {/* Search Row */}
-            <div className="w-full flex items-center gap-4">
+            <div className="w-full flex items-center gap-3 md:gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <Search className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400 dark:text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search properties, locations..."
-                  className="w-full pl-12 pr-6 py-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 rounded-xl transition-all outline-none text-base text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 font-bold shadow-sm"
+                  className="w-full pl-10 md:pl-12 pr-4 md:pr-6 py-2.5 md:py-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 rounded-xl transition-all outline-none text-sm md:text-base text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 font-bold shadow-sm"
                   value={search}
                   onChange={handleSearchChange}
                 />
@@ -297,10 +297,10 @@ const ExploreProperties = () => {
 
               <button
                 onClick={() => updateScreenState('explore', { showMapModal: true })}
-                className="p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
+                className="p-2.5 md:p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
                 aria-label="View Map"
               >
-                <Map className="w-6 h-6 group-hover:text-green-600 transition-colors" />
+                <Map className="w-5 h-5 md:w-6 md:h-6 group-hover:text-green-600 transition-colors" />
               </button>
             </div>
 
@@ -312,7 +312,7 @@ const ExploreProperties = () => {
                     key={type}
                     onClick={() => updateScreenState('explore', { selectedType: type, currentPage: 1 })}
                     className={`
-                              px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border
+                              px-4 md:px-5 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all border
                               ${selectedType === type
                         ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20'
                         : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm'
@@ -333,7 +333,7 @@ const ExploreProperties = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Helper Text */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
+        <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
           <Filter className="w-4 h-4" />
           <span>Showing {filteredProperties.length} properties</span>
         </div>
@@ -456,7 +456,7 @@ const ExploreProperties = () => {
               <div className="relative w-full h-full bg-white dark:bg-gray-900 overflow-hidden animate-in fade-in zoom-in duration-200">
 
                 {/* Floating Search Bar (Replaces Property Map Label) */}
-                <div className={`absolute top-6 left-6 z-[1000] w-[calc(100%-48px)] md:w-[calc(35%-48px)] animate-in slide-in-from-top-4 duration-500 shadow-2xl transition-all ease-in-out ${drawerOpen ? 'opacity-0 pointer-events-none -translate-y-4' : 'opacity-100 translate-y-0'}`}>
+                <div className={`absolute top-6 left-6 z-[1000] w-[calc(100%-100px)] md:w-[calc(35%-48px)] animate-in slide-in-from-top-4 duration-500 shadow-2xl transition-all ease-in-out ${drawerOpen ? 'opacity-0 pointer-events-none -translate-y-4' : 'opacity-100 translate-y-0'}`}>
                   <div className="bg-white dark:bg-gray-800 rounded-full flex items-center p-1.5 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-lg focus-within:shadow-xl">
                     {/* Maps Icon / Menu Trigger */}
                     <div className="p-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full cursor-pointer transition-colors group">
@@ -531,7 +531,7 @@ const ExploreProperties = () => {
                           {/* Image Section */}
                           <div className="h-[250px] w-full relative bg-gray-200 group cursor-pointer flex-shrink-0">
                             <img
-                              src={drawerData.rooms?.[0]?.image || 'https://via.placeholder.com/400x200?text=No+Image'}
+                              src={getImageUrl(drawerData.rooms?.[0]) || 'https://via.placeholder.com/400x200?text=No+Image'}
                               alt={drawerData.name}
                               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                             />
@@ -647,7 +647,7 @@ const ExploreProperties = () => {
                                   <div className="grid grid-cols-2 gap-2">
                                     {/* 1. Main Video/Image */}
                                     <div className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group">
-                                      <img src={drawerData.rooms?.[0]?.image} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                      <img src={getImageUrl(drawerData.rooms?.[0])} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
                                       <div className="absolute inset-0 flex items-center justify-center">
                                         <div className="w-10 h-10 bg-white/20 dark:bg-black/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 dark:border-white/20">
                                           <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1"></div>
@@ -658,7 +658,7 @@ const ExploreProperties = () => {
                                     {/* 2. Room Grid */}
                                     {(drawerData.rooms || []).slice(0, 2).map((room, idx) => (
                                       <div key={idx} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative">
-                                        <img src={room.image} className="w-full h-full object-cover" />
+                                        <img src={getImageUrl(room)} className="w-full h-full object-cover" />
                                       </div>
                                     ))}
                                     {(drawerData.rooms?.length || 0) > 2 && (
