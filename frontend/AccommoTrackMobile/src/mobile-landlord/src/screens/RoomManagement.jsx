@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService, { getImageUrl } from '../../../services/PropertyServices';
-import { styles } from '../../../styles/Landlord/RoomManagement.js';
+import { getStyles } from '../../../styles/Landlord/RoomManagement.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const FILTERS = [
@@ -81,6 +81,7 @@ const statusTokens = {
 
 export default function RoomManagementScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const initialFilter = route?.params?.filter || 'all';
   

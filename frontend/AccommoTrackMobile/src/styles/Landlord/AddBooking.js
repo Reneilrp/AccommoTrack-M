@@ -1,16 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     marginLeft: 12,
   },
   scrollContent: {
@@ -27,22 +27,22 @@ export const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 16,
   },
   inputGroup: {
@@ -51,32 +51,33 @@ export const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.textSecondary,
     marginBottom: 6,
   },
   requiredAsterisk: {
-    color: '#EF4444',
+    color: theme.colors.error,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#111827',
+    color: theme.colors.text,
   },
   pickerWrapper: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     overflow: 'hidden',
   },
   picker: {
     height: 44,
     width: '100%',
+    color: theme.colors.text
   },
   row: {
     flexDirection: 'row',
@@ -86,9 +87,9 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   dateButton: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -98,35 +99,37 @@ export const styles = StyleSheet.create({
   },
   dateButtonText: {
     fontSize: 15,
-    color: '#111827',
+    color: theme.colors.text,
   },
   submitButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#16a34a',
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700',
   },
   disabledButton: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: theme.colors.textTertiary,
     shadowColor: 'transparent',
   },
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: theme.isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
   },
 });
+
+export default getStyles;

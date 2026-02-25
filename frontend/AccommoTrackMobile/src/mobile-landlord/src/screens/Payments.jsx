@@ -18,12 +18,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import PaymentService from '../../../services/PaymentService';
 import BookingService from '../../../services/BookingServices'; // We might need to update booking status too
-import { styles } from '../../../styles/Landlord/Payments';
+import { getStyles } from '../../../styles/Landlord/Payments';
 
 const STATUS_FILTERS = ['all', 'pending', 'paid', 'unpaid', 'partial', 'cancelled', 'refunded'];
 
 export default function Payments({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);

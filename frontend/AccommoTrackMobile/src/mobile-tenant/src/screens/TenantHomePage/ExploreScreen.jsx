@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, ScrollView, FlatList, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../../styles/Tenant/HomePage.js';
+import { getStyles } from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
 import MenuDrawer from '../../components/MenuDrawer.jsx';
@@ -22,12 +22,10 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [activeNavTab, setActiveNavTab] = useState('Explore');
 
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+
+  const [properties, setProperties] = useState([]);
 
   // Filter options matching your screenshot and backend types
   const filterOptions = [

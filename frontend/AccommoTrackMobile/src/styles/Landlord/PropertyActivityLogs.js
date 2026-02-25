@@ -1,16 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -19,30 +19,30 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     marginLeft: 12,
   },
   propertyInfo: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
   },
   propertyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
   },
   propertySubtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   filterContainer: {
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
   },
   filterScroll: {
     paddingHorizontal: 12,
@@ -51,33 +51,33 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   activeFilterChip: {
-    backgroundColor: '#16a34a',
-    borderColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   filterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   activeFilterText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   listContent: {
     padding: 16,
   },
   logItem: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   logHeader: {
     flexDirection: 'row',
@@ -88,13 +88,13 @@ export const styles = StyleSheet.create({
   logTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F2937',
+    color: theme.colors.text,
     flex: 1,
   },
   logAmount: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#16a34a',
+    color: theme.colors.primary,
     marginLeft: 8,
   },
   logMeta: {
@@ -106,26 +106,27 @@ export const styles = StyleSheet.create({
   logUser: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   logDate: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
   },
   logDetails: {
     fontSize: 14,
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
@@ -135,14 +136,16 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 40,
   },
 });
+
+export default getStyles;

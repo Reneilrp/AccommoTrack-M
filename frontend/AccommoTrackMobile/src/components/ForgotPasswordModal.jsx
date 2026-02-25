@@ -10,12 +10,17 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL as API_URL } from '../config';
+import { useTheme } from '../contexts/ThemeContext';
 
 const ForgotPasswordModal = ({ visible, onClose }) => {
+  const { theme, isDarkMode } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -158,7 +163,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
         >
           <View style={styles.header}>
             <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={28} color="#4B5563" />
+              <Ionicons name="arrow-back" size={28} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Reset Password</Text>
             <View style={{ width: 28 }} />
@@ -175,7 +180,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
             {step === 1 && (
               <View style={styles.content}>
                 <View style={styles.iconCircle}>
-                  <Ionicons name="mail-outline" size={40} color="#16a34a" />
+                  <Ionicons name="mail-outline" size={40} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.title}>Forgot Password?</Text>
                 <Text style={styles.description}>
@@ -183,10 +188,11 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                 </Text>
                 
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <Ionicons name="mail-outline" size={20} color={theme.colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="Email Address"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -204,7 +210,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
             {step === 2 && (
               <View style={styles.content}>
                 <View style={styles.iconCircle}>
-                  <Ionicons name="key-outline" size={40} color="#16a34a" />
+                  <Ionicons name="key-outline" size={40} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.title}>Verify Code</Text>
                 <Text style={styles.description}>
@@ -240,7 +246,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
             {step === 3 && (
               <View style={styles.content}>
                 <View style={styles.iconCircle}>
-                  <Ionicons name="lock-closed-outline" size={40} color="#16a34a" />
+                  <Ionicons name="lock-closed-outline" size={40} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.title}>New Password</Text>
                 <Text style={styles.description}>
@@ -248,32 +254,34 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                 </Text>
 
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="New Password"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     editable={!loading}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#9CA3AF" />
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="Confirm New Password"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showConfirmPassword}
                     editable={!loading}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                    <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#9CA3AF" />
+                    <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
 
@@ -289,13 +297,8 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   );
 };
 
-// Simple SafeAreaView fallback if not using the library
-const SafeAreaView = ({ children, style }) => (
-  <View style={[{ flex: 1, paddingTop: Platform.OS === 'ios' ? 50 : 20 }, style]}>{children}</View>
-);
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'white' },
+const getStyles = (theme) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: theme.colors.background },
   container: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -304,32 +307,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6'
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface
   },
   backButton: { padding: 5 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text },
   scrollContent: { padding: 25, alignItems: 'center' },
   stepContainer: { flexDirection: 'row', gap: 8, marginBottom: 30 },
-  stepDot: { width: 30, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB' },
-  stepDotActive: { backgroundColor: '#16a34a' },
+  stepDot: { width: 30, height: 4, borderRadius: 2, backgroundColor: theme.colors.border },
+  stepDotActive: { backgroundColor: theme.colors.primary },
   content: { width: '100%', alignItems: 'center' },
   iconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#1F2937', marginBottom: 10 },
-  description: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 30, lineHeight: 22 },
+  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10 },
+  description: { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 30, lineHeight: 22 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
@@ -337,36 +341,36 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16, color: '#1F2937' },
+  input: { flex: 1, fontSize: 16, color: theme.colors.text },
   primaryButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     width: '100%',
     height: 55,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#16a34a',
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3
   },
-  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  buttonText: { color: theme.colors.textInverse, fontWeight: 'bold', fontSize: 16 },
   otpContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 30 },
   otpInput: {
     width: 45,
     height: 55,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
     borderRadius: 10,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937'
+    color: theme.colors.text
   },
-  linkText: { color: '#6B7280', marginTop: 20, fontWeight: '600' }
+  linkText: { color: theme.colors.textTertiary, marginTop: 20, fontWeight: '600' }
 });
 
 export default ForgotPasswordModal;

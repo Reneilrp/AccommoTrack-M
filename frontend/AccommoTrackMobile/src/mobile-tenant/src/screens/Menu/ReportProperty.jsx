@@ -15,12 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import tenantService from '../../../../services/TenantService';
-import { styles } from '../../../../styles/Tenant/ReportProperty';
+import { getStyles } from '../../../../styles/Tenant/ReportProperty';
 
 export default function ReportProperty() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { propertyId = null, propertyTitle = 'Property' } = route.params || {};
 
   const [reason, setReason] = useState('');

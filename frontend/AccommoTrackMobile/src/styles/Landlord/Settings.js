@@ -1,13 +1,13 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F3F4F6'
+    backgroundColor: theme.colors.background
   },
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.background,
     paddingHorizontal: 18
   },
   scrollContent: {
@@ -20,37 +20,39 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827'
+    color: theme.colors.text
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
 
   // Profile Card Styles
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 18,
     borderRadius: 18,
     marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
+    shadowOpacity: theme.isDark ? 0.3 : 0.06,
     shadowRadius: 16,
-    elevation: 6
+    elevation: 6,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   profileAvatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center'
   },
   profileInitials: {
-    color: '#15803D',
+    color: theme.colors.primary,
     fontSize: 22,
     fontWeight: '700'
   },
@@ -61,23 +63,23 @@ export const styles = StyleSheet.create({
   profileName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827'
+    color: theme.colors.text
   },
   profileEmail: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 4
   },
   profileAction: {
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: '#F0FDF4'
+    backgroundColor: theme.colors.backgroundSecondary
   },
   profileActionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#15803D'
+    color: theme.colors.primary
   },
 
   // Section and Card General Styles
@@ -87,29 +89,33 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 12,
     paddingLeft: 4
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
+    shadowOpacity: theme.isDark ? 0.3 : 0.04,
     shadowRadius: 12,
     elevation: 4,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   settingsCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 1.41,
     elevation: 2,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
 
   // Notification Item Styles
@@ -136,7 +142,7 @@ export const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -146,13 +152,13 @@ export const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 15,
-    color: '#111827',
+    color: theme.colors.text,
     fontWeight: '600'
   },
   settingDescription: {
     marginTop: 4,
     fontSize: 13,
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
   settingRight: {
     flexDirection: 'row',
@@ -161,11 +167,11 @@ export const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 13,
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.borderLight,
     marginHorizontal: 18
   },
   
@@ -185,11 +191,11 @@ export const styles = StyleSheet.create({
   menuLabel: {
     marginLeft: 15,
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.text,
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
 
   // Logout Button Styles
@@ -197,7 +203,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -206,31 +212,33 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 1.41,
-    elevation: 2
+    elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   logoutText: {
     marginLeft: 15,
     fontSize: 16,
     fontWeight: '600',
-    color: '#F44336'
+    color: theme.colors.error
   },
   dangerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DC2626',
+    backgroundColor: theme.colors.error,
     paddingVertical: 16,
     borderRadius: 14,
     gap: 8
   },
   dangerButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '600',
     fontSize: 16
   },
   footerNote: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     fontSize: 12,
     marginBottom: 16
   },
@@ -242,7 +250,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tempContentCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 30,
     width: '100%',
@@ -252,17 +260,19 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 1.41,
     elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   tempTextBold: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#374151',
+    color: theme.colors.text,
     marginTop: 15,
     marginBottom: 10,
   },
   tempTextNormal: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -279,12 +289,12 @@ export const styles = StyleSheet.create({
       borderRadius: 5,
   },
   changePictureText: {
-      color: '#16A34A',
+      color: theme.colors.primary,
       fontSize: 14,
       fontWeight: '500',
   },
   detailsCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     shadowColor: '#000',
@@ -293,11 +303,13 @@ export const styles = StyleSheet.create({
     shadowRadius: 1.41,
     elevation: 2,
     marginBottom: 20,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   fieldContainer: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   fieldLabelContainer: {
       flexDirection: 'row',
@@ -306,23 +318,23 @@ export const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
     textTransform: 'uppercase',
     fontWeight: '600',
     marginLeft: 8,
   },
   fieldValue: {
     fontSize: 16,
-    color: '#374151',
+    color: theme.colors.text,
     padding: 0,
     marginTop: 2,
   },
   fieldValueEditable: {
     borderBottomWidth: 1,
-    borderBottomColor: '#16A34A',
+    borderBottomColor: theme.colors.primary,
   },
   editProfileButton: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     padding: 15,
     borderRadius: 12,
     alignItems: 'center',
@@ -330,7 +342,7 @@ export const styles = StyleSheet.create({
   editProfileButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: theme.colors.textInverse,
   },
   editButtonRow: {
     flexDirection: 'row',
@@ -347,12 +359,12 @@ export const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: theme.colors.textInverse,
   },
 
   // --- HelpSupport Specific Styles ---
   card: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -360,6 +372,8 @@ export const styles = StyleSheet.create({
     shadowRadius: 1.41,
     elevation: 2,
     overflow: 'hidden', 
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   supportOptionItem: {
     flexDirection: 'row',
@@ -368,7 +382,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   supportLeft: {
     flexDirection: 'row',
@@ -381,11 +395,11 @@ export const styles = StyleSheet.create({
   supportTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
   },
   supportSubtitle: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 2,
   },
   faqItem: {
@@ -398,12 +412,12 @@ export const styles = StyleSheet.create({
   faqQuestion: {
     flex: 1,
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.text,
     marginRight: 10,
   },
   faqItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6', 
+    borderBottomColor: theme.colors.borderLight, 
   },
   versionContainer: {
     alignItems: 'center',
@@ -411,7 +425,9 @@ export const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4,
   }
 });
+
+export default getStyles;

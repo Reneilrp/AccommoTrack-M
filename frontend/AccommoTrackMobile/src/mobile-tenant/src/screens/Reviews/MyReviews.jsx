@@ -5,10 +5,11 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import tenantService from '../../../../services/TenantService';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../../styles/Tenant/ReviewStyles';
+import { getStyles } from '../../../../styles/Tenant/ReviewStyles';
 
 export default function MyReviews() {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);

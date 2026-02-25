@@ -1,15 +1,15 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6', // Light gray background
+    backgroundColor: theme.colors.background,
   },
   header: {
     paddingTop: 40, 
     paddingBottom: 15,
     paddingHorizontal: 16,
-    backgroundColor: '#16a34a', 
+    backgroundColor: theme.colors.primary, 
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -20,7 +20,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: theme.colors.textInverse,
   },
   content: {
     flex: 1,
@@ -36,19 +36,21 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginBottom: 10,
     paddingLeft: 4, 
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 1.41,
     elevation: 2,
     overflow: 'hidden', 
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   
   // Support Options Styles
@@ -59,7 +61,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   supportLeft: {
     flexDirection: 'row',
@@ -72,11 +74,11 @@ export const styles = StyleSheet.create({
   supportTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
   },
   supportSubtitle: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
 
@@ -91,12 +93,12 @@ export const styles = StyleSheet.create({
   faqQuestion: {
     flex: 1,
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.text,
     marginRight: 10,
   },
   faqItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6', 
+    borderBottomColor: theme.colors.borderLight, 
   },
 
   // Version Info Styles
@@ -106,7 +108,9 @@ export const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4,
   }
 });
+
+export default getStyles;

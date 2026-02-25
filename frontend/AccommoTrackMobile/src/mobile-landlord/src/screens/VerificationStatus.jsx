@@ -20,10 +20,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import ProfileService from '../../../services/ProfileService';
 import { getImageUrl } from '../../../services/PropertyServices';
-import { styles } from '../../../styles/Landlord/VerificationStatus';
+import { getStyles } from '../../../styles/Landlord/VerificationStatus';
 
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [verification, setVerification] = useState(null);
   const [idTypes, setIdTypes] = useState([]);

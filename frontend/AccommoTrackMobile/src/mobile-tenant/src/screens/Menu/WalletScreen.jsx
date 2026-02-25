@@ -22,12 +22,13 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import { ListItemSkeleton } from '../../../../components/Skeletons';
 import { showError } from '../../../../utils/toast';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
-import { styles } from '../../../../styles/Tenant/WalletStyles';
+import { getStyles } from '../../../../styles/Tenant/WalletStyles';
 
 const { width } = Dimensions.get('window');
 
 export default function WalletScreen() {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('1m');

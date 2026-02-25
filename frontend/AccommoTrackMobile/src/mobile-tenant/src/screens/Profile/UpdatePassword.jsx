@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StatusBar, Alert, ActivityIndi
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../../styles/Tenant/ProfilePage.js';
+import { getStyles } from '../../../../styles/Tenant/ProfilePage.js';
 import { API_BASE_URL as API_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import Header from '../../components/Header.jsx';
@@ -11,6 +11,7 @@ import Header from '../../components/Header.jsx';
 export default function UpdatePasswordPage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

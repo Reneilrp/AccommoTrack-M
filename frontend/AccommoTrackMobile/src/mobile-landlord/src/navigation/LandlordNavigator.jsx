@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 // Import your screens
 import LandlordDashboard from '../screens/DashboardPage.jsx';
@@ -37,13 +37,17 @@ import Caretakers from '../screens/Caretakers.jsx';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const CustomTabBarButton = ({ children, onPress }) => (
+const CustomTabBarButton = ({ children, onPress, theme }) => (
   <TouchableOpacity
     style={{
       top: -24,
       justifyContent: 'center',
       alignItems: 'center',
-      ...styles.shadow
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 8,
     }}
     onPress={onPress}
     activeOpacity={0.9}
@@ -53,9 +57,9 @@ const CustomTabBarButton = ({ children, onPress }) => (
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: COLORS.primary,
+        backgroundColor: theme.colors.primary,
         borderWidth: 4,
-        borderColor: COLORS.background, // Uses theme background
+        borderColor: theme.colors.background,
         justifyContent: 'center',
         alignItems: 'center',
       }}
@@ -65,7 +69,7 @@ const CustomTabBarButton = ({ children, onPress }) => (
     <Text style={{ 
       fontSize: 11, 
       fontWeight: '600', 
-      color: COLORS.primary, 
+      color: theme.colors.primary, 
       marginTop: 4 
     }}>
       Bookings
@@ -75,7 +79,7 @@ const CustomTabBarButton = ({ children, onPress }) => (
 
 const styles = StyleSheet.create({
   shadow: {
-    shadowColor: COLORS.primary,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -88,6 +92,7 @@ const styles = StyleSheet.create({
 
 // Bottom Tab Navigator
 function MainTabs({ onLogout }) {
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   
   return (
@@ -110,19 +115,19 @@ function MainTabs({ onLogout }) {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
-          borderTopColor: COLORS.border,
+          borderTopColor: theme.colors.border,
           paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
           height: 60 + insets.bottom,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
+          shadowOpacity: theme.isDark ? 0.3 : 0.1,
           shadowRadius: 8,
         },
         tabBarLabelStyle: {
@@ -155,7 +160,7 @@ function MainTabs({ onLogout }) {
         options={{
           tabBarLabel: () => null,
           tabBarButton: (props) => (
-            <CustomTabBarButton {...props} />
+            <CustomTabBarButton {...props} theme={theme} />
           )
         }}
       />
@@ -166,7 +171,7 @@ function MainTabs({ onLogout }) {
         options={{
           tabBarBadge: undefined,
           tabBarBadgeStyle: {
-            backgroundColor: COLORS.danger,
+            backgroundColor: theme.colors.error,
             color: '#FFFFFF',
             fontSize: 10,
             minWidth: 18,

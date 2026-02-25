@@ -50,21 +50,24 @@ const HomePage = ({ onGetStarted }) => {
   return (
     <>
       <style>{`
-        /* Only apply scroll snapping on large screens to prevent "sticky" scrolling on mobile */
-        @media (min-width: 1024px) {
-          html {
-            scroll-snap-type: y mandatory;
-            scroll-behavior: smooth;
-          }
-          .snap-section {
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
-          }
-        }
-        
         /* Smooth transitions for theme switching */
         .theme-transition {
           transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Mobile Carousel Indicators */
+        @media (max-width: 767px) {
+          .carousel-container {
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+            border-radius: 1.5rem;
+            background: rgba(0, 0, 0, 0.01);
+          }
+          .dark .carousel-container {
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.01);
+          }
         }
       `}</style>
 
@@ -124,30 +127,33 @@ const HomePage = ({ onGetStarted }) => {
           </div>
         )} */}
 
-        {/* --- SECTION 1: HERO --- */}
-        <section className="snap-section min-h-screen md:h-screen w-full flex flex-col items-center justify-center pt-20 md:pt-32 pb-12 md:pb-32 px-6 max-w-7xl mx-auto relative">
-          <div data-aos="fade-up" className="text-center max-w-[900px] z-10 w-full mt-12 md:mt-0">
-            <h1 className="no-scale text-[clamp(32px,5vw,64px)] font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
-              Find Your Next Home <br />
-              <span className="no-scale text-green-600 inline-block mb-[15px] md:mb-[25px]">in Zamboanga City.</span>
+        <section className="min-h-[calc(100vh-72px)] w-full flex flex-col items-center px-6 max-w-7xl mx-auto relative overflow-hidden py-12 md:py-0">
+          
+          {/* Main Hero Content - Dynamic Centering */}
+          <div data-aos="fade-up" className="flex-1 flex flex-col items-center justify-center text-center max-w-[900px] z-10 w-full py-12 md:py-16">
+            <h1 className="no-scale text-[clamp(40px,6vw,72px)] font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
+              Find Your Next <br className="md:hidden" />
+              Home <span className="md:hidden no-scale text-[0.7em] opacity-90 font-bold">in</span> <br className="hidden md:block" />
+              <span className="no-scale text-green-600 inline-block mb-[15px] md:mb-[25px]">
+                <span className="hidden md:inline no-scale text-[0.7em] text-gray-500 dark:text-gray-400 font-bold">in </span>Zamboanga City.
+              </span>
             </h1>
-            <p className="text-base md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-10 md:mb-10 leading-relaxed">
+            <p className="text-base md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-10 md:mb-12 leading-relaxed">
               Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-md mx-auto mb-12 md:mb-0">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-md mx-auto">
               <button onClick={onGetStarted} className="flex items-center justify-center gap-2 bg-green-600 text-white px-8 py-4 text-lg font-bold rounded-xl shadow-lg shadow-green-600/20 transition-all duration-200 hover:scale-105 hover:bg-green-700 hover:shadow-green-600/30">
                 Browse Properties <Search className="w-5 h-5" />
               </button>
-              {/* <button onClick={scrollToHowItWorks} className="flex items-center justify-center gap-2 bg-white text-gray-700 px-8 py-4 text-lg font-bold rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200">
-                How it Works
-              </button> */}
             </div>
           </div>
           
-          <div className="absolute top-[15%] left-[5%] w-48 h-48 md:w-64 md:h-64 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob pointer-events-none"></div>
-          <div className="absolute top-[15%] right-[5%] w-48 h-48 md:w-64 md:h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
+          {/* Background Blobs - Positioned relative to the visible area */}
+          <div className="absolute top-[10%] left-[5%] w-48 h-48 md:w-64 md:h-64 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob pointer-events-none"></div>
+          <div className="absolute top-[10%] right-[5%] w-48 h-48 md:w-64 md:h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
           
-          <div className="w-full z-10 pb-4 md:pb-0">
+          {/* University Logos - Safely docked at the bottom */}
+          <div className="w-full z-10 pb-10 md:pb-12 flex-none">
             <p className="text-center text-[10px] md:text-xs font-bold tracking-widest uppercase mb-6 text-gray-400 dark:text-gray-500">Built for students from</p>
             <div className="flex justify-center gap-6 md:gap-16 flex-wrap">
               <span className="text-lg md:text-xl font-bold text-[#DC143C]">WMSU</span>
@@ -160,8 +166,8 @@ const HomePage = ({ onGetStarted }) => {
 
 
         {/* --- SECTION 2: WHY ACCOMMOTRACK --- */}
-        <section className="snap-section min-h-screen md:h-screen w-full flex flex-col items-center py-20 md:pt-32 px-6 bg-white dark:bg-gray-800">
-          <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
+        <section className="w-full flex flex-col items-center py-24 md:py-32 px-6 bg-white dark:bg-gray-800">
+          <div className="max-w-7xl mx-auto w-full flex flex-col">
             <div className="text-center mb-12 flex-none">
               <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
                 Why Live & Study Here?
@@ -171,9 +177,9 @@ const HomePage = ({ onGetStarted }) => {
               </p>
             </div>
 
-            <div className="flex-1 flex items-center md:pb-20">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 w-full">
-                <div data-aos="fade-up" data-aos-delay="0" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
+            <div className="flex-1 flex flex-col items-center md:pb-20 w-full">
+              <div className="carousel-container flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-8 w-full max-h-[500px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-2 md:p-0">
+                <div data-aos="fade-up" data-aos-delay="0" className="flex-none w-full md:w-auto snap-start bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300 shadow-sm md:shadow-none">
                   <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <MapPin className="w-6 h-6 md:w-7 md:h-7 text-green-600" />
                   </div>
@@ -182,7 +188,7 @@ const HomePage = ({ onGetStarted }) => {
                     Filter properties by distance to WMSU, Ateneo, and other major universities to save on commute time.
                   </p>
                 </div>
-                <div data-aos="fade-up" data-aos-delay="100" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
+                <div data-aos="fade-up" data-aos-delay="100" className="flex-none w-full md:w-auto snap-start bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300 shadow-sm md:shadow-none">
                   <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <ShieldCheck className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
                   </div>
@@ -191,7 +197,7 @@ const HomePage = ({ onGetStarted }) => {
                     Every listing is verified by our team to ensure your safety and prevent scams.
                   </p>
                 </div>
-                <div data-aos="fade-up" data-aos-delay="200" className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300">
+                <div data-aos="fade-up" data-aos-delay="200" className="flex-none w-full md:w-auto snap-start bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300 shadow-sm md:shadow-none">
                   <div className="bg-purple-100 dark:bg-purple-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <CreditCard className="w-6 h-6 md:w-7 md:h-7 text-purple-600" />
                   </div>
@@ -201,17 +207,22 @@ const HomePage = ({ onGetStarted }) => {
                   </p>
                 </div>
               </div>
+              <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+                <div className="w-4 h-[1px] bg-gray-300"></div>
+                Scroll for more
+                <div className="w-4 h-[1px] bg-gray-300"></div>
+              </div>
             </div>
           </div>
         </section>
 
 
         {/* --- SECTION 3: ACCOMMODATION TYPES --- */}
-        <section className="snap-section min-h-screen md:h-screen w-full flex flex-col items-center py-20 md:pt-32 px-6 bg-gray-50 dark:bg-gray-900">
+        <section className="w-full flex flex-col items-center py-24 md:py-32 px-6 bg-gray-50 dark:bg-gray-900">
            <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
               
               {/* HEADER: Flex-none to keep it pinned at the top */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4 flex-none">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-4 flex-none">
                 <div>
                   <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
                     Find Your Space
@@ -224,14 +235,14 @@ const HomePage = ({ onGetStarted }) => {
               </div>
 
               {/* GRID: Flex-1 to take remaining space and center content vertically */}
-              <div className="flex-1 flex items-center md:pb-20">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+              <div className="flex-1 flex flex-col items-center md:pb-20 w-full">
+                <div className="carousel-container flex flex-col md:grid md:grid-cols-3 gap-4 w-full max-h-[500px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-2 md:p-0">
                    {/* Type 1 */}
-                   <div className="group cursor-pointer" onClick={onGetStarted}>
-                      <div className="h-[280px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                   <div className="flex-none w-full md:w-auto snap-start group cursor-pointer" onClick={onGetStarted}>
+                      <div className="h-[240px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                         <img src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80" alt="Dorm" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute bottom-5 left-5 z-20">
+                        <div className="absolute bottom-5 left-5 z-20 text-left">
                           <h3 className="text-2xl font-bold text-white mb-1">Dormitories</h3>
                           <p className="text-white/90 text-sm font-medium">Starts at ₱1,500/mo</p>
                         </div>
@@ -239,11 +250,11 @@ const HomePage = ({ onGetStarted }) => {
                    </div>
 
                    {/* Type 2 */}
-                   <div className="group cursor-pointer" onClick={onGetStarted}>
-                      <div className="h-[280px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                   <div className="flex-none w-full md:w-auto snap-start group cursor-pointer" onClick={onGetStarted}>
+                      <div className="h-[240px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                         <img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80" alt="Apartment" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute bottom-5 left-5 z-20">
+                        <div className="absolute bottom-5 left-5 z-20 text-left">
                           <h3 className="text-2xl font-bold text-white mb-1">Apartments</h3>
                           <p className="text-white/90 text-sm font-medium">Starts at ₱5,000/mo</p>
                         </div>
@@ -251,16 +262,21 @@ const HomePage = ({ onGetStarted }) => {
                    </div>
 
                    {/* Type 3 */}
-                   <div className="group cursor-pointer" onClick={onGetStarted}>
-                      <div className="h-[280px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                   <div className="flex-none w-full md:w-auto snap-start group cursor-pointer" onClick={onGetStarted}>
+                      <div className="h-[240px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                         <img src="https://images.unsplash.com/photo-1596276020587-8044fe049813?auto=format&fit=crop&w=600&q=80" alt="Boarding House" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute bottom-5 left-5 z-20">
+                        <div className="absolute bottom-5 left-5 z-20 text-left">
                           <h3 className="text-2xl font-bold text-white mb-1">Boarding Houses</h3>
                           <p className="text-white/90 text-sm font-medium">Starts at ₱2,500/mo</p>
                         </div>
                       </div>
                    </div>
+                </div>
+                <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+                  <div className="w-4 h-[1px] bg-gray-300"></div>
+                  Scroll for more
+                  <div className="w-4 h-[1px] bg-gray-300"></div>
                 </div>
               </div>
            </div>

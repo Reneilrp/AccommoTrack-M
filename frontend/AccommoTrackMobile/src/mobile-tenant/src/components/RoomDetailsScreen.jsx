@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { styles } from '../../../styles/Tenant/RoomDetailsScreen';
+import { getStyles } from '../../../styles/Tenant/RoomDetailsScreen';
 import homeStyles from '../../../styles/Tenant/HomePage';
 import BookingService from '../../../services/BookingServices';
 import PropertyService from '../../../services/PropertyServices';
@@ -48,6 +48,7 @@ const getRoomImageUrl = (imageUrl) => {
 export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequired }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { room, property } = route.params;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);

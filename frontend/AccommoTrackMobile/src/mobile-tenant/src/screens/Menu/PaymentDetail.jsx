@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { styles } from '../../../../styles/Menu/Payments.js';
+import { getStyles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL } from '../../../../config';
 import { useTheme } from '../../../../contexts/ThemeContext';
@@ -13,6 +13,7 @@ export default function PaymentDetail() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { invoiceId } = route.params || {};
 
   const [loading, setLoading] = useState(true);

@@ -3,13 +3,14 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshCon
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { styles } from '../../../../styles/Menu/Payments.js';
+import { getStyles } from '../../../../styles/Menu/Payments.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function PaymentHistory() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

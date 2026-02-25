@@ -49,11 +49,14 @@ const LandingPage = ({ user }) => {
             <a 
               href="#top" 
               className="flex items-center gap-2 no-underline group"
-              onClick={e => { e.preventDefault(); document.getElementById('top').scrollIntoView({ behavior: 'smooth' }); }}
+              onClick={e => { 
+                e.preventDefault(); 
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             >
               <img src={logo} alt="AccommoTrack Logo" className="h-10 w-10 transition-transform group-hover:rotate-12" />
               {/* Text hidden on mobile/tablet (lg:block) */}
-              <span className="hidden lg:block font-extrabold text-2xl tracking-tight text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-500 transition-colors">
+              <span className="hidden lg:block font-black text-[28px] no-scale tracking-tighter text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-500 transition-colors">
                 AccommoTrack
               </span>
             </a>
@@ -61,7 +64,7 @@ const LandingPage = ({ user }) => {
 
           {/* Center Mobile/Tablet: Text Title (Absolute Center) */}
           <div className="lg:hidden absolute left-0 right-0 top-1/2 transform -translate-y-1/2 z-10 text-center pointer-events-none">
-             <span className="font-extrabold text-xl tracking-tight text-gray-900 dark:text-white pointer-events-auto">
+             <span className="font-black text-[28px] no-scale tracking-tighter text-gray-900 dark:text-white pointer-events-auto">
                 AccommoTrack
              </span>
           </div>
@@ -139,17 +142,21 @@ const LandingPage = ({ user }) => {
       </header>
 
       {/* --- SECTIONS --- */}
-      {/* Added ID wrapper for scroll targeting */}
-      <div id="home">
+      {/* Added ID wrapper for scroll targeting with offset for sticky header */}
+      <div id="home" className="scroll-mt-20">
         <HomePage onGetStarted={handleGetStarted} />
       </div>
       
       {/* Note: Ensure these components accept className or style props if you need further spacing adjustments */}
-      <div id="explore">
+      <div id="explore" className="scroll-mt-20">
         <Properties />
       </div>
-      <Service onGetStarted={handleGetStarted} />
-      <About />
+      <div id="service" className="scroll-mt-20">
+        <Service onGetStarted={handleGetStarted} />
+      </div>
+      <div id="about" className="scroll-mt-20">
+        <About />
+      </div>
     
     </div>
   );

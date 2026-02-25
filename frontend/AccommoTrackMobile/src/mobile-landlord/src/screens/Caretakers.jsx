@@ -14,13 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../styles/Landlord/Caretakers'; // I will create this
+import { getStyles } from '../../../styles/Landlord/Caretakers'; // I will create this
 import CaretakerService from '../../../services/CaretakerService';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function Caretakers() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [caretakers, setCaretakers] = useState([]);
   const [landlordProperties, setLandlordProperties] = useState([]);

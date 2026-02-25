@@ -18,7 +18,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService from '../../../services/PropertyServices';
 import ProfileService from '../../../services/ProfileService';
-import { styles } from '../../../styles/Landlord/AddProperty.js';
+import { getStyles } from '../../../styles/Landlord/AddProperty.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
@@ -73,6 +73,7 @@ const STEPS = [
 
 export default function AddProperty({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState(initialForm);

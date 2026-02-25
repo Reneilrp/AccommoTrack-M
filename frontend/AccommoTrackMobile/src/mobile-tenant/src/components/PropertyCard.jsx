@@ -1,12 +1,13 @@
 import { useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Tenant/HomePage.js';
+import { getStyles } from '../../../styles/Tenant/HomePage.js';
 import { BASE_URL as API_BASE_URL } from '../../../config';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function PropertyCard({ accommodation, property, onPress }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   // Accept both 'accommodation' and 'property' props for flexibility
   const item = accommodation || property;
 
@@ -79,24 +80,24 @@ export default function PropertyCard({ accommodation, property, onPress }) {
           onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
         />
         {/* Type Badge */}
-        <View style={[styles.typeBadge, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[styles.typeBadgeText, { color: theme.colors.textInverse }]}>
+        <View style={styles.typeBadge}>
+          <Text style={styles.typeBadgeText}>
             {propertyType}
           </Text>
         </View>
       </View>
 
       {/* Content Section */}
-      <View style={[styles.cardContent, { backgroundColor: theme.colors.surface }]}>
+      <View style={styles.cardContent}>
         {/* Name/Title */}
-        <Text style={[styles.dormName, { color: theme.colors.text }]} numberOfLines={2}>
+        <Text style={styles.dormName} numberOfLines={2}>
           {item.name || item.title || 'Unnamed Property'}
         </Text>
 
         {/* Location */}
         <View style={styles.locationContainer}>
           <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
-          <Text style={[styles.locationText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+          <Text style={styles.locationText} numberOfLines={2}>
             {getFullAddress()}
           </Text>
         </View>
@@ -121,13 +122,13 @@ export default function PropertyCard({ accommodation, property, onPress }) {
         {/* View Button */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
-            style={[styles.viewButton, { backgroundColor: theme.colors.primary }]}
+            style={styles.viewButton}
             onPress={(e) => {
               e.stopPropagation();
               onPress(item);
             }}
           >
-            <Text style={[styles.viewButtonText, { color: theme.colors.textInverse }]}>View More</Text>
+            <Text style={styles.viewButtonText}>View More</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5'
+    backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -24,22 +24,22 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   headerRight: {
     width: 40
   },
   searchContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB'
+    borderBottomColor: theme.colors.border
   },
   searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 12,
     paddingHorizontal: 12
   },
@@ -50,15 +50,15 @@ export const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#1F2937'
+    color: theme.colors.text
   },
   clearButton: {
     padding: 4
   },
   filterContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB'
+    borderBottomColor: theme.colors.border
   },
   filterScrollContent: {
     paddingHorizontal: 16,
@@ -69,28 +69,28 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     marginRight: 8
   },
   filterTabActive: {
-    backgroundColor: '#16a34a'
+    backgroundColor: theme.colors.primary
   },
   filterTabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
   filterTabTextActive: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   resultsHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#F5F5F5'
+    backgroundColor: theme.colors.backgroundSecondary
   },
   resultsCount: {
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontWeight: '500'
   },
   scrollView: {
@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
   emptyState: {
     flex: 1,
@@ -120,24 +120,24 @@ export const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: theme.colors.text,
     marginTop: 16,
     marginBottom: 8
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center'
   },
   clearSearchButton: {
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     borderRadius: 8
   },
   clearSearchText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 14,
     fontWeight: '600'
   },
@@ -147,12 +147,12 @@ export const styles = StyleSheet.create({
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   activityIcon: {
     width: 48,
@@ -168,17 +168,17 @@ export const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: theme.colors.text,
     marginBottom: 4
   },
   activityDescription: {
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginBottom: 4
   },
   activityTimestamp: {
     fontSize: 12,
-    color: '#9CA3AF'
+    color: theme.colors.textTertiary
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -191,3 +191,5 @@ export const styles = StyleSheet.create({
     textTransform: 'capitalize'
   }
 });
+
+export default getStyles;

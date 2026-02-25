@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6'
+    backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
     height: 60,
     flexDirection: 'row',
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center'
   },
@@ -38,26 +38,28 @@ export const styles = StyleSheet.create({
     width: 200,
     padding: 16,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     marginRight: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: theme.isDark ? 0.3 : 0.08,
     shadowRadius: 8,
-    elevation: 2
+    elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   propertyChipActive: {
     borderWidth: 2,
-    borderColor: '#16A34A'
+    borderColor: theme.colors.primary
   },
   propertyChipTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   propertyChipMeta: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 4
   },
   // Stats Grid (5 columns)
@@ -74,41 +76,41 @@ export const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   statLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     textAlign: 'center'
   },
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 2
   },
   // Search Bar
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
     marginTop: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 14,
-    color: '#0F172A'
+    color: theme.colors.text
   },
   // Filters
   filterRow: {
@@ -120,28 +122,28 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 99,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   filterChipActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary
   },
   filterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B'
+    color: theme.colors.textSecondary
   },
   filterTextActive: {
-    color: '#166534'
+    color: theme.colors.primaryDark
   },
   // Tenant Card
   listContent: {
     paddingBottom: 40
   },
   tenantCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     marginHorizontal: 16,
     marginBottom: 16,
@@ -149,25 +151,25 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 4
   },
   avatarCircle: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center'
   },
   avatarText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#166534'
+    color: theme.colors.primaryDark
   },
   tenantContent: {
     flex: 1
@@ -175,11 +177,11 @@ export const styles = StyleSheet.create({
   tenantName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   tenantEmail: {
     fontSize: 12,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginTop: 2
   },
   roomRow: {
@@ -191,7 +193,7 @@ export const styles = StyleSheet.create({
   roomText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#16A34A'
+    color: theme.colors.primary
   },
   metaRow: {
     flexDirection: 'row',
@@ -200,18 +202,18 @@ export const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9'
+    borderTopColor: theme.colors.borderLight
   },
   metaLabel: {
     fontSize: 10,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     textTransform: 'uppercase',
     fontWeight: '700'
   },
   metaValue: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 2
   },
   paymentBadge: {
@@ -231,7 +233,7 @@ export const styles = StyleSheet.create({
   },
   primaryBtn: {
     flex: 1,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -240,13 +242,13 @@ export const styles = StyleSheet.create({
     gap: 6
   },
   primaryBtnText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700',
     fontSize: 13
   },
   secondaryBtn: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -255,14 +257,14 @@ export const styles = StyleSheet.create({
     gap: 6
   },
   secondaryBtnText: {
-    color: '#475569',
+    color: theme.colors.text,
     fontWeight: '700',
     fontSize: 13
   },
   // Modal
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.background
   },
   modalHeader: {
     height: 60,
@@ -271,7 +273,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9'
+    borderBottomColor: theme.colors.border
   },
   backButton: {
     width: 48,
@@ -282,7 +284,7 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   modalContent: {
     padding: 24
@@ -295,7 +297,7 @@ export const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16
@@ -303,16 +305,16 @@ export const styles = StyleSheet.create({
   avatarLargeText: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#166534'
+    color: theme.colors.primaryDark
   },
   detailName: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   detailEmail: {
     fontSize: 14,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginTop: 4
   },
   detailTags: {
@@ -323,7 +325,7 @@ export const styles = StyleSheet.create({
   detailTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -332,35 +334,35 @@ export const styles = StyleSheet.create({
   detailTagText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569'
+    color: theme.colors.text
   },
   section: {
     marginTop: 24,
     paddingTop: 24,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9'
+    borderTopColor: theme.colors.border
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 16
   },
   assignmentCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   assignmentTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   assignmentMeta: {
     fontSize: 13,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginTop: 4
   },
   assignmentEmpty: {
@@ -370,7 +372,7 @@ export const styles = StyleSheet.create({
   },
   assignmentEmptyText: {
     marginTop: 8,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     fontSize: 14
   },
   detailList: {
@@ -379,16 +381,16 @@ export const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     textTransform: 'uppercase'
   },
   detailValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   helperText: {
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     fontSize: 14,
     fontStyle: 'italic'
   },
@@ -397,11 +399,12 @@ export const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40
+    padding: 40,
+    backgroundColor: theme.colors.background
   },
   centerText: {
     marginTop: 12,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     fontSize: 14
   },
   emptyState: {
@@ -413,27 +416,29 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 16
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20
   },
   errorBanner: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
     padding: 12,
     margin: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#FECACA'
+    borderColor: theme.colors.error
   },
   errorText: {
-    color: '#B91C1C',
+    color: theme.isDark ? theme.colors.text : '#B91C1C',
     fontSize: 13,
     fontWeight: '500'
   }
 });
+
+export default getStyles;

@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Landlord/About';
+import { getStyles } from '../../../styles/Landlord/About';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function About({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -16,7 +17,7 @@ export default function About({ navigation }) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>About</Text>
         <View style={{ width: 24 }} />

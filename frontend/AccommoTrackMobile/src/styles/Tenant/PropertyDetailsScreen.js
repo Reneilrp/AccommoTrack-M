@@ -2,10 +2,10 @@ import { StyleSheet, Dimensions } from "react-native";
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -14,12 +14,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    backgroundColor: '#16a34a',
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: theme.colors.primary,
+    borderBottomColor: 'transparent',
   },
   backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: theme.colors.textInverse },
   placeholder: { width: 40 },
+  
   // Local header used by screens when global header is excluded
   localHeader: {
     flexDirection: 'row',
@@ -27,8 +28,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   localHeaderLeft: {
     width: 40,
@@ -44,7 +45,7 @@ export const styles = StyleSheet.create({
   localHeaderTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
   },
 
   infoSection: {
@@ -60,19 +61,19 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
     flex: 1,
     marginRight: 12,
   },
   typeBadge: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
   typeText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -81,6 +82,7 @@ export const styles = StyleSheet.create({
     height: (screenWidth - 32) * 0.75, 
     borderRadius: 12,
     marginBottom: 16,
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   locationRow: {
     flexDirection: 'row',
@@ -90,35 +92,35 @@ export const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.textSecondary,
   },
   addressContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.colors.backgroundSecondary,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.colors.border,
   },
   addressTextContainer: {
     flex: 1,
   },
   addressText: {
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.textSecondary,
     lineHeight: 22,
     marginBottom: 8,
   },
   landmarksText: {
     fontSize: 13,
-    color: '#6b7280',
+    color: theme.colors.textTertiary,
     lineHeight: 20,
   },
   landmarksLabel: {
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.textSecondary,
   },
   section: {
     marginBottom: 28,
@@ -126,13 +128,13 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
     lineHeight: 24,
-    color: '#374151',
+    color: theme.colors.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -145,12 +147,12 @@ export const styles = StyleSheet.create({
   statNumber: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: theme.colors.primary,
     marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.colors.textTertiary,
   },
   amenitiesGrid: {
     flexDirection: 'row',
@@ -159,7 +161,7 @@ export const styles = StyleSheet.create({
     marginTop: 4,
   },
   amenityChip: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: theme.colors.primaryLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -167,7 +169,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   amenityText: {
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   ruleItem: {
@@ -179,7 +181,7 @@ export const styles = StyleSheet.create({
   ruleText: {
     flex: 1,
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.textSecondary,
     lineHeight: 22,
   },
   mapHeader: {
@@ -194,23 +196,23 @@ export const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#16a34a',
+    borderColor: theme.colors.primary,
   },
   openMapsText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
   mapContainer: {
     height: 250,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f3f4f6',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   mapWebView: {
     width: '100%',
@@ -220,14 +222,14 @@ export const styles = StyleSheet.create({
   mapPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.colors.backgroundTertiary,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   mapPlaceholderText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: theme.colors.textTertiary,
   },
   mapLoadingContainer: {
     position: 'absolute',
@@ -237,12 +239,12 @@ export const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.colors.backgroundTertiary,
     gap: 8,
   },
   mapLoadingText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     marginTop: 8,
   },
   roomsSection: {
@@ -255,7 +257,7 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   refreshText: {
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   filterScroll: {
@@ -266,21 +268,21 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: theme.colors.border,
     marginRight: 10,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     minWidth: 100,
   },
   filterChipActive: {
-    backgroundColor: '#dcfce7',
-    borderColor: '#16a34a',
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
   },
   filterChipText: {
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: '#166534',
+    color: theme.colors.primaryDark,
   },
   roomsLoadingContainer: {
     flexDirection: 'row',
@@ -288,7 +290,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   roomsLoadingText: {
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
   },
   emptyRoomsContainer: {
     alignItems: 'center',
@@ -298,10 +300,10 @@ export const styles = StyleSheet.create({
   emptyRoomsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
   },
   emptyRoomsSubtitle: {
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     fontSize: 14,
   },
   roomsList: {
@@ -311,10 +313,10 @@ export const styles = StyleSheet.create({
   roomCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.colors.border,
     borderRadius: 16,
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     alignItems: 'flex-start',
     gap: 12,
   },
@@ -323,7 +325,7 @@ export const styles = StyleSheet.create({
     height: 96,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   roomImage: {
     width: '100%',
@@ -343,7 +345,7 @@ export const styles = StyleSheet.create({
   roomNumber: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
     flex: 1,
   },
   roomStatusRow: {
@@ -367,7 +369,7 @@ export const styles = StyleSheet.create({
   },
   roomType: {
     fontSize: 14,
-    color: '#374151',
+    color: theme.colors.textSecondary,
   },
   roomDetailsRow: {
     flexDirection: 'row',
@@ -383,18 +385,18 @@ export const styles = StyleSheet.create({
     flexShrink: 1,
   },
   roomDetailText: {
-    color: '#6b7280',
+    color: theme.colors.textTertiary,
     fontSize: 13,
   },
   roomPrice: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
+    color: theme.colors.text,
     textAlign: 'right',
   },
   priceLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     textAlign: 'right',
   },
   viewDetailsButton: {
@@ -404,7 +406,7 @@ export const styles = StyleSheet.create({
     flexShrink: 0,
   },
   viewDetailsText: {
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   contactButton: {
@@ -412,7 +414,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     borderWidth: 0,
     paddingVertical: 14,
     paddingHorizontal: 24,
@@ -420,7 +422,7 @@ export const styles = StyleSheet.create({
     marginBottom: 20,
   },
   contactButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '600',
   },

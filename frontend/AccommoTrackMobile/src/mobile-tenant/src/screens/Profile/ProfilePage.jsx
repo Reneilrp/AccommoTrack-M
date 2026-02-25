@@ -21,12 +21,13 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
-import { styles } from '../../../../styles/Tenant/ProfilePage.js';
+import { getStyles } from '../../../../styles/Tenant/ProfilePage.js';
 import ProfileService from '../../../../services/ProfileService';
 
 export default function ProfilePage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

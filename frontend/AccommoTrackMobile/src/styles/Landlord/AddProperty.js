@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6'
+    backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
     height: 60,
     flexDirection: 'row',
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center'
   },
@@ -33,9 +33,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB'
+    borderBottomColor: theme.colors.border
   },
   stepWrapper: {
     flexDirection: 'row',
@@ -45,51 +45,53 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   stepCircleActive: {
-    backgroundColor: '#16A34A',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
   },
   stepCircleCompleted: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary
   },
   stepNumber: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#6B7280'
+    color: theme.colors.textTertiary
   },
   stepNumberActive: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   stepLine: {
     width: 40,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
     marginHorizontal: 8
   },
   stepLineActive: {
-    backgroundColor: '#16A34A'
+    backgroundColor: theme.colors.primary
   },
 
   formContent: {
     padding: 16
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 4,
-    elevation: 2
+    elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -100,29 +102,29 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827'
+    color: theme.colors.text
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 2,
     marginBottom: 16
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginBottom: 6
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
+    color: theme.colors.text,
+    backgroundColor: theme.colors.background,
     marginBottom: 12
   },
   textArea: {
@@ -131,15 +133,15 @@ export const styles = StyleSheet.create({
   },
   pickerWrapper: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
-    backgroundColor: '#F9FAFB'
+    backgroundColor: theme.colors.background
   },
   helperText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
     marginBottom: 12
   },
   mapContainer: {
@@ -148,7 +150,7 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.border
   },
   pillGrid: {
     flexDirection: 'row',
@@ -161,17 +163,20 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   pillActive: {
-    borderColor: '#16A34A',
-    backgroundColor: '#DCFCE7'
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight
   },
   pillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1F2937'
+    color: theme.colors.textSecondary
+  },
+  pillTextActive: {
+    color: theme.colors.primaryDark
   },
   imagesRow: {
     flexDirection: 'row',
@@ -182,7 +187,7 @@ export const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 12,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.backgroundTertiary,
     overflow: 'hidden',
     position: 'relative'
   },
@@ -204,10 +209,10 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#CBD5F5',
+    borderColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC'
+    backgroundColor: theme.colors.surface
   },
   ruleItem: {
     flexDirection: 'row',
@@ -217,16 +222,16 @@ export const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#F3F4F6'
+    backgroundColor: theme.colors.borderLight
   },
   
   // Navigation Footer
   footer: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: theme.colors.border,
     gap: 12
   },
   prevButton: {
@@ -234,17 +239,18 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
+    backgroundColor: theme.colors.backgroundSecondary
   },
   nextButton: {
     flex: 2,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -255,26 +261,27 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#16A34A',
+    borderColor: theme.colors.primary,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151'
+    color: theme.colors.text
   },
   buttonTextPrimary: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   buttonTextDraft: {
-    color: '#16A34A'
+    color: theme.colors.primary
   },
 
   errorBanner: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: theme.colors.error,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -284,14 +291,14 @@ export const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#B91C1C',
+    color: theme.isDark ? theme.colors.text : '#B91C1C',
     flex: 1
   },
   
   verificationWarning: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#FFFBEB',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: theme.isDark ? theme.colors.brand700 : '#FDE68A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -302,34 +309,34 @@ export const styles = StyleSheet.create({
   warningTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#92400E'
+    color: theme.isDark ? theme.colors.brand100 : '#92400E'
   },
   warningText: {
     fontSize: 12,
-    color: '#B45309',
+    color: theme.isDark ? theme.colors.brand200 : '#B45309',
     marginTop: 2,
     lineHeight: 16
   },
 
   requiredAsterisk: {
-    color: '#DC2626',
+    color: theme.colors.error,
   },
 
   credentialItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     marginBottom: 8,
     gap: 10
   },
   credentialName: {
     flex: 1,
     fontSize: 14,
-    color: '#374151'
+    color: theme.colors.text
   },
   removeCredential: {
     padding: 4
@@ -344,7 +351,7 @@ export const styles = StyleSheet.create({
     padding: 24
   },
   successModalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     padding: 32,
     width: '100%',
@@ -352,14 +359,16 @@ export const styles = StyleSheet.create({
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12
+    shadowOpacity: theme.isDark ? 0.4 : 0.2,
+    shadowRadius: 12,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   successIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24
@@ -367,19 +376,19 @@ export const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 12,
     textAlign: 'center'
   },
   successMessage: {
     fontSize: 16,
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32
   },
   successButton: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
@@ -387,8 +396,10 @@ export const styles = StyleSheet.create({
     alignItems: 'center'
   },
   successButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700'
   }
 });
+
+export default getStyles;

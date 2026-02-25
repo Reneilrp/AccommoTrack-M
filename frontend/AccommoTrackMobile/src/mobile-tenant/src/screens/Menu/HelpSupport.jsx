@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Status
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../../styles/Menu/HelpSupport.js';
+import { getStyles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import Header from '../../components/Header.jsx';
@@ -11,6 +11,7 @@ import Header from '../../components/Header.jsx';
 export default function HelpSupport() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [expandedFAQ, setExpandedFAQ] = useState(null);
   const [message, setMessage] = useState('');
 

@@ -16,7 +16,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { BarChart } from 'react-native-chart-kit';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { styles } from '../../../styles/Landlord/Analytics';
+import { getStyles } from '../../../styles/Landlord/Analytics';
 import LandlordAnalyticsService from '../../../services/LandlordAnalyticsService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -27,7 +27,7 @@ const formatCurrency = (value) => {
   return `₱${numeric.toLocaleString()}`;
 };
 
-const MetricCard = ({ label, value, subValue, tag, icon, color, bgColor }) => (
+const MetricCard = ({ label, value, subValue, tag, icon, color, bgColor, styles }) => (
   <View style={styles.metricCard}>
     <View style={styles.metricHeader}>
       <View style={[styles.metricIconBox, { backgroundColor: bgColor }]}>
@@ -43,6 +43,7 @@ const MetricCard = ({ label, value, subValue, tag, icon, color, bgColor }) => (
 
 export default function Analytics({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [timeRange, setTimeRange] = useState('month');
   const [selectedProperty, setSelectedProperty] = useState('all');
   const [properties, setProperties] = useState([]);
@@ -185,24 +186,28 @@ export default function Analytics({ navigation }) {
             value={formatCurrency(overview.total_revenue)} 
             tag="Cumulative"
             icon="cash" color="#16a34a" bgColor="#DCFCE7"
+            styles={styles}
           />
           <MetricCard 
             label="Monthly Revenue" 
             value={formatCurrency(overview.monthly_revenue)} 
             tag="This Month"
             icon="trending-up" color="#059669" bgColor="#D1FAE5"
+            styles={styles}
           />
           <MetricCard 
             label="Collection Rate" 
             value={`${revenue.collection_rate}%`} 
             tag="Target: 100%"
             icon="checkmark-circle" color="#2563EB" bgColor="#DBEAFE"
+            styles={styles}
           />
           <MetricCard 
             label="Payment Success" 
             value={`${payments.payment_rate}%`} 
             tag="Overall"
             icon="shield-checkmark" color="#4F46E5" bgColor="#E0E7FF"
+            styles={styles}
           />
           <MetricCard 
             label="Occupancy Rate" 
@@ -210,6 +215,7 @@ export default function Analytics({ navigation }) {
             subValue={`${overview.occupied_rooms}/${overview.total_rooms} rooms`}
             tag="Occupancy"
             icon="home" color="#7C3AED" bgColor="#EDE9FE"
+            styles={styles}
           />
           <MetricCard 
             label="Total Rooms" 
@@ -217,6 +223,7 @@ export default function Analytics({ navigation }) {
             subValue={`${overview.available_rooms} Available`}
             tag="Inventory"
             icon="business" color="#9333EA" bgColor="#F3E8FF"
+            styles={styles}
           />
           <MetricCard 
             label="Active Tenants" 
@@ -224,12 +231,14 @@ export default function Analytics({ navigation }) {
             subValue={`+${overview.new_tenants_this_month} New`}
             tag="Active"
             icon="people" color="#DB2777" bgColor="#FCE7F3"
+            styles={styles}
           />
           <MetricCard 
             label="Tenant Retention" 
             value={`${tenants.average_stay_months} mo`} 
             tag="Avg Duration"
             icon="calendar" color="#D97706" bgColor="#FEF3C7"
+            styles={styles}
           />
         </View>
 

@@ -5,15 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, DEFAULT_PREFS, loadPrefsMobile, savePrefsMobile } from '../../../../shared/notificationPrefs';
 import { useNavigation } from '@react-navigation/native';
-import { styles as settingsStyles } from '../../../../styles/Menu/Settings.js';
+import { getStyles as getSettingsStyles } from '../../../../styles/Menu/Settings.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
-import { styles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import Header from '../../components/Header.jsx';
 
 export default function NotificationPreferences() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const settingsStyles = React.useMemo(() => getSettingsStyles(theme), [theme]);
 
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
 

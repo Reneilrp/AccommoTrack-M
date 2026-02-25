@@ -1,15 +1,17 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -17,7 +19,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center',
   },
@@ -25,16 +27,23 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   listContent: {
     padding: 16,
     gap: 16,
   },
   card: {
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -50,48 +59,53 @@ export const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#0369A1',
+    color: theme.colors.primaryDark,
   },
   userName: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: theme.colors.text,
   },
   userDate: {
     fontSize: 12,
+    color: theme.colors.textSecondary,
   },
   propertyName: {
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 8,
+    color: theme.colors.primary,
   },
   comment: {
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
     fontStyle: 'italic',
+    color: theme.colors.text,
   },
   responseContainer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#9CA3AF',
+    borderLeftColor: theme.colors.textTertiary,
   },
   responseLabel: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     marginBottom: 4,
   },
   responseText: {
     fontSize: 13,
+    color: theme.colors.text,
   },
   replyButton: {
     alignSelf: 'flex-start',
@@ -102,10 +116,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: theme.colors.primary,
   },
   replyButtonText: {
     fontSize: 12,
     fontWeight: '600',
+    color: theme.colors.primary,
   },
   emptyState: {
     alignItems: 'center',
@@ -114,6 +130,7 @@ export const styles = StyleSheet.create({
   emptyText: {
     marginTop: 12,
     fontSize: 16,
+    color: theme.colors.textSecondary,
   },
   modalOverlay: {
     flex: 1,
@@ -121,10 +138,13 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 40,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   modalHeader: {
     flexDirection: 'row',
@@ -135,6 +155,7 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: theme.colors.text,
   },
   reviewSnippet: {
     fontSize: 14,
@@ -142,25 +163,32 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
     paddingLeft: 8,
     borderLeftWidth: 2,
-    borderLeftColor: '#E5E7EB',
+    borderLeftColor: theme.colors.border,
+    color: theme.colors.textSecondary,
   },
   input: {
     borderWidth: 1,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     padding: 12,
     height: 120,
     textAlignVertical: 'top',
     fontSize: 16,
     marginBottom: 16,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
   },
   submitButton: {
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    backgroundColor: theme.colors.primary,
   },
   submitButtonText: {
-    color: '#FFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: 'bold',
   },
 });
+
+export default getStyles;

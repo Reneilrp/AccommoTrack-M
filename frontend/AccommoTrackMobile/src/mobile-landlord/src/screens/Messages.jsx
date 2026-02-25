@@ -19,7 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import MessageService from '../../../services/MessageService';
 import createEcho from '../../../services/echo.js';
-import { styles } from '../../../styles/Landlord/Messages.js';
+import { getStyles } from '../../../styles/Landlord/Messages.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const formatTime = (timestamp) => {
@@ -65,6 +65,7 @@ const resolveSenderId = (message) =>
 
 export default function MessagesScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);

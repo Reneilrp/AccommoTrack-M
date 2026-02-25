@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6'
+    backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center'
   },
@@ -50,14 +50,16 @@ export const styles = StyleSheet.create({
     gap: 16
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 18,
     padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: theme.isDark ? 0.3 : 0.08,
     shadowRadius: 12,
-    elevation: 3
+    elevation: 3,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -68,46 +70,49 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827'
+    color: theme.colors.text
   },
   helperText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginBottom: 12
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginBottom: 6
   },
   pickerWrapper: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     marginBottom: 12,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface
   },
   picker: {
-    height: 48
+    height: 48,
+    color: theme.colors.text
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#111827',
-    marginBottom: 12
+    color: theme.colors.text,
+    marginBottom: 12,
+    backgroundColor: theme.colors.surface
   },
   textArea: {
     minHeight: 100,
     textAlignVertical: 'top'
   },
   disabledInput: {
-    backgroundColor: '#F9FAFB',
-    color: '#9CA3AF'
+    backgroundColor: theme.colors.backgroundSecondary,
+    color: theme.colors.textTertiary
   },
   statsRow: {
     flexDirection: 'row',
@@ -117,19 +122,19 @@ export const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     padding: 14,
     alignItems: 'center',
   },
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#16a34a',
+    color: theme.colors.primary,
     textAlign: 'center',
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -141,19 +146,22 @@ export const styles = StyleSheet.create({
   pill: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   pillActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#4ADE80'
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary
   },
   pillText: {
     fontSize: 13,
-    color: '#0F172A',
+    color: theme.colors.text,
     fontWeight: '600'
+  },
+  pillTextActive: {
+    color: theme.colors.primaryDark,
   },
   ruleItem: {
     flexDirection: 'row',
@@ -163,7 +171,7 @@ export const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB'
+    backgroundColor: theme.colors.borderLight
   },
   imagesRow: {
     flexDirection: 'row',
@@ -175,17 +183,18 @@ export const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#F4F4F5'
+    backgroundColor: theme.colors.backgroundTertiary
   },
   addImageButton: {
     width: '31%',
     aspectRatio: 1,
     borderWidth: 1,
-    borderColor: '#CBD5F5',
+    borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface
   },
   imageRemove: {
     position: 'absolute',
@@ -201,22 +210,22 @@ export const styles = StyleSheet.create({
     marginTop: 12
   },
   actionButton: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
     paddingVertical: 16
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700'
   },
   secondaryButton: {
-    backgroundColor: '#0F172A'
+    backgroundColor: theme.isDark ? theme.colors.surface : '#0F172A'
   },
   errorText: {
-    color: '#B91C1C',
+    color: theme.colors.error,
     marginBottom: 12,
     fontSize: 13
   },
@@ -224,45 +233,47 @@ export const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#F87171',
-    backgroundColor: '#FEF2F2'
+    borderColor: theme.colors.error,
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2'
   },
   dangerText: {
     fontSize: 14,
-    color: '#7F1D1D',
+    color: theme.isDark ? theme.colors.text : '#7F1D1D',
     marginBottom: 12
   },
   deleteButton: {
-    backgroundColor: '#DC2626',
+    backgroundColor: theme.colors.error,
     borderRadius: 12,
     alignItems: 'center',
     paddingVertical: 14
   },
   deleteButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '600'
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center'
   },
   modalCard: {
     width: '85%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 18,
-    padding: 20
+    padding: 20,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 8
   },
   modalDescription: {
     fontSize: 14,
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     marginBottom: 16
   },
   modalActions: {
@@ -275,17 +286,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 12,
-    backgroundColor: '#E5E7EB'
+    backgroundColor: theme.colors.backgroundSecondary
   },
   modalButtonText: {
-    color: '#111827',
+    color: theme.colors.text,
     fontWeight: '600'
   },
   modalButtonDanger: {
-    backgroundColor: '#DC2626'
+    backgroundColor: theme.colors.error
   },
   modalButtonDangerText: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   inlineInputRow: {
     flexDirection: 'row',
@@ -296,15 +307,16 @@ export const styles = StyleSheet.create({
   inlineInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#111827',
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface
   },
   inlineAddButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -312,11 +324,13 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   inlineAddButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '600',
     fontSize: 14,
   },
   requiredAsterisk: {
-    color: '#DC2626',
+    color: theme.colors.error,
   },
 });
+
+export default getStyles;

@@ -16,13 +16,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../styles/AuthScreen.styles.js';
+import { getStyles } from '../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL as API_URL } from '../../config';
 import BlockedUserModal from '../../components/BlockedUserModal';
 import ForgotPasswordModal from '../../components/ForgotPasswordModal';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) => {
+const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress, theme }) => {
   const isPending = data.status === 'pending_verification';
   
   return (
@@ -33,19 +34,19 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) =
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 25, width: '85%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 }}>
-          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isPending ? '#FEF3C7' : '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
-            <Ionicons name={isPending ? "time-outline" : "close-circle-outline"} size={45} color={isPending ? "#D97706" : "#EF4444"} />
+        <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, padding: 25, width: '85%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, borderWidth: theme.isDark ? 1 : 0, borderColor: theme.colors.border }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isPending ? (theme.isDark ? theme.colors.warningLight : '#FEF3C7') : (theme.isDark ? theme.colors.errorLight : '#FEE2E2'), justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+            <Ionicons name={isPending ? "time-outline" : "close-circle-outline"} size={45} color={isPending ? theme.colors.warning : theme.colors.error} />
           </View>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 10, textAlign: 'center' }}>{data.title}</Text>
-          <Text style={{ fontSize: 15, color: '#4B5563', textAlign: 'center', marginBottom: isPending ? 25 : 15, lineHeight: 22 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10, textAlign: 'center' }}>{data.title}</Text>
+          <Text style={{ fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: isPending ? 25 : 15, lineHeight: 22 }}>
             {data.message}
           </Text>
 
           {!isPending && data.reason ? (
-            <View style={{ backgroundColor: '#FEF2F2', borderLeftWidth: 4, borderLeftColor: '#EF4444', padding: 12, borderRadius: 8, marginBottom: 25, width: '100%' }}>
-              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#B91C1C', textTransform: 'uppercase', marginBottom: 4 }}>Reason:</Text>
-              <Text style={{ fontSize: 14, color: '#7F1D1D', fontStyle: 'italic' }}>"{data.reason}"</Text>
+            <View style={{ backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2', borderLeftWidth: 4, borderLeftColor: theme.colors.error, padding: 12, borderRadius: 8, marginBottom: 25, width: '100%' }}>
+              <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.isDark ? theme.colors.text : '#B91C1C', textTransform: 'uppercase', marginBottom: 4 }}>Reason:</Text>
+              <Text style={{ fontSize: 14, color: theme.isDark ? theme.colors.textSecondary : '#7F1D1D', fontStyle: 'italic' }}>"{data.reason}"</Text>
             </View>
           ) : null}
 
@@ -53,18 +54,18 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) =
             {!isPending && (
               <TouchableOpacity 
                 onPress={onResubmitPress}
-                style={{ backgroundColor: '#EF4444', paddingVertical: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+                style={{ backgroundColor: theme.colors.error, paddingVertical: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
               >
-                <Ionicons name="refresh-outline" size={20} color="white" />
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Resubmit Documents</Text>
+                <Ionicons name="refresh-outline" size={20} color={theme.colors.textInverse} />
+                <Text style={{ color: theme.colors.textInverse, fontWeight: 'bold', fontSize: 16 }}>Resubmit Documents</Text>
               </TouchableOpacity>
             )}
             
             <TouchableOpacity 
               onPress={onClose}
-              style={{ backgroundColor: isPending ? '#16a34a' : '#F3F4F6', paddingVertical: 12, borderRadius: 12, width: '100%' }}
+              style={{ backgroundColor: isPending ? theme.colors.primary : theme.colors.backgroundSecondary, paddingVertical: 12, borderRadius: 12, width: '100%' }}
             >
-              <Text style={{ color: isPending ? 'white' : '#4B5563', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
+              <Text style={{ color: isPending ? theme.colors.textInverse : theme.colors.textSecondary, fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
                 {isPending ? 'Got it, thanks!' : 'Close'}
               </Text>
             </TouchableOpacity>
@@ -75,7 +76,7 @@ const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress }) =
   );
 };
 
-const ResubmitModal = ({ visible, onClose }) => {
+const ResubmitModal = ({ visible, onClose, theme }) => {
   const [loading, setLoading] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
   const [form, setForm] = useState({
@@ -161,29 +162,29 @@ const ResubmitModal = ({ visible, onClose }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      <View style={{ flex: 1, backgroundColor: 'white', padding: 20, paddingTop: 60 }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background, padding: 20, paddingTop: 60 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#16a34a' }}>Resubmit Documents</Text>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.primary }}>Resubmit Documents</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={28} color="#4B5563" />
+            <Ionicons name="close" size={28} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          <Text style={{ color: '#6B7280', marginBottom: 20, lineHeight: 20 }}>
+          <Text style={{ color: theme.colors.textSecondary, marginBottom: 20, lineHeight: 20 }}>
             Only your verification documents need to be re-uploaded. Your personal information will remain the same.
           </Text>
 
-          <Text style={{ fontWeight: 'bold', marginBottom: 8, color: '#374151' }}>Valid ID Type</Text>
-          <View style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, marginBottom: 20, overflow: 'hidden' }}>
+          <Text style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.text }}>Valid ID Type</Text>
+          <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, marginBottom: 20, overflow: 'hidden' }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ padding: 10 }}>
               {idTypes.map(type => (
                 <TouchableOpacity 
                   key={type} 
                   onPress={() => setForm(prev => ({ ...prev, validIdType: type }))}
-                  style={{ padding: 8, backgroundColor: form.validIdType === type ? '#16a34a' : '#F3F4F6', borderRadius: 8, marginRight: 10 }}
+                  style={{ padding: 8, backgroundColor: form.validIdType === type ? theme.colors.primary : theme.colors.backgroundSecondary, borderRadius: 8, marginRight: 10 }}
                 >
-                  <Text style={{ color: form.validIdType === type ? 'white' : '#374151' }}>{type}</Text>
+                  <Text style={{ color: form.validIdType === type ? theme.colors.textInverse : theme.colors.text }}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -191,28 +192,28 @@ const ResubmitModal = ({ visible, onClose }) => {
 
           <TouchableOpacity 
             onPress={() => pickImage('validId')}
-            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.validId ? '#16a34a' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: form.validId ? '#F0FDF4' : '#F9FAFB' }}
+            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.validId ? theme.colors.primary : theme.colors.border, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: form.validId ? theme.colors.primaryLight : theme.colors.backgroundSecondary }}
           >
             {form.validId ? (
               <Image source={{ uri: form.validId.uri }} style={{ width: '100%', height: '100%', borderRadius: 10 }} />
             ) : (
               <>
-                <Ionicons name="cloud-upload-outline" size={32} color="#9CA3AF" />
-                <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Upload Valid ID</Text>
+                <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary} />
+                <Text style={{ color: theme.colors.textTertiary, marginTop: 8 }}>Upload Valid ID</Text>
               </>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity 
             onPress={() => pickImage('permit')}
-            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.permit ? '#16a34a' : '#D1D5DB', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 30, backgroundColor: form.permit ? '#F0FDF4' : '#F9FAFB' }}
+            style={{ height: 120, borderWidth: 2, borderStyle: 'dashed', borderColor: form.permit ? theme.colors.primary : theme.colors.border, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 30, backgroundColor: form.permit ? theme.colors.primaryLight : theme.colors.backgroundSecondary }}
           >
             {form.permit ? (
               <Image source={{ uri: form.permit.uri }} style={{ width: '100%', height: '100%', borderRadius: 10 }} />
             ) : (
               <>
-                <Ionicons name="document-text-outline" size={32} color="#9CA3AF" />
-                <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Upload Business Permit</Text>
+                <Ionicons name="document-text-outline" size={32} color={theme.colors.textTertiary} />
+                <Text style={{ color: theme.colors.textTertiary, marginTop: 8 }}>Upload Business Permit</Text>
               </>
             )}
           </TouchableOpacity>
@@ -220,9 +221,9 @@ const ResubmitModal = ({ visible, onClose }) => {
           <TouchableOpacity 
             onPress={handleSubmit}
             disabled={loading}
-            style={{ backgroundColor: '#16a34a', paddingVertical: 15, borderRadius: 12, alignItems: 'center' }}
+            style={{ backgroundColor: theme.colors.primary, paddingVertical: 15, borderRadius: 12, alignItems: 'center' }}
           >
-            {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>Submit Re-verification</Text>}
+            {loading ? <ActivityIndicator color={theme.colors.textInverse} /> : <Text style={{ color: theme.colors.textInverse, fontWeight: 'bold', fontSize: 18 }}>Submit Re-verification</Text>}
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -231,6 +232,8 @@ const ResubmitModal = ({ visible, onClose }) => {
 };
 
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
+  const { theme, isDarkMode } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [isLogin, setIsLogin] = useState(true);
   const [signupStep, setSignupStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -565,8 +568,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   };
 
   return (
-    <View style={{flex: 1, backgroundColor: 'white'}}>
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
+    <View style={{flex: 1, backgroundColor: theme.colors.background}}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
       <BlockedUserModal visible={showBlockedModal} onClose={() => setShowBlockedModal(false)} />
       <PendingVerificationModal 
         visible={pendingModalVisible} 
@@ -576,10 +579,12 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           setPendingModalVisible(false);
           setResubmitModalVisible(true);
         }}
+        theme={theme}
       />
       <ResubmitModal 
         visible={resubmitModalVisible} 
         onClose={() => setResubmitModalVisible(false)} 
+        theme={theme}
       />
       <ForgotPasswordModal 
         visible={showForgotPasswordModal}
@@ -940,7 +945,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 onPress={onContinueAsGuest}
                 disabled={loading}
               >
-                <Ionicons name="person-outline" size={18} color="#07770B" />
+                <Ionicons name="person-outline" size={18} color={theme.colors.primary} />
                 <Text style={styles.guestButtonText}>Continue as Guest</Text>
               </TouchableOpacity>
               <Text style={styles.guestHintText}>

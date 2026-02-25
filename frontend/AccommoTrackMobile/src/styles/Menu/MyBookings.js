@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -11,12 +11,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   content: {
     flex: 1,
@@ -25,19 +25,22 @@ export const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   bookingCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     marginBottom: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   bookingImage: {
     width: '100%',
     height: 150,
+    backgroundColor: theme.colors.backgroundTertiary
   },
   bookingInfo: {
     padding: 16,
@@ -51,7 +54,7 @@ export const styles = StyleSheet.create({
   bookingName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: theme.colors.text,
     flex: 1,
   },
   statusBadge: {
@@ -70,7 +73,7 @@ export const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginLeft: 4,
   },
   dateRow: {
@@ -80,7 +83,7 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#cdd0d3ef',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 8,
   },
   dateItem: {
@@ -101,13 +104,13 @@ export const styles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
     marginBottom: 4,
   },
   dateValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
   },
   priceRow: {
     flexDirection: 'row',
@@ -115,16 +118,16 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: theme.colors.border,
   },
   priceLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   price: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
   emptyState: {
     alignItems: 'center',
@@ -134,24 +137,24 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: theme.colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,
   },
   exploreButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -162,11 +165,11 @@ export const styles = StyleSheet.create({
     paddingTop: 8,
     marginTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: theme.colors.border,
   },
   paymentStatusLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   paymentStatusText: {
     fontSize: 14,
@@ -180,13 +183,15 @@ export const styles = StyleSheet.create({
   cancelButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: theme.colors.error,
     borderRadius: 8,
     minWidth: 72,
     alignItems: 'center'
   },
   cancelButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '600'
   }
 });
+
+export default getStyles;

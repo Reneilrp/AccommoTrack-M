@@ -1,15 +1,17 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -17,7 +19,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center',
   },
@@ -25,11 +27,13 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   filterContainer: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -40,22 +44,36 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: 'transparent',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  filterTabActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   filterText: {
     fontSize: 14,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  filterTextActive: {
+    color: theme.colors.textInverse,
   },
   listContent: {
     padding: 16,
     gap: 12,
   },
   card: {
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -63,7 +81,9 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priorityBadge: {
-    // handled by dynamic style in component
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   priorityText: {
     fontSize: 10,
@@ -82,17 +102,19 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: theme.colors.text,
   },
   cardDesc: {
     fontSize: 14,
     marginBottom: 12,
+    color: theme.colors.textSecondary,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: theme.colors.borderLight,
     paddingTop: 12,
   },
   footerItem: {
@@ -103,9 +125,11 @@ export const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
+    color: theme.colors.textSecondary,
   },
   dateText: {
     fontSize: 12,
+    color: theme.colors.textTertiary,
   },
   emptyState: {
     alignItems: 'center',
@@ -114,9 +138,11 @@ export const styles = StyleSheet.create({
   emptyText: {
     marginTop: 12,
     fontSize: 16,
+    color: theme.colors.textSecondary,
   },
   modalContainer: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -124,10 +150,13 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: theme.colors.text,
   },
   modalContent: {
     padding: 20,
@@ -139,6 +168,7 @@ export const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 8,
+    color: theme.colors.text,
   },
   statusRow: {
     flexDirection: 'row',
@@ -147,24 +177,29 @@ export const styles = StyleSheet.create({
   },
   detailDate: {
     fontSize: 14,
+    color: theme.colors.textSecondary,
   },
   sectionLabel: {
     fontSize: 12,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     marginBottom: 4,
+    color: theme.colors.textTertiary,
   },
   sectionValue: {
     fontSize: 16,
     fontWeight: '600',
+    color: theme.colors.text,
   },
   sectionSubValue: {
     fontSize: 14,
     marginTop: 2,
+    color: theme.colors.textSecondary,
   },
   descriptionText: {
     fontSize: 16,
     lineHeight: 24,
+    color: theme.colors.text,
   },
   photoScroll: {
     marginTop: 8,
@@ -174,20 +209,25 @@ export const styles = StyleSheet.create({
     height: 120,
     borderRadius: 8,
     marginRight: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   modalFooter: {
     padding: 16,
     borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   actionButton: {
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    backgroundColor: theme.colors.primary,
   },
   actionButtonText: {
-    color: '#FFF',
+    color: theme.colors.textInverse,
     fontWeight: 'bold',
     fontSize: 16,
   },
 });
+
+export default getStyles;
