@@ -348,18 +348,8 @@ export default function MyProperties({ user }) {
               </div>
             ) : (
               filteredProperties.map((property) => {
-                // Get the image URL using the utility function - more robust check
-                const firstImage = property.images && property.images.length > 0 ? property.images[0] : null;
-                const imageUrl = firstImage 
-                  ? getImageUrl(typeof firstImage === 'string' ? firstImage : (firstImage.image_url || firstImage.url || firstImage.image_path || property.image_url))
-                  : (property.image_url ? getImageUrl(property.image_url) : null);
-
-                // Debug log (you can remove this later)
-                if (property.images && property.images.length > 0) {
-                  console.log('🖼️ Property:', property.title);
-                  console.log('🖼️ Raw first image:', firstImage);
-                  console.log('🖼️ Final URL:', imageUrl);
-                }
+                // Get the image URL using the improved robust utility function
+                const imageUrl = getImageUrl(property.images?.[0] || property.image_url);
 
                 return (
                   <div

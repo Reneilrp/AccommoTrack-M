@@ -88,7 +88,7 @@ const TenantDashboard = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-300 dark:border-gray-700">
               <div className="relative h-48">
                 <img 
-                  src={getImageUrl(stayData.property?.images?.[0]?.image_url) || 'https://via.placeholder.com/800x400'} 
+                  src={getImageUrl(stayData.property?.images?.[0]) || getImageUrl(stayData.property?.image_url) || 'https://via.placeholder.com/800x400'} 
                   alt="Property" 
                   className="w-full h-full object-cover"
                 />
@@ -134,7 +134,7 @@ const TenantDashboard = () => {
                   <img
                     src={getImageUrl(stayData.landlord?.profile_image) || `https://ui-avatars.com/api/?name=${stayData.landlord?.name}&background=random`}
                     alt={stayData.landlord?.name}
-                    className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-600 shadow-sm"
+                    className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-600 shadow-sm object-cover"
                   />
                   <div className="flex-1">
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property Manager</p>

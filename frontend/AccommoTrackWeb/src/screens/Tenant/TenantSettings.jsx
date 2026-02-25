@@ -6,7 +6,7 @@ import NotificationsTab from '../../components/Settings/tenant/NotificationsTab'
 import AppearanceTab from '../../components/Settings/AppearanceTab';
 import { User, Sliders, Shield, Bell, Palette } from 'lucide-react';
 
-const TenantSettings = ({ user }) => {
+const TenantSettings = ({ user, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
@@ -45,7 +45,7 @@ const TenantSettings = ({ user }) => {
         {/* Main Content */}
         <div className="flex-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 md:p-8">
-            {activeTab === 'profile' && <ProfileTab />}
+            {activeTab === 'profile' && <ProfileTab onUserUpdate={onUserUpdate} />}
             {activeTab === 'preferences' && <PreferencesTab />}
             {activeTab === 'account' && <AccountTab user={user} />}
             {activeTab === 'notifications' && <NotificationsTab />}
