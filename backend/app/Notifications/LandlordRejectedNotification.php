@@ -36,7 +36,7 @@ class LandlordRejectedNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $loginUrl = config('app.frontend_url', 'http://192.168.43.142:5173') . '/login';
+        $loginUrl = config('app.frontend_url', 'https://accommotrack.me') . '/login';
 
         return (new MailMessage)
             ->subject('Update on Your Landlord Registration')
