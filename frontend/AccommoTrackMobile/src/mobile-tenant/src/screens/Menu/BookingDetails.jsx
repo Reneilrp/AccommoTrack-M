@@ -21,12 +21,12 @@ import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { BASE_URL as API_BASE_URL } from '../../../../config';
 import { showSuccess, showError } from '../../../../utils/toast';
-import { styles } from '../../../../styles/Tenant/BookingDetailsStyles';
+import { getStyles } from '../../../../styles/Tenant/BookingDetailsStyles';
 import Header from '../../components/Header.jsx';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const InfoRow = ({ icon, label, value, color, theme }) => (
+const InfoRow = ({ icon, label, value, color, theme, styles }) => (
     <View style={styles.infoRow}>
         <View style={[styles.iconCircle, { backgroundColor: (color || theme.colors.primary) + '15' }]}>
             <Ionicons name={icon} size={18} color={color || theme.colors.primary} />
@@ -38,7 +38,7 @@ const InfoRow = ({ icon, label, value, color, theme }) => (
     </View>
 );
 
-const RoomDetails = ({ room, theme }) => {
+const RoomDetails = ({ room, theme, styles }) => {
     return (
         <>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Room</Text>
@@ -61,9 +61,9 @@ const RoomDetails = ({ room, theme }) => {
                 )}
 
                 <View style={{ padding: 16 }}>
-                    <InfoRow icon="information-circle-outline" label="Room Type" value={room.room_type} theme={theme} />
+                    <InfoRow icon="information-circle-outline" label="Room Type" value={room.room_type} theme={theme} styles={styles} />
                     <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-                    <InfoRow icon="people-outline" label="Capacity" value={`${room.capacity} person(s)`} theme={theme} />
+                    <InfoRow icon="people-outline" label="Capacity" value={`${room.capacity} person(s)`} theme={theme} styles={styles} />
                     <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
                     <Text style={{ color: theme.colors.text, marginTop: 10, marginBottom: 5, fontWeight: 'bold' }}>Description</Text>
                     <Text style={{ color: theme.colors.textSecondary }}>{room.description || 'No description available.'}</Text>
@@ -134,6 +134,7 @@ export default function BookingDetails() {
     const route = useRoute();
     const navigation = useNavigation();
     const { theme } = useTheme();
+    const styles = React.useMemo(() => getStyles(theme), [theme]);
     const insets = useSafeAreaInsets();
     const { bookingId } = route.params || {};
 
@@ -346,16 +347,16 @@ export default function BookingDetails() {
                         </View>
                     </View>
 
-                    {booking.room && <RoomDetails room={booking.room} theme={theme} />}
+                    {booking.room && <RoomDetails room={booking.room} theme={theme} styles={styles} />}
 
                     {/* Landlord Information */}
                     <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Landlord Information</Text>
                     <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
-                        <InfoRow icon="person-outline" label="Landlord" value={landlord.first_name ? `${landlord.first_name} ${landlord.last_name}` : 'N/A'} theme={theme} />
+                        <InfoRow icon="person-outline" label="Landlord" value={landlord.first_name ? `${landlord.first_name} ${landlord.last_name}` : 'N/A'} theme={theme} styles={styles} />
                         <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-                        <InfoRow icon="mail-outline" label="Email" value={landlord.email || 'N/A'} theme={theme} />
+                        <InfoRow icon="mail-outline" label="Email" value={landlord.email || 'N/A'} theme={theme} styles={styles} />
                         <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-                        <InfoRow icon="call-outline" label="Phone" value={landlord.phone || 'N/A'} theme={theme} />
+                        <InfoRow icon="call-outline" label="Phone" value={landlord.phone || 'N/A'} theme={theme} styles={styles} />
                     </View>
 
                     {/* Payment Summary */}

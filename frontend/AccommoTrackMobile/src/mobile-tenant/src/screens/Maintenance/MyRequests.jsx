@@ -3,10 +3,11 @@ import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
-import { styles } from '../../../../styles/Tenant/MaintenanceStyles';
+import { getStyles } from '../../../../styles/Tenant/MaintenanceStyles';
 
 export default function MyRequests({ hideHeader = false }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

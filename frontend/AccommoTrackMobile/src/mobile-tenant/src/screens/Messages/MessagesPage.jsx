@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { styles } from '../../../../styles/Tenant/MessagesPage';
+import { getStyles } from '../../../../styles/Tenant/MessagesPage';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import MessageService from '../../../../services/MessageService.js';
 import { showSuccess, showError } from '../../../../utils/toast.js';
@@ -12,6 +12,7 @@ import MessagesList from './MessagesList.jsx';
 
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
+    const styles = React.useMemo(() => getStyles(theme), [theme]);
     const queryClient = useQueryClient();
     const [currentUserId, setCurrentUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');

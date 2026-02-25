@@ -5,12 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import tenantService from '../../../../services/TenantService';
-import { styles } from '../../../../styles/Tenant/ReviewStyles';
+import { getStyles } from '../../../../styles/Tenant/ReviewStyles';
 
 export default function LeaveReview() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { bookingId = null, propertyId = null, reviewId = null, initialRating = 5, initialComment = '' } = route.params || {};
 
   const [rating, setRating] = useState(initialRating);

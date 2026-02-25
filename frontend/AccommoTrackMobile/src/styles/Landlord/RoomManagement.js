@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6'
+    backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
     height: 60,
     flexDirection: 'row',
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center'
   },
@@ -30,17 +30,19 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
     marginTop: 14,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: theme.colors.border
   },
   addButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#16A34A'
+    color: theme.colors.primary
   },
   listContent: {
     paddingBottom: 40
@@ -56,26 +58,28 @@ export const styles = StyleSheet.create({
     width: 150,
     padding: 16,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     marginRight: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: theme.isDark ? 0.3 : 0.08,
     shadowRadius: 8,
-    elevation: 2
+    elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   propertyChipActive: {
     borderWidth: 2,
-    borderColor: '#16A34A'
+    borderColor: theme.colors.primary
   },
   propertyChipTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   propertyChipMeta: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 4
   },
   statsRow: {
@@ -90,24 +94,26 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 6,
     elevation: 1,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center'
   },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
     marginTop: 4
   },
   filterScroll: {
@@ -118,44 +124,49 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     marginRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6
   },
   filterChipActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary
   },
   filterText: {
     fontSize: 13,
-    color: '#475569',
+    color: theme.colors.textSecondary,
     fontWeight: '600'
+  },
+  filterTextActive: {
+    color: theme.colors.primaryDark,
   },
   filterBadge: {
     fontSize: 12,
-    color: '#16A34A',
+    color: theme.colors.primary,
     fontWeight: '700'
   },
   roomCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 22,
     marginHorizontal: 16,
     marginBottom: 18,
     overflow: 'hidden',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
+    shadowOpacity: theme.isDark ? 0.3 : 0.08,
     shadowRadius: 12,
-    elevation: 3
+    elevation: 3,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   roomImage: {
     width: '100%',
     height: 190,
-    backgroundColor: '#E2E8F0'
+    backgroundColor: theme.colors.backgroundTertiary
   },
   statusBadge: {
     position: 'absolute',
@@ -181,11 +192,11 @@ export const styles = StyleSheet.create({
   roomTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   roomMeta: {
     fontSize: 13,
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
   priceBlock: {
     alignItems: 'flex-end'
@@ -193,11 +204,11 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#16A34A'
+    color: theme.colors.primary
   },
   priceCaption: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     marginTop: 2
   },
   capacityRow: {
@@ -208,25 +219,25 @@ export const styles = StyleSheet.create({
   },
   capacityText: {
     fontSize: 13,
-    color: '#475569',
+    color: theme.colors.textSecondary,
     fontWeight: '600'
   },
   tenantCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12
   },
   tenantLabel: {
     fontSize: 11,
-    color: '#94A3B8'
+    color: theme.colors.textTertiary
   },
   tenantText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 4
   },
   amenitiesRow: {
@@ -239,13 +250,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.primaryLight,
     borderWidth: 1,
-    borderColor: '#DCFCE7'
+    borderColor: 'transparent'
   },
   amenityText: {
     fontSize: 12,
-    color: '#15803D',
+    color: theme.colors.primaryDark,
     fontWeight: '600'
   },
   roomActions: {
@@ -260,18 +271,18 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#E0F2FE'
+    backgroundColor: theme.colors.backgroundSecondary
   },
   actionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0369A1'
+    color: theme.colors.textSecondary
   },
   statusButton: {
-    backgroundColor: '#FEF3C7'
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#FEF3C7'
   },
   statusButtonText: {
-    color: '#B45309'
+    color: theme.isDark ? theme.colors.brand100 : '#B45309'
   },
   emptyState: {
     marginTop: 60,
@@ -281,12 +292,12 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 12
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: 6
   },
@@ -295,17 +306,17 @@ export const styles = StyleSheet.create({
     marginTop: 16,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
     borderWidth: 1,
-    borderColor: '#FCA5A5'
+    borderColor: theme.colors.error
   },
   errorText: {
-    color: '#B91C1C',
+    color: theme.isDark ? theme.colors.text : '#B91C1C',
     fontSize: 13
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB'
+    backgroundColor: theme.colors.background
   },
   modalHeader: {
     flexDirection: 'row',
@@ -313,7 +324,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     borderBottomWidth: 0,
     minHeight: 60
   },
@@ -328,7 +339,7 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center'
   },
@@ -336,31 +347,31 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.background
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 12,
     marginTop: 20
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginBottom: 6
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 12,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   textArea: {
     minHeight: 100,
@@ -368,15 +379,18 @@ export const styles = StyleSheet.create({
   },
   pickerWrapper: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     marginBottom: 12,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
+  },
+  picker: {
+    color: theme.colors.text
   },
   helperText: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     marginBottom: 10
   },
   pillList: {
@@ -388,19 +402,22 @@ export const styles = StyleSheet.create({
   pill: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   pillActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary
   },
   pillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0F172A'
+    color: theme.colors.text
+  },
+  pillTextActive: {
+    color: theme.colors.primaryDark
   },
   imageGrid: {
     flexDirection: 'row',
@@ -413,50 +430,50 @@ export const styles = StyleSheet.create({
     height: 100,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundTertiary,
     position: 'relative'
   },
   addImageTile: {
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC'
+    backgroundColor: theme.colors.surface
   },
   pricingCard: {
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   pricingCardActive: {
-    borderColor: '#16A34A',
-    backgroundColor: '#F0FDF4'
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight
   },
   pricingCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 4
   },
   pricingCardDesc: {
     fontSize: 13,
-    color: '#6B7280'
+    color: theme.colors.textSecondary
   },
   pricingInfoBox: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
     borderRadius: 10,
     padding: 12,
     marginBottom: 12
   },
   pricingInfoText: {
     fontSize: 13,
-    color: '#1E40AF'
+    color: theme.isDark ? theme.colors.brand100 : '#1E40AF'
   },
   imageRemove: {
     position: 'absolute',
@@ -473,8 +490,8 @@ export const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
     borderTopWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
@@ -483,49 +500,51 @@ export const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center'
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: theme.isDark ? theme.colors.backgroundTertiary : '#1E293B',
     borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center'
   },
   dangerButton: {
     flex: 1,
-    backgroundColor: '#DC2626',
+    backgroundColor: theme.colors.error,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center'
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   statusModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end'
   },
   statusSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24
+    padding: 24,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   statusOption: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: theme.colors.borderLight
   },
   statusOptionText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   statusOptionLast: {
     borderBottomWidth: 0
@@ -536,11 +555,13 @@ export const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6'
+    borderBottomColor: theme.colors.borderLight
   },
   ruleText: {
     flex: 1,
     fontSize: 14,
-    color: '#374151'
+    color: theme.colors.textSecondary
   }
 });
+
+export default getStyles;

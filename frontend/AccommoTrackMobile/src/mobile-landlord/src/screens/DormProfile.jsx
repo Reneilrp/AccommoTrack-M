@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import PropertyService, { getImageUrl } from '../../../services/PropertyServices';
-import { styles } from '../../../styles/Landlord/DormProfile.js';
+import { getStyles } from '../../../styles/Landlord/DormProfile.js';
 
 const PROPERTY_TYPES = [
   { label: 'Dormitory', value: 'dormitory' },
@@ -137,6 +137,7 @@ const normalizeProperty = (data) => {
 
 export default function DormProfileScreen({ route, navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const propertyId = route.params?.propertyId || route.params?.property?.id;
   const [form, setForm] = useState(buildEmptyForm);
   const [baseline, setBaseline] = useState(buildEmptyForm);

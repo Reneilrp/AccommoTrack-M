@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { navigationRef } from '../../../navigation/RootNavigation';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { styles } from '../../../styles/Tenant/HomePage.js';
+import { getStyles } from '../../../styles/Tenant/HomePage.js';
 
 export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired, currentRouteName: propRouteName }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [isNavigating, setIsNavigating] = useState(false);
 

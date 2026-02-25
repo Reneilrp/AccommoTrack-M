@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -11,12 +11,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   content: {
     flex: 1,
@@ -28,19 +28,21 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   settingsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   settingItem: {
     flexDirection: 'row',
@@ -51,10 +53,10 @@ export const styles = StyleSheet.create({
   },
   settingItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   settingItemHighlight: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#F0FDF4',
   },
   settingLeft: {
     flexDirection: 'row',
@@ -65,21 +67,21 @@ export const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   settingIconHighlight: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   settingLabel: {
     fontSize: 16,
-    color: '#111827',
+    color: theme.colors.text,
     fontWeight: '500',
   },
   settingLabelHighlight: {
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   settingRight: {
@@ -89,15 +91,15 @@ export const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   dangerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 2,
-    borderColor: '#FEE2E2',
+    borderColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
     borderRadius: 12,
     paddingVertical: 14,
     gap: 8,
@@ -105,7 +107,7 @@ export const styles = StyleSheet.create({
   dangerButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#EF4444',
+    color: theme.colors.error,
   },
   cardInner: {
     padding: 12,
@@ -114,8 +116,11 @@ export const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: '700', 
     marginBottom: 8,
+    color: theme.colors.text
   },
   switchRow: {
     paddingVertical: 8,
   }
 });
+
+export default getStyles;

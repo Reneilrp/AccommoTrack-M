@@ -2,10 +2,10 @@ import { StyleSheet, Dimensions } from "react-native";
 
 const { width } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
   
   // Header
@@ -15,9 +15,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: 'transparent',
   },
   backButton: {
     padding: 8,
@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.textInverse,
     flex: 1,
     marginLeft: 12,
     textAlign: 'center',
@@ -37,12 +37,12 @@ export const styles = StyleSheet.create({
   // Image Gallery
   imageGalleryContainer: {
     position: 'relative',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
   roomImage: {
     width: width,
     height: 280,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   imageIndicator: {
     position: 'absolute',
@@ -67,7 +67,7 @@ export const styles = StyleSheet.create({
   // Content Container
   contentContainer: {
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
   
   // Room Header
@@ -80,7 +80,7 @@ export const styles = StyleSheet.create({
   roomNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
     letterSpacing: -0.5,
     flex: 1,
   },
@@ -101,7 +101,7 @@ export const styles = StyleSheet.create({
   
   roomType: {
     fontSize: 15,
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginBottom: 20,
     fontWeight: '400',
   },
@@ -113,17 +113,17 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
     paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.border,
   },
   price: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: theme.colors.primary,
     letterSpacing: -0.8,
   },
   priceLabel: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     marginLeft: 6,
     fontWeight: '400',
   },
@@ -135,13 +135,13 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: theme.colors.text,
     marginBottom: 16,
     letterSpacing: -0.2,
   },
   description: {
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.textSecondary,
     lineHeight: 24,
     fontWeight: '400',
   },
@@ -161,7 +161,7 @@ amenityItem: {
 },
 amenityText: {
   fontSize: 14,
-  color: '#374151',
+  color: theme.colors.textSecondary,
   fontWeight: '400',
   flex: 1,
 },
@@ -175,7 +175,7 @@ amenityText: {
   },
   infoText: {
     fontSize: 14,
-    color: '#374151',
+    color: theme.colors.textSecondary,
     flex: 1,
     lineHeight: 20,
     fontWeight: '400',
@@ -185,15 +185,15 @@ amenityText: {
   rulesContainer: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.colors.border,
   },
   rulesTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   ruleItem: {
@@ -204,7 +204,7 @@ amenityText: {
   },
   ruleText: {
     fontSize: 13,
-    color: '#374151',
+    color: theme.colors.textSecondary,
     flex: 1,
     lineHeight: 20,
   },
@@ -213,13 +213,13 @@ amenityText: {
   },
   viewAllText: {
     fontSize: 13,
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   
   // Action Buttons
   bookButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -227,13 +227,13 @@ amenityText: {
     marginBottom: 12,
   },
   bookButtonText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
   contactButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: 8,
     flexDirection: 'row',
@@ -244,7 +244,7 @@ amenityText: {
     marginBottom: 20,
   },
   contactButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -260,7 +260,7 @@ amenityText: {
     height: '100%',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     padding: 24,
     borderRadius: 16,
     width: '100%',
@@ -269,7 +269,7 @@ amenityText: {
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
     marginBottom: 24,
     letterSpacing: -0.3,
   },
@@ -278,22 +278,22 @@ amenityText: {
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
     padding: 14,
     marginBottom: 16,
     borderRadius: 8,
     fontSize: 14,
-    color: '#000',
+    color: theme.colors.text,
   },
   submitButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   submitButtonText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontWeight: '600',
     fontSize: 15,
     letterSpacing: 0.3,
@@ -304,51 +304,51 @@ amenityText: {
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#6b7280',
+    color: theme.colors.textTertiary,
     fontSize: 14,
     fontWeight: '500',
   },
   guestNotice: {
-  backgroundColor: '#EFF6FF',
+  backgroundColor: theme.isDark ? theme.colors.brand900 : '#EFF6FF',
   padding: 16,
   borderRadius: 12,
   flexDirection: 'row',
   alignItems: 'center',
   marginBottom: 16,
   borderWidth: 1,
-  borderColor: '#BFDBFE',
+  borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
 },
 guestNoticeText: {
   flex: 1,
   marginLeft: 12,
   fontSize: 14,
-  color: '#1E40AF',
+  color: theme.isDark ? '#BFDBFE' : '#1E40AF',
   lineHeight: 20,
 },
 dateButton: {
   flexDirection: 'row',
   alignItems: 'center',
-  backgroundColor: '#fff',
+  backgroundColor: theme.colors.background,
   borderWidth: 1,
-  borderColor: '#d1d5db',
+  borderColor: theme.colors.border,
   borderRadius: 8,
   padding: 14,
   gap: 10,
 },
 dateButtonText: {
   fontSize: 16,
-  color: '#111827',
+  color: theme.colors.text,
   flex: 1,
 },
 
 // Summary container styles
 summaryContainer: {
-  backgroundColor: '#f0fdf4',
+  backgroundColor: theme.colors.primaryLight,
   borderRadius: 12,
   padding: 16,
   marginBottom: 16,
   borderWidth: 1,
-  borderColor: '#bbf7d0',
+  borderColor: theme.colors.border,
 },
 summaryRow: {
   flexDirection: 'row',
@@ -357,32 +357,32 @@ summaryRow: {
 },
 summaryLabel: {
   fontSize: 14,
-  color: '#166534',
+  color: theme.colors.textSecondary,
 },
 summaryValue: {
   fontSize: 14,
   fontWeight: '600',
-  color: '#166534',
+  color: theme.colors.text,
 },
 summaryLabelBold: {
   fontSize: 16,
   fontWeight: '600',
-  color: '#166534',
+  color: theme.colors.text,
 },
 summaryValueBold: {
   fontSize: 20,
   fontWeight: 'bold',
-  color: '#15803d',
+  color: theme.colors.primary,
 },
 summaryNote: {
   fontSize: 12,
-  color: '#166534',
+  color: theme.colors.textTertiary,
   marginTop: 4,
 },
 
 // Update existing submitButtonDisabled style
 submitButtonDisabled: {
-  backgroundColor: '#d1d5db',
+  backgroundColor: theme.colors.textTertiary,
   opacity: 0.6,
 },
 });

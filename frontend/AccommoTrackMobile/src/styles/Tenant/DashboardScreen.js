@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -12,6 +13,8 @@ export const styles = StyleSheet.create({
     paddingTop: 35,
     paddingBottom: 16,
     borderBottomWidth: 1,
+    backgroundColor: theme.colors.primary,
+    borderBottomColor: 'transparent',
   },
   headerSpacer: {
     width: 40,
@@ -23,6 +26,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: theme.colors.textInverse,
   },
   contentContainer: {
     flex: 1,
@@ -31,6 +35,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingBottom: 24,
+    backgroundColor: theme.colors.background,
   },
   statsRow: {
     flexDirection: 'row',
@@ -48,8 +53,9 @@ export const styles = StyleSheet.create({
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: theme.isDark ? 0.3 : 0.08,
     shadowRadius: 4,
+    backgroundColor: theme.colors.surface,
   },
   iconContainer: {
     width: 40,
@@ -63,16 +69,19 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: theme.colors.text,
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    color: theme.colors.textSecondary,
   },
   statSubLabel: {
     fontSize: 10,
     marginTop: 2,
+    color: theme.colors.textTertiary,
   },
   propertyCard: {
     borderRadius: 12,
@@ -81,12 +90,16 @@ export const styles = StyleSheet.create({
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
     shadowRadius: 4,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
   },
   propertyImage: {
     width: '100%',
     height: 200,
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   propertyOverlay: {
     position: 'absolute',
@@ -117,11 +130,13 @@ export const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     gap: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
   },
   landlordAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   landlordInfo: {
     flex: 1,
@@ -129,11 +144,13 @@ export const styles = StyleSheet.create({
   landlordLabel: {
     fontSize: 12,
     fontWeight: '600',
+    color: theme.colors.textTertiary,
   },
   landlordName: {
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 2,
+    color: theme.colors.text,
   },
   messageButton: {
     width: 40,
@@ -142,6 +159,8 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   card: {
     borderRadius: 12,
@@ -150,13 +169,17 @@ export const styles = StyleSheet.create({
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
     shadowRadius: 4,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+    color: theme.colors.text,
   },
   paymentRow: {
     flexDirection: 'row',
@@ -166,23 +189,27 @@ export const styles = StyleSheet.create({
   },
   paymentLabel: {
     fontSize: 14,
+    color: theme.colors.textSecondary,
   },
   paymentValue: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: theme.colors.text,
   },
   divider: {
     height: 1,
     marginVertical: 8,
+    backgroundColor: theme.colors.border,
   },
   primaryButton: {
     borderRadius: 8,
     padding: 14,
     alignItems: 'center',
     marginTop: 16,
+    backgroundColor: theme.colors.primary,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -193,15 +220,22 @@ export const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 8,
     marginBottom: 8,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   actionText: {
     fontSize: 14,
     fontWeight: '500',
+    color: theme.colors.text,
   },
   emptyState: {
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border,
   },
   emptyIcon: {
     width: 80,
@@ -210,17 +244,20 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   emptyTitle: {
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 8,
+    color: theme.colors.text,
   },
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
+    color: theme.colors.textSecondary,
   },
   upcomingCard: {
     borderRadius: 12,
@@ -229,12 +266,14 @@ export const styles = StyleSheet.create({
     marginTop: 24,
     flexDirection: 'row',
     gap: 12,
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#EFF6FF',
+    borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
   },
   upcomingIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#BFDBFE',
+    backgroundColor: theme.isDark ? theme.colors.brand800 : '#BFDBFE',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -244,12 +283,12 @@ export const styles = StyleSheet.create({
   upcomingTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1E3A8A',
+    color: theme.isDark ? theme.colors.brand100 : '#1E3A8A',
     marginBottom: 4,
   },
   upcomingText: {
     fontSize: 13,
-    color: '#1E40AF',
+    color: theme.isDark ? theme.colors.brand200 : '#1E40AF',
     lineHeight: 18,
   },
   upcomingBold: {
@@ -257,10 +296,10 @@ export const styles = StyleSheet.create({
   },
   upcomingLink: {
     fontSize: 13,
-    color: '#1E40AF',
+    color: theme.isDark ? theme.colors.brand300 : '#1E40AF',
     fontWeight: '600',
     marginTop: 8,
   },
 });
 
-export default styles;
+export default getStyles;

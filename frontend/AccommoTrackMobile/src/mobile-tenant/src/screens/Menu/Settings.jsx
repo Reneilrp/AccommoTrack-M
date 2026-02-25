@@ -1,8 +1,20 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, StatusBar, RefreshControl, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { getStyles } from '../../../../styles/Menu/Settings.js';
+import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import Header from '../../components/Header.jsx';
+import { ListItemSkeleton } from '../../../../components/Skeletons';
 import ProfileService from '../../../../services/ProfileService';
+import { WEB_BASE_URL } from '../../../../config';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
-  const { theme } = useTheme();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [notificationSettings, setNotificationSettings] = useState({
     notifications: true,
@@ -195,6 +207,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           items: [
             { id: 1, label: "Login / Sign Up", icon: "log-in-outline", arrow: true, highlight: true },
             { id: 2, label: "Become a Landlord", icon: "business-outline", arrow: true },
+            { 
+              id: 3, 
+              label: "Dark Mode", 
+              icon: isDarkMode ? "moon" : "moon-outline", 
+              toggle: true, 
+              value: isDarkMode,
+              onChange: toggleTheme
+            },
           ]
         },
         {
@@ -216,6 +236,14 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         items: [
           { id: 1, label: "Profile", icon: "person-outline", arrow: true },
           { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
+          { 
+            id: 3, 
+            label: "Dark Mode", 
+            icon: isDarkMode ? "moon" : "moon-outline", 
+            toggle: true, 
+            value: isDarkMode,
+            onChange: toggleTheme
+          },
           { id: 4, label: "Become a Landlord", icon: "business-outline", arrow: true },
         ]
       },

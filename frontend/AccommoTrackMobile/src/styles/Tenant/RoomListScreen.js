@@ -1,9 +1,9 @@
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -12,7 +12,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   backButton: { 
     padding: 8 
@@ -20,7 +21,7 @@ export const styles = StyleSheet.create({
   headerTitle: { 
     fontSize: 18, 
     fontWeight: '600', 
-    color: '#000',
+    color: theme.colors.text,
     flex: 1,
     marginLeft: 12,
   },
@@ -28,17 +29,17 @@ export const styles = StyleSheet.create({
     width: 40 
   },
 
-  // Filter buttons - ADDED THIS
+  // Filter buttons
   filterScroll: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    maxHeight: 64, // Prevent it from expanding
+    maxHeight: 64,
   },
   filterButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.colors.backgroundSecondary,
     minWidth: 90,
     height: 40,
     alignItems: 'center',
@@ -46,18 +47,17 @@ export const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterButtonActive: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   filterText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
   },
   filterTextActive: {
-    color: '#fff',
+    color: theme.colors.textInverse,
   },
 
-  // Scroll view - ADDED THIS
   scrollView: { 
     flex: 1,
   },
@@ -71,9 +71,9 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
 
-  // FIXED: Removed flex: 1 from emptyContainer
   emptyContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -83,28 +83,28 @@ export const styles = StyleSheet.create({
   emptyText: { 
     fontSize: 18, 
     fontWeight: '600', 
-    color: '#9ca3af', 
+    color: theme.colors.textTertiary, 
     marginTop: 16 
   },
   emptySubtext: { 
     fontSize: 14, 
-    color: '#d1d5db', 
+    color: theme.colors.textTertiary, 
     marginTop: 4 
   },
 
   // Room Card Layout
   roomCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.2 : 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
     height: 120,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.colors.backgroundTertiary,
     marginBottom: 8,
   },
   
@@ -137,12 +137,12 @@ export const styles = StyleSheet.create({
   roomPrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
   
   priceLabel: {
     fontSize: 11,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   
@@ -162,7 +162,7 @@ export const styles = StyleSheet.create({
   roomNumber: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
     flex: 1,
   },
   
@@ -182,7 +182,7 @@ export const styles = StyleSheet.create({
   
   roomType: {
     fontSize: 13,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
   
@@ -201,7 +201,7 @@ export const styles = StyleSheet.create({
   
   roomDetailText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
   },
   
   // View Details button on the right
@@ -209,7 +209,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: theme.colors.primaryLight,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -220,6 +220,6 @@ export const styles = StyleSheet.create({
   viewDetailsText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
 });

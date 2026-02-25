@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Landlord/DashboardPage.js';
+import { getStyles } from '../../../styles/Landlord/DashboardPage.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 import MenuDrawer from '../components/MenuDrawer';
@@ -83,6 +83,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const isMountedRef = useRef(true);
 
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const quickActions = [
     { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties' },

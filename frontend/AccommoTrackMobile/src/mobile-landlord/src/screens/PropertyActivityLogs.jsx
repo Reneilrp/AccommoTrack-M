@@ -13,12 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import LandlordDashboardService from '../../../services/LandlordDashboardService';
-import { styles } from '../../../styles/Landlord/PropertyActivityLogs';
+import { getStyles } from '../../../styles/Landlord/PropertyActivityLogs';
 
 const FILTERS = ['All', 'Dorm Settings', 'Room Management', 'Payments', 'Due'];
 
 export default function PropertyActivityLogs({ route, navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { propertyId, propertyTitle } = route.params || {};
 
   const [logs, setLogs] = useState([]);

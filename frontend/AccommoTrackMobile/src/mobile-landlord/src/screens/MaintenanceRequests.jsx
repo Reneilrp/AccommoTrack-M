@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../styles/Landlord/MaintenanceRequests'; // I will create this next
+import { getStyles } from '../../../styles/Landlord/MaintenanceRequests'; // I will create this next
 import MaintenanceService from '../../../services/MaintenanceService';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { BASE_URL } from '../../../config';
@@ -21,6 +21,7 @@ import { BASE_URL } from '../../../config';
 export default function MaintenanceRequests() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);

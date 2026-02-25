@@ -8,11 +8,14 @@ import LandingPages from '../core/LandingPages/LandingPages.jsx';
 import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
 import LandlordLayout from '../mobile-landlord/src/navigation/LandlordLayout.jsx';
 import TenantLayout from '../mobile-tenant/src/navigation/TenantLayout.jsx';
-import { styles } from '../styles/AppNavigator.js';
+import { getStyles } from '../styles/AppNavigator.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState(null); 
   const [authContext, setAuthContext] = useState(null);
@@ -101,7 +104,7 @@ export default function AppNavigator() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#07770B" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }

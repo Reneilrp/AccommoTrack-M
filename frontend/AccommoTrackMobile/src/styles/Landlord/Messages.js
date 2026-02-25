@@ -1,15 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   safeArea: {
-    flex: 1
+    flex: 1,
+    backgroundColor: theme.colors.primary
   },
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB'
+    backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -19,7 +20,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     textAlign: 'center'
   },
   headerIcon: {
@@ -39,12 +40,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   searchContainer: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingBottom: 16
   },
   searchBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -55,17 +56,17 @@ export const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
-    color: '#1F2937'
+    color: theme.colors.text
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB'
+    backgroundColor: theme.colors.background
   },
   loadingText: {
     marginTop: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 16
   },
   emptyContainer: {
@@ -77,12 +78,12 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginTop: 16
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4,
     textAlign: 'center'
   },
@@ -91,12 +92,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6'
+    borderBottomColor: theme.colors.borderLight
   },
   newConversation: {
-    backgroundColor: '#E8F5E9'
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#E8F5E9'
   },
   avatarContainer: {
     marginRight: 12
@@ -105,14 +106,14 @@ export const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center'
   },
   avatarText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#16A34A'
+    color: theme.colors.primary
   },
   conversationInfo: {
     flex: 1
@@ -125,24 +126,24 @@ export const styles = StyleSheet.create({
   conversationName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937'
+    color: theme.colors.text
   },
   conversationTime: {
     fontSize: 12,
-    color: '#9CA3AF'
+    color: theme.colors.textTertiary
   },
   propertyName: {
     fontSize: 12,
-    color: '#16A34A',
+    color: theme.colors.primary,
     marginTop: 2
   },
   lastMessage: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 4
   },
   unreadBadge: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     minWidth: 24,
     height: 24,
@@ -151,19 +152,16 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8
   },
   unreadCount: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 12,
     fontWeight: '600'
   },
   chatScreenHeader: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center'
-  },
-  backButton: {
-    padding: 8
   },
   chatHeaderInfo: {
     flex: 1,
@@ -198,14 +196,14 @@ export const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB'
+    backgroundColor: theme.colors.background
   },
   messagesContent: {
     padding: 16,
     flexGrow: 1
   },
   propertyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -215,7 +213,9 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 1
+    elevation: 1,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   propertyCardInfo: {
     marginLeft: 12
@@ -223,11 +223,11 @@ export const styles = StyleSheet.create({
   propertyCardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937'
+    color: theme.colors.text
   },
   propertyCardSubtitle: {
     fontSize: 12,
-    color: '#9CA3AF'
+    color: theme.colors.textSecondary
   },
   emptyMessagesContainer: {
     flex: 1,
@@ -238,12 +238,12 @@ export const styles = StyleSheet.create({
   emptyMessagesText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 12
   },
   emptyMessagesSubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4
   },
   messageWrapper: {
@@ -275,12 +275,12 @@ export const styles = StyleSheet.create({
     borderRadius: 16
   },
   myMessageBubble: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     borderBottomRightRadius: 4,
     alignSelf: 'flex-end'
   },
   theirMessageBubble: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     borderBottomLeftRadius: 4,
     alignSelf: 'flex-start'
   },
@@ -289,24 +289,24 @@ export const styles = StyleSheet.create({
     lineHeight: 20
   },
   myMessageText: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   theirMessageText: {
-    color: '#1F2937'
+    color: theme.colors.text
   },
   messageTime: {
     fontSize: 11,
     marginTop: 6,
-    color: '#9CA3AF'
+    color: theme.colors.textTertiary
   },
   inputContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB'
+    borderTopColor: theme.colors.border
   },
   attachButton: {
     padding: 4,
@@ -314,16 +314,16 @@ export const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
     maxHeight: 100,
-    color: '#1F2937'
+    color: theme.colors.text
   },
   sendButton: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -332,6 +332,8 @@ export const styles = StyleSheet.create({
     marginLeft: 8
   },
   sendButtonDisabled: {
-    backgroundColor: '#9CA3AF'
+    backgroundColor: theme.colors.textTertiary
   }
 });
+
+export default getStyles;

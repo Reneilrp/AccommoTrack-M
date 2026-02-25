@@ -1,16 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     marginLeft: 12,
   },
   scrollContent: {
@@ -27,16 +27,16 @@ export const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
@@ -44,26 +44,26 @@ export const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#16a34a',
+    borderColor: theme.colors.primary,
   },
   avatarText: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#16a34a',
+    color: theme.colors.primaryDark,
   },
   tenantName: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
+    color: theme.colors.text,
   },
   tenantEmail: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
   statusBadge: {
@@ -83,7 +83,7 @@ export const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: theme.colors.borderLight,
   },
   infoItem: {
     flex: 1,
@@ -91,7 +91,7 @@ export const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     textTransform: 'uppercase',
     fontWeight: '600',
     marginBottom: 4,
@@ -99,7 +99,7 @@ export const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#374151',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   sectionHeader: {
@@ -111,11 +111,11 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1F2937',
+    color: theme.colors.text,
   },
   filterContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 10,
     padding: 4,
     marginBottom: 16,
@@ -127,7 +127,7 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeFilterTab: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -137,18 +137,18 @@ export const styles = StyleSheet.create({
   filterTabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
   },
   activeFilterTabText: {
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
   paymentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -159,11 +159,11 @@ export const styles = StyleSheet.create({
   paymentRef: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: theme.colors.text,
   },
   paymentDate: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4,
   },
   paymentRight: {
@@ -172,7 +172,7 @@ export const styles = StyleSheet.create({
   paymentAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 6,
   },
   paymentStatusBadge: {
@@ -189,11 +189,12 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
@@ -203,7 +204,9 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 12,
   },
 });
+
+export default getStyles;

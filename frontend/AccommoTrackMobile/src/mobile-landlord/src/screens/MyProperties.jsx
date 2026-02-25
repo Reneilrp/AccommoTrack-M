@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService, { getImageUrl } from '../../../services/PropertyServices';
-import { styles } from '../../../styles/Landlord/MyProperties.js';
+import { getStyles } from '../../../styles/Landlord/MyProperties.js';
 import MapModal from '../../../mobile-tenant/src/components/MapModal';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -38,6 +38,7 @@ const emptyMetrics = { active: 0, inactive: 0, pending: 0, totalRooms: 0 };
 
 export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

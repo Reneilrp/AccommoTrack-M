@@ -2,18 +2,18 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#16a34a'
+    backgroundColor: theme.colors.primary
   },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: theme.colors.background
   },
   // Header
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
     height: 60,
     flexDirection: 'row',
@@ -23,7 +23,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center'
   },
@@ -35,20 +35,20 @@ export const styles = StyleSheet.create({
   },
   // Filters Container
   filtersContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
     gap: 10,
     zIndex: 1000,
     elevation: 4
   },
   dropdownButton: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -58,7 +58,7 @@ export const styles = StyleSheet.create({
   dropdownButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: theme.colors.text,
     flex: 1
   },
   dropdownList: {
@@ -66,10 +66,10 @@ export const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     marginTop: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -85,18 +85,18 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9'
+    borderBottomColor: theme.colors.borderLight
   },
   dropdownItemSelected: {
-    backgroundColor: '#F0FDF4'
+    backgroundColor: theme.colors.primaryLight
   },
   dropdownItemText: {
     fontSize: 14,
-    color: '#0F172A'
+    color: theme.colors.text
   },
   timeButtonContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     padding: 4,
     borderRadius: 10,
     gap: 4
@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center'
   },
   timeButtonActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -121,10 +121,10 @@ export const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   timeButtonTextActive: {
-    color: '#16a34a'
+    color: theme.colors.primary
   },
   timeButtonTextInactive: {
-    color: '#64748B'
+    color: theme.colors.textSecondary
   },
   // Grid Layout for Metrics
   metricsGrid: {
@@ -134,16 +134,16 @@ export const styles = StyleSheet.create({
     gap: 12
   },
   metricCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     width: (width - 36) / 2, // 2-column grid
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 4
   },
   metricHeader: {
@@ -162,38 +162,38 @@ export const styles = StyleSheet.create({
   metricTag: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     textTransform: 'uppercase'
   },
   metricLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginBottom: 4
   },
   metricValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   metricSubValue: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     fontWeight: '500'
   },
   // Charts
   chartSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9'
+    borderColor: theme.colors.border
   },
   chartTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 20
   },
   // Horizontal Bar Chart
@@ -209,52 +209,52 @@ export const styles = StyleSheet.create({
     width: 45,
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B'
+    color: theme.colors.textSecondary
   },
   hBarTrack: {
     flex: 1,
     height: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 6,
     overflow: 'hidden'
   },
   hBarFill: {
     height: '100%',
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     borderRadius: 6
   },
   hBarValue: {
     width: 70,
     fontSize: 11,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     textAlign: 'right'
   },
   // Table Styles
   tableCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
     marginBottom: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
     overflow: 'hidden'
   },
   tableHeader: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9'
+    borderBottomColor: theme.colors.border
   },
   tableTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   tableRow: {
     flexDirection: 'row',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: theme.colors.borderLight,
     alignItems: 'center'
   },
   tableColMain: {
@@ -267,26 +267,26 @@ export const styles = StyleSheet.create({
   tablePropName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   tablePropSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginTop: 2
   },
   tableRate: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#16a34a'
+    color: theme.colors.primary
   },
   tableRevenue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 3,
     marginTop: 8,
     width: '100%',
@@ -311,13 +311,13 @@ export const styles = StyleSheet.create({
   errorBanner: {
     margin: 16,
     padding: 16,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FECACA'
+    borderColor: theme.colors.error
   },
   errorText: {
-    color: '#DC2626',
+    color: theme.isDark ? theme.colors.text : '#DC2626',
     fontSize: 14,
     fontWeight: '500'
   },
@@ -325,11 +325,14 @@ export const styles = StyleSheet.create({
     flex: 1,
     padding: 40,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background
   },
   loadingLabel: {
     marginTop: 12,
     fontSize: 14,
-    color: '#64748B'
+    color: theme.colors.textSecondary
   }
 });
+
+export default getStyles;

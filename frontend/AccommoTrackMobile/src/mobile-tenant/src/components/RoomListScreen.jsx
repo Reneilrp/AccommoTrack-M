@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../../../services/PropertyServices';
-import { styles } from '../../../styles/Tenant/RoomListScreen';
+import { getStyles } from '../../../styles/Tenant/RoomListScreen';
 import { BASE_URL as API_BASE_URL } from '../../../config';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -38,6 +38,7 @@ const getRoomImageUrl = (imageUrl) => {
 export default function RoomListScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { property } = route.params;
 
   const [rooms, setRooms] = useState([]);

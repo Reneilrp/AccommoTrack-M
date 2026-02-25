@@ -1,16 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     marginLeft: 12,
   },
   scrollContent: {
@@ -34,6 +34,8 @@ export const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 20,
     borderWidth: 1,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border
   },
   statusIconContainer: {
     width: 56,
@@ -49,21 +51,22 @@ export const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 18,
     fontWeight: '800',
+    color: theme.colors.text
   },
   statusDescription: {
     fontSize: 13,
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     marginTop: 4,
     lineHeight: 18,
   },
   lastReviewed: {
     fontSize: 11,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
     marginTop: 8,
   },
   rejectionCard: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
+    borderColor: theme.colors.error,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -74,18 +77,18 @@ export const styles = StyleSheet.create({
   rejectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#991B1B',
+    color: theme.isDark ? theme.colors.text : '#991B1B',
   },
   rejectionReason: {
     fontSize: 13,
-    color: '#B91C1C',
+    color: theme.isDark ? theme.colors.text : '#B91C1C',
     marginTop: 4,
     lineHeight: 18,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: theme.colors.text,
     marginBottom: 12,
     marginTop: 8,
   },
@@ -95,11 +98,11 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
   },
   documentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   documentHeader: {
     flexDirection: 'row',
@@ -110,17 +113,17 @@ export const styles = StyleSheet.create({
   documentLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
   },
   previewPlaceholder: {
     width: '100%',
     height: 180,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundTertiary,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderStyle: 'dashed',
   },
   previewImage: {
@@ -132,7 +135,7 @@ export const styles = StyleSheet.create({
   pdfPreview: {
     width: '100%',
     height: 180,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -141,24 +144,24 @@ export const styles = StyleSheet.create({
   pdfText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#EF4444',
+    color: theme.colors.error,
   },
   resubmitButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 10,
-    shadowColor: '#16a34a',
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
   },
   resubmitButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -168,12 +171,12 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   historyLabelContainer: {
     flexDirection: 'row',
@@ -183,10 +186,10 @@ export const styles = StyleSheet.create({
   historyLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
   },
   historyBadge: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -194,20 +197,20 @@ export const styles = StyleSheet.create({
   historyBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   historyList: {
     marginTop: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   historyItem: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   historyItemHeader: {
     flexDirection: 'row',
@@ -226,20 +229,20 @@ export const styles = StyleSheet.create({
   },
   historyDate: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
   },
   historyIdType: {
     fontSize: 13,
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
   historyRejection: {
     fontSize: 12,
-    color: '#DC2626',
+    color: theme.colors.error,
     marginTop: 6,
     paddingLeft: 8,
     borderLeftWidth: 2,
-    borderLeftColor: '#FECACA',
+    borderLeftColor: theme.isDark ? theme.colors.error : '#FECACA',
   },
 
   // Form Modal Styles
@@ -249,24 +252,26 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   modalHeader: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
   },
   modalSubtitle: {
     fontSize: 13,
-    color: '#16a34a',
+    color: theme.colors.primary,
     marginTop: 4,
   },
   formContainer: {
@@ -278,37 +283,39 @@ export const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
   required: {
-    color: '#EF4444',
+    color: theme.colors.error,
   },
   pickerWrapper: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 10,
     overflow: 'hidden',
   },
   picker: {
     height: 50,
+    color: theme.colors.text
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
+    color: theme.colors.text
   },
   uploadBox: {
     height: 120,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#16a34a',
+    borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -317,12 +324,12 @@ export const styles = StyleSheet.create({
   uploadBoxText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
   selectedFile: {
     marginTop: 8,
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
     fontStyle: 'italic',
   },
   formActions: {
@@ -336,30 +343,34 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     alignItems: 'center',
+    backgroundColor: theme.colors.backgroundSecondary
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   submitButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background
   },
 });
+
+export default getStyles;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Tenant/HomePage.js';
+import { getStyles } from '../../../styles/Tenant/HomePage.js';
 import MapModal from './MapModal';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -15,13 +15,14 @@ export default function SearchBar({
   onSelectProperty
 }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [mapOpen, setMapOpen] = useState(false);
   return (
     <View style={styles.searchContainer}>
-      <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <View style={styles.searchBar}>
         <Ionicons name="search" size={20} color={theme.colors.textTertiary} />
         <TextInput
-          style={[styles.searchInput, { color: theme.colors.text }]}
+          style={styles.searchInput}
           placeholder="Search here..."
           placeholderTextColor={theme.colors.textTertiary}
           value={searchQuery}

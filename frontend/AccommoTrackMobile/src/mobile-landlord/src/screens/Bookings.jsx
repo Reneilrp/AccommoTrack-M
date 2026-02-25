@@ -18,7 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import PropertyService from '../../../services/PropertyServices';
-import { styles } from '../../../styles/Landlord/Bookings.js';
+import { getStyles } from '../../../styles/Landlord/Bookings.js';
 
 const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
 
@@ -49,6 +49,7 @@ const formatDate = (value) => {
 
 export default function BookingsScreen({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [filter, setFilter] = useState('all');

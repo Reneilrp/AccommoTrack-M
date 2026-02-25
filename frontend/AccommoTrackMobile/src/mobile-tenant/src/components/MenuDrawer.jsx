@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, Animated, Dimensions }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { styles } from '../../../styles/Tenant/HomePage.js';
-import homeStyles from '../../../styles/Tenant/HomePage.js';
+import { getStyles } from '../../../styles/Tenant/HomePage.js';
 import NotificationBadge from './NotificationBadge.jsx';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -13,6 +12,7 @@ const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [userName, setUserName] = useState("Guest User");
   const [userEmail, setUserEmail] = useState("guest@example.com");
@@ -156,38 +156,37 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
             {
               transform: [{ translateX: slideAnim }],
               width: DRAWER_WIDTH,
-              backgroundColor: theme.colors.surface,
             }
           ]}
         >
           {/* Menu Header */}
-          <View style={[styles.menuHeader, { backgroundColor: theme.colors.backgroundSecondary, borderBottomColor: theme.colors.border }]}>
+          <View style={styles.menuHeader}>
             <View style={styles.menuUserInfo}>
-              <View style={[styles.menuAvatar, { backgroundColor: theme.colors.primaryLight }]}>
+              <View style={styles.menuAvatar}>
                 <Ionicons name="person" size={32} color={theme.colors.primary} />
               </View>
               <View>
-                <Text style={[styles.menuUserName, { color: theme.colors.text }]}>{userName}</Text>
-                <Text style={[styles.menuUserEmail, { color: theme.colors.textSecondary }]}>{userEmail}</Text>
+                <Text style={styles.menuUserName}>{userName}</Text>
+                <Text style={styles.menuUserEmail}>{userEmail}</Text>
               </View>
             </View>
-            <View style={homeStyles.headerSide}>
-              <TouchableOpacity onPress={handleClose} style={homeStyles.headerIcon}>
+            <View style={styles.headerSide}>
+              <TouchableOpacity onPress={handleClose} style={styles.headerIcon}>
                 <Ionicons name="close" size={28} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Menu Items */}
-          <ScrollView style={[styles.menuItems, { backgroundColor: theme.colors.surface }]}>
+          <ScrollView style={styles.menuItems}>
             {menuItemsToDisplay.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.menuItem, { borderBottomColor: theme.colors.borderLight }]}
+                style={styles.menuItem}
                 onPress={() => onMenuItemPress(item.title)} // title maps to navigator routes
               >
                 <Ionicons name={item.icon} size={24} color={item.color} />
-                <Text style={[styles.menuItemText, { color: theme.colors.text }]}>{item.title}</Text>
+                <Text style={styles.menuItemText}>{item.title}</Text>
                 {/* Render compact badge for specific menu items */}
                 {item.title === 'Payments' && <NotificationBadge type="payments" compact={true} />}
                 {item.title === 'My Bookings' && <NotificationBadge type="bookings" compact={true} />}

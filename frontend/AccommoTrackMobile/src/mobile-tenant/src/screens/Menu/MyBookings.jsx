@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Ref
 // SafeAreaView handled by shared ScreenLayout
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { styles } from '../../../../styles/Menu/MyBookings.js';
+import { getStyles } from '../../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../../services/BookingServices.js';
 import { Alert } from 'react-native';
 import { BASE_URL as API_BASE_URL } from '../../../../config';
@@ -15,6 +15,7 @@ import homeStyles from '../../../../styles/Tenant/HomePage.js';
 export default function MyBookings() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

@@ -15,13 +15,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../../styles/Landlord/Reviews'; // I will create this next
+import { getStyles } from '../../../styles/Landlord/Reviews'; // I will create this next
 import ReviewService from '../../../services/ReviewService';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function Reviews() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -1,13 +1,13 @@
 import { StyleSheet, Platform, StatusBar } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -15,16 +15,18 @@ export const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     paddingTop: 24,
     paddingHorizontal: 24,
     paddingBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
     shadowRadius: 12,
     elevation: 8,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   logoContainer: {
     alignItems: 'center',
@@ -45,7 +47,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dismissButtonText: {
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -63,13 +65,13 @@ export const styles = StyleSheet.create({
   logoTextGreen: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: theme.colors.primary,
     letterSpacing: -0.5,
   },
   logoTextGray: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#757575',
+    color: theme.colors.textTertiary,
     letterSpacing: -0.5,
     marginTop: -5,
     marginLeft: -10,
@@ -81,7 +83,7 @@ export const styles = StyleSheet.create({
     marginBottom: 10,
   },
   backButtonText: {
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -93,12 +95,12 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#07770B',
+    color: theme.colors.primary,
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
 
   roleButtons: {
@@ -111,27 +113,27 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: theme.colors.border,
     alignItems: 'center',
   },
   roleButtonActive: {
-    borderColor: '#07770B',
-    backgroundColor: '#F3F4F6',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.backgroundSecondary,
   },
   roleButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.textSecondary,
   },
   roleButtonTextActive: {
-    color: '#07770B',
+    color: theme.colors.primary,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: theme.colors.error,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -140,11 +142,11 @@ export const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 14,
-    color: '#991B1B',
+    color: theme.isDark ? theme.colors.text : '#991B1B',
   },
   inlineErrorText: {
     fontSize: 12,
-    color: '#B91C1C',
+    color: theme.colors.error,
     marginTop: -10,
     marginBottom: 10,
     paddingHorizontal: 5,
@@ -156,10 +158,10 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.background,
   },
   inputIcon: {
     marginRight: 8,
@@ -168,7 +170,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: theme.colors.text,
   },
   eyeIcon: {
     padding: 4,
@@ -178,7 +180,7 @@ export const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: 'black',
+    color: theme.colors.text,
     fontWeight: '500',
     opacity: 0.5,
   },
@@ -194,34 +196,34 @@ export const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: theme.colors.border,
     marginRight: 12,
     marginTop: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#16a34a',
-    borderColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   termsText: {
     flex: 1,
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
     opacity: 0.8,
   },
   termsLink: {
-    color: '#16a34a',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
 
   submitButton: {
-    backgroundColor: '#07770B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: '#8B5CF6',
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -236,7 +238,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -248,12 +250,12 @@ export const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: theme.colors.border,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
   },
   socialButtons: {
     gap: 12,
@@ -263,7 +265,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingVertical: 12,
     gap: 12,
@@ -271,7 +273,7 @@ export const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: theme.colors.text,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -281,11 +283,11 @@ export const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   toggleLink: {
     fontSize: 14,
-    color: '#07770B',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   guestOptionContainer: {
@@ -298,23 +300,25 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#07770B',
+    borderColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 24,
     gap: 8,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.backgroundSecondary,
   },
   guestButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#07770B',
+    color: theme.colors.primary,
   },
   guestHintText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textTertiary,
     marginTop: 4,
     marginBottom: 0,
     textAlign: 'center',
   },
 });
+
+export default getStyles;

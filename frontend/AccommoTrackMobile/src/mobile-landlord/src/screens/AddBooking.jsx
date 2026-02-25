@@ -17,10 +17,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../../contexts/ThemeContext';
 import PropertyService from '../../../services/PropertyServices';
 import BookingService from '../../../services/BookingServices';
-import { styles } from '../../../styles/Landlord/AddBooking';
+import { getStyles } from '../../../styles/Landlord/AddBooking';
 
 export default function AddBooking({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [properties, setProperties] = useState([]);
   const [rooms, setRooms] = useState([]);

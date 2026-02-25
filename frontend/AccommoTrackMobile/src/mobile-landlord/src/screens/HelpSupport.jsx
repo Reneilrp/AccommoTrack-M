@@ -9,12 +9,13 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Landlord/HelpSupport';
+import { getStyles } from '../../../styles/Landlord/HelpSupport';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Button from '../components/Button';
 
 export default function HelpSupportScreen({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const faqs = [
     { question: "How do I add a new room type to my Dorm Profile?", screen: 'FAQDetail', detail: "To add a new room type, navigate to 'Dorm Profile' in Settings, find the 'Room Inventory' section, and tap 'Add New Type'. Fill in the required details like capacity and base rent." },

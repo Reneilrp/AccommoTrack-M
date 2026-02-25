@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Landlord/AllActivities.js';
+import { getStyles } from '../../../styles/Landlord/AllActivities.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 import LandlordDashboardService from '../../../services/LandlordDashboardService';
 
@@ -55,6 +55,7 @@ const formatRelativeTime = (timestamp) => {
 
 export default function AllActivities({ navigation, route }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [activities, setActivities] = useState(route.params?.activities || []);
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');

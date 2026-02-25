@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  StyleSheet
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadPrefsMobile, DEFAULT_PREFS } from '../../../../shared/notificationPrefs';
-import { StyleSheet } from 'react-native';
 
 import BookingServices from '../../../../services/BookingServices.js';
 import PaymentService from '../../../../services/PaymentService.js';
@@ -40,10 +40,94 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
+const getStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
+  loadingText: { marginTop: 12, fontSize: 16, color: theme.colors.textSecondary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  backButton: { padding: 4 },
+  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: theme.colors.textInverse, marginLeft: 12 },
+  markAllButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16 },
+  markAllText: { color: theme.colors.textInverse, fontSize: 12, fontWeight: '600' },
+  scrollView: { flex: 1 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: theme.colors.text, marginTop: 16 },
+  emptySubtitle: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
+  notificationItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  notificationUnread: { backgroundColor: theme.isDark ? theme.colors.brand900 : '#F0FDF4' },
+  iconContainer: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  notificationContent: { flex: 1, marginLeft: 12 },
+  notificationTitle: { fontSize: 15, fontWeight: '500', color: theme.colors.text },
+  unreadText: { fontWeight: '700', color: theme.colors.text },
+  notificationMessage: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
+  notificationTime: { fontSize: 12, color: theme.colors.textTertiary, marginTop: 4 },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
+  filterBar: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentButtonActive: {
+  },
+  segmentText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  segmentTextActive: {
+    color: theme.colors.textInverse,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateButton: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginRight: 8,
+  },
+  dateButtonText: {
+    fontSize: 13,
+    color: theme.colors.text,
+  },
+  clearButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.error,
+    borderRadius: 8,
+  },
+  clearButtonText: {
+    color: theme.colors.textInverse,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+});
 
 export default function TenantNotifications({ navigation }) {
   const { theme } = useTheme();
   const notificationTypeMap = getNotificationTypeMap(theme);
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -182,8 +266,6 @@ export default function TenantNotifications({ navigation }) {
         </View>
       </View>
 
-      {/* DatePicker removed — only type filter remains. */}
-
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -203,7 +285,7 @@ export default function TenantNotifications({ navigation }) {
             return (
               <TouchableOpacity
                 key={notification.id}
-                style={[styles.notificationItem, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }, !notification.read && { backgroundColor: theme.colors.successLight }]}
+                style={[styles.notificationItem, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }, !notification.read && { backgroundColor: theme.isDark ? theme.colors.brand900 : theme.colors.successLight }]}
                 onPress={() => markAsRead(notification.id)}
                 activeOpacity={0.7}
               >
@@ -224,88 +306,3 @@ export default function TenantNotifications({ navigation }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' },
-  loadingText: { marginTop: 12, fontSize: 16, color: '#6B7280' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  backButton: { padding: 4 },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#FFFFFF', marginLeft: 12 },
-  markAllButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16 },
-  markAllText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
-  scrollView: { flex: 1 },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: '#9CA3AF', marginTop: 4 },
-  notificationItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  notificationUnread: { backgroundColor: '#F0FDF4' },
-  iconContainer: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  notificationContent: { flex: 1, marginLeft: 12 },
-  notificationTitle: { fontSize: 15, fontWeight: '500', color: '#374151' },
-  unreadText: { fontWeight: '700', color: '#111827' },
-  notificationMessage: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  notificationTime: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
-  unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
-  filterBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E6EEF6',
-  },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonActive: {
-  },
-  segmentText: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  segmentTextActive: {
-    color: '#FFFFFF',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dateButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginRight: 8,
-  },
-  dateButtonText: {
-    fontSize: 13,
-    color: '#374151',
-  },
-  clearButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#EF4444',
-    borderRadius: 8,
-  },
-  clearButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
-

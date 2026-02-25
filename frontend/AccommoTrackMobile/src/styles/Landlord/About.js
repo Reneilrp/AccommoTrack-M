@@ -1,15 +1,15 @@
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
@@ -19,17 +19,19 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: theme.colors.textInverse,
   },
   content: {
     flex: 1,
     padding: 16,
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   tempScreenContent: {
     alignItems: 'center',
@@ -38,13 +40,13 @@ export const styles = StyleSheet.create({
   tempTextBold: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: theme.colors.text,
     marginTop: 16,
     marginBottom: 12,
   },
   tempTextNormal: {
     fontSize: 15,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -54,13 +56,15 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   settingsCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 4,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   settingItem: {
     flexDirection: 'row',
@@ -76,7 +80,7 @@ export const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 15,
-    color: '#374151',
+    color: theme.colors.text,
   },
   versionContainer: {
     alignItems: 'center',
@@ -84,6 +88,8 @@ export const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
   },
 });
+
+export default getStyles;

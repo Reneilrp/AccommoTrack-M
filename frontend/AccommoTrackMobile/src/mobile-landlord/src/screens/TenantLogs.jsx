@@ -14,10 +14,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import TenantService from '../../../services/TenantService';
 import PaymentService from '../../../services/PaymentService';
-import { styles } from '../../../styles/Landlord/TenantLogs';
+import { getStyles } from '../../../styles/Landlord/TenantLogs';
 
 export default function TenantLogs({ route, navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { tenantId, tenantName: initialName } = route.params || {};
 
   const [tenant, setTenant] = useState(null);

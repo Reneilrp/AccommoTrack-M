@@ -2,10 +2,10 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: theme.colors.primary,
   },
   slide: {
     width: width,
@@ -92,4 +92,5 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-export default styles;
+
+export default getStyles;

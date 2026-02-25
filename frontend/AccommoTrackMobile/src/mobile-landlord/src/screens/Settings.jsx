@@ -11,21 +11,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Landlord/Settings';
+import { getStyles } from '../../../styles/Landlord/Settings';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 import ProfileService from '../../../services/ProfileService';
 
-const SettingRow = ({ item, onPress, onToggle }) => {
-  const { theme } = useTheme();
+const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
   const content = (
     <View style={styles.settingLeft}>
-      <View style={styles.settingIcon}>
+      <View style={[styles.settingIcon, { backgroundColor: theme.colors.primaryLight }]}>
         <Ionicons name={item.icon} size={20} color={theme.colors.primary} />
       </View>
       <View style={styles.settingTextBlock}>
-        <Text style={styles.settingLabel}>{item.label}</Text>
-        {item.description ? <Text style={styles.settingDescription}>{item.description}</Text> : null}
+        <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{item.label}</Text>
+        {item.description ? <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>{item.description}</Text> : null}
       </View>
     </View>
   );
@@ -44,7 +43,7 @@ const SettingRow = ({ item, onPress, onToggle }) => {
 
     return (
       <View style={styles.settingRight}>
-        {item.value ? <Text style={styles.settingValue}>{item.value}</Text> : null}
+        {item.value ? <Text style={[styles.settingValue, { color: theme.colors.textSecondary }]}>{item.value}</Text> : null}
         {item.type === 'navigate' ? <Ionicons name="chevron-forward" size={18} color="#94A3B8" /> : null}
       </View>
     );
@@ -66,7 +65,8 @@ const SettingRow = ({ item, onPress, onToggle }) => {
 };
 
 export default function SettingsScreen({ navigation, onLogout }) {
-  const { theme } = useTheme();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notificationPrefs, setNotificationPrefs] = useState({
@@ -147,6 +147,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
   };
 
   const handleToggle = async (item) => {
+    if (item.stateKey === 'darkMode') {
+      await toggleTheme();
+      return;
+    }
+
     const newPrefs = {
       ...notificationPrefs,
       [item.stateKey]: !notificationPrefs[item.stateKey]
@@ -255,6 +260,14 @@ export default function SettingsScreen({ navigation, onLogout }) {
         title: 'App Info',
         items: [
           {
+            id: 'dark-mode',
+            label: 'Dark Mode',
+            icon: isDarkMode ? 'moon' : 'moon-outline',
+            type: 'toggle',
+            value: isDarkMode,
+            stateKey: 'darkMode'
+          },
+          {
             id: 'version',
             label: 'Version',
             icon: 'albums-outline',
@@ -311,7 +324,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
             <View style={styles.sectionCard}>
               {section.items.map((item, idx) => (
                 <View key={item.id}>
-                  <SettingRow item={item} onPress={handleItemPress} onToggle={handleToggle} />
+                  <SettingRow item={item} onPress={handleItemPress} onToggle={handleToggle} theme={theme} styles={styles} />
                   {idx < section.items.length - 1 ? <View style={styles.divider} /> : null}
                 </View>
               ))}

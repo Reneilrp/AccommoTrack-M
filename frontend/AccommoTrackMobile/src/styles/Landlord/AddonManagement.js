@@ -2,17 +2,17 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -21,23 +21,23 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     marginLeft: 12,
   },
   headerSubtitle: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
   },
   subtitleText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   addServiceButton: {
     marginTop: 12,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -46,17 +46,17 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   addServiceButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700',
     fontSize: 14,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
   },
   tab: {
     flex: 1,
@@ -69,32 +69,32 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   activeTab: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
   },
   tabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   activeTabText: {
-    color: '#166534',
+    color: theme.colors.primaryDark,
   },
   tabBadge: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.backgroundSecondary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
   },
   activeTabBadge: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   tabBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   activeTabBadgeText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   scrollContent: {
     padding: 16,
@@ -104,11 +104,12 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
@@ -118,12 +119,12 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 40,
@@ -131,21 +132,21 @@ export const styles = StyleSheet.create({
   
   // Manage Tab Styles
   addonCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
   inactiveAddonCard: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderColor: theme.colors.borderLight,
   },
   addonHeader: {
     flexDirection: 'row',
@@ -161,17 +162,17 @@ export const styles = StyleSheet.create({
   addonName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
   },
   inactiveBadge: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   inactiveBadgeText: {
     fontSize: 10,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
   },
   addonActions: {
@@ -183,10 +184,10 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
   },
   editIconButton: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: theme.colors.primaryLight,
   },
   deleteIconButton: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
   },
   badgeRow: {
     flexDirection: 'row',
@@ -200,68 +201,68 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
   },
   monthlyBadge: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: theme.colors.infoLight,
   },
   monthlyBadgeText: {
-    color: '#1D4ED8',
+    color: theme.colors.infoDark,
     fontSize: 11,
     fontWeight: '600',
   },
   oneTimeBadge: {
-    backgroundColor: '#F3E8FF',
+    backgroundColor: theme.colors.purpleLight,
   },
   oneTimeBadgeText: {
-    color: '#7E22CE',
+    color: theme.colors.purple,
     fontSize: 11,
     fontWeight: '600',
   },
   rentalBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.successLight,
   },
   rentalBadgeText: {
-    color: '#15803D',
+    color: theme.colors.successDark,
     fontSize: 11,
     fontWeight: '600',
   },
   feeBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: theme.colors.warningLight,
   },
   feeBadgeText: {
-    color: '#B45309',
+    color: theme.colors.warningDark,
     fontSize: 11,
     fontWeight: '600',
   },
   addonDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginTop: 8,
     lineHeight: 20,
   },
   addonPrice: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#16a34a',
+    color: theme.colors.primary,
     marginTop: 12,
   },
   priceUnit: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   addonStock: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4,
   },
 
   // Requests Tab Styles
   requestCard: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#FFFBEB',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: theme.isDark ? theme.colors.brand700 : '#FDE68A',
   },
   requestHeader: {
     flexDirection: 'row',
@@ -274,32 +275,32 @@ export const styles = StyleSheet.create({
   tenantName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.text,
   },
   tenantRoom: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   tenantEmail: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 2,
   },
   requestNote: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 10,
     borderRadius: 8,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#FEF3C7',
+    borderColor: theme.isDark ? theme.colors.border : '#FEF3C7',
     fontStyle: 'italic',
     fontSize: 13,
-    color: '#4B5563',
+    color: theme.colors.textSecondary,
   },
   requestDate: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 10,
   },
   requestActions: {
@@ -312,13 +313,13 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 8,
     borderRadius: 8,
     gap: 4,
   },
   approveButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -327,13 +328,13 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
     paddingVertical: 8,
     borderRadius: 8,
     gap: 4,
   },
   rejectButtonText: {
-    color: '#DC2626',
+    color: theme.colors.error,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -348,23 +349,28 @@ export const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   summaryLabel: {
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
+    color: theme.colors.textSecondary,
   },
   summaryValue: {
     fontSize: 20,
     fontWeight: '800',
+    color: theme.colors.text,
   },
   activeItemCard: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: theme.colors.successLight,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: theme.colors.primary,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -377,10 +383,10 @@ export const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   activeStatusBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.surface,
   },
   activeStatusText: {
-    color: '#166534',
+    color: theme.colors.success,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -392,10 +398,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   modalHeader: {
     flexDirection: 'row',
@@ -403,12 +411,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.text,
   },
   closeButton: {
     padding: 4,
@@ -422,18 +430,18 @@ export const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.textSecondary,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#111827',
+    color: theme.colors.text,
   },
   textArea: {
     height: 80,
@@ -447,15 +455,16 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   pickerWrapper: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     borderRadius: 8,
     overflow: 'hidden',
   },
   picker: {
     height: 44,
     width: '100%',
+    color: theme.colors.text,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -469,16 +478,16 @@ export const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#16a34a',
+    borderColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   checkboxLabel: {
     fontSize: 14,
-    color: '#374151',
+    color: theme.colors.text,
   },
   modalActions: {
     flexDirection: 'row',
@@ -491,28 +500,29 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     alignItems: 'center',
+    backgroundColor: theme.colors.backgroundSecondary
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   submitButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
   },
   submitButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   errorBanner: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -522,7 +532,9 @@ export const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#DC2626',
+    color: theme.isDark ? theme.colors.text : '#DC2626',
     flex: 1,
   },
 });
+
+export default getStyles;

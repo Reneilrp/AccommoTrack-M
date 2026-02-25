@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyService from '../../../services/PropertyServices.js';
-import { styles } from '../../../styles/Landlord/Tenants.js';
+import { getStyles } from '../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const FILTERS = [
@@ -45,6 +45,7 @@ const formatCurrency = (value) => {
 
 export default function TenantsScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
 
   const [properties, setProperties] = useState([]);

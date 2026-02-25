@@ -16,11 +16,12 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import { DashboardStatSkeleton, PropertyCardSkeleton, BookingCardSkeleton } from '../../../../components/Skeletons/index';
 import { showError } from '../../../../utils/toast';
 import Header from '../../components/Header.jsx';
-import styles from '../../../../styles/Tenant/DashboardScreen.js';
+import { getStyles } from '../../../../styles/Tenant/DashboardScreen.js';
 
 const DashboardScreen = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch current stay data

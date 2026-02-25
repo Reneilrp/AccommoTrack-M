@@ -17,11 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { showSuccess, showError } from '../../../../utils/toast';
-import { styles } from '../../../../styles/Tenant/AddonsStyles';
+import { getStyles } from '../../../../styles/Tenant/AddonsStyles';
 import Header from '../../components/Header.jsx';
 
 export default function AddonsScreen({ hideHeader = false }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();

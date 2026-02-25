@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -11,18 +11,18 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   content: {
     flex: 1,
   },
   balanceCard: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     margin: 20,
     padding: 24,
     borderRadius: 16,
@@ -34,14 +34,14 @@ export const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     opacity: 0.9,
     marginBottom: 8,
   },
   balanceAmount: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     marginBottom: 16,
   },
   balanceDetails: {
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
   },
   balanceItemText: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
   },
   section: {
     paddingHorizontal: 20,
@@ -63,12 +63,12 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     marginBottom: 16,
   },
   methodsGrid: {
@@ -78,7 +78,7 @@ export const styles = StyleSheet.create({
   },
   methodCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -89,6 +89,8 @@ export const styles = StyleSheet.create({
     elevation: 2,
     position: 'relative',
     marginBottom: 12,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   methodCardDisabled: {
     opacity: 0.6,
@@ -107,20 +109,20 @@ export const styles = StyleSheet.create({
   methodName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   methodNameDisabled: {
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
   },
   methodComingSoon: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     fontWeight: '500',
     marginTop: 2,
   },
   methodAvailableBadge: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -128,13 +130,13 @@ export const styles = StyleSheet.create({
   },
   methodAvailableText: {
     fontSize: 10,
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '600',
   },
   paymentNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
@@ -142,20 +144,22 @@ export const styles = StyleSheet.create({
   paymentNoteText: {
     flex: 1,
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     lineHeight: 18,
     marginLeft: 8,
   },
   paymentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: theme.isDark ? 0.2 : 0.1,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   paymentHeader: {
     flexDirection: 'row',
@@ -163,13 +167,13 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: theme.colors.borderLight,
   },
   paymentIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -180,12 +184,12 @@ export const styles = StyleSheet.create({
   propertyName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 2,
   },
   paymentDate: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -205,16 +209,16 @@ export const styles = StyleSheet.create({
   },
   paymentLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   paymentAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: theme.colors.primary,
   },
   paymentValue: {
     fontSize: 14,
-    color: '#111827',
+    color: theme.colors.text,
     fontWeight: '500',
   },
   loadingContainer: {
@@ -225,7 +229,7 @@ export const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
@@ -235,13 +239,13 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: theme.colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 20,
   },
@@ -252,23 +256,27 @@ export const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: '600', 
     marginBottom: 8,
+    color: theme.colors.text
   },
   separator: {
     height: 1, 
     marginVertical: 8,
+    backgroundColor: theme.colors.borderLight
   },
   totalText: {
     fontSize: 16, 
     fontWeight: '700',
+    color: theme.colors.text
   },
   statusRow: {
     marginBottom: 8,
   },
   statusLabel: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   statusValue: {
     fontWeight: '600',
+    color: theme.colors.text
   },
   actionsRow: {
     flexDirection: 'row', 
@@ -277,9 +285,12 @@ export const styles = StyleSheet.create({
   payBtn: {
     padding: 14, 
     borderRadius: 10,
+    backgroundColor: theme.colors.primary
   },
   payBtnText: {
-    color: '#FFF', 
+    color: theme.colors.textInverse, 
     fontWeight: '700',
   }
 });
+
+export default getStyles;

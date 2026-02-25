@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import tenantService from '../../../../services/TenantService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { showSuccess, showError } from '../../../../utils/toast';
-import { styles } from '../../../../styles/Tenant/MaintenanceStyles';
+import { getStyles } from '../../../../styles/Tenant/MaintenanceStyles';
 import Header from '../../components/Header.jsx';
 
 export default function CreateRequest() {
@@ -27,6 +27,7 @@ export default function CreateRequest() {
   const insets = useSafeAreaInsets();
   const { bookingId = null, propertyId = null, roomId = null } = route.params || {};
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');

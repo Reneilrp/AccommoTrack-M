@@ -2,12 +2,13 @@ import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20
+        padding: 20,
+        backgroundColor: theme.colors.background
     },
     headerOverlay: {
         position: 'absolute',
@@ -42,7 +43,8 @@ export const styles = StyleSheet.create({
     heroSection: {
         height: 280,
         width: screenWidth,
-        position: 'relative'
+        position: 'relative',
+        backgroundColor: theme.colors.backgroundTertiary
     },
     heroImage: {
         width: '100%',
@@ -89,7 +91,7 @@ export const styles = StyleSheet.create({
         marginTop: -20,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        backgroundColor: 'transparent'
+        backgroundColor: theme.colors.background
     },
     sectionCard: {
         borderRadius: 16,
@@ -97,9 +99,12 @@ export const styles = StyleSheet.create({
         marginBottom: 20,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOpacity: theme.isDark ? 0.3 : 0.05,
         shadowRadius: 10,
-        elevation: 3
+        elevation: 3,
+        backgroundColor: theme.colors.surface,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border
     },
     refRow: {
         flexDirection: 'row',
@@ -109,7 +114,8 @@ export const styles = StyleSheet.create({
     refText: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginTop: 4
+        marginTop: 4,
+        color: theme.colors.text
     },
     copyBtn: {
         padding: 8
@@ -120,7 +126,10 @@ export const styles = StyleSheet.create({
         padding: 20,
         marginBottom: 20,
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        backgroundColor: theme.colors.surface,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border
     },
     dateBlock: {
         flex: 1,
@@ -130,11 +139,13 @@ export const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: '700',
         letterSpacing: 1,
-        marginBottom: 6
+        marginBottom: 6,
+        color: theme.colors.textTertiary
     },
     dateValue: {
         fontSize: 15,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        color: theme.colors.text
     },
     dateDivider: {
         alignItems: 'center',
@@ -143,17 +154,20 @@ export const styles = StyleSheet.create({
     durationLine: {
         width: 1,
         height: 30,
-        marginVertical: 4
+        marginVertical: 4,
+        backgroundColor: theme.colors.border
     },
     durationText: {
         fontSize: 11,
-        fontWeight: '600'
+        fontWeight: '600',
+        color: theme.colors.textSecondary
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 12,
-        marginTop: 4
+        marginTop: 4,
+        color: theme.colors.text
     },
     infoRow: {
         flexDirection: 'row',
@@ -165,20 +179,24 @@ export const styles = StyleSheet.create({
         height: 36,
         borderRadius: 18,
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        backgroundColor: theme.colors.backgroundSecondary
     },
     infoLabel: {
-        fontSize: 12
+        fontSize: 12,
+        color: theme.colors.textTertiary
     },
     infoValue: {
         fontSize: 15,
         fontWeight: '600',
-        marginTop: 2
+        marginTop: 2,
+        color: theme.colors.text
     },
     separator: {
         height: 1,
         marginVertical: 12,
-        opacity: 0.5
+        opacity: 0.5,
+        backgroundColor: theme.colors.border
     },
     paymentRow: {
         flexDirection: 'row',
@@ -186,10 +204,13 @@ export const styles = StyleSheet.create({
         marginBottom: 8
     },
     paymentLabel: {
-        fontSize: 14
+        fontSize: 14,
+        color: theme.colors.textSecondary
     },
     paymentValue: {
-        fontSize: 16
+        fontSize: 16,
+        color: theme.colors.text,
+        fontWeight: 'bold'
     },
     paymentStatusRow: {
         flexDirection: 'row',
@@ -209,7 +230,10 @@ export const styles = StyleSheet.create({
     itemCard: {
         borderRadius: 12,
         padding: 14,
-        marginBottom: 12
+        marginBottom: 12,
+        backgroundColor: theme.colors.backgroundSecondary,
+        borderWidth: 1,
+        borderColor: theme.colors.border
     },
     itemHeader: {
         flexDirection: 'row',
@@ -219,23 +243,26 @@ export const styles = StyleSheet.create({
     },
     itemName: {
         fontSize: 15,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        color: theme.colors.text
     },
     itemSub: {
-        fontSize: 13
+        fontSize: 13,
+        color: theme.colors.textSecondary
     },
     itemAction: {
         marginTop: 10,
         alignSelf: 'flex-end'
     },
     cancelText: {
-        color: '#EF4444',
+        color: theme.colors.error,
         fontSize: 13,
         fontWeight: '600'
     },
     viewText: {
         fontSize: 13,
-        fontWeight: '600'
+        fontWeight: '600',
+        color: theme.colors.primary
     },
     statusPillSmall: {
         paddingHorizontal: 8,
@@ -253,7 +280,9 @@ export const styles = StyleSheet.create({
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
-        shadowRadius: 10
+        shadowRadius: 10,
+        backgroundColor: theme.colors.surface,
+        borderTopColor: theme.colors.border
     },
     actionRow: {
         flexDirection: 'row',
@@ -266,7 +295,8 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         gap: 8,
-        flex: 1
+        flex: 1,
+        backgroundColor: theme.colors.primary
     },
     secondaryActionBtn: {
         height: 44,
@@ -274,40 +304,47 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        flex: 1
+        flex: 1,
+        backgroundColor: theme.colors.backgroundSecondary
     },
     outlineBtn: {
         borderWidth: 1.5,
-        backgroundColor: 'transparent'
+        backgroundColor: 'transparent',
+        borderColor: theme.colors.primary
     },
     actionBtnText: {
-        color: '#fff',
+        color: theme.colors.textInverse,
         fontSize: 16,
         fontWeight: 'bold'
     },
     errorText: {
         fontSize: 16,
         marginTop: 16,
-        marginBottom: 20
+        marginBottom: 20,
+        color: theme.colors.textSecondary
     },
     backBtn: {
         paddingHorizontal: 24,
         paddingVertical: 12,
-        borderRadius: 10
+        borderRadius: 10,
+        backgroundColor: theme.colors.primary
     },
     backBtnText: {
-        color: '#fff', 
+        color: theme.colors.textInverse, 
         fontWeight: '600'
     },
     cancelBookingText: {
-        color: '#EF4444', 
+        color: theme.colors.error, 
         fontWeight: '600'
     },
     secondaryActionText: {
         fontWeight: '600', 
-        marginLeft: 6
+        marginLeft: 6,
+        color: theme.colors.text
     },
     spacing: {
         height: 100
     }
 });
+
+export default getStyles;

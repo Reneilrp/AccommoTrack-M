@@ -4,7 +4,6 @@ import { navigationRef, addNavigationStateListener } from '../../../navigation/R
 import LandlordNavigator from './LandlordNavigator.jsx';
 import Header from '../components/Header.jsx';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { COLORS } from '../constants/theme';
 
 export default function LandlordLayout({ onLogout }) {
   const { theme } = useTheme();
@@ -91,7 +90,7 @@ export default function LandlordLayout({ onLogout }) {
   }, [activeRouteName, activeRouteParams]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       
 
       <View style={{ flex: 1 }}>

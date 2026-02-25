@@ -8,10 +8,11 @@ import createEcho from '../../utils/echo';
 import MessageService from '../../../../services/MessageService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { showError } from '../../../../utils/toast';
-import { styles } from '../../../../styles/Tenant/MessagesPage';
+import { getStyles } from '../../../../styles/Tenant/MessagesPage';
 
 export default function ChatScreen({ navigation, route }) {
     const { theme } = useTheme();
+    const styles = React.useMemo(() => getStyles(theme), [theme]);
     const queryClient = useQueryClient();
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');

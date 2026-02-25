@@ -2,11 +2,12 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
     centered: {
         flex: 1,
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        backgroundColor: theme.colors.background
     },
     header: {
         height: 60,
@@ -15,6 +16,8 @@ export const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         borderBottomWidth: 1,
+        backgroundColor: theme.colors.surface,
+        borderBottomColor: theme.colors.border,
     },
     backBtn: {
         width: 40,
@@ -25,6 +28,7 @@ export const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
+        color: theme.colors.text,
     },
     listContent: {
         padding: 20,
@@ -36,6 +40,7 @@ export const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 16,
+        color: theme.colors.text,
     },
     requestCard: {
         borderRadius: 12,
@@ -44,8 +49,11 @@ export const styles = StyleSheet.create({
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
+        shadowOpacity: theme.isDark ? 0.3 : 0.05,
         shadowRadius: 5,
+        backgroundColor: theme.colors.surface,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
     },
     requestHeader: {
         flexDirection: 'row',
@@ -56,6 +64,7 @@ export const styles = StyleSheet.create({
     requestName: {
         fontSize: 16,
         fontWeight: 'bold',
+        color: theme.colors.text,
     },
     statusBadge: {
         paddingHorizontal: 8,
@@ -68,13 +77,14 @@ export const styles = StyleSheet.create({
     },
     requestSub: {
         fontSize: 13,
+        color: theme.colors.textSecondary,
     },
     cancelBtn: {
         marginTop: 12,
         alignSelf: 'flex-end',
     },
     cancelBtnText: {
-        color: '#EF4444',
+        color: theme.colors.error,
         fontSize: 13,
         fontWeight: '600',
     },
@@ -85,8 +95,11 @@ export const styles = StyleSheet.create({
         elevation: 3,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: theme.isDark ? 0.3 : 0.1,
         shadowRadius: 8,
+        backgroundColor: theme.colors.surface,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
     },
     addonInfo: {
         flexDirection: 'row',
@@ -99,25 +112,30 @@ export const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: 'bold',
         marginBottom: 4,
+        color: theme.colors.text,
     },
     addonDesc: {
         fontSize: 13,
         lineHeight: 18,
         marginBottom: 8,
+        color: theme.colors.textSecondary,
     },
     addonPrice: {
         fontSize: 16,
         fontWeight: 'bold',
+        color: theme.colors.primary,
     },
     addonImage: {
         width: 80,
         height: 80,
         borderRadius: 12,
+        backgroundColor: theme.colors.backgroundTertiary,
     },
     separator: {
         height: 1,
         marginVertical: 16,
         opacity: 0.5,
+        backgroundColor: theme.colors.border,
     },
     addonFooter: {
         flexDirection: 'row',
@@ -135,12 +153,14 @@ export const styles = StyleSheet.create({
         borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: theme.colors.backgroundSecondary,
     },
     qtyText: {
         fontSize: 16,
         fontWeight: 'bold',
         minWidth: 20,
         textAlign: 'center',
+        color: theme.colors.text,
     },
     requestActionBtn: {
         paddingHorizontal: 24,
@@ -148,9 +168,10 @@ export const styles = StyleSheet.create({
         borderRadius: 10,
         minWidth: 100,
         alignItems: 'center',
+        backgroundColor: theme.colors.primary,
     },
     requestActionText: {
-        color: '#fff',
+        color: theme.colors.textInverse,
         fontWeight: 'bold',
     },
     noteInput: {
@@ -159,6 +180,10 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         fontSize: 13,
+        backgroundColor: theme.colors.backgroundSecondary,
+        color: theme.colors.text,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     emptyState: {
         alignItems: 'center',
@@ -168,9 +193,13 @@ export const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginTop: 16,
+        color: theme.colors.text,
     },
     emptySub: {
         fontSize: 14,
         marginTop: 4,
+        color: theme.colors.textSecondary,
     }
 });
+
+export default getStyles;

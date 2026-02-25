@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "",
+    "name": "AccommoTrack",
     "slug": "AccommoTrack",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/AT-Logo.png",
+    "icon": "./assets/icon.png",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/AT-Logo.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },
@@ -16,22 +16,25 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/AT-Logo.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "splash": {
-        "image": "./assets/AT-Logo.png",
+        "image": "./assets/splash-icon.png",
         "resizeMode": "cover",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": false,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.techweave.AccommoTrack"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "resolver": {
-      "disableInternalResolve": true
+    "extra": {
+      "eas": {
+        "projectId": "ba4d987b-e108-4a3a-a2e5-3a3f9d1c02f4"
+      }
     }
   }
 }

@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: theme.colors.background
   },
   heroHeader: {
     flexDirection: 'row',
@@ -12,12 +12,12 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
-    backgroundColor: '#16A34A'
+    backgroundColor: theme.colors.primary
   },
   heroTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   heroSubtitle: {
     fontSize: 12,
@@ -36,10 +36,10 @@ export const styles = StyleSheet.create({
     margin: 16,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2'
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2'
   },
   errorText: {
-    color: '#B91C1C',
+    color: theme.isDark ? theme.colors.text : '#B91C1C',
     fontWeight: '500'
   },
   statsScroll: {
@@ -49,32 +49,34 @@ export const styles = StyleSheet.create({
   },
   statCard: {
     width: 140,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 14,
     borderRadius: 16,
     shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     alignItems: 'center',
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#16A34A',
+    color: theme.colors.primary,
     marginTop: 6,
     textAlign: 'center',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
@@ -82,12 +84,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A'
+    color: theme.colors.text
   },
   filterRow: {
     paddingHorizontal: 16,
@@ -98,22 +100,22 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     marginRight: 8
   },
   filterChipActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary
   },
   filterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#475569'
+    color: theme.colors.textSecondary
   },
   filterTextActive: {
-    color: '#166534'
+    color: theme.colors.primaryDark
   },
   listContent: {
     paddingHorizontal: 16,
@@ -121,15 +123,17 @@ export const styles = StyleSheet.create({
     paddingTop: 8
   },
   bookingCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 18,
     padding: 18,
     marginBottom: 16,
     shadowColor: '#0F172A',
-    shadowOpacity: 0.06,
+    shadowOpacity: theme.isDark ? 0.3 : 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3
+    elevation: 3,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   cardTop: {
     flexDirection: 'row',
@@ -147,22 +151,22 @@ export const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center'
   },
   guestAvatarText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   guestName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   guestEmail: {
     fontSize: 13,
-    color: '#64748B'
+    color: theme.colors.textSecondary
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -181,7 +185,7 @@ export const styles = StyleSheet.create({
   },
   detailText: {
     flex: 1,
-    color: '#475569',
+    color: theme.colors.textSecondary,
     fontSize: 13
   },
   cardBottom: {
@@ -192,12 +196,12 @@ export const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 12,
-    color: '#94A3B8'
+    color: theme.colors.textTertiary
   },
   metaValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#16A34A'
+    color: theme.colors.primary
   },
   paymentBadge: {
     paddingHorizontal: 12,
@@ -216,11 +220,11 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24
   },
@@ -228,15 +232,16 @@ export const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12
+    gap: 12,
+    backgroundColor: theme.colors.background
   },
   centerText: {
     fontSize: 15,
-    color: '#64748B'
+    color: theme.colors.textSecondary
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: theme.colors.background
   },
   modalHeader: {
     flexDirection: 'row',
@@ -245,8 +250,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF'
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface
   },
   closeButton: {
     width: 40,
@@ -259,14 +264,14 @@ export const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: theme.colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center'
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   modalContent: {
     padding: 16,
@@ -278,9 +283,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: theme.isDark ? theme.colors.brand900 : '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 12
@@ -300,17 +305,17 @@ export const styles = StyleSheet.create({
   timelineLabelBlue: {
     fontSize: 9,
     fontWeight: '600',
-    color: '#2563EB',
+    color: theme.isDark ? theme.colors.brand100 : '#2563EB',
     marginBottom: 2
   },
   timelineValueBlue: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E3A8A'
+    color: theme.isDark ? theme.colors.brand200 : '#1E3A8A'
   },
   timelineArrow: {
     fontSize: 14,
-    color: '#93C5FD',
+    color: theme.isDark ? theme.colors.brand600 : '#93C5FD',
     marginHorizontal: 2
   },
   // Status Row
@@ -320,19 +325,21 @@ export const styles = StyleSheet.create({
   },
   statusItem: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 12,
     shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
+    shadowOpacity: theme.isDark ? 0.2 : 0.04,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 1
+    elevation: 1,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   statusItemLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginBottom: 8
   },
   statusBadgeLarge: {
@@ -347,19 +354,21 @@ export const styles = StyleSheet.create({
   },
   // Section Card
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
+    shadowOpacity: theme.isDark ? 0.2 : 0.04,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 1
+    elevation: 1,
+    borderWidth: theme.isDark ? 1 : 0,
+    borderColor: theme.colors.border
   },
   sectionHeader: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     marginBottom: 12,
     letterSpacing: 0.5
@@ -372,39 +381,39 @@ export const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11,
-    color: '#94A3B8'
+    color: theme.colors.textTertiary
   },
   infoValue: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   infoValueSmall: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   referenceValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#16A34A',
+    color: theme.colors.primary,
     fontFamily: 'monospace'
   },
   totalAmountBox: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0'
+    borderTopColor: theme.colors.border
   },
   totalAmountLabel: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     marginBottom: 4
   },
   totalAmountValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   // Payment Pills
   paymentPillRow: {
@@ -417,20 +426,20 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC'
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.backgroundSecondary
   },
   paymentPillActive: {
-    backgroundColor: '#16A34A',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
   },
   paymentPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#475569'
+    color: theme.colors.textSecondary
   },
   paymentPillTextActive: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   // Action Buttons
   actionButtonsRow: {
@@ -439,7 +448,7 @@ export const styles = StyleSheet.create({
   },
   confirmBtnFull: {
     flex: 1,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center'
@@ -447,15 +456,15 @@ export const styles = StyleSheet.create({
   rejectBtnFull: {
     flex: 1,
     borderWidth: 2,
-    borderColor: '#DC2626',
+    borderColor: theme.colors.error,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   completeBtnFull: {
     flex: 1,
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.info,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center'
@@ -463,23 +472,23 @@ export const styles = StyleSheet.create({
   cancelRefundBtnFull: {
     flex: 1,
     borderWidth: 2,
-    borderColor: '#DC2626',
+    borderColor: theme.colors.error,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   cancelledNote: {
     flex: 1,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: theme.colors.error,
     borderRadius: 10,
     padding: 12
   },
   cancelledNoteText: {
     fontSize: 13,
-    color: '#991B1B',
+    color: theme.isDark ? theme.colors.text : '#991B1B',
     textAlign: 'center'
   },
   // Legacy styles kept for backward compatibility
@@ -487,22 +496,22 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16
   },
   timelineLabel: {
     fontSize: 13,
-    color: '#94A3B8'
+    color: theme.colors.textTertiary
   },
   timelineValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 4
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     gap: 8
@@ -510,16 +519,16 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A'
+    color: theme.colors.text
   },
   detailLabel: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     marginTop: 8
   },
   detailValue: {
     fontSize: 15,
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 2
   },
   actionRow: {
@@ -536,18 +545,18 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#CBD5F5'
+    borderColor: theme.colors.border
   },
   pillActive: {
-    backgroundColor: '#16A34A',
-    borderColor: '#16A34A'
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
   },
   pillText: {
-    color: '#475569',
+    color: theme.colors.textSecondary,
     fontWeight: '600'
   },
   pillTextActive: {
-    color: '#FFFFFF'
+    color: theme.colors.textInverse
   },
   actionButtons: {
     flexDirection: 'row',
@@ -557,74 +566,74 @@ export const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'
   },
   confirmBtnText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   rejectBtn: {
     flex: 1,
     borderWidth: 2,
-    borderColor: '#DC2626',
+    borderColor: theme.colors.error,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   rejectBtnText: {
-    color: '#DC2626',
+    color: theme.colors.error,
     fontWeight: '700'
   },
   completeBtn: {
     flex: 1,
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.info,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'
   },
   completeBtnText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   cancelRefundBtn: {
     flex: 1,
     borderWidth: 2,
-    borderColor: '#DC2626',
+    borderColor: theme.colors.error,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   cancelRefundBtnText: {
-    color: '#DC2626',
+    color: theme.colors.error,
     fontWeight: '700'
   },
   primaryBtn: {
     flex: 1,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'
   },
   primaryBtnText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   secondaryBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#CBD5F5',
+    borderColor: theme.colors.border,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   secondaryBtnText: {
-    color: '#0F172A',
+    color: theme.colors.text,
     fontWeight: '600'
   },
   modalActions: {
@@ -632,51 +641,51 @@ export const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0'
+    borderTopColor: theme.colors.border
   },
   goBackBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#CBD5F5',
+    borderColor: theme.colors.border,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: theme.colors.surface
   },
   goBackBtnText: {
-    color: '#475569',
+    color: theme.colors.textSecondary,
     fontWeight: '600'
   },
   confirmCancelBtn: {
     flex: 1,
-    backgroundColor: '#DC2626',
+    backgroundColor: theme.colors.error,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'
   },
   confirmCancelBtnText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   dangerBtn: {
     flex: 1,
-    backgroundColor: '#DC2626',
+    backgroundColor: theme.colors.error,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center'
   },
   dangerBtnText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700'
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#CBD5F5',
+    borderColor: theme.colors.border,
     padding: 12,
     fontSize: 14,
-    color: '#0F172A'
+    color: theme.colors.text
   },
   switchRow: {
     marginTop: 16,
@@ -685,3 +694,5 @@ export const styles = StyleSheet.create({
     alignItems: 'center'
   }
 });
+
+export default getStyles;

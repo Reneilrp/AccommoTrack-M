@@ -16,10 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../../contexts/ThemeContext';
 import AddonService from '../../../services/AddonService';
-import { styles } from '../../../styles/Landlord/AddonManagement';
+import { getStyles } from '../../../styles/Landlord/AddonManagement';
 
 export default function AddonManagement({ route, navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { propertyId, propertyTitle } = route.params || {};
 
   const [addons, setAddons] = useState([]);

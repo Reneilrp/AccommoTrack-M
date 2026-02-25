@@ -19,7 +19,7 @@ import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { styles } from '../../../styles/Tenant/PropertyDetailsScreen';
+import { getStyles } from '../../../styles/Tenant/PropertyDetailsScreen';
 import homeStyles from '../../../styles/Tenant/HomePage.js';
 import PropertyService from '../../../services/PropertyServices';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -27,6 +27,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { accommodation, isGuest = false, onAuthRequired } = route.params || {};
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);

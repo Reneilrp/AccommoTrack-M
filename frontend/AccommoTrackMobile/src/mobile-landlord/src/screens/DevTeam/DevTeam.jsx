@@ -3,12 +3,15 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Draft from './assets/DraftIcon.jpg';
-import { styles } from './DevTeamStyles.js';
+import { getStyles } from './DevTeamStyles.js';
 import LeadDev from './assets/LeadDeveloper.jpeg';
 import PM from './assets/ProjectManager.jpg';
 import BA from './assets/BusinessAnalyst.jpg';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function DevTeam({ navigation }) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const teamMembers = [
     {
       id: 1,
@@ -56,7 +59,7 @@ export default function DevTeam({ navigation }) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Development Team</Text>
         <View style={{ width: 24 }} />

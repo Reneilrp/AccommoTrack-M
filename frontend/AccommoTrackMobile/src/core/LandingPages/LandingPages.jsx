@@ -10,42 +10,40 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import  styles from '../../styles/LandingPages.js';
+import { getStyles } from '../../styles/LandingPages.js';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-const slides = [
-  {
-    id: '1',
-    icon: 'home',
-    title: 'Find Your Perfect Place',
-    description: 'Browse through verified accommodations tailored to your needs. From cozy apartments to spacious homes.',
-    color: '#8B5CF6',
-    gradient: ['#8B5CF6', '#7C3AED'],
-    // Green Teal
-  },
-  {
-    id: '2',
-    icon: 'people',
-    title: 'Connect with Landlords',
-    description: 'Communicate directly with property owners. Schedule viewings, ask questions, and negotiate terms seamlessly.',
-    color: '#EC4899',
-    gradient: ['#EC4899', '#DB2777'],
-    // Blue Opacity 60
-  },
-  {
-    id: '3',
-    icon: 'shield-checkmark',
-    title: 'Track Everything',
-    description: 'Manage your rental journey from search to move-in. Keep track of payments, documents, and important dates all in one place.',
-    color: '#3B82F6',
-    gradient: ['#3B82F6', '#2563EB'],
-    // Reddish Pink
-  },
-];
-
 export default function LandingPages({ onFinish }) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  const slides = [
+    {
+      id: '1',
+      icon: 'home',
+      title: 'Find Your Perfect Place',
+      description: 'Browse through verified accommodations tailored to your needs. From cozy apartments to spacious homes.',
+      color: theme.colors.primary,
+    },
+    {
+      id: '2',
+      icon: 'people',
+      title: 'Connect with Landlords',
+      description: 'Communicate directly with property owners. Schedule viewings, ask questions, and negotiate terms seamlessly.',
+      color: theme.colors.primary,
+    },
+    {
+      id: '3',
+      icon: 'shield-checkmark',
+      title: 'Track Everything',
+      description: 'Manage your rental journey from search to move-in. Keep track of payments, documents, and important dates all in one place.',
+      color: theme.colors.primary,
+    },
+  ];
+
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
 

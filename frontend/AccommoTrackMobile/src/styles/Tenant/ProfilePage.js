@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     flex: 1,
     textAlign: 'center',
   },
@@ -28,16 +28,16 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   editButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '600',
   },
   photoSection: {
     alignItems: 'center',
     paddingVertical: 32,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: theme.colors.border,
   },
   photoContainer: {
     position: 'relative',
@@ -48,28 +48,30 @@ export const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: '#16a34a',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   changePhotoButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: theme.colors.surface,
   },
   userName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: theme.colors.text,
   },
   formSection: {
     padding: 20,
+    backgroundColor: theme.colors.background,
   },
   inputGroup: {
     marginBottom: 20,
@@ -77,21 +79,21 @@ export const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   inputDisabled: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.backgroundSecondary,
   },
   inputIcon: {
     marginRight: 12,
@@ -99,24 +101,24 @@ export const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: theme.colors.text,
   },
   helperText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textTertiary,
     marginTop: 4,
     marginLeft: 4,
   },
   textAreaContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
     padding: 16,
   },
   textArea: {
     fontSize: 16,
-    color: '#111827',
+    color: theme.colors.text,
     minHeight: 100,
     textAlignVertical: 'top',
   },
@@ -126,19 +128,19 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 16,
   },
   preferenceItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.border,
   },
   preferenceLeft: {
     flexDirection: 'row',
@@ -152,23 +154,23 @@ export const styles = StyleSheet.create({
   preferenceTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: theme.colors.text,
     marginBottom: 2,
   },
   preferenceDescription: {
     fontSize: 13,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
   },
   toggle: {
     width: 50,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: theme.colors.border,
     padding: 2,
     justifyContent: 'center',
   },
   toggleActive: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   toggleCircle: {
     width: 24,
@@ -181,4 +183,4 @@ export const styles = StyleSheet.create({
   },
 });
 
-export default styles;
+export default getStyles;

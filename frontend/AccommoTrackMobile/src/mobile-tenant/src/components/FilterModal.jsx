@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from '../../../styles/Tenant/HomePage.js';
+import { getStyles } from '../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const filterOptions = ['All', 'Dormitory', 'Apartment', 'Boarding House', 'Bed Spacer'];
 
 export default function FilterModal({ visible, onClose, selectedFilter, onFilterSelect }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const getFilterIcon = (filter) => {
     switch (filter) {
       case 'All': return 'apps';
@@ -28,9 +29,9 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
       statusBarTranslucent={true}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Filter by Type</Text>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter by Type</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={28} color={theme.colors.text} />
             </TouchableOpacity>
@@ -42,8 +43,7 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
                 key={filter}
                 style={[
                   styles.filterOption,
-                  { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border },
-                  selectedFilter === filter && { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }
+                  selectedFilter === filter && styles.filterOptionSelected
                 ]}
                 onPress={() => onFilterSelect(filter)}
               >
@@ -55,8 +55,7 @@ export default function FilterModal({ visible, onClose, selectedFilter, onFilter
                   />
                   <Text style={[
                     styles.filterOptionText,
-                    { color: theme.colors.textSecondary },
-                    selectedFilter === filter && { color: theme.colors.primary, fontWeight: '600' }
+                    selectedFilter === filter && styles.filterOptionTextSelected
                   ]}>
                     {filter}
                   </Text>

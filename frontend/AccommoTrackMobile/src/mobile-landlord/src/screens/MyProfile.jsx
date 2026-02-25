@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { styles } from '../../../styles/Landlord/MyProfile';
+import { getStyles } from '../../../styles/Landlord/MyProfile';
 import Button from '../components/Button';
 import ProfileService from '../../../services/ProfileService';
 import { BASE_URL } from '../../../config';
@@ -23,6 +23,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function MyProfileScreen({ navigation }) {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -160,7 +161,7 @@ export default function MyProfileScreen({ navigation }) {
   };
 
   // Define a reusable component for profile fields
-  const ProfileField = ({ label, value, editable, onChangeText, iconName, keyboardType = 'default' }) => (
+  const ProfileField = ({ label, value, editable, onChangeText, iconName, keyboardType = 'default', styles }) => (
     <View style={styles.fieldContainer}>
       <View style={styles.fieldLabelContainer}>
         <Ionicons name={iconName} size={20} color="#6B7280" />
@@ -264,6 +265,7 @@ export default function MyProfileScreen({ navigation }) {
             editable={isEditing}
             onChangeText={(text) => setTempUser({ ...tempUser, first_name: text })}
             iconName="person-outline"
+            styles={styles}
           />
           <ProfileField
             label="Last Name"
@@ -271,12 +273,14 @@ export default function MyProfileScreen({ navigation }) {
             editable={isEditing}
             onChangeText={(text) => setTempUser({ ...tempUser, last_name: text })}
             iconName="person-outline"
+            styles={styles}
           />
           <ProfileField
             label="Email"
             value={tempUser?.email}
             editable={false}
             iconName="mail-outline"
+            styles={styles}
           />
           <ProfileField
             label="Phone Number"
@@ -285,6 +289,7 @@ export default function MyProfileScreen({ navigation }) {
             onChangeText={(text) => setTempUser({ ...tempUser, phone: text })}
             iconName="call-outline"
             keyboardType="phone-pad"
+            styles={styles}
           />
         </View>
 
