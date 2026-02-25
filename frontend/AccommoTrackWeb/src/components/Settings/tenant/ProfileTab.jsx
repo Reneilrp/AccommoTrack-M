@@ -5,7 +5,7 @@ import { SkeletonProfileTab } from '../../Shared/Skeleton';
 import { useUIState } from '../../../contexts/UIStateContext';
 import { CircleUser, Camera } from 'lucide-react';
 
-const ProfileTab = () => {
+const ProfileTab = ({ onUserUpdate }) => {
   const { uiState, updateData } = useUIState();
   const cachedProfile = uiState.data?.profile;
 
@@ -71,10 +71,14 @@ const ProfileTab = () => {
       emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
       emergency_contact_phone: data.tenant_profile?.emergency_contact_phone || '',
       emergency_contact_relationship: data.tenant_profile?.emergency_contact_relationship || '',
+      profile_image: null, // Reset file input
     });
     
     if (data.profile_image) {
+      // In ProfileTab, data.profile_image might already be a full URL from getProfile or just a path
       setImagePreview(getImageUrl(data.profile_image));
+    } else {
+      setImagePreview(null);
     }
   };
 
@@ -132,7 +136,13 @@ const ProfileTab = () => {
     try {
       const data = new FormData();
       Object.keys(formData).forEach(key => {
-        if (key === 'profile_image' && typeof formData[key] === 'string') return; // Skip if it's the url string
+        // Skip profile_image if it's null (not changed)
+        if (key === 'profile_image') {
+          if (formData[key] instanceof File) {
+            data.append(key, formData[key]);
+          }
+          return;
+        }
         
         // Handle Gender directly (since it has its own column now)
         if (key === 'gender') {
@@ -146,9 +156,23 @@ const ProfileTab = () => {
         }
       });
       
-      await tenantService.updateProfile(data);
+      const response = await tenantService.updateProfile(data);
+      
+      // Update global user state if onUserUpdate exists
+      if (onUserUpdate && response.user) {
+        // The backend returns the updated user. We need to make sure 
+        // the profile_image path is correctly handled if it's just a path.
+        const updatedUser = { ...response.user };
+        // The global user state in App.jsx should have the latest info
+        onUserUpdate(updatedUser);
+        localStorage.setItem('userData', JSON.stringify(updatedUser));
+      }
+
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setIsEditing(false);
+      
+      // Refetch to ensure all cached data is synced
+      fetchProfile();
     } catch (error) {
       console.error('Update failed', error);
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
@@ -220,7 +220,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                       selectedProperty.images.map((img, idx) => (
                         <img
                           key={idx}
-                          src={img.image_path ? `${window.location.origin}/storage/${img.image_path}` : img.image_url}
+                          src={getImageUrl(img.image_path || img.image_url)}
                           alt={`Property ${idx + 1}`}
                           className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                           onError={(e) => e.target.src = '/placeholder.png'}
@@ -228,7 +228,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                       ))
                     ) : (
                       <img
-                        src={selectedProperty.image_url}
+                        src={getImageUrl(selectedProperty.image_url)}
                         alt="Property"
                         className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                         onError={(e) => e.target.src = '/placeholder.png'}
@@ -334,7 +334,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                   <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Credentials</h4>
                   <div className="space-y-3">
                     {selectedProperty.credentials.map((cred, idx) => {
-                      const url = cred.file_url || (cred.file_path ? `${window.location.origin}/storage/${cred.file_path}` : null) || cred.url || null;
+                      const url = getImageUrl(cred.file_url || cred.file_path || cred.url);
                       const name = cred.original_name || cred.name || `Document ${idx + 1}`;
                       return (
                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">

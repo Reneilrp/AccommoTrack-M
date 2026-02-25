@@ -31,7 +31,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
         {/* LEFT SIDE: Hero Image */}
         <div className="w-full md:w-5/12 h-64 md:h-auto relative bg-gray-100 dark:bg-gray-700 group flex-shrink-0">
           <img 
-            src={room.image} 
+            src={getImageUrl(room.image)} 
             alt={room.name} 
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
@@ -70,45 +70,45 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
           </div>
 
           {/* Scrollable Body */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-8 pt-4">
+          <div className="flex-1 overflow-y-auto p-5 md:p-8 pt-2 md:pt-4">
             
             {/* Price & Key Specs */}
-            <div className="flex items-end justify-between mb-8 pb-6 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 md:mb-8 pb-6 border-b border-gray-100 dark:border-gray-700 gap-4">
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-1">Monthly Rent</p>
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-1">Monthly Rent</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-green-600 tracking-tight">₱{room.price.toLocaleString()}</span>
+                  <span className="text-3xl md:text-4xl font-black text-green-600 tracking-tight">₱{room.price.toLocaleString()}</span>
                   <span className="text-gray-400 dark:text-gray-500 font-medium">/mo</span>
                 </div>
               </div>
-              <div className="text-right space-y-1">
-                 <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 font-medium">
+              <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1">
+                 <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 text-xs md:text-sm text-gray-600 dark:text-gray-300 font-medium">
                     {room.size || 'N/A'}
                  </div>
-                 <div className="block text-xs text-gray-400 dark:text-gray-500 font-medium uppercase mt-1">
+                 <div className="block text-[10px] md:text-xs text-gray-400 dark:text-gray-500 font-medium uppercase mt-1">
                     Capacity: {room.capacity || '1-2 Pax'}
                  </div>
               </div>
             </div>
 
             {/* Description */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">About this space</h3>
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-[15px]">
+            <div className="mb-6 md:mb-8">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white mb-3">About this space</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm md:text-[15px]">
                 {room.description || "A comfortable space designed for students and professionals. Enjoy a secure environment with easy access to local amenities."}
               </p>
             </div>
 
             {/* Amenities Grid */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">What this place offers</h3>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="mb-6 md:mb-8">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white mb-4">What this place offers</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                 {(Array.isArray(room.amenities) ? room.amenities : ['Standard Amenities']).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 dark:text-gray-300 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-4 h-4 text-green-600" />
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600" />
                     </div>
-                    <span className="text-sm font-medium">{item}</span>
+                    <span className="text-xs md:text-sm font-medium">{item}</span>
                   </div>
                 ))}
               </div>
@@ -247,7 +247,7 @@ const Properties = () => {
   const mapRoom = (room) => ({
     id: room.id,
     name: room.room_type || room.type_label || 'Room',
-    image: room.images && room.images.length > 0 ? room.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
+    image: getImageUrl(room.images && room.images.length > 0 ? room.images[0] : null) || 'https://via.placeholder.com/400x200?text=No+Image',
     price: room.monthly_rate || 0,
     status: room.status ? (room.status.charAt(0).toUpperCase() + room.status.slice(1)) : 'Available',
     reserved_by_me: room.reserved_by_me || false,

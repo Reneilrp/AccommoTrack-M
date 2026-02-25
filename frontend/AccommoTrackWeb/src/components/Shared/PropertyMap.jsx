@@ -56,8 +56,8 @@ const MapController = ({ centerOn }) => {
 const PropertyMap = ({ properties, onMarkerClick, centerOn }) => {
     const { effectiveTheme } = usePreferences();
     
-    // Default center (Manila)
-    const defaultCenter = [14.5995, 120.9842]; 
+    // Default center (Zamboanga City)
+    const defaultCenter = [6.9214, 122.0790]; 
 
     // Ensure properties is an array
     const safeProperties = Array.isArray(properties) ? properties : [];
@@ -73,7 +73,7 @@ const PropertyMap = ({ properties, onMarkerClick, centerOn }) => {
     return (
         <MapContainer 
             center={defaultCenter} 
-            zoom={12} 
+            zoom={13} 
             style={{ height: '100%', width: '100%', borderRadius: '0.5rem' }}
             zoomControl={false} // Disable default zoom controls (+/-)
         >

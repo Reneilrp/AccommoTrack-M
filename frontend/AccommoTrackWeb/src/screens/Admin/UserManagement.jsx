@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
@@ -211,36 +211,23 @@ const UserManagement = () => {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Basic Information */}
-              <div>
-                <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Basic Information</h4>
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+              {/* Profile Image & Status Header */}
+              <div className="flex items-center gap-6 pb-6 border-b border-gray-100 dark:border-gray-700">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-600 shadow-md">
+                  <img 
+                    src={getImageUrl(selectedUser.profile_image) || `https://ui-avatars.com/api/?name=${selectedUser.first_name}+${selectedUser.last_name}&background=random`} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {selectedUser.first_name ? `${selectedUser.first_name} ${selectedUser.last_name || ''}` : selectedUser.name || 'N/A'}
+                  </h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 capitalize mb-2">{selectedUser.role}</p>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Full Name</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {selectedUser.first_name ? `${selectedUser.first_name} ${selectedUser.last_name || ''}` : selectedUser.name || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{selectedUser.email || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Gender</p>
-                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{selectedUser.gender || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Role</p>
-                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{selectedUser.role || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{selectedUser.phone || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
                     {selectedUser.role === 'landlord' ? (
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         selectedUser.verification_status === 'approved' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
                           : selectedUser.verification_status === 'pending'
@@ -258,10 +245,35 @@ const UserManagement = () => {
                               : 'Not Submitted'}
                       </span>
                     ) : (
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedUser.is_blocked ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${selectedUser.is_blocked ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'}`}>
                         {selectedUser.is_blocked ? 'Blocked' : 'Active'}
                       </span>
                     )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic Information */}
+              <div>
+                <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Basic Information</h4>
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
+                    <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedUser.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Gender</p>
+                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{selectedUser.gender || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">{selectedUser.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Registered On</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : 'N/A'}
+                    </p>
                   </div>
                 </div>
               </div>

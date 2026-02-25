@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
+import { getImageUrl } from '../../utils/api';
 
 const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -135,11 +136,19 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
           title="Admin Profile"
         >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-            <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-brand-600 dark:text-brand-400 font-semibold">
-                {user?.first_name?.[0]}{user?.last_name?.[0] || user?.email?.[0]?.toUpperCase()}
-              </span>
-            </div>
+            {user?.profile_image ? (
+              <img 
+                src={getImageUrl(user.profile_image)} 
+                alt="Admin Profile" 
+                className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-sm flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-brand-600 dark:text-brand-400 font-semibold">
+                  {user?.first_name?.[0]}{user?.last_name?.[0] || user?.email?.[0]?.toUpperCase()}
+                </span>
+              </div>
+            )}
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">

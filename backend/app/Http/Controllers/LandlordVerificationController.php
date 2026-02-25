@@ -27,8 +27,8 @@ class LandlordVerificationController extends Controller
             'password' => 'required|string|min:8',
             'valid_id_type' => 'required|string|max:255',
             'valid_id_other' => 'nullable|string|max:255',
-            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240', // Increased limit to 10MB
-            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'agree' => 'accepted',
         ]);
 
@@ -225,8 +225,8 @@ class LandlordVerificationController extends Controller
         $validator = Validator::make($request->all(), [
             'valid_id_type' => 'required|string|max:255',
             'valid_id_other' => 'nullable|string|max:255',
-            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
-            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         if ($validator->fails()) {

@@ -38,4 +38,21 @@ class Inquiry extends Model
 {
     /** @use HasFactory<\Database\Factories\InquiryFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'property_id',
+        'name',
+        'email',
+        'phone',
+        'message',
+        'status',
+        'source',
+        'responded_at'
+    ];
+
+    public function property()
+    {
+        return $this->belongsTo(Property::class);
+    }
 }
+

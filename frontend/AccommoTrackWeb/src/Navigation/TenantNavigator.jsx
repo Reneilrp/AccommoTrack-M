@@ -14,7 +14,7 @@ import TenantWallet from '../screens/Tenant/TenantWallet';
 import InvoiceCheckout from '../screens/Tenant/InvoiceCheckout';
 import TenantMaintenance from '../screens/Tenant/TenantMaintenance';
 
-export default function TenantNavigator({ user, onLogout }) {
+export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
   return (
     <SidebarProvider>
       <TenantLayout user={user} onLogout={onLogout}>
@@ -27,7 +27,7 @@ export default function TenantNavigator({ user, onLogout }) {
           <Route path="/maintenance" element={<TenantMaintenance />} />
           <Route path="/checkout/:id" element={<InvoiceCheckout />} />
           <Route path="/messages" element={<TenantMessages user={user} />} />
-          <Route path="/settings" element={<TenantSettings user={user} />} />
+          <Route path="/settings" element={<TenantSettings user={user} onUserUpdate={onUserUpdate} />} />
           
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

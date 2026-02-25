@@ -105,12 +105,17 @@ const LandingPage = ({ user }) => {
 
 
             {/* Burger Menu Component */}
-            <BurgerMenu user={user} />
+            <BurgerMenu 
+              user={user} 
+              theme={theme} 
+              setTheme={setTheme} 
+              effectiveTheme={effectiveTheme} 
+            />
 
-            {/* Theme Toggle */}
+            {/* Theme Toggle - Hidden on mobile/tablet, shown only on desktop (lg:flex) */}
             <button
               onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}
-              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+              className={`hidden lg:inline-flex relative h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
                 effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-green-100'
               }`}
               title={`Switch to ${effectiveTheme === 'dark' ? 'light' : 'dark'} mode`}
@@ -151,7 +156,7 @@ const LandingPage = ({ user }) => {
 }
 
 // --- BURGER MENU COMPONENT ---
-function BurgerMenu({ user }) {
+function BurgerMenu({ user, theme, setTheme, effectiveTheme }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
 
@@ -174,15 +179,15 @@ function BurgerMenu({ user }) {
         <Menu className="w-6 h-6" />
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 animate-fade-in overflow-hidden">
+        <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 animate-fade-in overflow-hidden">
           {/* Mobile Login/Dashboard Link */}
           <div className="lg:hidden border-b border-gray-100 dark:border-gray-700">
              {user ? (
-                <a href="/dashboard" className="block px-4 py-3 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30">
+                <a href="/dashboard" className="block px-4 py-3 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
                    Dashboard
                 </a>
              ) : (
-                <a href="/login" className="block px-4 py-3 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30">
+                <a href="/login" className="block px-4 py-3 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
                    Sign In
                 </a>
              )}
@@ -190,18 +195,41 @@ function BurgerMenu({ user }) {
           
           <a
             href="/become-landlord"
-            className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold"
+            className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold transition-colors"
             onClick={() => setOpen(false)}
           >
             Become a Landlord
           </a>
           <a
             href="/help"
-            className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold"
+            className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold border-b border-gray-100 dark:border-gray-700 transition-colors"
             onClick={() => setOpen(false)}
           >
             Help
           </a>
+
+          {/* Theme Toggle in Burger Menu (Mobile Only) */}
+          <div className="lg:hidden px-4 py-3 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Appearance</span>
+            <button
+              onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-green-100'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out flex items-center justify-center ${
+                  effectiveTheme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              >
+                {effectiveTheme === 'dark' ? (
+                  <Moon className="w-2.5 h-2.5 text-gray-700" />
+                ) : (
+                  <Sun className="w-2.5 h-2.5 text-orange-500" />
+                )}
+              </span>
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -58,13 +58,23 @@ export const apiUrl = (endpoint) => {
 
 /**
  * Get proper image URL from storage path
- * @param {string} imagePath - Image path from database
+ * @param {string|object} imageSource - Image path string or image object from database
  * @returns {string|null} Full image URL
  */
-export const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
+export const getImageUrl = (imageSource) => {
+    if (!imageSource) return null;
+
+    // Handle object input (e.g. { image_url: '...', image_path: '...' })
+    let imagePath = '';
+    if (typeof imageSource === 'object') {
+        imagePath = imageSource.image_url || imageSource.url || imageSource.image_path || '';
+    } else {
+        imagePath = imageSource;
+    }
+
+    if (!imagePath || typeof imagePath !== 'string') return null;
     
-    // If it's a full URL, we want to ensure it uses the CURRENT domain
+    // If it's a full URL, ensure it uses the current BASE_URL domain if it's a local storage link
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         try {
             const url = new URL(imagePath);
@@ -72,31 +82,24 @@ export const getImageUrl = (imagePath) => {
             const markerIndex = url.pathname.indexOf(storageMarker);
             
             if (markerIndex !== -1) {
-                // Standard Laravel storage path: preserve everything after the domain
+                // Preserving the path after the domain
                 const storagePath = url.pathname.substring(markerIndex + 1);
                 return `${BASE_URL}/${storagePath}`;
-            } else {
-                // If it doesn't have /storage/ but IS a full URL, it might be an old absolute path 
-                // or a different storage structure. We still want to use our current BASE_URL domain.
-                // We'll take the path and ensure it's prefixed with storage/ if it looks like a property image
-                let path = url.pathname.replace(/^\/+/, '');
-                if (!path.startsWith('storage/') && (path.includes('property_images') || path.includes('room_images'))) {
-                    return `${STORAGE_URL}/${path}`;
-                }
-                return `${BASE_URL}/${path}`;
             }
         } catch (err) {
-            console.warn('Failed to parse image URL', err);
+            // fallback to original if parsing fails
         }
         return imagePath;
     }
     
     const cleanPath = imagePath.replace(/^\/+/, '');
     
+    // Logic for relative paths
     if (cleanPath.startsWith('storage/')) {
         return `${BASE_URL}/${cleanPath}`;
     }
     
+    // Default storage prefix
     return `${STORAGE_URL}/${cleanPath}`;
 };
 

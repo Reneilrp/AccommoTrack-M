@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getImageUrl } from '../../utils/api';
 
 const PropertyCarousel = ({ property, onOpenDetails }) => {
   const carouselRef = useRef(null);
@@ -57,7 +58,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             {/* Image Click -> Open Room Details */}
             <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
               <img
-                src={room.image}
+                src={getImageUrl(room.image)}
                 alt={room.name}
                 className="w-full h-full object-cover transform group-hover/card:scale-105 transition-transform duration-500"
                 loading="lazy"
