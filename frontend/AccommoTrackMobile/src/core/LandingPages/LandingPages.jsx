@@ -33,14 +33,14 @@ export default function LandingPages({ onFinish }) {
       icon: 'people',
       title: 'Connect with Landlords',
       description: 'Communicate directly with property owners. Schedule viewings, ask questions, and negotiate terms seamlessly.',
-      color: theme.colors.primary,
+      color: theme.colors.info,
     },
     {
       id: '3',
       icon: 'shield-checkmark',
       title: 'Track Everything',
       description: 'Manage your rental journey from search to move-in. Keep track of payments, documents, and important dates all in one place.',
-      color: theme.colors.primary,
+      color: theme.colors.infoDark,
     },
   ];
 
