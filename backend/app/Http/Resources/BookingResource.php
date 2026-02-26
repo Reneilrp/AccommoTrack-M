@@ -15,7 +15,7 @@ class BookingResource extends JsonResource
         return [
             'id' => $this->id,
             'booking_reference' => $this->booking_reference,
-            'guestName' => $this->tenant ? $this->tenant->first_name . ' ' . $this->tenant->last_name : 'N/A',
+            'guestName' => $this->guest_name ?: ($this->tenant ? $this->tenant->first_name . ' ' . $this->tenant->last_name : 'N/A'),
             'email' => $this->tenant?->email,
             'phone' => $this->tenant?->phone ?? 'N/A',
             'roomType' => $this->room?->room_type ?? 'N/A',

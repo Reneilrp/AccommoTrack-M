@@ -81,6 +81,7 @@ class Booking extends Model
         'property_id',
         'tenant_id',
         'landlord_id',
+        'guest_name',
         'room_id',
         'booking_reference',
         'start_date',
@@ -101,7 +102,8 @@ class Booking extends Model
         'end_date' => 'date',
         'monthly_rent' => 'decimal:2',
         'total_amount' => 'decimal:2',
-        'cancelled_at' => 'datetime'
+        'cancelled_at' => 'datetime',
+        'guest_name' => 'string'
     ];
 
     /**
