@@ -4,6 +4,7 @@ import { getImageUrl } from '../../utils/api';
 import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
 import ReviewModal from '../../components/Modals/ReviewModal';
 import { useUIState } from "../../contexts/UIStateContext";
+import toast from 'react-hot-toast';
 import { 
   Home, 
   Calendar, 
@@ -101,7 +102,7 @@ const MyBookings = () => {
       setShowAddonModal(false);
     } catch (err) {
       console.error('Failed to request addon:', err);
-      alert(err.response?.data?.message || 'Failed to request addon');
+      toast.error(err.response?.data?.message || 'Failed to request addon');
     } finally {
       setRequestingAddon(null);
     }
@@ -114,7 +115,7 @@ const MyBookings = () => {
       fetchData();
     } catch (err) {
       console.error('Failed to cancel addon request:', err);
-      alert('Failed to cancel request');
+      toast.error('Failed to cancel request');
     }
   };
 
@@ -366,7 +367,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
           {/* Active Add-ons */}
           {Array.isArray(addons.active) && addons.active.length > 0 && (
             <div className="mb-6">
-              <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Current Subscriptions</h4>
+              <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
               <div className="space-y-3">
                 {addons.active.map((addon) => (
                   <AddonItem key={addon.pivotId} addon={addon} status="active" />
@@ -378,7 +379,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
           {/* Pending Requests */}
           {Array.isArray(addons.pending) && addons.pending.length > 0 && (
             <div className="mb-6">
-              <h4 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Awaiting Approval</h4>
+              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Awaiting Approval</h4>
               <div className="space-y-3">
                 {addons.pending.map((addon) => (
                   <AddonItem 
@@ -402,7 +403,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
           {addons.monthlyTotal > 0 && (
             <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
               <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Monthly Add-on Fees:</span>
-              <span className="text-lg font-black text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
+              <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
             </div>
           )}
         </div>
@@ -414,7 +415,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-black">
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
                 {landlord?.name?.charAt(0).toUpperCase() || '?'}
               </div>
               <div>
@@ -456,7 +457,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
             </div>
             <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
               <span className="font-bold text-gray-900 dark:text-white">Monthly Total</span>
-              <span className="text-xl font-black text-green-600 dark:text-green-400">
+              <span className="text-xl font-bold text-green-600 dark:text-green-400">
                 ₱{(booking.monthlyRent + addons.monthlyTotal).toLocaleString()}
               </span>
             </div>
@@ -492,16 +493,16 @@ const FinancialsTab = ({ data }) => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Monthly Rent</p>
-          <p className="text-2xl font-black text-gray-900 dark:text-white">₱{financials.monthlyRent.toLocaleString()}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Rent</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{financials.monthlyRent.toLocaleString()}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Monthly Add-ons</p>
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">+₱{financials.monthlyAddons.toLocaleString()}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Add-ons</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{financials.monthlyAddons.toLocaleString()}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Due/mo</p>
-          <p className="text-2xl font-black text-green-600 dark:text-green-400">₱{financials.monthlyTotal.toLocaleString()}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Due/mo</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{financials.monthlyTotal.toLocaleString()}</p>
         </div>
       </div>
 
@@ -518,20 +519,20 @@ const FinancialsTab = ({ data }) => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Method</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Method</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
                 {allTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{tx.date}</td>
-                    <td className="py-4 px-6 text-sm font-black text-gray-900 dark:text-white">₱{tx.amount.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{tx.amount.toLocaleString()}</td>
                     <td className="py-4 px-6 text-sm font-bold text-gray-500 dark:text-gray-500 capitalize">{tx.method.replace('paymongo_', '').replace('_', ' ')}</td>
                     <td className="py-4 px-6">
-                      <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase ${
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
                         tx.status === 'succeeded' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>
                         {tx.status}
@@ -560,10 +561,10 @@ const FinancialsTab = ({ data }) => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Due Date</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Description</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Due Date</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Description</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
+                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
@@ -571,7 +572,7 @@ const FinancialsTab = ({ data }) => {
                   <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{invoice.dueDate || invoice.issuedAt}</td>
                     <td className="py-4 px-6 text-sm font-bold text-gray-500 dark:text-gray-500">{invoice.description || 'Accommodation Fee'}</td>
-                    <td className="py-4 px-6 text-sm font-black text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
                     <td className="py-4 px-6">
                       <StatusBadge status={invoice.status} />
                     </td>
@@ -623,8 +624,8 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Paid</p>
-                <p className="font-black text-green-600 dark:text-green-400">₱{booking.financials.totalPaid.toLocaleString()}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Paid</p>
+                <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{booking.financials.totalPaid.toLocaleString()}</p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <StatusBadge status={booking.status} />
@@ -683,7 +684,7 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
 const StatCard = ({ label, value, icon }) => (
   <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md transition-all">
     <div className="text-2xl mb-2">{icon}</div>
-    <p className="text-lg font-black text-gray-900 dark:text-white leading-tight">{value}</p>
+    <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mt-1 tracking-wider">{label}</p>
   </div>
 );
@@ -726,7 +727,7 @@ const AddonItem = ({ addon, status, onCancel }) => (
       </div>
     </div>
     <div className="flex items-center gap-3">
-      <span className="font-black text-gray-900 dark:text-white">
+      <span className="font-bold text-gray-900 dark:text-white">
         ₱{addon.price.toLocaleString()}
         {addon.priceType === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
       </span>
@@ -771,7 +772,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
                         addon.priceType === 'monthly' 
                           ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
                           : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
@@ -783,13 +784,13 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
                       <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{addon.description}</p>
                     )}
                     <div className="flex items-baseline gap-2">
-                      <p className="text-xl font-black text-green-600 dark:text-green-400">
+                      <p className="text-xl font-bold text-green-600 dark:text-green-400">
                         ₱{addon.price.toLocaleString()}
                       </p>
                       {addon.priceType === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
                     </div>
                     {addon.stock !== null && (
-                      <p className={`text-[10px] font-black uppercase mt-2 ${addon.hasStock ? 'text-gray-400 dark:text-gray-500' : 'text-red-500'}`}>
+                      <p className={`text-[10px] font-bold uppercase mt-2 ${addon.hasStock ? 'text-gray-400 dark:text-gray-500' : 'text-red-500'}`}>
                         {addon.hasStock ? `${addon.stock} Available` : 'Out of stock'}
                       </p>
                     )}
@@ -816,7 +817,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
         )}
       </div>
       <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-center">
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest leading-relaxed">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider leading-relaxed">
           Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
         </p>
       </div>

@@ -53,7 +53,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         {(Array.isArray(property?.rooms) ? property.rooms : []).map((room) => (
           <div
             key={room.id}
-            className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg hover:border-green-200 dark:hover:border-green-700 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
+            className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
           >
             {/* Image Click -> Open Room Details */}
             <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>

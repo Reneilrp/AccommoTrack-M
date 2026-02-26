@@ -152,7 +152,7 @@ export default function TenantMaintenance() {
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">
                     <h4 className="font-bold text-gray-900 dark:text-white">{req.title}</h4>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${maintenanceService.getPriorityColor(req.priority)}`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${maintenanceService.getPriorityColor(req.priority)}`}>
                       {req.priority}
                     </span>
                   </div>
