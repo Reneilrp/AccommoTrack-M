@@ -68,6 +68,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const { theme, isDarkMode, toggleTheme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState('landlord');
   const [loading, setLoading] = useState(true);
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
@@ -87,6 +88,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
       const res = await ProfileService.getProfile();
       if (res.success && res.data) {
         setUser(res.data);
+        setUserRole(res.data.role || 'landlord');
         const prefs = res.data.notification_preferences;
         if (prefs) {
           const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
@@ -177,114 +179,123 @@ export default function SettingsScreen({ navigation, onLogout }) {
   };
 
   const sections = useMemo(
-    () => [
-      {
-        title: 'Account',
-        items: [
-          {
-            id: 'verification',
-            label: 'Verification Status',
-            description: 'ID and business permit status',
-            icon: 'shield-checkmark-outline',
-            type: 'navigate',
-            target: 'VerificationStatus'
-          },
-          {
-            id: 'caretakers',
-            label: 'Caretaker Management',
-            description: 'Manage access and permissions',
-            icon: 'people-outline',
-            type: 'navigate',
-            target: 'Caretakers'
-          }
-        ]
-      },
-      {
-        title: 'Notifications',
-        items: [
-          {
-            id: 'payment-alerts',
-            label: 'Payment Updates',
-            icon: 'cash-outline',
-            type: 'toggle',
-            value: notificationPrefs.payments,
-            stateKey: 'payments'
-          },
-          {
-            id: 'message-alerts',
-            label: 'New Messages',
-            icon: 'chatbubble-ellipses-outline',
-            type: 'toggle',
-            value: notificationPrefs.messages,
-            stateKey: 'messages'
-          },
-          {
-            id: 'maintenance-alerts',
-            label: 'Maintenance Requests',
-            icon: 'construct-outline',
-            type: 'toggle',
-            value: notificationPrefs.maintenance,
-            stateKey: 'maintenance'
-          }
-        ]
-      },
-      {
-        title: 'Support',
-        items: [
-          {
-            id: 'help',
-            label: 'Help & Support',
-            description: 'FAQs and contact options',
-            icon: 'help-circle-outline',
-            type: 'navigate',
-            target: 'HelpSupport'
-          },
-          {
-            id: 'report',
-            label: 'Report a Problem',
-            icon: 'flag-outline',
-            type: 'action',
-            action: () => handleUnavailable('Report a Problem')
-          },
-          {
-            id: 'about',
-            label: 'About AccommoTrack',
-            description: 'Release notes, dev team, and terms',
-            icon: 'information-circle-outline',
-            type: 'navigate',
-            target: 'About'
-          }
-        ]
-      },
-      {
-        title: 'App Info',
-        items: [
-          {
-            id: 'dark-mode',
-            label: 'Dark Mode',
-            icon: isDarkMode ? 'moon' : 'moon-outline',
-            type: 'toggle',
-            value: isDarkMode,
-            stateKey: 'darkMode'
-          },
-          {
-            id: 'version',
-            label: 'Version',
-            icon: 'albums-outline',
-            type: 'info',
-            value: '1.0.0'
-          },
-          {
-            id: 'updates',
-            label: 'Release Channel',
-            icon: 'cloud-download-outline',
-            type: 'info',
-            value: 'Testing'
-          }
-        ]
-      }
-    ],
-    [notificationPrefs]
+    () => {
+      const allSections = [
+        {
+          title: 'Account',
+          items: [
+            {
+              id: 'verification',
+              label: 'Verification Status',
+              description: 'ID and business permit status',
+              icon: 'shield-checkmark-outline',
+              type: 'navigate',
+              target: 'VerificationStatus',
+              role: 'landlord'
+            },
+            {
+              id: 'caretakers',
+              label: 'Caretaker Management',
+              description: 'Manage access and permissions',
+              icon: 'people-outline',
+              type: 'navigate',
+              target: 'Caretakers',
+              role: 'landlord'
+            }
+          ]
+        },
+        {
+          title: 'Notifications',
+          items: [
+            {
+              id: 'payment-alerts',
+              label: 'Payment Updates',
+              icon: 'cash-outline',
+              type: 'toggle',
+              value: notificationPrefs.payments,
+              stateKey: 'payments'
+            },
+            {
+              id: 'message-alerts',
+              label: 'New Messages',
+              icon: 'chatbubble-ellipses-outline',
+              type: 'toggle',
+              value: notificationPrefs.messages,
+              stateKey: 'messages'
+            },
+            {
+              id: 'maintenance-alerts',
+              label: 'Maintenance Requests',
+              icon: 'construct-outline',
+              type: 'toggle',
+              value: notificationPrefs.maintenance,
+              stateKey: 'maintenance'
+            }
+          ]
+        },
+        {
+          title: 'Support',
+          items: [
+            {
+              id: 'help',
+              label: 'Help & Support',
+              description: 'FAQs and contact options',
+              icon: 'help-circle-outline',
+              type: 'navigate',
+              target: 'HelpSupport'
+            },
+            {
+              id: 'report',
+              label: 'Report a Problem',
+              icon: 'flag-outline',
+              type: 'action',
+              action: () => handleUnavailable('Report a Problem')
+            },
+            {
+              id: 'about',
+              label: 'About AccommoTrack',
+              description: 'Release notes, dev team, and terms',
+              icon: 'information-circle-outline',
+              type: 'navigate',
+              target: 'About'
+            }
+          ]
+        },
+        {
+          title: 'App Info',
+          items: [
+            {
+              id: 'dark-mode',
+              label: 'Dark Mode',
+              icon: isDarkMode ? 'moon' : 'moon-outline',
+              type: 'toggle',
+              value: isDarkMode,
+              stateKey: 'darkMode'
+            },
+            {
+              id: 'version',
+              label: 'Version',
+              icon: 'albums-outline',
+              type: 'info',
+              value: '1.0.0'
+            },
+            {
+              id: 'updates',
+              label: 'Release Channel',
+              icon: 'cloud-download-outline',
+              type: 'info',
+              value: 'Testing'
+            }
+          ]
+        }
+      ];
+
+      return allSections.map(section => ({
+        ...section,
+        items: section.items.filter(item => !item.role || item.role === userRole)
+      })).filter(section => section.items.length > 0);
+    },
+    [notificationPrefs, userRole, isDarkMode]
   );
 
   const initials = () => {

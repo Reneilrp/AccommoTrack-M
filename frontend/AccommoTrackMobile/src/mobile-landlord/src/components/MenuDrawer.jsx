@@ -16,8 +16,9 @@ const logoutItem = { id: 99, title: 'Logout', icon: 'log-out-outline', color: '#
 
 export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout }) {
   const { theme } = useTheme();
-  const [userName, setUserName] = useState('Landlord');
-  const [userEmail, setUserEmail] = useState('landlord@example.com');
+  const [userName, setUserName] = useState('User');
+  const [userEmail, setUserEmail] = useState('');
+  const [userRole, setUserRole] = useState('landlord');
 
   useEffect(() => {
     if (visible) {
@@ -32,9 +33,10 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
         const user = JSON.parse(userString);
         const fullName = user.first_name && user.last_name
           ? `${user.first_name} ${user.last_name}`
-          : user.first_name || 'Landlord';
+          : user.first_name || user.name || 'User';
         setUserName(fullName);
-        setUserEmail(user.email || 'landlord@example.com');
+        setUserEmail(user.email || '');
+        setUserRole(user.role || 'landlord');
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -49,6 +51,9 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
       onMenuItemPress?.(item.screen);
     }
   };
+
+  // Filter menu items based on role if needed in the future
+  const filteredMenuItems = menuItems;
 
   return (
     <Modal
@@ -69,6 +74,11 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
               <View style={styles.userTextContainer}>
                 <Text style={styles.menuUserName}>{userName}</Text>
                 <Text style={styles.menuUserEmail}>{userEmail}</Text>
+                <View style={[styles.roleBadge, { backgroundColor: userRole === 'caretaker' ? '#DBEAFE' : '#DCFCE7' }]}>
+                  <Text style={[styles.roleText, { color: userRole === 'caretaker' ? '#1D4ED8' : '#166534' }]}>
+                    {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                  </Text>
+                </View>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -78,7 +88,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
 
           {/* Menu Items */}
           <ScrollView style={styles.menuItems} showsVerticalScrollIndicator={false}>
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}
@@ -175,6 +185,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     marginTop: 2,
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 6,
+  },
+  roleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   closeButton: {
     padding: 4,
