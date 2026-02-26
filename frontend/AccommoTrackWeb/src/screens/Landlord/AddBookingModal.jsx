@@ -234,7 +234,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 {loadingPricing ? (
                   <Loader2 className="w-4 h-4 animate-spin text-green-600" />
                 ) : (
-                  <span className="text-lg font-black text-green-700 dark:text-green-400">
+                  <span className="text-lg font-bold text-green-700 dark:text-green-400">
                     <PriceRow amount={pricingPreview?.total || 0} />
                   </span>
                 )}

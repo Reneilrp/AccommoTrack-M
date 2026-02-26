@@ -246,7 +246,7 @@ export default function LandlordMaintenance() {
 
                   <div className="p-5 border-b border-gray-50 dark:border-gray-700 flex justify-between items-start">
 
-                    <div className={`px-2 py-1 rounded text-[10px] font-black uppercase border ${maintenanceService.getPriorityColor(req.priority)}`}>
+                    <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${maintenanceService.getPriorityColor(req.priority)}`}>
 
                       {req.priority}
 
@@ -398,14 +398,14 @@ export default function LandlordMaintenance() {
               <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white">{selectedRequest.title}</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedRequest.title}</h2>
                     <p className="text-sm text-gray-500 mt-1">Submitted on {new Date(selectedRequest.created_at).toLocaleString()}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${maintenanceService.getStatusColor(selectedRequest.status)}`}>
                       {selectedRequest.status.replace('_', ' ')}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${maintenanceService.getPriorityColor(selectedRequest.priority)}`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${maintenanceService.getPriorityColor(selectedRequest.priority)}`}>
                       {selectedRequest.priority} Priority
                     </span>
                   </div>
@@ -413,17 +413,17 @@ export default function LandlordMaintenance() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Tenant</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Tenant</p>
                     <p className="font-bold text-gray-900 dark:text-white">{selectedRequest.tenant?.first_name} {selectedRequest.tenant?.last_name}</p>
                   </div>
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Location</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Location</p>
                     <p className="font-bold text-gray-900 dark:text-white">{selectedRequest.property?.title} - Room {selectedRequest.booking?.room?.room_number}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Description</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Description</p>
                   <p className="text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-700 whitespace-pre-wrap leading-relaxed">
                     {selectedRequest.description}
                   </p>
@@ -431,7 +431,7 @@ export default function LandlordMaintenance() {
 
                 {selectedRequest.images && selectedRequest.images.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-3">Attached Photos</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">Attached Photos</p>
                     <div className="grid grid-cols-2 gap-2">
                       {selectedRequest.images.map((img, i) => (
                         <a key={i} href={getImageUrl(img)} target="_blank" rel="noreferrer" className="block h-40 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700">

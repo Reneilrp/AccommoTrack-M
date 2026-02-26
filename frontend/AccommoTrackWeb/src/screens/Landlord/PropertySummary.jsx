@@ -266,7 +266,7 @@ export default function PropertySummary() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
           <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-widest">Property Details & Information</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Details & Information</h2>
           </div>
 
           {/* Edit button moved here (upper-right of the details card) */}
@@ -416,7 +416,7 @@ export default function PropertySummary() {
         <div className="mt-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
               <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-widest">Room Management</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Room Management</h2>
               </div>
               <button
                 onClick={() => navigate(`/rooms?property=${id}`)}

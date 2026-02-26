@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { addonService } from '../../services/addonService';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
+import toast from 'react-hot-toast';
 import {
   Plus,
   Pencil,
@@ -86,7 +87,7 @@ const AddonManagement = ({ propertyId }) => {
       resetForm();
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to save addon');
+      toast.error(error.response?.data?.message || 'Failed to save addon');
     }
   };
 
@@ -96,7 +97,7 @@ const AddonManagement = ({ propertyId }) => {
       await addonService.deleteAddon(propertyId, addonId);
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to delete addon');
+      toast.error(error.response?.data?.message || 'Failed to delete addon');
     }
   };
 
@@ -106,7 +107,7 @@ const AddonManagement = ({ propertyId }) => {
       await addonService.handleAddonRequest(bookingId, addonId, action, note);
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || `Failed to ${action} request`);
+      toast.error(error.response?.data?.message || `Failed to ${action} request`);
     }
   };
 
@@ -181,7 +182,7 @@ const AddonManagement = ({ propertyId }) => {
               <tab.icon className="w-4 h-4" />
               {tab.label}
               {tab.count > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                   activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
                   {tab.count}
@@ -249,7 +250,7 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
               <div className="flex items-center gap-2">
                 <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
                 {!addon.isActive && (
-                  <span className="text-[10px] font-black uppercase bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">Inactive</span>
+                  <span className="text-[10px] font-bold uppercase bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">Inactive</span>
                 )}
               </div>
               <div className="flex gap-2 mt-2">
@@ -267,7 +268,7 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
               {addon.description && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 leading-relaxed">{addon.description}</p>
               )}
-              <p className="text-xl font-black text-green-600 dark:text-green-400 mt-3">
+              <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-3">
                 ₱{addon.price.toLocaleString()}
                 {addon.priceType === 'monthly' && <span className="text-xs font-bold text-gray-400 dark:text-gray-500 ml-1">/ mo</span>}
               </p>
@@ -315,14 +316,14 @@ const RequestsTab = ({ requests, onHandle }) => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-gray-900 dark:text-white text-lg">{request.addonName}</span>
-                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
                   request.priceType === 'monthly' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                 }`}>
                   {request.priceType === 'monthly' ? 'Monthly' : 'One-time'}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-2">
-                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-black text-xs">
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-xs">
                   {request.tenant.name?.charAt(0)}
                 </div>
                 <div>
@@ -337,12 +338,12 @@ const RequestsTab = ({ requests, onHandle }) => {
                   <p className="text-xs text-gray-600 dark:text-gray-300 italic leading-relaxed">"{request.requestNote}"</p>
                 </div>
               )}
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-3 uppercase tracking-widest">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-3 uppercase">
                 Requested: {new Date(request.requestedAt).toLocaleDateString()}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-black text-green-600 dark:text-green-400">
+              <p className="text-xl font-bold text-green-600 dark:text-green-400">
                 ₱{request.price.toLocaleString()}
                 {request.priceType === 'monthly' && <span className="text-xs font-bold">/mo</span>}
               </p>
@@ -384,11 +385,11 @@ const ActiveTab = ({ data }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-xl p-5 shadow-sm">
             <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1">Active Subscriptions</p>
-            <p className="text-3xl font-black text-green-700 dark:text-green-300">{summary.totalActive || 0}</p>
+            <p className="text-3xl font-bold text-green-700 dark:text-green-300">{summary.totalActive || 0}</p>
           </div>
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-5 shadow-sm">
             <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Monthly Revenue</p>
-            <p className="text-3xl font-black text-blue-700 dark:text-blue-300">₱{(summary.monthlyRevenue || 0).toLocaleString()}</p>
+            <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">₱{(summary.monthlyRevenue || 0).toLocaleString()}</p>
           </div>
         </div>
       )}
@@ -402,7 +403,7 @@ const ActiveTab = ({ data }) => {
                 <div>
                   <span className="font-bold text-gray-900 dark:text-white text-lg block mb-1">{item.addonName}</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-green-200 dark:bg-green-900/50 flex items-center justify-center text-[10px] font-black text-green-700 dark:text-green-400">
+                    <div className="w-6 h-6 rounded-full bg-green-200 dark:bg-green-900/50 flex items-center justify-center text-[10px] font-bold text-green-700 dark:text-green-400">
                       {item.tenantName?.charAt(0)}
                     </div>
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
@@ -411,11 +412,11 @@ const ActiveTab = ({ data }) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-black text-green-600 dark:text-green-400">
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
                     ₱{item.price.toLocaleString()}
                     {item.priceType === 'monthly' && <span className="text-xs font-bold opacity-60">/mo</span>}
                   </p>
-                  <span className={`inline-block mt-2 text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                  <span className={`inline-block mt-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                     item.status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                   }`}>
                     {item.status}
@@ -447,7 +448,7 @@ const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing })
       </div>
       <form onSubmit={onSubmit} className="p-6 space-y-5">
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Add-on Name *</label>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Add-on Name *</label>
           <input
             type="text"
             value={formData.name}
@@ -459,7 +460,7 @@ const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing })
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Description</label>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Description</label>
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -471,7 +472,7 @@ const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing })
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Price (₱) *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Price (₱) *</label>
             <input
               type="number"
               value={formData.price}
@@ -484,7 +485,7 @@ const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing })
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Price Type *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Price Type *</label>
             <select
               value={formData.price_type}
               onChange={(e) => setFormData({ ...formData, price_type: e.target.value })}
@@ -498,7 +499,7 @@ const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing })
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Add-on Type *</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Add-on Type *</label>
             <select
               value={formData.addon_type}
               onChange={(e) => setFormData({ ...formData, addon_type: e.target.value })}
@@ -509,7 +510,7 @@ const AddonFormModal = ({ formData, setFormData, onSubmit, onClose, isEditing })
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Stock (Optional)</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Stock (Optional)</label>
             <input
               type="number"
               value={formData.stock}

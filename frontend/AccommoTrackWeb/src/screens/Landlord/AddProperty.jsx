@@ -36,6 +36,7 @@ export default function AddProperty({ onBack, onSave }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
@@ -311,22 +312,23 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const validateForm = (isDraft = false) => {
-    const errors = [];
+    const errors = {};
 
-    if (!formData.propertyName) errors.push('Property name is required');
-    if (!formData.propertyType) errors.push('Property type is required');
-    if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.push('Please specify the property type');
-    if (!formData.streetAddress) errors.push('Street address is required');
-    if (!formData.city) errors.push('City is required');
-    if (!formData.provinceRegion) errors.push('Province is required');
+    if (!formData.propertyName) errors.propertyName = 'Property name is required';
+    if (!formData.propertyType) errors.propertyType = 'Property type is required';
+    if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.otherPropertyType = 'Please specify the property type';
+    if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
+    if (!formData.city) errors.city = 'City is required';
+    if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
 
     // If property is marked eligible and we're submitting (not saving draft), credentials are required
     if (!isDraft && formData.isEligible && (!Array.isArray(formData.credentials) || formData.credentials.length === 0)) {
-      errors.push('Credentials are required for eligible properties');
+      errors.credentials = 'Credentials are required for eligible properties';
     }
 
-    if (errors.length > 0) {
-      setError(errors.join(', '));
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix highlighted errors');
       return false;
     }
 
@@ -483,9 +485,13 @@ export default function AddProperty({ onBack, onSave }) {
         {currentStep === 1 && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">Basic Information</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Property will be pending until approved by admin</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Basic Information</h2>
+                {Object.keys(fieldErrors).some(k => ['propertyName', 'propertyType', 'otherPropertyType'].includes(k)) && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {['propertyName', 'propertyType', 'otherPropertyType'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-5 gap-4">
@@ -498,7 +504,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Sunset Apartments"
                     value={formData.propertyName}
                     onChange={(e) => handleInputChange('propertyName', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.propertyName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
 
@@ -509,7 +515,7 @@ export default function AddProperty({ onBack, onSave }) {
                   <select
                     value={formData.propertyType}
                     onChange={(e) => handleInputChange('propertyType', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.propertyType ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   >
                     <option value="" disabled hidden>Select type</option>
                     <option value="dormitory">Dormitory</option>
@@ -530,7 +536,7 @@ export default function AddProperty({ onBack, onSave }) {
                       placeholder="e.g., Studio"
                       value={formData.otherPropertyType}
                       onChange={(e) => handleInputChange('otherPropertyType', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.otherPropertyType ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
                 )}
@@ -669,8 +675,13 @@ export default function AddProperty({ onBack, onSave }) {
               </div> */}
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Location Details</h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <h2 className="text-xl font-semibold text-gray-900 mb-1 shrink-0">Location Details</h2>
+                {Object.keys(fieldErrors).some(k => ['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].includes(k)) && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -682,7 +693,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., 123 Main Street"
                     value={formData.streetAddress}
                     onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300'}`}
                   />
                 </div>
                 <div>
@@ -694,7 +705,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Barangay 123"
                     value={formData.barangay}
                     onChange={(e) => handleInputChange('barangay', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300'}`}
                   />
                 </div>
               </div>
@@ -709,7 +720,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Manila"
                     value={formData.city}
                     onChange={(e) => handleInputChange('city', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.city ? 'border-red-500' : 'border-gray-300'}`}
                   />
                 </div>
 
@@ -722,7 +733,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Metro Manila"
                     value={formData.provinceRegion}
                     onChange={(e) => handleInputChange('provinceRegion', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300'}`}
                     readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
                 </div>
@@ -967,7 +978,14 @@ export default function AddProperty({ onBack, onSave }) {
         {currentStep === 4 && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Credentials for Approval</h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Credentials for Approval</h2>
+                {fieldErrors.credentials && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {fieldErrors.credentials}
+                  </p>
+                )}
+              </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">If your property is eligible for direct admin approval, upload supporting documents (e.g., proof of ownership, permits).</p>
 
               <div className="flex items-center gap-3 mb-4">
@@ -982,7 +1000,7 @@ export default function AddProperty({ onBack, onSave }) {
                 </label>
               </div>
 
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
+              <div className={`border-2 border-dashed rounded-lg p-6 ${fieldErrors.credentials ? 'border-red-500 bg-red-50/10' : 'border-gray-300 dark:border-gray-600'}`}>
                 <input
                   type="file"
                   multiple

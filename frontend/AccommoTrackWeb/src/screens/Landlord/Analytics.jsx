@@ -225,7 +225,7 @@ export default function Analytics({ user }) {
               <button 
                 key={r} 
                 onClick={() => setTimeRange(r)} 
-                className={`px-4 py-1.5 rounded-md text-[10px] font-black transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {r.toUpperCase()}
               </button>
@@ -260,7 +260,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center">
                       <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Cumulative</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Cumulative</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Revenue</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.total_revenue.toLocaleString()}</p>
@@ -271,7 +271,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Month</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Month</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Monthly Revenue</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.monthly_revenue.toLocaleString()}</p>
@@ -282,7 +282,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                       <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Target: 100%</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Target: 100%</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Collection Rate</p>
                   <p className={`text-lg md:text-2xl font-bold ${analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>
@@ -295,7 +295,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                       <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overall</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overall</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Payment Rate</p>
                   <p className={`text-lg md:text-2xl font-bold ${analytics.payments.payment_rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
@@ -309,7 +309,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Home className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Occupancy</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Occupancy</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Occupancy Rate</p>
                   <p className={`text-lg md:text-2xl font-bold ${analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}`}>
@@ -322,7 +322,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                       <Building2 className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Inventory</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Inventory</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.total_rooms}</p>
@@ -333,7 +333,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-pink-100 rounded-lg flex items-center justify-center">
                       <Users className="w-5 h-5 md:w-6 md:h-6 text-pink-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Active</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Active</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Active Tenants</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.active_tenants}</p>
@@ -344,7 +344,7 @@ export default function Analytics({ user }) {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                       <Calendar className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">Stay</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Stay</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tenant Retention</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months} mo</p>

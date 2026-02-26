@@ -387,7 +387,7 @@ export default function MyProperties({ user }) {
                         <div className="flex items-center justify-between gap-4 mb-2 pt-0 lg:pt-2">
                           <div className="flex items-center gap-3 min-w-0">
                             <h3 className="text-xl font-semibold text-gray-900 dark:text-white truncate">{property.title}</h3>
-                            <span className="hidden sm:inline text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest flex-shrink-0">
+                            <span className="hidden sm:inline text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider flex-shrink-0">
                               • {property.property_type?.replace(/([A-Z])/g, ' $1').trim()}
                             </span>
                           </div>
@@ -406,7 +406,7 @@ export default function MyProperties({ user }) {
 
                         {/* Mobile-only type display (if hidden in header) */}
                         <div className="sm:hidden mb-2">
-                          <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest">
+                          <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
                             {property.property_type?.replace(/([A-Z])/g, ' $1').trim()}
                           </span>
                         </div>
