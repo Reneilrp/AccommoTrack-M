@@ -12,18 +12,19 @@ export const getStyles = (theme) => StyleSheet.create({
   // HEADER STYLES
   header: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 0,
-    height: 56,
-    marginTop: 0,
+    paddingHorizontal: 8,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   headerIcon: {
     padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerSide: {
-    width: sideWidth,
+    width: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -31,13 +32,13 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
-    paddingHorizontal: 8,
   },
 
   // MENU DRAWER STYLES
@@ -297,6 +298,39 @@ export const getStyles = (theme) => StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
+  // BOTTOM NAV STYLES
+  bottomNav: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  tabLabel: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  fabButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+
   // UTILS
   contentContainerPadding: {
     padding: 16,
@@ -313,14 +347,56 @@ export const getStyles = (theme) => StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: theme.colors.error,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   retryButton: {
     backgroundColor: theme.colors.error,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     borderRadius: 8,
+    alignSelf: 'center',
   },
   retryButtonText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  clearButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    marginTop: 8,
+  },
+  clearButtonText: {
+    color: theme.colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  loadMoreText: {
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
