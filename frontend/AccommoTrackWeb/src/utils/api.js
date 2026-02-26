@@ -71,14 +71,3 @@ export const rootApi = axios.create({
         'Accept': 'application/json',
     }
 });
-
-export const isCancel = axios.isCancel;
-
-export const ROOT_BASE_URL = BASE_URL;
-export const rootApi = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Accept': 'application/json',
-    }
-});
