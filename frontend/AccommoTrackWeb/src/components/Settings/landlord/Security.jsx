@@ -37,8 +37,8 @@ export default function Security({
         </div>
         {isEditingPassword ? (
           <div className="space-y-4">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-xs font-medium text-green-700 mb-4 flex items-center gap-2">
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-4 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
@@ -46,42 +46,42 @@ export default function Security({
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Password</label>
                   <input
                     type="password"
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                    className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New Password</label>
                   <input
                     type="password"
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                    className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 8 characters</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm New Password</label>
                   <input
                     type="password"
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                    className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                   />
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
                   setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
                   setIsEditingPassword(false);
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
@@ -133,11 +133,11 @@ export default function Security({
           )}
         </div>
         {isEditingSecurity && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-6 flex items-center gap-2">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6 flex items-center gap-2">
+            <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            <p className="text-sm text-green-700">Toggle the switches below to change your security settings</p>
+            <p className="text-sm text-green-700 dark:text-green-400">Toggle the switches below to change your security settings</p>
           </div>
         )}
         <div className="space-y-4">
@@ -152,7 +152,7 @@ export default function Security({
               type="button"
               onClick={() => isEditingSecurity && setSecurity({...security, twoFactorAuth: !security.twoFactorAuth})}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                security.twoFactorAuth ? 'bg-green-600' : 'bg-gray-300'
+                security.twoFactorAuth ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
               } ${!isEditingSecurity ? 'opacity-60 cursor-not-allowed' : ''}`}
               disabled={!isEditingSecurity}
             >
@@ -172,7 +172,7 @@ export default function Security({
               type="button"
               onClick={() => isEditingSecurity && setSecurity({...security, loginAlerts: !security.loginAlerts})}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                security.loginAlerts ? 'bg-green-600' : 'bg-gray-300'
+                security.loginAlerts ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
               } ${!isEditingSecurity ? 'opacity-60 cursor-not-allowed' : ''}`}
               disabled={!isEditingSecurity}
             >
@@ -183,10 +183,10 @@ export default function Security({
           </div>
         </div>
         {isEditingSecurity && (
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
             <button
               onClick={() => setIsEditingSecurity(false)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>

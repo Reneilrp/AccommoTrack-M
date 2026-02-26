@@ -65,6 +65,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       }
     };
 
+    const getTodayDate = () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     const fetchPricing = useCallback(async () => {
       if (!formData.roomId || !formData.checkIn || !formData.checkOut) return;
       
@@ -105,15 +113,25 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         return;
       }
 
+      const today = getTodayDate();
+      if (formData.checkIn < today) {
+        setError('Check-in date cannot be in the past.');
+        return;
+      }
+
+      if (formData.checkOut <= formData.checkIn) {
+        setError('Check-out date must be after check-in date.');
+        return;
+      }
+
       setLoading(true);
       try {
         await api.post('/bookings', {
           room_id: formData.roomId,
+          guest_name: formData.guestName,
           start_date: formData.checkIn,
           end_date: formData.checkOut,
           notes: formData.notes,
-          // If we want to allow custom amount entry, use formData.amount
-          // otherwise backend calculates from room rates
         });
         
         toast.success('Booking added successfully!');
@@ -209,7 +227,10 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               <input
                 type="date"
                 required
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                min={getTodayDate()}
+                onKeyDown={(e) => e.preventDefault()}
+                onClick={(e) => e.target.showPicker?.()}
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer"
                 value={formData.checkIn}
                 onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
               />
@@ -219,7 +240,10 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               <input
                 type="date"
                 required
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                min={formData.checkIn || getTodayDate()}
+                onKeyDown={(e) => e.preventDefault()}
+                onClick={(e) => e.target.showPicker?.()}
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer"
                 value={formData.checkOut}
                 onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
               />

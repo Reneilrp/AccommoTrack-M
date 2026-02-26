@@ -186,17 +186,17 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                 { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" /> },
                 { id: 'caretaker', label: 'Caretaker', icon: <Users className="w-4 h-4" /> }
               ].map(tab => (
-                <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 text-green-600' : 'text-gray-700 dark:text-gray-300'}`}>
+                <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
                   {tab.icon} {tab.label}
                 </button>
               ))}
               {normalizedRole === 'landlord' && (
                 <>
-                  <button onClick={() => handleTabChange('payments')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'payments' ? 'bg-green-50 text-green-600' : 'text-gray-700 dark:text-gray-300'}`}><CreditCard className="w-4 h-4" /> Payments</button>
-                  <button onClick={() => handleTabChange('verification')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'verification' ? 'bg-green-50 text-green-600' : 'text-gray-700 dark:text-gray-300'}`}><ShieldCheck className="w-4 h-4" /> Verification</button>
+                  <button onClick={() => handleTabChange('payments')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'payments' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><CreditCard className="w-4 h-4" /> Payments</button>
+                  <button onClick={() => handleTabChange('verification')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'verification' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><ShieldCheck className="w-4 h-4" /> Verification</button>
                 </>
               )}
-              <button onClick={() => handleTabChange('appearance')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'appearance' ? 'bg-green-50 text-green-600' : 'text-gray-700 dark:text-gray-300'}`}><Palette className="w-4 h-4" /> Appearance</button>
+              <button onClick={() => handleTabChange('appearance')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'appearance' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><Palette className="w-4 h-4" /> Appearance</button>
             </nav>
           </div>
         </div>

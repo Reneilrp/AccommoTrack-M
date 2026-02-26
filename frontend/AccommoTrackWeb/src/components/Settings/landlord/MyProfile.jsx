@@ -101,7 +101,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         setPhotoPreview(null);
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
                     >
                       Cancel
                     </button>
@@ -109,7 +109,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                 ) : (
                   <button
                     onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                    className="w-full px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium text-sm"
+                    className="w-full px-4 py-2 border border-green-600 dark:border-green-500 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium text-sm"
                   >
                     {profilePhoto ? 'Change Photo' : 'Add Photo'}
                   </button>
@@ -124,8 +124,8 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
             {isEditingProfile ? (
               // Edit Mode - Form inputs with green accent
               <>
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-xs font-medium text-green-700 mb-3 flex items-center gap-2">
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
@@ -134,58 +134,58 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
                         <input
                           type="text"
                           value={profileData.firstName}
                           onChange={e => setProfileData({ ...profileData, firstName: e.target.value })}
-                          className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                          className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
                         <input
                           type="text"
                           value={profileData.lastName}
                           onChange={e => setProfileData({ ...profileData, lastName: e.target.value })}
-                          className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                          className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                       <input
                         type="email"
                         value={profileData.email}
                         onChange={e => setProfileData({ ...profileData, email: e.target.value })}
-                        className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                        className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone Number</label>
                       <input
                         type="tel"
                         value={profileData.phone}
                         onChange={e => setProfileData({ ...profileData, phone: e.target.value })}
-                        className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                        className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         placeholder="+63 XXX XXX XXXX"
                       />
                     </div>
                   </div>
                 </div>
                 {/* Account Info Card */}
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                  <p className="text-sm font-medium text-blue-900 mb-2">Account Information</p>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">Account Information</p>
                   <div className="flex gap-6">
-                    <p className="text-sm text-blue-700">
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
                       Role: <span className="font-semibold capitalize">{user?.role || 'Landlord'}</span>
                     </p>
-                    <p className="text-sm text-blue-700">
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
                       Member since: <span className="font-semibold">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</span>
                     </p>
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-2">
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
                   <button 
                     onClick={() => {
                       setProfileData({
@@ -196,7 +196,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                       });
                       setIsEditingProfile(false);
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     Cancel
                   </button>

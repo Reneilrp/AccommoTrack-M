@@ -236,7 +236,7 @@ const Properties = () => {
   return (
     <>
       <section id="properties" className="py-24 px-6 max-w-7xl mx-auto bg-transparent min-h-screen">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 gap-4">
           <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
             Latest Properties
           </h2>

@@ -41,6 +41,7 @@ export default function CareTakerAccess({
   const [showPasswords, setShowPasswords] = useState(false);
   const [selectedCaretaker, setSelectedCaretaker] = useState(null);
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
+  const [propertyError, setPropertyError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({
     first_name: '',
     last_name: '',
@@ -166,6 +167,13 @@ export default function CareTakerAccess({
       toast.error('Please fill in all required fields including password');
       return;
     }
+
+    if (safeSelectedIds.length === 0) {
+      toast.error("Please assign a property to the caretaker");
+      setPropertyError(true);
+      return;
+    }
+    setPropertyError(false);
 
     if (safeForm.password !== safeForm.password_confirmation) {
       toast.error('Passwords do not match');
@@ -335,10 +343,23 @@ export default function CareTakerAccess({
 
             {/* Properties Section */}
             {safeProperties.length > 0 && (
-              <section className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Assigned Properties
-                </h3>
+              <section className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${
+                propertyError 
+                  ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800' 
+                  : ''
+              }`}>
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
+                    propertyError ? 'text-red-600 dark:text-red-400' : 'text-gray-400'
+                  }`}>
+                    <Building2 className="w-4 h-4" /> Assigned Properties
+                  </h3>
+                  {propertyError && (
+                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1 animate-pulse">
+                      <AlertCircle className="w-3 h-3" /> Still didn't assign a property
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {safeProperties.map((property) => (
                     <label 
@@ -346,7 +367,9 @@ export default function CareTakerAccess({
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
                         safeSelectedIds.includes(property.id)
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200 dark:shadow-none'
-                          : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                          : propertyError
+                            ? 'bg-white dark:bg-gray-700 border-red-200 dark:border-red-900/30 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
+                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                       }`}
                     >
                       <input
@@ -354,6 +377,7 @@ export default function CareTakerAccess({
                         checked={safeSelectedIds.includes(property.id)}
                         onChange={e => {
                           if (typeof setSelectedPropertyIds === 'function') {
+                            setPropertyError(false);
                             if (e.target.checked) setSelectedPropertyIds(ids => [...(ids || []), property.id]);
                             else setSelectedPropertyIds(ids => (ids || []).filter(id => id !== property.id));
                           }
