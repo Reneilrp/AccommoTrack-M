@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
-import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, X, ChevronLeft, ChevronRight, ShieldCheck, CreditCard } from 'lucide-react'; 
+import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, ShieldCheck, CircleDollarSign } from 'lucide-react'; 
 
 const HomePage = ({ onGetStarted }) => {
   const [modalImages, setModalImages] = useState([]);
@@ -131,7 +131,7 @@ const HomePage = ({ onGetStarted }) => {
           
           {/* Main Hero Content - Dynamic Centering */}
           <div data-aos="fade-up" className="flex-1 flex flex-col items-center justify-center text-center max-w-[900px] z-10 w-full py-8 md:py-16">
-            <h1 className="no-scale text-[clamp(32px,8vw,64px)] lg:text-7xl font-black leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
+            <h1 className="no-scale text-[clamp(32px,8vw,64px)] lg:text-7xl font-bold leading-[1.1] mb-6 tracking-tight text-gray-900 dark:text-white">
               Find Your Next <br className="md:hidden" />
               Home <span className="md:hidden no-scale text-[0.7em] opacity-90 font-bold">in</span> <br className="hidden md:block" />
               <span className="no-scale text-green-600 inline-block mb-[10px] md:mb-[20px]">
@@ -154,7 +154,7 @@ const HomePage = ({ onGetStarted }) => {
           
           {/* University Logos - Safely docked at the bottom */}
           <div className="w-full z-10 pb-10 md:pb-12 flex-none">
-            <p className="text-center text-[10px] md:text-xs font-bold tracking-widest uppercase mb-6 text-gray-400 dark:text-gray-500">Built for students from</p>
+            <p className="text-center text-[10px] md:text-xs font-bold uppercase mb-6 text-gray-400 dark:text-gray-500">Built for students from</p>
             <div className="flex justify-center gap-6 md:gap-16 flex-wrap">
               <span className="text-lg md:text-xl font-bold text-[#DC143C]">WMSU</span>
               <span className="text-lg md:text-xl font-bold text-sky-500">ADZU</span>
@@ -179,35 +179,41 @@ const HomePage = ({ onGetStarted }) => {
 
             <div className="flex-1 flex flex-col items-center md:pb-20 w-full">
               <div className="carousel-container flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-8 w-full max-h-[500px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-2 md:p-0">
-                <div data-aos="fade-up" data-aos-delay="0" className="flex-none w-full md:w-auto snap-start bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300 shadow-sm md:shadow-none">
-                  <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
-                    <MapPin className="w-6 h-6 md:w-7 md:h-7 text-green-600" />
+                <div data-aos="fade-up" data-aos-delay="0" className="flex-none w-full md:w-auto snap-start">
+                  <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center">
+                    <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
+                      <MapPin className="w-6 h-6 md:w-7 md:h-7 text-green-600" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Near Campus</h3>
+                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
+                      Filter properties by distance to WMSU, Ateneo, and other major universities to save on commute time.
+                    </p>
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Near Campus</h3>
-                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
-                    Filter properties by distance to WMSU, Ateneo, and other major universities to save on commute time.
-                  </p>
                 </div>
-                <div data-aos="fade-up" data-aos-delay="100" className="flex-none w-full md:w-auto snap-start bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300 shadow-sm md:shadow-none">
-                  <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
-                    <ShieldCheck className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
+                <div data-aos="fade-up" data-aos-delay="100" className="flex-none w-full md:w-auto snap-start">
+                  <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
+                      <ShieldCheck className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Verified Landlords</h3>
+                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
+                      Every listing is verified by our team to ensure your safety and prevent scams.
+                    </p>
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Verified Landlords</h3>
-                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
-                    Every listing is verified by our team to ensure your safety and prevent scams.
-                  </p>
                 </div>
-                <div data-aos="fade-up" data-aos-delay="200" className="flex-none w-full md:w-auto snap-start bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 md:p-8 border border-gray-100 dark:border-gray-600 hover:border-green-200 dark:hover:border-green-700 transition-colors duration-300 shadow-sm md:shadow-none">
-                  <div className="bg-purple-100 dark:bg-purple-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
-                    <CreditCard className="w-6 h-6 md:w-7 md:h-7 text-purple-600" />
+                <div data-aos="fade-up" data-aos-delay="200" className="flex-none w-full md:w-auto snap-start">
+                  <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center">
+                    <div className="bg-orange-100 dark:bg-orange-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
+                      <CircleDollarSign className="w-6 h-6 md:w-7 md:h-7 text-orange-600" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Affordable Rates</h3>
+                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
+                      Find rooms and spaces that fit your budget without compromising on quality or safety.
+                    </p>
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Easy Payments</h3>
-                  <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
-                    Pay your rent and reservation fees securely through the app using GCash or Maya.
-                  </p>
                 </div>
               </div>
-              <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+              <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase animate-pulse">
                 <div className="w-4 h-[1px] bg-gray-300"></div>
                 Scroll for more
                 <div className="w-4 h-[1px] bg-gray-300"></div>
@@ -221,59 +227,70 @@ const HomePage = ({ onGetStarted }) => {
         <section className="w-full flex flex-col items-center py-24 md:py-32 px-6 bg-gray-50 dark:bg-gray-900">
            <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
               
-              {/* HEADER: Flex-none to keep it pinned at the top */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-4 flex-none">
-                <div>
-                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4 flex-none">
+                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
                     Find Your Space
                   </h2>
-                  <p className="text-lg text-gray-500 dark:text-gray-400">Browse by accommodation type to fit your lifestyle.</p>
-                </div>
-                <button onClick={onGetStarted} className="group flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-colors">
-                  View All Properties <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
               </div>
 
-              {/* GRID: Flex-1 to take remaining space and center content vertically */}
-              <div className="flex-1 flex flex-col items-center md:pb-20 w-full">
-                <div className="carousel-container flex flex-col md:grid md:grid-cols-3 gap-4 w-full max-h-[500px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-2 md:p-0">
-                   {/* Type 1 */}
-                   <div className="flex-none w-full md:w-auto snap-start group cursor-pointer" onClick={onGetStarted}>
-                      <div className="h-[240px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
-                        <img src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80" alt="Dorm" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute bottom-5 left-5 z-20 text-left">
-                          <h3 className="text-2xl font-bold text-white mb-1">Dormitories</h3>
-                          <p className="text-white/90 text-sm font-medium">Starts at ₱1,500/mo</p>
-                        </div>
-                      </div>
-                   </div>
-
-                   {/* Type 2 */}
-                   <div className="flex-none w-full md:w-auto snap-start group cursor-pointer" onClick={onGetStarted}>
-                      <div className="h-[240px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
-                        <img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80" alt="Apartment" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute bottom-5 left-5 z-20 text-left">
-                          <h3 className="text-2xl font-bold text-white mb-1">Apartments</h3>
-                          <p className="text-white/90 text-sm font-medium">Starts at ₱5,000/mo</p>
-                        </div>
-                      </div>
-                   </div>
-
-                   {/* Type 3 */}
-                   <div className="flex-none w-full md:w-auto snap-start group cursor-pointer" onClick={onGetStarted}>
-                      <div className="h-[240px] md:h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
-                        <img src="https://images.unsplash.com/photo-1596276020587-8044fe049813?auto=format&fit=crop&w=600&q=80" alt="Boarding House" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute bottom-5 left-5 z-20 text-left">
-                          <h3 className="text-2xl font-bold text-white mb-1">Boarding Houses</h3>
-                          <p className="text-white/90 text-sm font-medium">Starts at ₱2,500/mo</p>
-                        </div>
-                      </div>
-                   </div>
+              {/* BORDERED CONTAINER FOR GRID */}
+              <div className="w-full bg-white dark:bg-gray-800/50 rounded-3xl p-6 md:px-10 md:py-8 border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-none">
+                <div className="flex justify-end mb-8">
+                  <button onClick={onGetStarted} className="group flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-colors">
+                    View All Properties <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
-                <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+                
+                <div className="carousel-container flex flex-col md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-h-[700px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-1">
+                    {/* Type 1: Bed Spacer (Lowest Price) */}
+                    <div className="group cursor-pointer flex-none w-full md:w-auto snap-start" onClick={onGetStarted}>
+                        <div className="h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
+                          <img src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80" alt="Bed Spacer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute bottom-5 left-5 z-20 text-left">
+                            <h3 className="text-2xl font-bold text-white mb-1">Bed Spacer</h3>
+                            <p className="text-white/90 text-sm font-medium">Starts at ₱1,200/mo</p>
+                          </div>
+                        </div>
+                    </div>
+
+                    {/* Type 2: Dormitories */}
+                    <div className="group cursor-pointer flex-none w-full md:w-auto snap-start" onClick={onGetStarted}>
+                        <div className="h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
+                          <img src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80" alt="Dorm" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute bottom-5 left-5 z-20 text-left">
+                            <h3 className="text-2xl font-bold text-white mb-1">Dormitories</h3>
+                            <p className="text-white/90 text-sm font-medium">Starts at ₱1,500/mo</p>
+                          </div>
+                        </div>
+                    </div>
+
+                    {/* Type 3: Boarding Houses */}
+                    <div className="group cursor-pointer flex-none w-full md:w-auto snap-start" onClick={onGetStarted}>
+                        <div className="h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
+                          <img src="https://images.unsplash.com/photo-1596276020587-8044fe049813?auto=format&fit=crop&w=600&q=80" alt="Boarding House" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute bottom-5 left-5 z-20 text-left">
+                            <h3 className="text-2xl font-bold text-white mb-1">Boarding Houses</h3>
+                            <p className="text-white/90 text-sm font-medium">Starts at ₱2,500/mo</p>
+                          </div>
+                        </div>
+                    </div>
+                    
+                    {/* Type 4: Apartments */}
+                    <div className="group cursor-pointer flex-none w-full md:w-auto snap-start" onClick={onGetStarted}>
+                        <div className="h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
+                          <img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80" alt="Apartment" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute bottom-5 left-5 z-20 text-left">
+                            <h3 className="text-2xl font-bold text-white mb-1">Apartments</h3>
+                            <p className="text-white/90 text-sm font-medium">Starts at ₱5,000/mo</p>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="md:hidden mt-4 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase animate-pulse">
                   <div className="w-4 h-[1px] bg-gray-300"></div>
                   Scroll for more
                   <div className="w-4 h-[1px] bg-gray-300"></div>

@@ -57,7 +57,7 @@ const LandingPage = ({ user }) => {
               {/* Scaled down logo on mobile */}
               <img src={logo} alt="AccommoTrack Logo" className="h-7 w-7 md:h-10 md:w-10 transition-transform group-hover:rotate-12" />
               {/* Text hidden on mobile/tablet (lg:block) */}
-              <span className="hidden lg:block font-black text-xl xl:text-2xl no-scale tracking-tighter text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-500 transition-colors">
+              <span className="hidden lg:block font-bold text-xl xl:text-2xl no-scale text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-500 transition-colors">
                 AccommoTrack
               </span>
             </a>
@@ -65,7 +65,7 @@ const LandingPage = ({ user }) => {
 
           {/* Center Mobile/Tablet: Text Title (Absolute Center) */}
           <div className="lg:hidden absolute left-0 right-0 top-1/2 transform -translate-y-1/2 z-10 text-center pointer-events-none">
-             <span className="font-black text-lg md:text-2xl no-scale tracking-tighter text-gray-900 dark:text-white pointer-events-auto">
+             <span className="font-bold text-lg md:text-2xl no-scale text-gray-900 dark:text-white pointer-events-auto">
                 AccommoTrack
              </span>
           </div>
@@ -143,12 +143,9 @@ const LandingPage = ({ user }) => {
       </header>
 
       {/* --- SECTIONS --- */}
-      {/* Added ID wrapper for scroll targeting with offset for sticky header */}
       <div id="home" className="scroll-mt-20">
         <HomePage onGetStarted={handleGetStarted} />
       </div>
-      
-      {/* Note: Ensure these components accept className or style props if you need further spacing adjustments */}
       <div id="explore" className="scroll-mt-20">
         <Properties />
       </div>
