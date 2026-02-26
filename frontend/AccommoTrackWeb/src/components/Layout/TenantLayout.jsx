@@ -85,7 +85,7 @@ export default function TenantLayout({ user, onLogout, children }) {
         `}
       >
         {/* Logo & Toggle */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 
             className="cursor-pointer" 
             onClick={() => navigate('/dashboard')}
@@ -181,7 +181,7 @@ export default function TenantLayout({ user, onLogout, children }) {
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
         {/* Top Header - Simplified (No Menu Button) */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
+        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight pointer-events-auto">
               {getPageTitle()}

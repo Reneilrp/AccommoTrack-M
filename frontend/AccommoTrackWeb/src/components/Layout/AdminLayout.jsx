@@ -85,7 +85,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         } flex flex-col min-h-0`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div 
             className="cursor-pointer flex items-center gap-2"
             onClick={() => navigate('/admin')}
@@ -95,7 +95,7 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
               <>
                 <img src={Logo} alt="AccommoTrack" className="h-8 w-auto" />
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-semibold">Admin Suite</p>
+                  <p className="text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 font-semibold">Admin Suite</p>
                   <span className="text-sm font-bold text-gray-900 dark:text-white">AccommoTrack</span>
                 </div>
               </>
