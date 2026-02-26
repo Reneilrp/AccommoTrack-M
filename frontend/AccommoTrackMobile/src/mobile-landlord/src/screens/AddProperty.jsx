@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -73,7 +74,7 @@ const STEPS = [
 
 export default function AddProperty({ navigation }) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = getStyles(theme);
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState(initialForm);
