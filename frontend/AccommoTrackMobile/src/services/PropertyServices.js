@@ -1,39 +1,8 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from './api';
 import { API_BASE_URL, BASE_URL } from '../config';
 
 const STORAGE_URL = `${BASE_URL}/storage`;
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
-
-const getAuthToken = async () => {
-    // Prefer token stored inside the persisted `user` object
-    const userJson = await AsyncStorage.getItem('user');
-    if (userJson) {
-        try {
-            const user = JSON.parse(userJson);
-            const t = user?.token;
-            if (t) return t;
-        } catch (e) {}
-    }
-    const token = (await AsyncStorage.getItem('token'));
-    if (!token) {
-        throw new Error('No authentication token found');
-    }
-    return token;
-};
-
-const buildHeaders = (token, options = {}) => {
-    const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-    };
-
-    if (options.contentType) {
-        headers['Content-Type'] = options.contentType;
-    }
-
-    return headers;
-};
 
 const isFormData = (payload) => typeof FormData !== 'undefined' && payload instanceof FormData;
 
@@ -97,10 +66,10 @@ const PropertyService = {
                 params.append('max_price', filters.max_price);
             }
 
-            const url = `${API_BASE_URL}/public/properties${params.toString() ? '?' + params.toString() : ''}`;
-            console.log('Fetching properties from:', url);
+            const url = `/public/properties${params.toString() ? '?' + params.toString() : ''}`;
+            console.log('Fetching properties from relative path:', url);
 
-            const response = await axios.get(url);
+            const response = await api.get(url);
 
             // Debug: Log the actual response
             console.log('Response status:', response.status);
@@ -136,7 +105,7 @@ const PropertyService = {
     async getPublicProperty(propertyId) {
         try {
             console.log('Fetching property details:', propertyId);
-            const response = await axios.get(`${API_BASE_URL}/public/properties/${propertyId}`);
+            const response = await api.get(`/public/properties/${propertyId}`);
 
             return {
                 success: true,
@@ -161,7 +130,7 @@ const PropertyService = {
      */
     async reverseGeocode(lat, lon) {
         try {
-            const response = await axios.get(`${API_BASE_URL}/reverse-geocode`, {
+            const response = await api.get(`/reverse-geocode`, {
                 params: { lat, lon }
             });
 
@@ -292,10 +261,7 @@ const PropertyService = {
      */
     async getMyProperties() {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${LANDLORD_PREFIX}/properties`, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.get(`/landlord/properties`);
 
             return {
                 success: true,
@@ -318,10 +284,7 @@ const PropertyService = {
      */
     async getProperty(propertyId) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${LANDLORD_PREFIX}/properties/${propertyId}`, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.get(`/landlord/properties/${propertyId}`);
 
             return {
                 success: true,
@@ -346,13 +309,12 @@ const PropertyService = {
      */
     async createProperty(propertyData) {
         try {
-            const token = await getAuthToken();
-            const headers = buildHeaders(token, {
-                contentType: isFormData(propertyData)
+            const headers = {
+                'Content-Type': isFormData(propertyData)
                     ? 'multipart/form-data'
                     : 'application/json'
-            });
-            const response = await axios.post(`${LANDLORD_PREFIX}/properties`, propertyData, { headers });
+            };
+            const response = await api.post(`/landlord/properties`, propertyData, { headers });
 
             return {
                 success: true,
@@ -378,21 +340,20 @@ const PropertyService = {
      */
     async updateProperty(propertyId, propertyData) {
         try {
-            const token = await getAuthToken();
             let payload = propertyData;
-            let headers = buildHeaders(token, {
-                contentType: isFormData(propertyData)
+            let headers = {
+                'Content-Type': isFormData(propertyData)
                     ? 'multipart/form-data'
                     : 'application/json'
-            });
+            };
 
             // For multipart/form-data with PUT, use POST + _method=PUT spoofing
             if (isFormData(propertyData)) {
                 propertyData.append('_method', 'PUT');
             }
 
-            const response = await axios.post(
-                `${LANDLORD_PREFIX}/properties/${propertyId}`,
+            const response = await api.post(
+                `/landlord/properties/${propertyId}`,
                 payload,
                 { headers }
             );
@@ -421,9 +382,7 @@ const PropertyService = {
      */
     async deleteProperty(propertyId, password) {
         try {
-            const token = await getAuthToken();
-            await axios.delete(`${LANDLORD_PREFIX}/properties/${propertyId}`, {
-                headers: buildHeaders(token),
+            await api.delete(`/landlord/properties/${propertyId}`, {
                 data: { password }
             });
 
@@ -446,11 +405,9 @@ const PropertyService = {
      */
     async verifyPropertyPassword(password) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.post(
-                `${LANDLORD_PREFIX}/properties/verify-password`,
-                { password },
-                { headers: buildHeaders(token) }
+            const response = await api.post(
+                `/landlord/properties/verify-password`,
+                { password }
             );
             return {
                 success: true,
@@ -473,10 +430,7 @@ const PropertyService = {
      */
     async getRooms(propertyId) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${LANDLORD_PREFIX}/properties/${propertyId}/rooms`, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.get(`/landlord/properties/${propertyId}/rooms`);
             return {
                 success: true,
                 data: response.data,
@@ -498,10 +452,7 @@ const PropertyService = {
      */
     async getRoomStats(propertyId) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${LANDLORD_PREFIX}/properties/${propertyId}/rooms/stats`, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.get(`/landlord/properties/${propertyId}/rooms/stats`);
             return {
                 success: true,
                 data: response.data,
@@ -523,11 +474,10 @@ const PropertyService = {
      */
     async createRoom(roomData) {
         try {
-            const token = await getAuthToken();
-            const headers = buildHeaders(token, {
-                contentType: isFormData(roomData) ? 'multipart/form-data' : 'application/json'
-            });
-            const response = await axios.post(`${LANDLORD_PREFIX}/rooms`, roomData, { headers });
+            const headers = {
+                'Content-Type': isFormData(roomData) ? 'multipart/form-data' : 'application/json'
+            };
+            const response = await api.post(`/landlord/rooms`, roomData, { headers });
             return {
                 success: true,
                 data: response.data,
@@ -549,21 +499,20 @@ const PropertyService = {
      */
     async updateRoom(roomId, roomData) {
         try {
-            const token = await getAuthToken();
             let payload = roomData;
-            let headers = buildHeaders(token, {
-                contentType: isFormData(roomData) ? 'multipart/form-data' : 'application/json'
-            });
+            let headers = {
+                'Content-Type': isFormData(roomData) ? 'multipart/form-data' : 'application/json'
+            };
 
             if (isFormData(roomData)) {
                 roomData.append('_method', 'PUT');
             }
 
             const url = isFormData(roomData) 
-                ? `${API_BASE_URL}/rooms/${roomId}`
-                : `${API_BASE_URL}/rooms/${roomId}?_method=PUT`;
+                ? `/rooms/${roomId}`
+                : `/rooms/${roomId}?_method=PUT`;
 
-            const response = await axios.post(url, payload, { headers });
+            const response = await api.post(url, payload, { headers });
             return {
                 success: true,
                 data: response.data,
@@ -585,10 +534,7 @@ const PropertyService = {
      */
     async deleteRoom(roomId) {
         try {
-            const token = await getAuthToken();
-            await axios.delete(`${API_BASE_URL}/rooms/${roomId}`, {
-                headers: buildHeaders(token)
-            });
+            await api.delete(`/rooms/${roomId}`);
             return {
                 success: true,
                 error: null
@@ -608,10 +554,7 @@ const PropertyService = {
      */
     async updateRoomStatus(roomId, status) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.patch(`${API_BASE_URL}/rooms/${roomId}/status`, { status }, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.patch(`/rooms/${roomId}/status`, { status });
             return {
                 success: true,
                 data: response.data,
@@ -633,11 +576,10 @@ const PropertyService = {
      */
     async addPropertyAmenity(propertyId, amenity) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.post(
-                `${LANDLORD_PREFIX}/properties/${propertyId}/amenities`,
+            const response = await api.post(
+                `/landlord/properties/${propertyId}/amenities`,
                 { amenity },
-                { headers: buildHeaders(token, { contentType: 'application/json' }) }
+                { headers: { 'Content-Type': 'application/json' } }
             );
             return {
                 success: true,
@@ -660,11 +602,10 @@ const PropertyService = {
      */
     async addPropertyRule(propertyId, rule) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.post(
-                `${LANDLORD_PREFIX}/properties/${propertyId}/rules`,
+            const response = await api.post(
+                `/landlord/properties/${propertyId}/rules`,
                 { rule },
-                { headers: buildHeaders(token, { contentType: 'application/json' }) }
+                { headers: { 'Content-Type': 'application/json' } }
             );
             return {
                 success: true,
@@ -687,9 +628,7 @@ const PropertyService = {
      */
     async getTenants(params = {}) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${LANDLORD_PREFIX}/tenants`, {
-                headers: buildHeaders(token),
+            const response = await api.get(`/landlord/tenants`, {
                 params
             });
             return {
@@ -713,9 +652,8 @@ const PropertyService = {
      */
     async createTenant(tenantData) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.post(`${LANDLORD_PREFIX}/tenants`, tenantData, {
-                headers: buildHeaders(token, { contentType: 'application/json' })
+            const response = await api.post(`/landlord/tenants`, tenantData, {
+                headers: { 'Content-Type': 'application/json' }
             });
             return {
                 success: true,
@@ -738,9 +676,8 @@ const PropertyService = {
      */
     async updateTenant(tenantId, tenantData) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.put(`${LANDLORD_PREFIX}/tenants/${tenantId}`, tenantData, {
-                headers: buildHeaders(token, { contentType: 'application/json' })
+            const response = await api.put(`/landlord/tenants/${tenantId}`, tenantData, {
+                headers: { 'Content-Type': 'application/json' }
             });
             return {
                 success: true,
@@ -763,10 +700,7 @@ const PropertyService = {
      */
     async deleteTenant(tenantId) {
         try {
-            const token = await getAuthToken();
-            await axios.delete(`${LANDLORD_PREFIX}/tenants/${tenantId}`, {
-                headers: buildHeaders(token)
-            });
+            await api.delete(`/landlord/tenants/${tenantId}`);
             return {
                 success: true,
                 error: null
@@ -786,11 +720,10 @@ const PropertyService = {
      */
     async assignTenantToRoom(tenantId, payload) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.post(
-                `${LANDLORD_PREFIX}/tenants/${tenantId}/assign-room`,
+            const response = await api.post(
+                `/landlord/tenants/${tenantId}/assign-room`,
                 payload,
-                { headers: buildHeaders(token, { contentType: 'application/json' }) }
+                { headers: { 'Content-Type': 'application/json' } }
             );
             return {
                 success: true,
@@ -813,10 +746,7 @@ const PropertyService = {
      */
     async unassignTenantFromRoom(tenantId) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.delete(`${LANDLORD_PREFIX}/tenants/${tenantId}/unassign-room`, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.delete(`/landlord/tenants/${tenantId}/unassign-room`);
             return {
                 success: true,
                 data: response.data,
@@ -838,9 +768,7 @@ const PropertyService = {
      */
     async getBookings(params = {}) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/bookings`, {
-                headers: buildHeaders(token),
+            const response = await api.get(`/bookings`, {
                 params
             });
             return {
@@ -864,10 +792,7 @@ const PropertyService = {
      */
     async getBookingStats() {
         try {
-            const token = await getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/bookings/stats`, {
-                headers: buildHeaders(token)
-            });
+            const response = await api.get(`/bookings/stats`);
             return {
                 success: true,
                 data: response.data,
@@ -889,9 +814,8 @@ const PropertyService = {
      */
     async updateBookingStatus(bookingId, payload) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.patch(`${API_BASE_URL}/bookings/${bookingId}/status`, payload, {
-                headers: buildHeaders(token, { contentType: 'application/json' })
+            const response = await api.patch(`/bookings/${bookingId}/status`, payload, {
+                headers: { 'Content-Type': 'application/json' }
             });
             return {
                 success: true,
@@ -914,9 +838,8 @@ const PropertyService = {
      */
     async updateBookingPayment(bookingId, payload) {
         try {
-            const token = await getAuthToken();
-            const response = await axios.patch(`${API_BASE_URL}/bookings/${bookingId}/payment`, payload, {
-                headers: buildHeaders(token, { contentType: 'application/json' })
+            const response = await api.patch(`/bookings/${bookingId}/payment`, payload, {
+                headers: { 'Content-Type': 'application/json' }
             });
             return {
                 success: true,

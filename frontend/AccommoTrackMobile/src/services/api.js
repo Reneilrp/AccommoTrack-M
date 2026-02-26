@@ -36,9 +36,6 @@ api.interceptors.request.use(async (config) => {
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else if (!tokenWarningShown) {
-      tokenWarningShown = true;
-      console.warn('[api] No auth token found before request to', config.url);
     }
   } catch (error) {
     console.error('Error getting token:', error);

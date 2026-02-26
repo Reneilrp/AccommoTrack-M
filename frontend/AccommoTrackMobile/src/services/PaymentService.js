@@ -1,51 +1,18 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from './api';
 import { API_BASE_URL as API_URL } from '../config';
 
 class PaymentService {
-  async getAuthToken() {
-    try {
-      // Prefer token stored on the user object
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson);
-          if (user?.token) return user.token;
-        } catch (e) {}
-      }
-      // Fallback to legacy `token` key
-      const token = await AsyncStorage.getItem('token');
-      return token;
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  }
 
   /**
    * Get all payments for the authenticated tenant
    */
   async getMyPayments(status = 'all') {
     try {
-      const token = await this.getAuthToken();
-      
-      if (!token) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        };
-      }
-
       const url = status !== 'all' 
-        ? `${API_URL}/tenant/payments?status=${status}`
-        : `${API_URL}/tenant/payments`;
+        ? `/tenant/payments?status=${status}`
+        : `/tenant/payments`;
 
-      const response = await axios.get(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
+      const response = await api.get(url);
 
       return {
         success: true,
@@ -65,23 +32,8 @@ class PaymentService {
    */
   async getPaymentStats() {
     try {
-      const token = await this.getAuthToken();
-      
-      if (!token) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        };
-      }
-
-      const response = await axios.get(
-        `${API_URL}/tenant/payments/stats`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
+      const response = await api.get(
+        `/tenant/payments/stats`,
       );
 
       return {
@@ -102,23 +54,8 @@ class PaymentService {
    */
   async getPaymentDetails(paymentId) {
     try {
-      const token = await this.getAuthToken();
-      
-      if (!token) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        };
-      }
-
-      const response = await axios.get(
-        `${API_URL}/tenant/payments/${paymentId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
+      const response = await api.get(
+        `/tenant/payments/${paymentId}`,
       );
 
       return {
@@ -139,21 +76,12 @@ class PaymentService {
    */
   async createPaymongoSource(invoiceId, method = 'gcash', returnUrl = null) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
       const payload = { method };
       if (returnUrl) payload.return_url = returnUrl;
 
-      const response = await axios.post(
-        `${API_URL}/tenant/invoices/${invoiceId}/paymongo-source`,
+      const response = await api.post(
+        `/tenant/invoices/${invoiceId}/paymongo-source`,
         payload,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
       );
 
       return { success: true, data: response.data };
@@ -177,18 +105,9 @@ class PaymentService {
    */
   async createPaymongoPayment(invoiceId, data = {}) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.post(
-        `${API_URL}/tenant/invoices/${invoiceId}/paymongo-pay`,
+      const response = await api.post(
+        `/tenant/invoices/${invoiceId}/paymongo-pay`,
         data,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
       );
 
       return { success: true, data: response.data };
@@ -203,18 +122,9 @@ class PaymentService {
    */
   async createOfflineRecord(invoiceId, data = {}) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.post(
-        `${API_URL}/tenant/invoices/${invoiceId}/record-offline`,
+      const response = await api.post(
+        `/tenant/invoices/${invoiceId}/record-offline`,
         data,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
       );
 
       return { success: true, data: response.data };
@@ -229,15 +139,7 @@ class PaymentService {
    */
   async getInvoices() {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.get(`${API_URL}/invoices`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
+      const response = await api.get(`/invoices`);
 
       return { success: true, data: response.data };
     } catch (error) {
@@ -251,15 +153,7 @@ class PaymentService {
    */
   async getInvoicesByTenant(tenantId) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.get(`${API_URL}/invoices?tenant_id=${tenantId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
+      const response = await api.get(`/invoices?tenant_id=${tenantId}`);
 
       return { success: true, data: response.data };
     } catch (error) {
@@ -273,16 +167,7 @@ class PaymentService {
    */
   async updateBookingPayment(bookingId, payload) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.patch(`${API_URL}/bookings/${bookingId}/payment`, payload, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
+      const response = await api.patch(`/bookings/${bookingId}/payment`, payload);
 
       return { success: true, data: response.data };
     } catch (error) {
@@ -297,18 +182,9 @@ class PaymentService {
    */
   async refreshInvoice(invoiceId) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.post(
-        `${API_URL}/tenant/invoices/${invoiceId}/paymongo-refresh`,
+      const response = await api.post(
+        `/tenant/invoices/${invoiceId}/paymongo-refresh`,
         {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
       );
 
       return { success: true, data: response.data };

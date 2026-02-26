@@ -1,24 +1,7 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from './api';
 import { API_BASE_URL as API_URL } from '../config';
 
 class BookingService {
-  async getAuthToken() {
-    try {
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson);
-          if (user?.token) return user.token;
-        } catch (e) {}
-      }
-      const token = await AsyncStorage.getItem('token');
-      return token;
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  }
 
   /**
    * Create a new booking
@@ -26,46 +9,19 @@ class BookingService {
    */
   async createBooking(bookingData) {
     try {
-      const token = await this.getAuthToken();
-      
-      console.log('Token retrieved:', token ? 'Token exists' : 'No token found');
-      
-      if (!token) {
-        return {
-          success: false,
-          error: 'Authentication required. Please login again.'
-        };
-      }
-
       console.log('Sending booking data:', bookingData);
-      console.log('API URL:', `${API_URL}/bookings`);
-      console.log('Auth header:', `Bearer ${token.substring(0, 20)}...`);
-
-      const response = await axios.post(
-        `${API_URL}/bookings`,
+      const response = await api.post(
+        `/bookings`,
         bookingData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        }
       );
-
       console.log('Booking response:', response.data);
-
       return {
         success: true,
         data: response.data
       };
     } catch (error) {
       console.error('Booking error full:', error);
-      console.error('Booking error response:', error.response?.data);
-      console.error('Booking error status:', error.response?.status);
-      
       if (error.response) {
-        // Check for authentication errors
         if (error.response.status === 401) {
           return {
             success: false,
@@ -73,8 +29,6 @@ class BookingService {
             authError: true
           };
         }
-
-        // Server responded with error
         return {
           success: false,
           error: error.response.data.message || 'Failed to create booking',
@@ -82,13 +36,11 @@ class BookingService {
           status: error.response.status
         };
       } else if (error.request) {
-        // Request made but no response
         return {
           success: false,
           error: 'No response from server. Please check your connection.'
         };
       } else {
-        // Something else happened
         return {
           success: false,
           error: error.message || 'An unexpected error occurred'
@@ -99,25 +51,9 @@ class BookingService {
 
   async getMyBookings() {
     try {
-      const token = await this.getAuthToken();
-      
-      if (!token) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        };
-      }
-
-      const response = await axios.get(
-        `${API_URL}/tenant/bookings`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
+      const response = await api.get(
+        `/tenant/bookings`,
       );
-
       return {
         success: true,
         data: response.data
@@ -133,25 +69,9 @@ class BookingService {
 
   async getBookingDetails(bookingId) {
     try {
-      const token = await this.getAuthToken();
-      
-      if (!token) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        };
-      }
-
-      const response = await axios.get(
-        `${API_URL}/tenant/bookings/${bookingId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
+      const response = await api.get(
+        `/tenant/bookings/${bookingId}`,
       );
-
       return {
         success: true,
         data: response.data
@@ -167,20 +87,10 @@ class BookingService {
 
   async cancelBooking(bookingId, data = {}) {
     try {
-      const token = await this.getAuthToken();
-      if (!token) return { success: false, error: 'Authentication required' };
-
-      const response = await axios.patch(
-        `${API_URL}/tenant/bookings/${bookingId}/cancel`,
+      const response = await api.patch(
+        `/tenant/bookings/${bookingId}/cancel`,
         data,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        }
       );
-
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Error cancelling booking:', error.response?.data || error.message);
