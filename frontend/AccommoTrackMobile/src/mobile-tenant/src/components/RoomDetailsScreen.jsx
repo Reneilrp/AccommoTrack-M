@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -65,6 +65,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
   // Hide parent tab bar and mark route to hide layout (TenantLayout)
   useEffect(() => {
+    let isMounted = true;
     try {
       navigation.setParams?.({ hideLayout: true });
     } catch (e) {}
@@ -73,16 +74,29 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
     } catch (e) {}
     return () => {
-      try { navigation.setParams?.({ hideLayout: false }); } catch (e) {}
+      isMounted = false;
+      try { 
+        if (navigation.isFocused()) {
+          navigation.setParams?.({ hideLayout: false }); 
+        }
+      } catch (e) {}
       try { parent?.setOptions?.({ tabBarStyle: undefined }); } catch (e) {}
     };
   }, [navigation]);
 
   // Set a friendly title for TenantLayout to use
   useEffect(() => {
+    let isMounted = true;
     const title = (roomData && (roomData.title || roomData.name)) || (room && (room.title || room.name)) || (propertyData && (propertyData.title || propertyData.name));
     try { navigation.setParams?.({ layoutTitle: title, hideLayout: true }); } catch (e) {}
-    return () => { try { navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); } catch (e) {} };
+    return () => { 
+      isMounted = false;
+      try { 
+        if (navigation.isFocused()) {
+          navigation.setParams?.({ layoutTitle: undefined, hideLayout: false }); 
+        }
+      } catch (e) {} 
+    };
   }, [roomData, room, propertyData, property, navigation]);
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param

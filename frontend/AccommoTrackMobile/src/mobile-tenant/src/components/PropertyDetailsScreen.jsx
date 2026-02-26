@@ -1,5 +1,3 @@
-// Replace the entire PropertyDetailsScreen.jsx with this updated version
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   View, 
