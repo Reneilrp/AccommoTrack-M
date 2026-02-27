@@ -205,6 +205,7 @@ const PropertyService = {
             latitude: property.latitude ? parseFloat(property.latitude) : null,
             longitude: property.longitude ? parseFloat(property.longitude) : null,
             nearby_landmarks: property.nearby_landmarks,
+            video_url: property.video_url,
 
             landlord_id: property.landlord_id,
             user_id: property.user_id || property.landlord_id,
