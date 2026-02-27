@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\User;
 use App\Models\Room;
-
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class PropertyController extends Controller
 {
@@ -184,8 +186,10 @@ class PropertyController extends Controller
             $minPrice = $availableRoomsForPrice->min('monthly_rate');
             $maxPrice = $availableRoomsForPrice->max('monthly_rate');
 
-            $primaryImage = $property->images->where('is_primary', true)->first();
-            $coverImage = $primaryImage ?? $property->images->first();
+            $primaryImage = $property->images->where('media_type', 'image')->where('is_primary', true)->first();
+            $coverImage = $primaryImage ?? $property->images->where('media_type', 'image')->first();
+            
+            $video = $property->images->where('media_type', 'video')->first();
 
             // Calculate average rating from reviews
             $avgRating = $property->reviews->count() > 0 
@@ -223,7 +227,12 @@ class PropertyController extends Controller
                         ? $coverImage->image_url
                         : asset('storage/' . ltrim($coverImage->image_url, '/')))
                     : null,
-                'images' => $property->images->sortBy('display_order')->map(function ($img) {
+                'video_url' => $video
+                    ? (str_starts_with($video->image_url, 'http')
+                        ? $video->image_url
+                        : asset('storage/' . ltrim($video->image_url, '/')))
+                    : null,
+                'images' => $property->images->where('media_type', 'image')->sortBy('display_order')->map(function ($img) {
                     return str_starts_with($img->image_url, 'http')
                         ? $img->image_url
                         : asset('storage/' . ltrim($img->image_url, '/'));
@@ -396,8 +405,9 @@ class PropertyController extends Controller
             'is_available' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'images' => 'nullable|array|max:10',
+            'video' => 'nullable|mimes:mp4,mov,avi|max:92160',
             'credentials' => 'nullable|array',
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
         ]);
@@ -441,18 +451,59 @@ class PropertyController extends Controller
             'is_eligible' => $request->has('is_eligible') ? (bool)$request->input('is_eligible') : false,
         ]);
 
-        // Handle image uploads
+        // Handle image uploads with Intervention
         if ($request->hasFile('images')) {
+            $manager = new ImageManager(new Driver());
             foreach ($request->file('images') as $index => $file) {
-                $path = $file->store('property_images', 'public');
-                $filename = basename($path);
+                $image = $manager->read($file->getRealPath());
+                // Scale down if width is greater than 1920 to save space
+                $image->scaleDown(width: 1920);
+                // Encode to WebP for better compression
+                $encoded = $image->toWebp(80);
+                
+                $filename = 'property_' . time() . '_' . uniqid() . '.webp';
+                $path = 'property_images/' . $filename;
+                
+                Storage::disk('public')->put($path, (string) $encoded);
 
                 PropertyImage::create([
                     'property_id' => $property->id,
-                    'image_url' => 'property_images/' . $filename,
+                    'image_url' => $path,
                     'is_primary' => $index === 0,
                     'display_order' => $index,
+                    'media_type' => 'image',
                 ]);
+            }
+        }
+
+        // Handle video upload with FFmpeg validation
+        if ($request->hasFile('video')) {
+            $videoFile = $request->file('video');
+            $path = $videoFile->store('property_videos', 'public');
+            
+            try {
+                $duration = FFMpeg::fromDisk('public')->open($path)->getDurationInSeconds();
+                if ($duration > 45) {
+                    Storage::disk('public')->delete($path);
+                    return response()->json([
+                        'message' => 'Video duration must not exceed 45 seconds.',
+                        'errors' => ['video' => ['Uploaded video is ' . round($duration) . ' seconds.']]
+                    ], 422);
+                }
+                
+                PropertyImage::create([
+                    'property_id' => $property->id,
+                    'image_url' => $path,
+                    'is_primary' => false,
+                    'display_order' => 99, // Ensure video comes last or gets sorted
+                    'media_type' => 'video',
+                ]);
+            } catch (\Exception $e) {
+                Storage::disk('public')->delete($path);
+                return response()->json([
+                    'message' => 'Could not process video file.',
+                    'errors' => ['video' => ['Invalid or corrupted video format.']]
+                ], 422);
             }
         }
 
@@ -597,8 +648,9 @@ class PropertyController extends Controller
             'is_available' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'images' => 'nullable|array|max:10',
+            'video' => 'nullable|mimes:mp4,mov,avi|max:92160',
             'credentials' => 'nullable|array',
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
         ]);
@@ -654,15 +706,54 @@ class PropertyController extends Controller
         }
 
         if ($request->hasFile('images')) {
+            $manager = new ImageManager(new Driver());
             foreach ($request->file('images') as $index => $file) {
-                $path = $file->store('property_images', 'public');
-                $filename = basename($path);
+                $image = $manager->read($file->getRealPath());
+                $image->scaleDown(width: 1920);
+                $encoded = $image->toWebp(80);
+                
+                $filename = 'property_' . time() . '_' . uniqid() . '.webp';
+                $path = 'property_images/' . $filename;
+                
+                Storage::disk('public')->put($path, (string) $encoded);
+
                 PropertyImage::create([
                     'property_id' => $property->id,
-                    'image_url' => 'property_images/' . $filename,
+                    'image_url' => $path,
                     'is_primary' => $index === 0 && $property->images->where('is_primary', true)->count() === 0,
                     'display_order' => $property->images->count() + $index,
+                    'media_type' => 'image',
                 ]);
+            }
+        }
+
+        if ($request->hasFile('video')) {
+            $videoFile = $request->file('video');
+            $path = $videoFile->store('property_videos', 'public');
+            
+            try {
+                $duration = FFMpeg::fromDisk('public')->open($path)->getDurationInSeconds();
+                if ($duration > 45) {
+                    Storage::disk('public')->delete($path);
+                    return response()->json([
+                        'message' => 'Video duration must not exceed 45 seconds.',
+                        'errors' => ['video' => ['Uploaded video is ' . round($duration) . ' seconds.']]
+                    ], 422);
+                }
+                
+                PropertyImage::create([
+                    'property_id' => $property->id,
+                    'image_url' => $path,
+                    'is_primary' => false,
+                    'display_order' => 99,
+                    'media_type' => 'video',
+                ]);
+            } catch (\Exception $e) {
+                Storage::disk('public')->delete($path);
+                return response()->json([
+                    'message' => 'Could not process video file.',
+                    'errors' => ['video' => ['Invalid or corrupted video format.']]
+                ], 422);
             }
         }
 
