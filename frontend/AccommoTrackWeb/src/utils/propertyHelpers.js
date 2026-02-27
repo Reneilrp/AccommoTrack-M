@@ -55,6 +55,8 @@ export const mapProperty = (property) => {
     type: property.property_type || 'Apartment', // Default to Apartment if missing
     description: property.description || '',
     rating: property.rating || null,
+    image: property.image, // Passed from backend map in getAllProperties
+    video_url: property.video_url, // Passed from backend map in getAllProperties
     rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom).filter(Boolean) : [],
   };
 };
