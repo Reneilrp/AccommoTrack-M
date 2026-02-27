@@ -222,9 +222,12 @@ export default function AddProperty({ navigation }) {
 
     if (!result.canceled) {
       const validImages = [];
+      const tooLargeFiles = [];
+
       for (const asset of result.assets) {
+        // Strict 5MB limit check
         if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-          Alert.alert('File too large', `Image ${asset.fileName || ''} exceeds the 5MB limit.`);
+          tooLargeFiles.push(asset.fileName || 'Selected image');
         } else {
           validImages.push({
             uri: asset.uri,
@@ -233,6 +236,14 @@ export default function AddProperty({ navigation }) {
           });
         }
       }
+
+      if (tooLargeFiles.length > 0) {
+        Alert.alert(
+          'Files too large',
+          `The following images exceed the 5MB limit and were skipped:\n\n${tooLargeFiles.join('\n')}`
+        );
+      }
+
       setSelectedImages((prev) => [...prev, ...validImages]);
     }
   };
@@ -252,15 +263,18 @@ export default function AddProperty({ navigation }) {
     if (!result.canceled && result.assets.length > 0) {
       const video = result.assets[0];
       
-      // Check size (90MB)
+      // Strict 90MB size check
       if (video.fileSize && video.fileSize > 90 * 1024 * 1024) {
-        Alert.alert('File too large', 'Video tour exceeds the 90MB limit.');
+        Alert.alert(
+          'Video too large', 
+          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 90MB.`
+        );
         return;
       }
 
-      // Check duration (45s = 45000ms)
+      // 45 seconds duration check
       if (video.duration && video.duration > 45000) {
-        Alert.alert('Video too long', 'Video tours must be 45 seconds or less.');
+        Alert.alert('Video too long', 'Video tours must be 45 seconds or less. Please trim your video.');
         return;
       }
 
