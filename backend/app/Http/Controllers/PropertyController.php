@@ -82,8 +82,11 @@ class PropertyController extends Controller
                     $minPrice = $availableRooms->min('monthly_rate');
                     $maxPrice = $availableRooms->max('monthly_rate');
 
-                    $primaryImage = $property->images->where('is_primary', true)->first();
-                    $coverImage = $primaryImage ?? $property->images->first();
+                    $propertyImages = $property->images->where('media_type', 'image');
+                    $primaryImage = $propertyImages->where('is_primary', true)->first();
+                    $coverImage = $primaryImage ?? $propertyImages->first();
+
+                    $video = $property->images->where('media_type', 'video')->first();
 
                     // Check if any room has bedSpacer type
                     $hasBedSpacerRoom = $availableRooms->contains('room_type', 'bedSpacer');
@@ -124,6 +127,11 @@ class PropertyController extends Controller
                             : 'https://via.placeholder.com/400x200?text=No+Image',
                         'rating' => $avgRating,
                         'reviews_count' => $property->reviews->count(),
+                        'video_url' => $video
+                            ? (str_starts_with($video->image_url, 'http')
+                                ? $video->image_url
+                                : asset('storage/' . ltrim($video->image_url, '/')))
+                            : null,
                         'landlord_id' => $property->landlord_id,
                         'landlord_name' => $property->landlord
                             ? trim($property->landlord->first_name . ' ' . $property->landlord->last_name)
@@ -478,6 +486,16 @@ class PropertyController extends Controller
 
         // Handle video upload with FFmpeg validation
         if ($request->hasFile('video')) {
+            // Delete any existing video for this property
+            $existingVideos = PropertyImage::where('property_id', $property->id)
+                ->where('media_type', 'video')
+                ->get();
+            
+            foreach ($existingVideos as $ev) {
+                Storage::disk('public')->delete($ev->image_url);
+                $ev->delete();
+            }
+
             $videoFile = $request->file('video');
             $path = $videoFile->store('property_videos', 'public');
             
@@ -728,6 +746,16 @@ class PropertyController extends Controller
         }
 
         if ($request->hasFile('video')) {
+            // Delete existing video(s)
+            $existingVideos = PropertyImage::where('property_id', $property->id)
+                ->where('media_type', 'video')
+                ->get();
+            
+            foreach ($existingVideos as $ev) {
+                Storage::disk('public')->delete($ev->image_url);
+                $ev->delete();
+            }
+
             $videoFile = $request->file('video');
             $path = $videoFile->store('property_videos', 'public');
             
