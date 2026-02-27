@@ -477,7 +477,9 @@ function AuthScreen({ onLogin = () => {} }) {
     setError('');
 
     try {
-      await rootApi.get('/sanctum/csrf-cookie');
+      // Token-based authentication doesn't require the CSRF cookie initialization.
+      // This call often causes CORS issues when running on subdomains like beta.accommotrack.me.
+      // await rootApi.get('/sanctum/csrf-cookie');
 
       const result = await api.post('/login', {
         email: formData.email,

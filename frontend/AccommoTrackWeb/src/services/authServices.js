@@ -11,6 +11,9 @@ export const authService = {
         if (response.data.user) {
             localStorage.setItem('userData', JSON.stringify(response.data.user));
         }
+        if (response.data.token) {
+            localStorage.setItem('authToken', response.data.token);
+        }
         
         return response.data;
     },
@@ -23,6 +26,9 @@ export const authService = {
         if (response.data.user) {
             localStorage.setItem('userData', JSON.stringify(response.data.user));
         }
+        if (response.data.token) {
+            localStorage.setItem('authToken', response.data.token);
+        }
         
         return response.data;
     },
@@ -32,6 +38,7 @@ export const authService = {
             await api.post('/logout');
         } finally {
             localStorage.removeItem('userData');
+            localStorage.removeItem('authToken');
         }
     },
 
