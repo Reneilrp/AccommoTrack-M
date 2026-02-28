@@ -435,11 +435,4 @@ const HomePage = ({ onGetStarted }) => {
     </>
   );
 };
-
-export default HomePage;
-      </main>
-    </>
-  );
-};
-
 export default HomePage;

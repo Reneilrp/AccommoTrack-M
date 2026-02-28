@@ -136,13 +136,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           zipCode: data.postal_code || '',
           country: data.country || 'Philippines'
         },
-        specifications: {
-          bedrooms: data.number_of_bedrooms,
-          bathrooms: data.number_of_bathrooms,
-          maxOccupants: data.max_occupants,
-          totalRooms: data.total_rooms,
-          availableRooms: data.available_rooms
-        },
         amenities: parsedAmenities,
         customAmenities: data.customAmenities || data.additional_amenities || [],
         credentials: (data.credentials || []).map(c => ({
@@ -294,13 +287,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   // Update coordinates from the map
   const handleMapChange = (lat, lng) => {
     setDormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
-  };
-
-  const handleSpecificationChange = (field, value) => {
-    setDormData(prev => ({
-      ...prev,
-      specifications: { ...prev.specifications, [field]: value }
-    }));
   };
 
   const handleRemoveAmenity = (index) => {
@@ -493,8 +479,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         province: dormData.address.province,
         postal_code: dormData.address.zipCode,
         country: dormData.address.country,
-        max_occupants: parseInt(dormData.specifications.maxOccupants) || 1,
-        total_rooms: parseInt(dormData.specifications.totalRooms) || 1,
         amenities: merged,
         property_rules: JSON.stringify(dormData.rules),
         nearby_landmarks: dormData.nearbyLandmarks,
@@ -1014,40 +998,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.longitude ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Specifications */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white shrink-0">Specifications</h2>
-                {Object.keys(fieldErrors).some(k => ['totalRooms', 'maxOccupants'].includes(k)) && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {['totalRooms', 'maxOccupants'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total Rooms</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.totalRooms}
-                    onChange={(e) => handleSpecificationChange('totalRooms', e.target.value)}
-                    disabled={!isEditing}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.totalRooms ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Available Rooms</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.availableRooms}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                  />
                 </div>
               </div>
             </div>

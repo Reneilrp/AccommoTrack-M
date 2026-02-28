@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, Search, Filter, X } from 'lucide-react';
+import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, Search, Filter, X, Send, RefreshCw } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
