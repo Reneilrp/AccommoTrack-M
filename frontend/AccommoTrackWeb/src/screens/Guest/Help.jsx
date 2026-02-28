@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, MessageCircle, Phone, HelpCircle, BookOpen, Clock } from 'lucide-react';
 import InquiryModal from '../../components/Modals/InquiryModal';
 import { helpService } from '../../services/helpService';
+import Footer from '../../components/Shared/Footer';
 
 const Help = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const Help = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center gap-4">
+        <div className="max-w-4xl mx-auto px-4 h-14 md:h-18 flex items-center gap-4">
           <button 
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-600 dark:text-gray-300"
@@ -118,6 +119,7 @@ const Help = () => {
 
       {/* Inquiry Modal */}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
+      <Footer />
     </div>
   );
 };

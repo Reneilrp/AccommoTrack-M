@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { navigationRef } from '../../../navigation/RootNavigation';
+import { navigationRef, navigate as rootNavigate } from '../../../navigation/RootNavigation';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
 
@@ -77,8 +77,8 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
     if (onTabPress) onTabPress(tab.id);
 
     setIsNavigating(true);
-    // Navigate into the nested Main stack so child stack handles the screen
-    navigation.navigate('Main', { screen: tab.route });
+    // Use rootNavigate to reach screens regardless of nesting level
+    rootNavigate(tab.route);
 
     setTimeout(() => setIsNavigating(false), 300);
   };

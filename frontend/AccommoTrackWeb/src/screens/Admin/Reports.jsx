@@ -117,7 +117,7 @@ export default function Reports() {
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 text-left">Reporter</th>
                 <th className="px-6 py-4 text-left">Property</th>
@@ -187,33 +187,33 @@ export default function Reports() {
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Reporter</p>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Reporter</p>
                   <p className="font-bold text-gray-900 dark:text-white">{selectedReport.reporter?.first_name} {selectedReport.reporter?.last_name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{selectedReport.reporter?.email}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Property Flagged</p>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Property Flagged</p>
                   <p className="font-bold text-gray-900 dark:text-white">{selectedReport.property?.title}</p>
                   <p className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" onClick={() => window.open(`/properties/${selectedReport.property_id}`, '_blank')}>View Listing</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Subject</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Subject</p>
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg font-bold text-sm inline-block">
                   {selectedReport.reason}
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Detailed Report</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Detailed Report</p>
                 <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap italic leading-relaxed border border-gray-100 dark:border-gray-700">
                   "{selectedReport.description}"
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Admin Actions & Notes</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Admin Actions & Notes</p>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}

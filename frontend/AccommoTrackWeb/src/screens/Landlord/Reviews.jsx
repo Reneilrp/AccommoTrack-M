@@ -205,7 +205,7 @@ export default function LandlordReviews() {
                 {review.landlord_response ? (
                   <div className="mt-6 ml-6 md:ml-12 p-4 bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-r-xl">
                     <div className="flex justify-between items-center mb-2">
-                      <p className="text-xs font-black text-brand-700 dark:text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-brand-700 dark:text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Your Response
                       </p>

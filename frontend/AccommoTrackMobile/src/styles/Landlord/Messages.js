@@ -40,9 +40,9 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center'
   },
   searchContainer: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
-    paddingBottom: 16
+    paddingVertical: 12,
   },
   searchBar: {
     backgroundColor: theme.colors.surface,
@@ -50,7 +50,9 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 10
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   searchInput: {
     flex: 1,

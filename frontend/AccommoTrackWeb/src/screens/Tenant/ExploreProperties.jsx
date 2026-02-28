@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import PropertyCarousel from './PropertyCarousel';
 import PropertyMap from '../../components/Shared/PropertyMap';
-import { X, Check, MapPin, Star, Shield, Search, ArrowLeft, ArrowRight, Filter, Map } from 'lucide-react';
+import { X, Check, MapPin, Star, Shield, Search, ArrowLeft, ArrowRight, Filter, Map, Play } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import { Skeleton } from '../../components/Shared/Skeleton';
 import { authService } from '../../services/authServices';
@@ -10,6 +10,8 @@ import RoomDetailsModal from '../../components/Modals/RoomDetailsModal';
 import bookingService from '../../services/bookingService';
 import { propertyService } from '../../services/propertyServices';
 import { useUIState } from "../../contexts/UIStateContext";
+import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
+import Footer from '../../components/Shared/Footer';
 
 const ExploreProperties = () => {
   const navigate = useNavigate();
@@ -46,6 +48,10 @@ const ExploreProperties = () => {
   // Reviews State
   const [drawerReviews, setDrawerReviews] = useState({ reviews: [], summary: null });
   const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Video State
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [videoToPlay, setVideoToPlay] = useState(null);
 
   // Fetch reviews when drawer opens
   const fetchPropertyReviews = async (propertyId) => {
@@ -90,64 +96,6 @@ const ExploreProperties = () => {
   }, []);
 
   const safeProperties = Array.isArray(properties) ? properties : [];
-
-  // Helpers (duplicated from Properties.jsx for consistency)
-  const mapRoom = (room) => {
-    if (!room) return null;
-    // Robust amenity parsing
-    let parsedAmenities = [];
-    if (Array.isArray(room.amenities)) {
-      parsedAmenities = room.amenities;
-    } else if (typeof room.amenities === 'string') {
-      try {
-        const parsed = JSON.parse(room.amenities);
-        if (Array.isArray(parsed)) parsedAmenities = parsed;
-      } catch (e) { /* ignore */ }
-    }
-
-    const status = (room.status || 'available').toString().trim().toLowerCase();
-
-    return {
-      id: room.id,
-      name: room.room_type || room.type_label || 'Room',
-      room_number: room.room_number,
-      floor: room.floor,
-      floor_label: room.floor_label,
-      raw_capacity: room.capacity,
-      image: getImageUrl(room.images && room.images.length > 0 ? room.images[0] : null) || 'https://via.placeholder.com/400x200?text=No+Image',
-      images: (room.images || []).map(img => getImageUrl(img)),
-      // keep `price` for older consumers, but expose canonical fields expected by modal
-      price: room.monthly_rate || room.price || 0,
-      monthly_rate: room.monthly_rate ?? room.monthlyRate ?? room.price ?? 0,
-      daily_rate: room.daily_rate ?? room.dailyRate ?? Math.round((room.monthly_rate || room.price || 0) / 30),
-      billing_policy: room.billing_policy || room.billingPolicy || 'monthly',
-      status,
-      reserved_by_me: room.reserved_by_me || false,
-      reservation: room.reservation || null,
-      size: room.size || '',
-      capacity: room.capacity ? `${room.capacity} Person${room.capacity > 1 ? 's' : ''}` : '',
-      description: room.description || '',
-      amenities: parsedAmenities,
-      rules: room.rules || [],
-    };
-  };
-
-  const mapProperty = (property) => {
-    if (!property) return null;
-    return {
-      id: property.id,
-      name: property.title || property.name,
-      location: property.full_address || property.city || '',
-      address: property.full_address || property.city || '', // For Map
-      latitude: property.latitude,
-      longitude: property.longitude,
-      lowest_price: property.lowest_price || (Array.isArray(property.rooms) && property.rooms.length > 0 ? Math.min(...property.rooms.map(r => r.monthly_rate)) : null),
-      type: property.property_type || 'Apartment', // Default to Apartment if missing
-      description: property.description || '',
-      rating: property.rating || null,
-      rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom).filter(Boolean) : [],
-    };
-  };
 
   const mapDisplayProperties = safeProperties.map(mapProperty).filter(Boolean);
 
@@ -646,15 +594,31 @@ const ExploreProperties = () => {
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     {/* 1. Main Video/Image */}
-                                    <div className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group">
-                                      <img src={getImageUrl(drawerData.rooms?.[0])} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                                      <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-10 h-10 bg-white/20 dark:bg-black/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 dark:border-white/20">
-                                          <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1"></div>
+                                    {drawerData.video_url ? (
+                                      <div 
+                                        className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group cursor-pointer"
+                                        onClick={() => {
+                                          setVideoToPlay(drawerData.video_url);
+                                          setVideoModalOpen(true);
+                                        }}
+                                      >
+                                        <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <div className="w-12 h-12 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/40 dark:border-white/20 group-hover:scale-110 transition-transform">
+                                            <Play className="w-6 h-6 text-white fill-white ml-1" />
+                                          </div>
                                         </div>
+                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                                          VIDEO TOUR
+                                        </span>
                                       </div>
-                                      <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-1.5 rounded">VIDEO TOUR</span>
-                                    </div>
+                                    ) : (
+                                      <div className="col-span-2 h-32 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative">
+                                        <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover" />
+                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-1.5 rounded">MAIN VIEW</span>
+                                      </div>
+                                    )}
                                     {/* 2. Room Grid */}
                                     {(drawerData.rooms || []).slice(0, 2).map((room, idx) => (
                                       <div key={idx} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative">
@@ -843,6 +807,34 @@ const ExploreProperties = () => {
         </>
       )}
 
+      {/* VIDEO PLAYER MODAL */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <button 
+            onClick={() => setVideoModalOpen(false)}
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:rotate-90 z-[5001]"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <div className="w-full max-w-5xl aspect-video relative mx-4 shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-black">
+            <video 
+              src={videoToPlay} 
+              className="w-full h-full object-contain"
+              controls 
+              autoPlay
+              playsInline
+            />
+          </div>
+          
+          {/* Legend/Info Overlay */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+            Property Video Tour • 45s Max Duration
+          </div>
+        </div>
+      )}
+
+      <Footer />
     </div>
   );
 };

@@ -67,6 +67,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [dormData, setDormData] = useState(null);
   const [newRule, setNewRule] = useState('');
   const [newCustomAmenity, setNewCustomAmenity] = useState('');
@@ -134,13 +135,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           province: data.province,
           zipCode: data.postal_code || '',
           country: data.country || 'Philippines'
-        },
-        specifications: {
-          bedrooms: data.number_of_bedrooms,
-          bathrooms: data.number_of_bathrooms,
-          maxOccupants: data.max_occupants,
-          totalRooms: data.total_rooms,
-          availableRooms: data.available_rooms
         },
         amenities: parsedAmenities,
         customAmenities: data.customAmenities || data.additional_amenities || [],
@@ -293,13 +287,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   // Update coordinates from the map
   const handleMapChange = (lat, lng) => {
     setDormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
-  };
-
-  const handleSpecificationChange = (field, value) => {
-    setDormData(prev => ({
-      ...prev,
-      specifications: { ...prev.specifications, [field]: value }
-    }));
   };
 
   const handleRemoveAmenity = (index) => {
@@ -492,8 +479,6 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         province: dormData.address.province,
         postal_code: dormData.address.zipCode,
         country: dormData.address.country,
-        max_occupants: parseInt(dormData.specifications.maxOccupants) || 1,
-        total_rooms: parseInt(dormData.specifications.totalRooms) || 1,
         amenities: merged,
         property_rules: JSON.stringify(dormData.rules),
         nearby_landmarks: dormData.nearbyLandmarks,
@@ -604,6 +589,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       toast.success('Property updated successfully!');
       // alert('Property updated successfully!');
       setIsEditing(false);
+      setFieldErrors({});
       // Clear staged deletions after successful save
       setDeletedCredentialIds([]);
       setDeletedImageIds([]);
@@ -616,14 +602,30 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         const data = err.response.data || {};
         console.error('Server response:', data);
         let msg = data.message || 'Validation error';
+        
         if (data.errors && typeof data.errors === 'object') {
+          // Map backend snake_case keys to frontend camelCase keys if necessary
+          const mappedErrors = {};
+          Object.entries(data.errors).forEach(([key, val]) => {
+            // Basic mapping
+            const frontendKey = key === 'title' ? 'name' : 
+                               key === 'street_address' ? 'street' :
+                               key === 'number_of_bedrooms' ? 'bedrooms' :
+                               key === 'number_of_bathrooms' ? 'bathrooms' :
+                               key === 'max_occupants' ? 'maxOccupants' :
+                               key === 'total_rooms' ? 'totalRooms' :
+                               key;
+            mappedErrors[frontendKey] = Array.isArray(val) ? val.join(' • ') : String(val);
+          });
+          setFieldErrors(mappedErrors);
+          
           const fieldMsgs = Object.values(data.errors).flat().filter(Boolean);
           if (fieldMsgs.length) {
-            msg = `${msg}: ${fieldMsgs.join(' ; ')}`;
+            msg = `Please fix highlighted errors`;
           }
         }
         setError(msg);
-        toast.error('Failed to update property: ' + msg);
+        toast.error('Failed to update property');
       } else {
         setError(err.message || 'Failed to update property');
         toast.error('Failed to update property: ' + (err.message || 'Unknown error'));
@@ -801,7 +803,14 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
           <div className="lg:col-span-2 space-y-6">
             {/* Basic Information */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white shrink-0">Basic Information</h2>
+                {Object.keys(fieldErrors).some(k => ['name', 'type', 'description'].includes(k)) && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {['name', 'type', 'description'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -811,7 +820,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     value={dormData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
 
@@ -821,7 +830,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     value={dormData.type}
                     onChange={(e) => handleInputChange('type', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize ${fieldErrors.type ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   >
                     <option value="dormitory">Dormitory</option>
                     <option value="apartment">Apartment</option>
@@ -836,7 +845,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     value={dormData.status}
                     onChange={(e) => handleInputChange('status', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -851,7 +860,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     disabled={!isEditing}
                     rows={5}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.description ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
               </div>
@@ -859,7 +868,14 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
 
             {/* Location */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Location</h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white shrink-0">Location</h2>
+                {Object.keys(fieldErrors).some(k => ['street', 'barangay', 'city', 'province', 'zipCode', 'latitude', 'longitude'].includes(k)) && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {['street', 'barangay', 'city', 'province', 'zipCode', 'latitude', 'longitude'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -869,7 +885,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     value={dormData.address.street}
                     onChange={(e) => handleAddressChange('street', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.street ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
 
@@ -881,7 +897,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       value={dormData.address.barangay}
                       onChange={(e) => handleAddressChange('barangay', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
                   <div>
@@ -891,7 +907,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       value={dormData.address.city}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
                 </div>
@@ -904,7 +920,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       value={dormData.address.province}
                       onChange={(e) => handleAddressChange('province', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.province ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
                   <div>
@@ -914,7 +930,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       value={dormData.address.zipCode}
                       onChange={(e) => handleAddressChange('zipCode', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.zipCode ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
                 </div>
@@ -926,7 +942,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                     onChange={(e) => handleInputChange('nearbyLandmarks', e.target.value)}
                     disabled={!isEditing}
                     rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
                     placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
                   />
                 </div>
@@ -969,7 +985,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       value={dormData.latitude || ''}
                       onChange={(e) => handleInputChange('latitude', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.latitude ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
                   <div>
@@ -979,36 +995,9 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                       value={dormData.longitude || ''}
                       onChange={(e) => handleInputChange('longitude', e.target.value)}
                       disabled={!isEditing}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.longitude ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Specifications */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Specifications</h2>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total Rooms</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.totalRooms}
-                    onChange={(e) => handleSpecificationChange('totalRooms', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Available Rooms</label>
-                  <input
-                    type="number"
-                    value={dormData.specifications.availableRooms}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                  />
                 </div>
               </div>
             </div>

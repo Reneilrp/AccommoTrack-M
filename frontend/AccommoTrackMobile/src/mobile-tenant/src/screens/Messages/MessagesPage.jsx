@@ -9,6 +9,7 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import MessageService from '../../../../services/MessageService.js';
 import { showSuccess, showError } from '../../../../utils/toast.js';
 import MessagesList from './MessagesList.jsx';
+import { navigate as rootNavigate } from '../../../../navigation/RootNavigation';
 
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
@@ -103,28 +104,28 @@ export default function MessagesPage({ navigation, route }) {
         setMenuModalVisible(false);
         switch (itemTitle) {
             case 'Dashboard':
-                navigation.navigate('Dashboard');
+                rootNavigate('Dashboard');
                 break;
             case 'Future UI Demo':
-                navigation.navigate('DemoUI');
+                rootNavigate('DemoUI');
                 break;
             case 'Notifications':
-                navigation.navigate('Notifications');
+                rootNavigate('Notifications');
                 break;
             case 'My Bookings':
-                navigation.navigate('MyBookings');
+                rootNavigate('MyBookings');
                 break;
             case 'Favorites':
-                navigation.navigate('Favorites');
+                rootNavigate('Favorites');
                 break;
             case 'Payments':
-                navigation.navigate('Payments');
+                rootNavigate('Payments');
                 break;
             case 'Settings':
-                navigation.navigate('Settings');
+                rootNavigate('Settings');
                 break;
             case 'Help & Support':
-                navigation.navigate('HelpSupport');
+                rootNavigate('HelpSupport');
                 break;
             case 'Logout':
                 try {
@@ -135,7 +136,7 @@ export default function MessagesPage({ navigation, route }) {
                 } catch (err) {
                     console.error('Logout cleanup failed', err);
                 }
-                navigation.navigate('TenantHome');
+                rootNavigate('TenantHome');
                 break;
             default:
                 console.log('Menu item pressed:', itemTitle);

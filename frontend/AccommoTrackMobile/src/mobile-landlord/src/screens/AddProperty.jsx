@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -73,11 +74,12 @@ const STEPS = [
 
 export default function AddProperty({ navigation }) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = getStyles(theme);
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState(initialForm);
   const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [credentials, setCredentials] = useState([]);
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
@@ -219,12 +221,68 @@ export default function AddProperty({ navigation }) {
     });
 
     if (!result.canceled) {
-      const mapped = result.assets.map((asset, idx) => ({
-        uri: asset.uri,
-        name: asset.fileName || `property-${Date.now()}-${idx}.jpg`,
-        type: asset.mimeType || 'image/jpeg'
-      }));
-      setSelectedImages((prev) => [...prev, ...mapped]);
+      const validImages = [];
+      const tooLargeFiles = [];
+
+      for (const asset of result.assets) {
+        // Strict 5MB limit check
+        if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+          tooLargeFiles.push(asset.fileName || 'Selected image');
+        } else {
+          validImages.push({
+            uri: asset.uri,
+            name: asset.fileName || `property-${Date.now()}-${validImages.length}.jpg`,
+            type: asset.mimeType || 'image/jpeg'
+          });
+        }
+      }
+
+      if (tooLargeFiles.length > 0) {
+        Alert.alert(
+          'Files too large',
+          `The following images exceed the 5MB limit and were skipped:\n\n${tooLargeFiles.join('\n')}`
+        );
+      }
+
+      setSelectedImages((prev) => [...prev, ...validImages]);
+    }
+  };
+
+  const handlePickVideo = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Please allow photo library access.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: true, // Allow trimming on device
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const video = result.assets[0];
+      
+      // Strict 90MB size check
+      if (video.fileSize && video.fileSize > 90 * 1024 * 1024) {
+        Alert.alert(
+          'Video too large', 
+          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 90MB.`
+        );
+        return;
+      }
+
+      // 45 seconds duration check
+      if (video.duration && video.duration > 45000) {
+        Alert.alert('Video too long', 'Video tours must be 45 seconds or less. Please trim your video.');
+        return;
+      }
+
+      setSelectedVideo({
+        uri: video.uri,
+        name: video.fileName || `property-video-${Date.now()}.mp4`,
+        type: video.mimeType || 'video/mp4'
+      });
     }
   };
 
@@ -364,6 +422,14 @@ export default function AddProperty({ navigation }) {
       });
     });
 
+    if (selectedVideo) {
+      payload.append('video', {
+        uri: selectedVideo.uri,
+        name: selectedVideo.name,
+        type: selectedVideo.type
+      });
+    }
+
     credentials.forEach((file, index) => {
       payload.append(`credentials[${index}]`, {
         uri: file.uri,
@@ -378,6 +444,7 @@ export default function AddProperty({ navigation }) {
   const resetForm = () => {
     setForm(initialForm);
     setSelectedImages([]);
+    setSelectedVideo(null);
     setCredentials([]);
     setCurrentStep(1);
     setError('');
@@ -575,7 +642,7 @@ export default function AddProperty({ navigation }) {
 
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Property Photos</Text>
-              <Text style={styles.sectionSubtitle}>Add up to 10 photos of your property</Text>
+              <Text style={styles.sectionSubtitle}>Add up to 10 photos of your property (Max 5MB each)</Text>
               
               <View style={styles.imagesRow}>
                 {selectedImages.map((image, index) => (
@@ -593,6 +660,36 @@ export default function AddProperty({ navigation }) {
                   <TouchableOpacity style={styles.addImageButton} onPress={handlePickImages}>
                     <Ionicons name="camera" size={32} color="#94A3B8" />
                     <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Add Photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Property Video Tour</Text>
+              <Text style={styles.sectionSubtitle}>Add a short video tour (Max 45s, 90MB)</Text>
+              
+              <View style={styles.imagesRow}>
+                {selectedVideo ? (
+                  <View style={styles.imagePreview}>
+                    {/* Placeholder for video thumbnail; in real implementation, you might use expo-video to generate or show a thumbnail. */}
+                    <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                       <Ionicons name="play-circle" size={40} color="#FFFFFF" />
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.imageRemove} 
+                      onPress={() => setSelectedVideo(null)}
+                    >
+                      <Ionicons name="close" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 4, borderRadius: 4 }}>
+                       <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>VIDEO</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.addImageButton} onPress={handlePickVideo}>
+                    <Ionicons name="videocam" size={32} color="#94A3B8" />
+                    <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Add Video</Text>
                   </TouchableOpacity>
                 )}
               </View>

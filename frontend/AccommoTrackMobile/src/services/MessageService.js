@@ -31,12 +31,28 @@ const MessageService = {
     }
   },
 
-  async sendMessage(conversationId, message) {
+  async sendMessage(conversationId, message, imageUri = null) {
     try {
-      const response = await api.post('/messages/send', {
-        conversation_id: conversationId,
-        message
-      });
+      let payload;
+      let headers = {};
+
+      if (imageUri) {
+        payload = new FormData();
+        payload.append('conversation_id', conversationId);
+        if (message) payload.append('message', message);
+        
+        // Append image
+        const filename = imageUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+        payload.append('image', { uri: imageUri, name: filename, type });
+        
+        headers['Content-Type'] = 'multipart/form-data';
+      } else {
+        payload = { conversation_id: conversationId, message };
+      }
+
+      const response = await api.post('/messages/send', payload, { headers });
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: extractError(error, 'Unable to send message') };

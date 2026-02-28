@@ -98,7 +98,7 @@ export default function CaretakerDashboard({ user }) {
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Welcome Section */}
       <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-green-200 dark:shadow-none">
-        <h1 className="text-3xl font-black mb-2">Welcome back, {user?.first_name}!</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.first_name}!</h1>
         <p className="text-green-50 text-sm opacity-90">Here is what's happening at your assigned properties today.</p>
       </div>
 
@@ -108,32 +108,32 @@ export default function CaretakerDashboard({ user }) {
           <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mb-4">
             <Building2 className="w-6 h-6 text-blue-600" />
           </div>
-          <p className="text-3xl font-black text-gray-900 dark:text-white">{stats?.properties?.total || 0}</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Properties Managed</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.properties?.total || 0}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Properties Managed</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
           <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-2xl flex items-center justify-center mb-4">
             <Home className="w-6 h-6 text-green-600" />
           </div>
-          <p className="text-3xl font-black text-gray-900 dark:text-white">{stats?.rooms?.occupancyRate}%</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Current Occupancy</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.rooms?.occupancyRate}%</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Current Occupancy</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
           <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-4">
             <Calendar className="w-6 h-6 text-amber-600" />
           </div>
-          <p className="text-3xl font-black text-gray-900 dark:text-white">{stats?.bookings?.pending || 0}</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Pending Bookings</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.bookings?.pending || 0}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Pending Bookings</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
           <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center mb-4">
             <Wrench className="w-6 h-6 text-purple-600" />
           </div>
-          <p className="text-3xl font-black text-gray-900 dark:text-white">{stats?.requests?.maintenance || 0}</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Maintenance Requests</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.requests?.maintenance || 0}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Maintenance Requests</p>
         </div>
       </div>
 
@@ -141,7 +141,7 @@ export default function CaretakerDashboard({ user }) {
         {/* Recent Activities */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-xl font-black text-gray-900 dark:text-white">Recent Activities</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Activities</h2>
             <Link to="/bookings" className="text-xs font-bold text-green-600 hover:underline flex items-center gap-1">
               View All <ArrowRight className="w-3 h-3" />
             </Link>
@@ -165,7 +165,7 @@ export default function CaretakerDashboard({ user }) {
                         <span className="text-[10px] font-bold text-gray-400 uppercase">{formatDate(activity.timestamp)}</span>
                       </div>
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-black uppercase">
+                    <span className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase">
                       {activity.status}
                     </span>
                   </div>
@@ -179,14 +179,14 @@ export default function CaretakerDashboard({ user }) {
         <div className="space-y-8">
           {/* Addon Requests Section */}
           <div className="space-y-4">
-            <h2 className="text-xl font-black text-gray-900 dark:text-white px-2">Operational Alerts</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white px-2">Operational Alerts</h2>
             <div className="bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm p-6 space-y-4">
               <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-600 rounded-lg text-white"><PlusCircle className="w-4 h-4" /></div>
                   <span className="text-sm font-bold text-purple-900 dark:text-purple-300">Addon Requests</span>
                 </div>
-                <span className="text-lg font-black text-purple-600">{stats?.requests?.addons || 0}</span>
+                <span className="text-lg font-bold text-purple-600">{stats?.requests?.addons || 0}</span>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-800">
@@ -194,20 +194,20 @@ export default function CaretakerDashboard({ user }) {
                   <div className="p-2 bg-red-600 rounded-lg text-white"><Clock className="w-4 h-4" /></div>
                   <span className="text-sm font-bold text-red-900 dark:text-red-300">Upcoming Checkouts</span>
                 </div>
-                <span className="text-lg font-black text-red-600">{upcomingCheckouts.length}</span>
+                <span className="text-lg font-bold text-red-600">{upcomingCheckouts.length}</span>
               </div>
             </div>
           </div>
 
           {/* Quick Property Overview */}
           <div className="space-y-4">
-            <h2 className="text-xl font-black text-gray-900 dark:text-white px-2">Property Status</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white px-2">Property Status</h2>
             <div className="space-y-3">
               {propertyPerformance.slice(0, 3).map((p) => (
                 <div key={p.id} className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-sm font-bold text-gray-900 dark:text-white truncate pr-2">{p.title}</span>
-                    <span className="text-xs font-black text-green-600">{p.occupancyRate}%</span>
+                    <span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span>
                   </div>
                   <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                     <div 
@@ -215,7 +215,7 @@ export default function CaretakerDashboard({ user }) {
                       style={{ width: `${p.occupancyRate}%` }} 
                     />
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wider">
                     {p.occupiedRooms} / {p.totalRooms} Rooms Occupied
                   </p>
                 </div>

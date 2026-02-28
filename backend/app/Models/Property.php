@@ -293,7 +293,7 @@ class Property extends Model
     }
     public function getImageUrlAttribute()
     {
-        $firstImage = $this->images()->first();
+        $firstImage = $this->images()->where('media_type', 'image')->first();
         return $firstImage ? asset('storage/' . $firstImage->image_url) : null;
     }
     /**

@@ -18,8 +18,14 @@ return [
     // include broadcasting auth so the preflight for Echo/Pusher auth is handled
     'paths' => ['api/*', 'login' ,'broadcasting/auth', 'api/broadcasting/auth', 'sanctum/csrf-cookie', 'storage/*'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => ['*'],
-    'allowed_origins_patterns' => [],
+    'allowed_origins' => [
+        'https://accommotrack.me',
+        'https://beta.accommotrack.me',
+        'http://localhost:5173',
+    ],
+    'allowed_origins_patterns' => [
+        '#^https?://.*\.accommotrack\.me$#',
+    ],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
     'max_age' => 0,

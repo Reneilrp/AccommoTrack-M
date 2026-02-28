@@ -290,11 +290,11 @@ export default function VerificationStatus() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className={`text-xl font-black ${statusConfig.color} uppercase tracking-tight`}>
+              <h3 className={`text-xl font-bold ${statusConfig.color} uppercase tracking-tight`}>
                 {statusConfig.label}
               </h3>
               {verification?.status === 'pending' && (
-                <span className="px-2 py-1 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 text-[10px] font-black uppercase rounded-full animate-pulse">
+                <span className="px-2 py-1 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 text-[10px] font-bold uppercase rounded-full animate-pulse">
                   Under Review
                 </span>
               )}

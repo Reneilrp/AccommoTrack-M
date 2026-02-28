@@ -131,7 +131,8 @@ const normalizeProperty = (data) => {
     amenities,
     customAmenities,
     rules,
-    images
+    images,
+    videoUrl: data?.video_url || null
   };
 };
 
@@ -149,6 +150,7 @@ export default function DormProfileScreen({ route, navigation }) {
   const [newRule, setNewRule] = useState('');
   const [customAmenity, setCustomAmenity] = useState('');
   const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [password, setPassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -250,12 +252,68 @@ export default function DormProfileScreen({ route, navigation }) {
 
     if (!result.canceled) {
       const assets = result.assets || [];
-      const mapped = assets.map((asset, index) => ({
-        uri: asset.uri,
-        name: asset.fileName || `property-${Date.now()}-${index}.jpg`,
-        type: asset.mimeType || 'image/jpeg'
-      }));
-      setSelectedImages((prev) => [...prev, ...mapped]);
+      const validImages = [];
+      const tooLargeFiles = [];
+
+      for (const asset of assets) {
+        // Strict 5MB limit check
+        if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+          tooLargeFiles.push(asset.fileName || 'Selected image');
+        } else {
+          validImages.push({
+            uri: asset.uri,
+            name: asset.fileName || `property-${Date.now()}-${validImages.length}.jpg`,
+            type: asset.mimeType || 'image/jpeg'
+          });
+        }
+      }
+
+      if (tooLargeFiles.length > 0) {
+        Alert.alert(
+          'Files too large',
+          `The following images exceed the 5MB limit and were skipped:\n\n${tooLargeFiles.join('\n')}`
+        );
+      }
+
+      setSelectedImages((prev) => [...prev, ...validImages]);
+    }
+  };
+
+  const handlePickVideo = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Enable photo library access to attach property video.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: true, // Allow trimming on device
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const video = result.assets[0];
+      
+      // Strict 90MB size check
+      if (video.fileSize && video.fileSize > 90 * 1024 * 1024) {
+        Alert.alert(
+          'Video too large', 
+          `The selected video is ${(video.fileSize / (1024 * 1024)).toFixed(1)}MB. Please choose a video under 90MB.`
+        );
+        return;
+      }
+
+      // 45 seconds duration check
+      if (video.duration && video.duration > 45000) {
+        Alert.alert('Video too long', 'Video tours must be 45 seconds or less. Please trim your video.');
+        return;
+      }
+
+      setSelectedVideo({
+        uri: video.uri,
+        name: video.fileName || `property-video-${Date.now()}.mp4`,
+        type: video.mimeType || 'video/mp4'
+      });
     }
   };
 
@@ -266,6 +324,7 @@ export default function DormProfileScreen({ route, navigation }) {
   const handleCancelEdit = () => {
     setForm(baseline);
     setSelectedImages([]);
+    setSelectedVideo(null);
     setNewRule('');
     setCustomAmenity('');
     setError('');
@@ -324,8 +383,22 @@ export default function DormProfileScreen({ route, navigation }) {
     payload.append('property_rules', JSON.stringify(form.rules));
 
     selectedImages.forEach((image, index) => {
-      payload.append(`images[${index}]`, image);
+      if (!image.id?.toString().startsWith('remote-')) {
+        payload.append(`images[${index}]`, {
+          uri: image.uri,
+          name: image.name,
+          type: image.type
+        });
+      }
     });
+
+    if (selectedVideo) {
+      payload.append('video', {
+        uri: selectedVideo.uri,
+        name: selectedVideo.name,
+        type: selectedVideo.type
+      });
+    }
 
     return payload;
   };
@@ -756,6 +829,46 @@ export default function DormProfileScreen({ route, navigation }) {
             {isEditing && (
               <TouchableOpacity style={[styles.addImageButton, { marginTop: 12 }]} onPress={handlePickImages}>
                 <Ionicons name="add" size={28} color="#94A3B8" />
+                <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>Add Photo (Max 5MB)</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Video Tour</Text>
+            {!form.videoUrl && !selectedVideo ? (
+              <Text style={styles.helperText}>No video tour uploaded yet.</Text>
+            ) : (
+              <View style={styles.imagesRow}>
+                {selectedVideo ? (
+                  <View style={styles.imagePreview}>
+                    <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                       <Ionicons name="play-circle" size={40} color="#FFFFFF" />
+                    </View>
+                    <TouchableOpacity style={styles.imageRemove} onPress={() => setSelectedVideo(null)}>
+                      <Ionicons name="trash" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 4, borderRadius: 4 }}>
+                       <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>NEW VIDEO</Text>
+                    </View>
+                  </View>
+                ) : form.videoUrl ? (
+                  <View style={styles.imagePreview}>
+                    <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                       <Ionicons name="play-circle" size={40} color="#FFFFFF" />
+                    </View>
+                    <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 4, borderRadius: 4 }}>
+                       <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>CURRENT VIDEO</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            )}
+
+            {isEditing && (
+              <TouchableOpacity style={[styles.addImageButton, { marginTop: 12 }]} onPress={handlePickVideo}>
+                <Ionicons name="videocam" size={28} color="#94A3B8" />
+                <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2, textAlign: 'center' }}>Add Video{'\n'}(Max 45s, 90MB)</Text>
               </TouchableOpacity>
             )}
           </View>

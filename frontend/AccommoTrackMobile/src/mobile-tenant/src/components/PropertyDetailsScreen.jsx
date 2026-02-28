@@ -1,5 +1,3 @@
-// Replace the entire PropertyDetailsScreen.jsx with this updated version
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   View, 
@@ -13,8 +11,11 @@ import {
   Linking,
   Platform,
   RefreshControl,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { Video, ResizeMode } from 'expo-av';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,7 @@ export default function PropertyDetailsScreen({ route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [videoVisible, setVideoVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -410,14 +412,38 @@ export default function PropertyDetailsScreen({ route }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, backgroundColor: theme.colors.primary, borderBottomWidth: 0.5, borderBottomColor: theme.colors.primary }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse || '#fff'} />
+      <View style={{ 
+        height: 56, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 12, 
+        backgroundColor: theme.colors.primary, 
+        borderBottomWidth: 0.5, 
+        borderBottomColor: 'rgba(0,0,0,0.1)' 
+      }}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={{ 
+            padding: 10, 
+            marginRight: 10,
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={26} color="#ffffff" />
         </TouchableOpacity>
 
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: theme.colors.textInverse || '#fff' }}>Property Details</Text>
-
-        <View style={{ width: 40 }} />
+        <Text style={{ 
+          flex: 1, 
+          textAlign: 'center', 
+          fontSize: 18, 
+          fontWeight: '700', 
+          color: '#ffffff',
+          marginRight: 46 // Offset for the back button to center title
+        }}>
+          Property Details
+        </Text>
       </View>
 
       <ScrollView
@@ -438,13 +464,59 @@ export default function PropertyDetailsScreen({ route }) {
           </View>
           
           {/* Image */}
-          {active && active.image && (
-            <Image
-              source={typeof active.image === 'string' ? { uri: active.image } : active.image}
-              style={styles.mainImage}
-              resizeMode="cover"
-            />
-          )}
+          <View style={styles.mediaContainer}>
+            {active && active.image && (
+              <Image
+                source={typeof active.image === 'string' ? { uri: active.image } : active.image}
+                style={styles.mainImage}
+                resizeMode="cover"
+              />
+            )}
+            
+            {(active && active.video_url) && (
+              <TouchableOpacity 
+                style={styles.videoOverlay} 
+                onPress={() => setVideoVisible(true)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.playButtonCircle}>
+                  <Ionicons name="play" size={32} color="#FFFFFF" />
+                </View>
+                <Text style={styles.videoLabel}>Watch Video Tour</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Video Modal */}
+          <Modal
+            visible={videoVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setVideoVisible(false)}
+          >
+            <View style={styles.videoModalContainer}>
+              <TouchableOpacity 
+                style={styles.closeVideo} 
+                onPress={() => setVideoVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="#FFFFFF" />
+              </TouchableOpacity>
+              
+              <View style={styles.videoWrapper}>
+                <Video
+                  source={{ uri: active.video_url }}
+                  rate={1.0}
+                  volume={1.0}
+                  isMuted={false}
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay={videoVisible}
+                  isLooping
+                  useNativeControls
+                  style={styles.videoPlayer}
+                />
+              </View>
+            </View>
+          </Modal>
 
           {/* Full Address */}
           <View style={styles.section}>

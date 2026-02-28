@@ -80,7 +80,7 @@ export default function InvoiceCheckout() {
     <div className="max-w-2xl mx-auto py-8 px-4">
       <button 
         onClick={() => navigate('/wallet')}
-        className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 transition-colors font-bold text-sm uppercase tracking-widest"
+        className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 transition-colors font-bold text-sm uppercase tracking-wider"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Wallet
@@ -90,17 +90,17 @@ export default function InvoiceCheckout() {
         <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div>
-              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-black rounded-full uppercase tracking-widest border border-green-200 dark:border-green-800">
+              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-green-200 dark:border-green-800">
                 Secure Checkout
               </span>
-              <h1 className="text-3xl font-black text-gray-900 dark:text-white mt-4 uppercase tracking-tight leading-tight">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4 uppercase tracking-tight leading-tight">
                 {invoice.propertyName || 'Property Payment'}
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-1 uppercase tracking-tighter">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-1 uppercase">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
             </div>
             <div className="text-left md:text-right bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md md:shadow-none md:border-none md:bg-transparent">
-              <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Total Amount Due</p>
-              <p className="text-4xl font-black text-green-600 dark:text-green-400">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Amount Due</p>
+              <p className="text-4xl font-bold text-green-600 dark:text-green-400">
                 <PriceRow amount={amount} />
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function InvoiceCheckout() {
                   <Wallet className="w-7 h-7" />
                 </div>
                 <div>
-                  <p className="font-black text-gray-900 dark:text-white text-lg uppercase tracking-tight">GCash</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GCash</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instant payment via GCash wallet</p>
                 </div>
               </div>
@@ -147,7 +147,7 @@ export default function InvoiceCheckout() {
                   <Wallet className="w-7 h-7" />
                 </div>
                 <div>
-                  <p className="font-black text-gray-900 dark:text-white text-lg uppercase tracking-tight">Maya</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Maya</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pay securely with Maya account</p>
                 </div>
               </div>
@@ -167,7 +167,7 @@ export default function InvoiceCheckout() {
                   <Wallet className="w-7 h-7" />
                 </div>
                 <div>
-                  <p className="font-black text-gray-900 dark:text-white text-lg uppercase tracking-tight">GrabPay</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GrabPay</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Direct payment using GrabPay credits</p>
                 </div>
               </div>

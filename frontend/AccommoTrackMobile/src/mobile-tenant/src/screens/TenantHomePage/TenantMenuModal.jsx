@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
+import { navigate as rootNavigate } from '../../../../navigation/RootNavigation';
 
 export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLogout }) {
   const navigation = useNavigation();
@@ -36,31 +37,31 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
     // Close modal first
     navigation.goBack();
 
-    // Navigate based on selection
+    // Use rootNavigate to reach screens regardless of nesting level
     switch (title) {
       case 'Dashboard':
-        navigation.navigate('Main', { screen: 'Dashboard' });
+        rootNavigate('Dashboard');
         break;
       case 'My Bookings':
-        navigation.navigate('Main', { screen: 'MyBookings' });
+        rootNavigate('MyBookings');
         break;
       case 'Service Requests':
-        navigation.navigate('Main', { screen: 'ServiceRequests' });
+        rootNavigate('ServiceRequests');
         break;
       case 'Notifications':
-        navigation.navigate('Main', { screen: 'Notifications' });
+        rootNavigate('Notifications');
         break;
       case 'Payments':
-        navigation.navigate('Main', { screen: 'Payments' });
+        rootNavigate('Payments');
         break;
       case 'Settings':
-        navigation.navigate('Main', { screen: 'Settings' });
+        rootNavigate('Settings');
         break;
       case 'Future UI Demo':
-        navigation.navigate('Main', { screen: 'DemoUI' });
+        rootNavigate('DemoUI');
         break;
       case 'Help & Support':
-        navigation.navigate('Main', { screen: 'HelpSupport' });
+        rootNavigate('HelpSupport');
         break;
       case 'Logout':
         if (onLogout) onLogout();

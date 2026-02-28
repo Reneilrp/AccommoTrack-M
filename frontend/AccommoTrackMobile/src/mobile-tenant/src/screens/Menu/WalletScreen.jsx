@@ -290,19 +290,6 @@ export default function WalletScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Payments</Text>
-        </View>
-
-        <View style={styles.headerSpacer} />
-      </View>
-
       <ScrollView
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}

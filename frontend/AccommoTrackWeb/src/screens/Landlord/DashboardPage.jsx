@@ -294,7 +294,7 @@ export default function DashboardPage({ user }) {
                   ))
                 }
               </div>
-              <Link to="/payments" className="block text-center mt-4 text-xs font-bold text-brand-600 hover:underline uppercase tracking-widest">View All Payments &rarr;</Link>
+              <Link to="/payments" className="block text-center mt-4 text-xs font-bold text-brand-600 hover:underline uppercase tracking-wider">View All Payments &rarr;</Link>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { getStyles } from '../../../styles/Landlord/Caretakers'; // I will create this
+import { getStyles } from '../../../styles/Landlord/Caretakers';
 import CaretakerService from '../../../services/CaretakerService';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { ListItemSkeleton } from '../../../components/Skeletons/index';
 
 export default function Caretakers() {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = getStyles(theme);
   
   const [caretakers, setCaretakers] = useState([]);
   const [landlordProperties, setLandlordProperties] = useState([]);
@@ -107,6 +108,27 @@ export default function Caretakers() {
     });
     setIsEditing(true);
     setModalVisible(true);
+  };
+
+  const handleResetPassword = (item) => {
+    Alert.alert(
+      'Reset Password',
+      `Are you sure you want to reset the password for ${item.caretaker.first_name}? A temporary password will be generated.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reset', 
+          onPress: async () => {
+            const res = await CaretakerService.resetPassword(item.id);
+            if (res.success) {
+              Alert.alert('Password Reset', `New temporary password: ${res.data.temporary_password}`);
+            } else {
+              Alert.alert('Error', res.error);
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const handleSubmit = async () => {
@@ -209,12 +231,17 @@ export default function Caretakers() {
           </Text>
           <Text style={[styles.email, { color: theme.colors.textSecondary }]}>{item.caretaker.email}</Text>
         </View>
-        <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
-          <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteButton}>
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          <TouchableOpacity onPress={() => handleResetPassword(item)} style={styles.editButton} title="Reset Password">
+            <Ionicons name="key-outline" size={20} color={theme.colors.warning} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
+            <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 12 }]}>Properties</Text>
@@ -254,9 +281,12 @@ export default function Caretakers() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
+        <ScrollView contentContainerStyle={styles.listContent}>
+          <ListItemSkeleton />
+          <ListItemSkeleton />
+          <ListItemSkeleton />
+          <ListItemSkeleton />
+        </ScrollView>
       ) : (
         <FlatList
           data={caretakers}
@@ -267,6 +297,12 @@ export default function Caretakers() {
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={48} color={theme.colors.textTertiary} />
               <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No caretakers yet</Text>
+              <TouchableOpacity 
+                style={{ marginTop: 16, backgroundColor: theme.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
+                onPress={() => { resetForm(); setModalVisible(true); }}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add First Caretaker</Text>
+              </TouchableOpacity>
             </View>
           }
         />

@@ -15,7 +15,7 @@ class BookingService
     /**
      * Create a new booking
      */
-    public function createBooking(array $data, int $tenantId): Booking
+    public function createBooking(array $data, ?int $tenantId = null): Booking
     {
         return DB::transaction(function() use ($data, $tenantId) {
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
@@ -55,6 +55,7 @@ class BookingService
                 'property_id' => $room->property_id,
                 'tenant_id' => $tenantId,
                 'landlord_id' => $room->property->landlord_id,
+                'guest_name' => $data['guest_name'] ?? null,
                 'room_id' => $room->id,
                 'booking_reference' => $bookingReference,
                 'start_date' => $startDate->format('Y-m-d'),
@@ -110,10 +111,15 @@ class BookingService
             // Load fresh data with tenant name for room card
             $booking->load(['property', 'tenant.tenantProfile', 'room.currentTenant']);
 
+            $tenantName = $booking->guest_name;
+            if (!$tenantName && $booking->tenant) {
+                $tenantName = $booking->tenant->first_name . ' ' . $booking->tenant->last_name;
+            }
+
             return [
                 'booking' => $booking,
                 'room_updated' => true,
-                'tenant_name' => $booking->tenant->first_name . ' ' . $booking->tenant->last_name
+                'tenant_name' => $tenantName ?: 'Guest'
             ];
 
         } catch (\Exception $e) {
@@ -135,18 +141,20 @@ class BookingService
             throw new \Exception('Room is fully occupied and cannot accommodate more tenants');
         }
 
-        // Assign tenant to room
-        $booking->room->assignTenant($booking->tenant_id, $booking->start_date);
+        // Assign tenant to room only if we have a tenant_id
+        if ($booking->tenant_id) {
+            $booking->room->assignTenant($booking->tenant_id, $booking->start_date);
 
-        // Create or update tenant profile
-        $booking->tenant->tenantProfile()->updateOrCreate(
-            ['user_id' => $booking->tenant_id],
-            [
-                'move_in_date' => $booking->start_date,
-                'status' => 'active',
-                'booking_id' => $booking->id
-            ]
-        );
+            // Create or update tenant profile
+            $booking->tenant->tenantProfile()->updateOrCreate(
+                ['user_id' => $booking->tenant_id],
+                [
+                    'move_in_date' => $booking->start_date,
+                    'status' => 'active',
+                    'booking_id' => $booking->id
+                ]
+            );
+        }
 
         // Auto-generate initial invoice if it doesn't exist
         $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
@@ -157,7 +165,7 @@ class BookingService
                 'landlord_id' => $booking->landlord_id,
                 'property_id' => $booking->property_id,
                 'booking_id' => $booking->id,
-                'tenant_id' => $booking->tenant_id,
+                'tenant_id' => $booking->tenant_id, // can be null for walk-ins
                 'description' => 'Initial invoice for booking ' . $booking->booking_reference,
                 'amount_cents' => (int) round($booking->total_amount * 100),
                 'currency' => 'PHP',
@@ -172,7 +180,7 @@ class BookingService
             ]);
         }
 
-        Log::info('Booking confirmed - Tenant assigned to room', [
+        Log::info('Booking confirmed', [
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id,
             'room_id' => $booking->room_id
@@ -214,22 +222,24 @@ class BookingService
             ]);
         }
 
-        // Remove tenant from room
-        $booking->room->removeTenant($booking->tenant_id);
+        // Remove tenant from room only if we had a tenant_id
+        if ($booking->tenant_id) {
+            $booking->room->removeTenant($booking->tenant_id);
 
-        // Update tenant profile
-        $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
-            ->where('booking_id', $booking->id)
-            ->first();
+            // Update tenant profile
+            $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                ->where('booking_id', $booking->id)
+                ->first();
 
-        if ($tenantProfile) {
-            $tenantProfile->update([
-                'status' => 'inactive',
-                'move_out_date' => now()->format('Y-m-d')
-            ]);
+            if ($tenantProfile) {
+                $tenantProfile->update([
+                    'status' => 'inactive',
+                    'move_out_date' => now()->format('Y-m-d')
+                ]);
+            }
         }
 
-        Log::info('Booking cancelled - Tenant removed from room', [
+        Log::info('Booking cancelled', [
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id
         ]);

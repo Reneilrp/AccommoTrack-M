@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, Search, Filter, X } from 'lucide-react';
+import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, Search, Filter, X, Send, RefreshCw } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
@@ -167,7 +167,7 @@ const InquiryManagement = () => {
                           <CheckCircle className="w-3 h-3" /> {inquiry.property.title}
                         </div>
                       ) : (
-                        <div className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-tighter">General Support</div>
+                        <div className="text-xs font-bold text-gray-400 mb-1 uppercase">General Support</div>
                       )}
                       <div className="text-sm text-gray-900 dark:text-gray-300 line-clamp-1 max-w-xs">{inquiry.message}</div>
                     </td>
@@ -176,7 +176,7 @@ const InquiryManagement = () => {
                       <div className="text-xs text-gray-400 dark:text-gray-500">{new Date(inquiry.created_at).toLocaleTimeString()}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter ${getStatusColor(inquiry.status)}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(inquiry.status)}`}>
                         {inquiry.status}
                       </span>
                     </td>

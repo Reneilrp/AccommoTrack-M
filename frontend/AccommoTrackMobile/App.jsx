@@ -9,6 +9,8 @@ import AppNavigator from './src/navigation/AppNavigator.jsx';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
 
+import { getToastConfig } from './src/config/toastConfig';
+
 const MyLightTheme = {
   ...DefaultTheme,
   colors: {
@@ -26,7 +28,8 @@ const MyDarkTheme = {
 };
 
 function AppContent() {
-  const { isDarkMode, isLoading } = useTheme();
+  const { theme, isDarkMode, isLoading } = useTheme();
+  const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
 
   if (isLoading) {
     return null; // Or a splash screen component
@@ -48,7 +51,7 @@ function AppContent() {
       >
         <AppNavigator />
       </NavigationContainer>
-      <Toast />
+      <Toast config={toastConfig} />
     </View>
   );
 }

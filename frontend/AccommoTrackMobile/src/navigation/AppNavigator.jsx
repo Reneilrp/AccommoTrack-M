@@ -121,9 +121,9 @@ export default function AppNavigator() {
     );
   }
 
-  // If user is logged in as landlord
-  if (userRole === 'landlord') {
-    console.log(' Rendering LandlordLayout');
+  // If user is logged in as landlord or caretaker
+  if (userRole === 'landlord' || userRole === 'caretaker') {
+    console.log(' Rendering LandlordLayout (role:', userRole, ')');
     return <LandlordLayout onLogout={handleLogout} />;
   }
 

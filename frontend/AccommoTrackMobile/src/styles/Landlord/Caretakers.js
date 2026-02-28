@@ -8,13 +8,14 @@ export const getStyles = (theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: theme.colors.primary,
+    justifyContent: 'space-between',
   },
   backButton: {
-    padding: 4,
+    width: 48,
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 18,
@@ -24,7 +25,8 @@ export const getStyles = (theme) => StyleSheet.create({
     textAlign: 'center',
   },
   addButton: {
-    padding: 4,
+    width: 48,
+    alignItems: 'flex-end',
   },
   center: {
     flex: 1,

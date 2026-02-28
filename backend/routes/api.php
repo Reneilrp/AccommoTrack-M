@@ -28,6 +28,9 @@ use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
+use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -37,9 +40,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/inquiries', [InquiryController::class, 'store']);
 
 // Forgot Password Routes
-Route::post('/forgot-password', [App\Http\Controllers\ForgotPasswordController::class, 'sendCode']);
-Route::post('/verify-code', [App\Http\Controllers\ForgotPasswordController::class, 'verifyCode']);
-Route::post('/reset-password', [App\Http\Controllers\ForgotPasswordController::class, 'resetPassword']);
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendCode']);
+Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode']);
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
 // Public: check if email exists
 Route::get('/check-email', [AuthController::class, 'checkEmail']);
@@ -69,10 +72,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 
     // Notifications
-    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index']);
-    Route::get('/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'unreadCount']);
-    Route::patch('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead']);
-    Route::patch('/notifications/read-all', [App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     // ===== TENANT ROUTES (Public property browsing) =====
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);
@@ -171,7 +174,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
             
             // Reports (Tenant)
-            Route::post('/reports', [App\Http\Controllers\ReportController::class, 'store']);
+            Route::post('/reports', [ReportController::class, 'store']);
         
             Route::post('/tenants', [TenantController::class, 'store']);
             Route::put('/tenants/{id}', [TenantController::class, 'update']);        Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
@@ -247,7 +250,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/inquiries', [InquiryController::class, 'index']);
         Route::patch('/inquiries/{id}', [InquiryController::class, 'update']);
         Route::delete('/inquiries/{id}', [InquiryController::class, 'destroy']);
-	Route::post('/inquiries/{id}/reply', [InquiryController::class, 'reply']);
+	    Route::post('/inquiries/{id}/reply', [InquiryController::class, 'reply']);
 
         // Admin: list all landlord verifications
         Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
@@ -255,8 +258,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/landlord-verifications/{id}/reject', [AdminController::class, 'rejectVerification']);
 
         // Admin: Reports
-        Route::get('/reports', [App\Http\Controllers\ReportController::class, 'index']);
-        Route::patch('/reports/{id}', [App\Http\Controllers\ReportController::class, 'update']);
+        Route::get('/reports', [ReportController::class, 'index']);
+        Route::patch('/reports/{id}', [ReportController::class, 'update']);
  });
 
     Route::prefix('messages')->group(function () {

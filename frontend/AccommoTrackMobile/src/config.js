@@ -8,8 +8,10 @@ import {
 } from '@env';
 
 // 1. Backend 
-export const BASE_URL = API_URL; 
-export const API_BASE_URL = `${BASE_URL}/api`;
+const cleanUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+export const BASE_URL = cleanUrl;
+export const API_BASE_URL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+console.log('[Config] API_BASE_URL:', API_BASE_URL);
 
 // 2. Web Frontend
 export const WEB_BASE_URL = WEB_URL;

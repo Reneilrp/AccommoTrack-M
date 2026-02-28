@@ -209,19 +209,19 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           {loading ? [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />) : (
             <>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Total Bookings</p>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Bookings</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Confirmed</p>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Confirmed</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Pending</p>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Completed</p>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Completed</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
               </div>
             </>
@@ -290,14 +290,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           <p>{formatDate(b.checkIn)}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">to {formatDate(b.checkOut)}</p>
                         </td>
-                        <td className="px-6 py-4 text-sm font-black text-gray-900 dark:text-white">
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">
                           <PriceRow amount={b.amount} />
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter ${getStatusColor(b.status)}`}>{b.status}</span>
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <button onClick={() => { setSelectedBooking(b); setShowDetailModal(true); }} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-black uppercase tracking-widest flex items-center gap-1 transition-colors">
+                          <button onClick={() => { setSelectedBooking(b); setShowDetailModal(true); }} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-1 transition-colors">
                             <Eye className="w-3.5 h-3.5" /> View
                           </button>
                         </td>
@@ -335,28 +335,28 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Guest Name</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Guest Name</p>
                   <p className="font-semibold text-gray-900 dark:text-white text-lg">{selectedBooking.guestName}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Contact Information</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Contact Information</p>
                   <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.phone || selectedBooking.email}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Property</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Property</p>
                   <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.propertyTitle}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Room Details</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Room Details</p>
                   <p className="font-semibold text-gray-900 dark:text-white">Room {selectedBooking.roomNumber} ({selectedBooking.roomType})</p>
                 </div>
               </div>
 
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Amount</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Amount</p>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-black text-gray-900 dark:text-white">₱{selectedBooking.amount.toLocaleString()}</p>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${getPaymentColor(selectedBooking.paymentStatus)}`}>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">₱{selectedBooking.amount.toLocaleString()}</p>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getPaymentColor(selectedBooking.paymentStatus)}`}>
                     {selectedBooking.paymentStatus}
                   </span>
                 </div>
@@ -559,7 +559,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 <p className="text-xs text-red-700 dark:text-red-400 font-bold uppercase tracking-wider">
                   Amount: <PriceRow amount={selectedBooking.amount} />
                 </p>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
                   {selectedBooking.paymentStatus}
                 </span>
               </div>
@@ -567,7 +567,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Reason for Cancellation <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -598,7 +598,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
                   {cancellationData.shouldRefund && (
                     <div className="animate-in slide-in-from-top-2 duration-200 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-600">
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                         Refund Amount (₱)
                       </label>
                       <input
@@ -609,10 +609,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           refundAmount: parseFloat(e.target.value) || 0
                         })}
                         max={selectedBooking.amount}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-black text-xl outline-none"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-xl outline-none"
                         placeholder="0.00"
                       />
-                      <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                      <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                         <span>Min: ₱0</span>
                         <span>Max: ₱{selectedBooking.amount.toLocaleString()}</span>
                       </div>

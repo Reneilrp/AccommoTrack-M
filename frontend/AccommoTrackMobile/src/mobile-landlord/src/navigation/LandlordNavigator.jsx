@@ -10,7 +10,8 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import LandlordDashboard from '../screens/DashboardPage.jsx';
 import RoomManagement from '../screens/RoomManagement.jsx';
 import Tenants from '../screens/TenantManagement.jsx';
-import Messages from '../screens/Messages.jsx';
+import Messages from '../screens/Messages/MessagesPage.jsx';
+import ChatScreen from '../screens/Messages/ChatScreen.jsx';
 import MyProperties from '../screens/MyProperties.jsx';
 import Settings from '../screens/Settings.jsx';
 import Bookings from '../screens/Bookings.jsx';
@@ -94,6 +95,20 @@ const styles = StyleSheet.create({
 function MainTabs({ onLogout }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const [userRole, setUserRole] = React.useState('landlord');
+
+  React.useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          const user = JSON.parse(userString);
+          setUserRole(user.role || 'landlord');
+        }
+      } catch (e) {}
+    };
+    checkRole();
+  }, []);
   
   return (
     <Tab.Navigator
@@ -193,6 +208,21 @@ function MainTabs({ onLogout }) {
 
 // Main Stack Navigator
 export default function LandlordNavigator({ onLogout }) {
+  const [userRole, setUserRole] = React.useState('landlord');
+
+  React.useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          const user = JSON.parse(userString);
+          setUserRole(user.role || 'landlord');
+        }
+      } catch (e) {}
+    };
+    checkRole();
+  }, []);
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen
@@ -223,7 +253,10 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
       <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
       <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
-      <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
+      {userRole === 'landlord' && (
+        <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
+      )}
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none' }} />
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>

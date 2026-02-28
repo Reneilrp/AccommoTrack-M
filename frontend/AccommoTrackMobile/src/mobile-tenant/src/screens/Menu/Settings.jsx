@@ -6,15 +6,16 @@ import { useNavigation } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Menu/Settings.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext';
-import Header from '../../components/Header.jsx';
-import { ListItemSkeleton } from '../../../../components/Skeletons';
+import { ListItemSkeleton } from '../../../../components/Skeletons/index';
 import ProfileService from '../../../../services/ProfileService';
 import { WEB_BASE_URL } from '../../../../config';
+import { navigate as rootNavigate } from '../../../../navigation/RootNavigation';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
   const { theme, isDarkMode, toggleTheme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const themedHomeStyles = React.useMemo(() => homeStyles(theme), [theme]);
   
   const [notificationSettings, setNotificationSettings] = useState({
     notifications: true,
@@ -23,37 +24,37 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     locationServices: true
   });
   const [refreshing, setRefreshing] = useState(false);
-  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkGuestMode();
-  }, [isGuest]);
+    let isMounted = true;
 
-  const checkGuestMode = async () => {
-    let guest = false;
-    if (isGuest !== undefined) {
-      guest = isGuest;
-    } else {
+    const checkState = async () => {
       try {
         const userJson = await AsyncStorage.getItem('user');
-        guest = !userJson;
+        if (!isMounted) return;
+
+        const guest = isGuest === true || !userJson;
+        setIsGuestMode(guest);
+        
+        if (!guest) {
+          await loadSettings();
+        } else {
+          setLoading(false);
+        }
       } catch (error) {
-        console.error('Error checking guest mode:', error);
+        console.error('Error checking state:', error);
+        if (isMounted) setLoading(false);
       }
-    }
-    setIsGuestMode(guest);
-    
-    if (!guest) {
-      loadSettings();
-    } else {
-      setLoading(false);
-    }
-  };
+    };
+
+    checkState();
+    return () => { isMounted = false; };
+  }, [isGuest]);
 
   const loadSettings = async () => {
     try {
-      setLoading(true);
       const res = await ProfileService.getProfile();
       if (res.success && res.data) {
         const prefs = res.data.notification_preferences;
@@ -113,16 +114,16 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const handleSettingPress = (label) => {
     switch(label) {
       case "Profile":
-        navigation.navigate('Profile');
+        rootNavigate('Profile');
         break;
       case "Notification Preferences":
         // Scroll to notifications or navigate if separate
         break;
       case "Account Security":
-        navigation.navigate('UpdatePassword');
+        rootNavigate('UpdatePassword');
         break;
       case "Help Center":
-        navigation.navigate('HelpSupport');
+        rootNavigate('HelpSupport');
         break;
       case "Report a Problem":
         Alert.alert('Report a Problem', 'This feature will be implemented soon');
@@ -148,7 +149,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     if (onLoginPress) {
       onLoginPress();
     } else {
-      navigation.navigate('Auth');
+      rootNavigate('Auth');
     }
   };
 
@@ -285,15 +286,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar barStyle="light-content" />
-        <Header
-          title="Settings"
-          onBack={navigation.canGoBack() ? () => navigation.goBack() : null}
-          showProfile={false}
-        />
       {/* Content Area */}
-      <View style={homeStyles.flex1}>
+      <View style={{flex: 1}}>
         {loading ? (
-          <ScrollView style={homeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
+          <ScrollView style={themedHomeStyles.contentContainerPadding} showsVerticalScrollIndicator={false}>
             <ListItemSkeleton />
             <ListItemSkeleton />
             <ListItemSkeleton />
@@ -302,7 +298,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           <ScrollView 
             style={styles.content} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={homeStyles.contentContainerPadding}
+            contentContainerStyle={themedHomeStyles.contentContainerPadding}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -375,7 +371,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
           </View>
         )}
 
-            <View style={homeStyles.spacer} />
+            <View style={themedHomeStyles.spacer} />
           </ScrollView>
         )}
       </View>

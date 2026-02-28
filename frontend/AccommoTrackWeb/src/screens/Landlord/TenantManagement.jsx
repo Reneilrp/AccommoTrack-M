@@ -188,8 +188,8 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700 animate-pulse">
-                <Skeleton className="h-3 w-20 mb-3" />
-                <Skeleton className="h-8 w-12" />
+                <Skeleton className="h-8 w-12 mb-2" />
+                <Skeleton className="h-3 w-20" />
               </div>
             ))}
           </div>
@@ -270,24 +270,24 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Total Tenants</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Tenants</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Active</p>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Paid</p>
             <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.paid}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Paid</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Pending</p>
             <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter mb-1">Overdue</p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.overdue}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
           </div>
         </div>
 

@@ -102,7 +102,7 @@ class MessageController extends Controller
             'recipient_id' => 'required_without:conversation_id|exists:users,id',
             'property_id' => 'nullable|exists:properties,id',
             'message' => 'required_without:image|nullable|string|max:2000',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
         
         $userId = $actorUserId;
@@ -110,7 +110,16 @@ class MessageController extends Controller
         // Handle Image Upload
         $imageUrl = null;
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('message_images', 'public');
+            $file = $request->file('image');
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $image = $manager->read($file->getRealPath());
+            $image->scaleDown(width: 1920);
+            $encoded = $image->toWebp(80);
+            
+            $filename = 'msg_' . time() . '_' . uniqid() . '.webp';
+            $path = 'message_images/' . $filename;
+            
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, (string) $encoded);
             $imageUrl = $path;
         }
 

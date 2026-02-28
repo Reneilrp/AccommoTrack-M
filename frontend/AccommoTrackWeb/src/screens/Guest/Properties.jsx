@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import { propertyService } from '../../services/propertyServices';
+import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 
 // --- ROO DETAILS MODAL COMPONENT ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -77,7 +78,7 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
               <div>
                 <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-1">Monthly Rent</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl md:text-4xl font-black text-green-600 tracking-tight">₱{room.price.toLocaleString()}</span>
+                  <span className="text-3xl md:text-4xl font-bold text-green-600 tracking-tight">₱{room.price.toLocaleString()}</span>
                   <span className="text-gray-400 dark:text-gray-500 font-medium">/mo</span>
                 </div>
               </div>
@@ -206,18 +207,7 @@ const Properties = () => {
         ? fullProperty.rooms.find(r => r.id === room.id)
         : null;
       setSelectedRoomData({
-        room: fullRoom ? {
-          id: fullRoom.id,
-          name: fullRoom.room_type || fullRoom.type_label || 'Room',
-          image: fullRoom.images && fullRoom.images.length > 0 ? fullRoom.images[0] : 'https://via.placeholder.com/400x200?text=No+Image',
-          price: fullRoom.monthly_rate || 0,
-          status: fullRoom.status ? (fullRoom.status.charAt(0).toUpperCase() + fullRoom.status.slice(1)) : 'Available',
-          size: fullRoom.size || '',
-          capacity: fullRoom.capacity ? `${fullRoom.capacity} Person${fullRoom.capacity > 1 ? 's' : ''}` : '',
-          description: fullRoom.description || '',
-          amenities: fullRoom.amenities || [],
-          rules: fullRoom.rules || [],
-        } : room,
+        room: fullRoom ? mapRoom(fullRoom) : room,
         property: {
           id: fullProperty.id,
           name: fullProperty.title || fullProperty.name,
@@ -243,92 +233,68 @@ const Properties = () => {
     navigate(`/property/${propertyId}`);
   };
 
-  // Helper: Map backend room to UI room
-  const mapRoom = (room) => ({
-    id: room.id,
-    name: room.room_type || room.type_label || 'Room',
-    image: getImageUrl(room.images && room.images.length > 0 ? room.images[0] : null) || 'https://via.placeholder.com/400x200?text=No+Image',
-    price: room.monthly_rate || 0,
-    status: room.status ? (room.status.charAt(0).toUpperCase() + room.status.slice(1)) : 'Available',
-    reserved_by_me: room.reserved_by_me || false,
-    reservation: room.reservation || null,
-    size: room.size || '',
-    capacity: room.capacity ? `${room.capacity} Person${room.capacity > 1 ? 's' : ''}` : '',
-    description: room.description || '',
-    amenities: room.amenities || [],
-    rules: room.rules || [],
-  });
-
-  // Helper: Map backend property to UI property
-  const mapProperty = (property) => ({
-    id: property.id,
-    name: property.title || property.name,
-    location: property.full_address || property.city || '',
-    description: property.description || '',
-    rating: property.rating || null, // If available
-    rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom) : [],
-  });
-
   return (
     <>
-      <section id="properties" className="py-24 px-6 max-w-7xl mx-auto bg-gray-50 dark:bg-gray-900 min-h-screen">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
-          <div>
-            <span className="text-green-600 font-bold tracking-wider text-sm uppercase mb-2 block">
-              Featured Listings
-            </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
-              Latest Properties
-            </h2>
-          </div>
-          
-          <button 
-             onClick={() => navigate('/browse-properties')}
-             className="flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-colors group"
-          >
-             View all properties 
-             <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
-          </button>
+      <section id="properties" className="py-24 px-6 max-w-7xl mx-auto bg-transparent min-h-screen">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 gap-4">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
+            Latest Properties
+          </h2>
         </div>
 
-        {loading && (
-          <div className="text-center py-20 text-gray-500 dark:text-gray-400 text-lg">Loading properties...</div>
-        )}
-        {error && (
-          <div className="text-center py-20 text-red-500 dark:text-red-400 text-lg">{error}</div>
-        )}
-        {!loading && !error && properties.length === 0 && (
-          <div className="text-center py-20 text-gray-400 dark:text-gray-500 text-lg">No properties found.</div>
-        )}
+        <div className="bg-white dark:bg-gray-800/50 rounded-3xl p-6 md:px-10 md:py-8 border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-none">
+          <div className="flex justify-end mb-8">
+            <button 
+              onClick={() => navigate('/browse-properties')}
+              className="flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-colors group"
+            >
+              View all properties 
+              <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
 
-        {!loading && !error && (Array.isArray(properties) ? properties : []).map((property) => {
-          const mappedProperty = mapProperty(property);
-          return (
-            <div key={mappedProperty.id} className="mb-16 last:mb-0">
-              {/* PROPERTY HEADER: Clickable */}
-              <div 
-                className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-6 group/header cursor-pointer w-fit"
-                onClick={() => handlePropertyClick(mappedProperty.id)}
-              >
-                <div className="hidden md:block h-8 w-1 bg-green-600 rounded-full group-hover/header:scale-y-125 transition-transform"></div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white group-hover/header:text-green-600 transition-colors">
-                  {mappedProperty.name}
-                </h3>
-                {mappedProperty.location && (
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1 md:ml-2 group-hover/header:text-green-500 transition-colors">
-                    <MapPin className="w-4 h-4" />
-                    {mappedProperty.location}
-                  </span>
-                )}
-                {/* Visual cue that it's clickable */}
-                <div className="hidden md:flex opacity-0 group-hover/header:opacity-100 transition-opacity ml-2 items-center text-xs font-bold text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-md">
-                  View Profile &rarr;
+          {loading && (
+            <div className="text-center py-20 text-gray-500 dark:text-gray-400 text-lg">Loading properties...</div>
+          )}
+          {error && (
+            <div className="text-center py-20 text-red-500 dark:text-red-400 text-lg">{error}</div>
+          )}
+          {!loading && !error && properties.length === 0 && (
+            <div className="text-center py-20 text-gray-400 dark:text-gray-500 text-lg">No properties found.</div>
+          )}
+
+          {!loading && !error && (Array.isArray(properties) ? properties : [])
+            .sort((a, b) => b.id - a.id) // Sort by ID descending
+            .slice(0, 2) // Take only the first two
+            .map((property) => {
+              const mappedProperty = mapProperty(property);
+              return (
+                <div key={mappedProperty.id} className="mb-12 last:mb-0 bg-gray-50/50 dark:bg-gray-900/30 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-md hover:shadow-lg transition-shadow">
+                  {/* PROPERTY HEADER: Clickable */}
+                  <div 
+                    className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-8 group/header cursor-pointer w-fit"
+                    onClick={() => handlePropertyClick(mappedProperty.id)}
+                  >
+                    <div className="hidden md:block h-8 w-1 bg-green-600 rounded-full group-hover/header:scale-y-125 transition-transform"></div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white group-hover/header:text-green-600 transition-colors">
+                      {mappedProperty.name}
+                    </h3>
+                    {mappedProperty.location && (
+                      <span className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1 md:ml-2 group-hover/header:text-green-500 transition-colors">
+                        <MapPin className="w-4 h-4" />
+                        {mappedProperty.location}
+                      </span>
+                    )}
+                    {/* Visual cue that it's clickable */}
+                    <div className="hidden md:flex opacity-0 group-hover/header:opacity-100 transition-opacity ml-2 items-center text-xs font-bold text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-md">
+                      View Profile &rarr;
+                    </div>
+                  </div>
+                  <PropertyCarousel property={mappedProperty} onOpenDetails={handleOpenDetails} />
                 </div>
-              </div>
-              <PropertyCarousel property={mappedProperty} onOpenDetails={handleOpenDetails} />
-            </div>
-          );
-        })}
+              );
+          })}
+        </div>
       </section>
 
       {/* Render Room Details Modal if a room is selected */}

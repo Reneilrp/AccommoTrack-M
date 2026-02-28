@@ -44,10 +44,11 @@ const getStyles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
   loadingText: { marginTop: 12, fontSize: 16, color: theme.colors.textSecondary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  backButton: { padding: 4 },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: theme.colors.textInverse, marginLeft: 12 },
-  markAllButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'space-between' },
+  backButton: { width: 80, alignItems: 'flex-start' },
+  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: theme.colors.textInverse, textAlign: 'center' },
+  headerSide: { width: 80, alignItems: 'flex-end' },
+  markAllButton: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16 },
   markAllText: { color: theme.colors.textInverse, fontSize: 12, fontWeight: '600' },
   scrollView: { flex: 1 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
@@ -243,12 +244,21 @@ export default function TenantNotifications({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
+        
         <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Notifications</Text>
-        {unreadCount > 0 && (
-          <TouchableOpacity onPress={() => setNotifications((prev) => prev.map(n => ({...n, read: true})))} style={[styles.markAllButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <Text style={[styles.markAllText, { color: theme.colors.textInverse }]}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        
+        <View style={styles.headerSide}>
+          {unreadCount > 0 ? (
+            <TouchableOpacity 
+              onPress={() => setNotifications((prev) => prev.map(n => ({...n, read: true})))} 
+              style={styles.markAllButton}
+            >
+              <Text style={styles.markAllText}>Mark all</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
+        </View>
       </View>
 
       {/* Filter bar: type + date range */}

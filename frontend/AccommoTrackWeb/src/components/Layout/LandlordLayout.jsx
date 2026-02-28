@@ -166,7 +166,7 @@ export default function LandlordLayout({
         isSidebarOpen ? 'w-64' : 'w-20'
       } flex flex-col min-h-0`}>
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 
              className="cursor-pointer"
              onClick={() => navigate('/dashboard')}
@@ -360,7 +360,7 @@ export default function LandlordLayout({
           location.pathname === '/maintenance' ||
           location.pathname === '/reviews'
         ) && (
-          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-16 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
+          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
               {getPageTitle()}
             </h1>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, FlatList, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,7 @@ import { PropertyCardSkeleton } from '../../../../components/Skeletons';
 import Header from '../../components/Header.jsx';
 
 import PropertyService from '../../../../services/PropertyServices.js';
+import { navigate as rootNavigate } from '../../../../navigation/RootNavigation';
 
 export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequired }) {
   const navigation = useNavigation();
@@ -26,6 +27,10 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const [properties, setProperties] = useState([]);
+  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   // Filter options matching your screenshot and backend types
   const filterOptions = [
@@ -38,11 +43,11 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
   useEffect(() => {
     loadProperties();
-  }, []);
+  }, [selectedFilter]);
 
   useEffect(() => {
     filterProperties();
-  }, [properties, searchQuery, selectedFilter, activeTab]);
+  }, [properties, searchQuery, activeTab]);
 
   const loadProperties = async () => {
     try {
@@ -187,34 +192,34 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
     switch (itemTitle) {
       case 'Dashboard':
-        navigation.navigate('Dashboard');
+        rootNavigate('Dashboard');
         break;
       case 'Future UI Demo':
-        navigation.navigate('DemoUI');
+        rootNavigate('DemoUI');
         break;
       case 'Notifications':
-        navigation.navigate('Notifications');
+        rootNavigate('Notifications');
         break;
       case 'My Bookings':
-        navigation.navigate('MyBookings');
+        rootNavigate('MyBookings');
         break;
       case 'Favorites':
-        navigation.navigate('Favorites');
+        rootNavigate('Favorites');
         break;
       case 'Payments':
-        navigation.navigate('Payments');
+        rootNavigate('Payments');
         break;
       case 'Settings':
-        navigation.navigate('Settings');
+        rootNavigate('Settings');
         break;
       case 'Help & Support':
-        navigation.navigate('HelpSupport');
+        rootNavigate('HelpSupport');
         break;
       case 'My Maintenance Requests':
-        navigation.navigate('MyMaintenanceRequests');
+        rootNavigate('MyMaintenanceRequests');
         break;
       case 'My Addon Requests':
-        navigation.navigate('Addons');
+        rootNavigate('Addons');
         break;
       case 'Logout':
         if (isGuest) {

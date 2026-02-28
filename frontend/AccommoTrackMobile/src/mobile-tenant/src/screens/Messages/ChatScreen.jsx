@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import createEcho from '../../utils/echo';
 import MessageService from '../../../../services/MessageService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { showError } from '../../../../utils/toast';
 import { getStyles } from '../../../../styles/Tenant/MessagesPage';
+import { API_BASE_URL, BASE_URL } from '../../../../config';
 
 export default function ChatScreen({ navigation, route }) {
     const { theme } = useTheme();
@@ -16,6 +18,7 @@ export default function ChatScreen({ navigation, route }) {
     const queryClient = useQueryClient();
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');
+    const [selectedImage, setSelectedImage] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
 
     const scrollViewRef = useRef(null);
@@ -40,10 +43,11 @@ export default function ChatScreen({ navigation, route }) {
 
     // Send message mutation
     const sendMessageMutation = useMutation({
-        mutationFn: (text) => MessageService.sendMessage(conv.id, text),
+        mutationFn: ({ text, imageUri }) => MessageService.sendMessage(conv.id, text, imageUri),
         onSuccess: (result) => {
             if (result.success) {
                 setMessageText('');
+                setSelectedImage(null);
                 // Optimistically update or just invalidate
                 queryClient.setQueryData(['messages', conv.id], (old) => [...(old || []), result.data]);
                 scrollToBottom();
@@ -102,18 +106,57 @@ export default function ChatScreen({ navigation, route }) {
         setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     };
 
+    const handlePickImage = async () => {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+            Alert.alert('Permission required', 'Please allow photo library access to send images.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets.length > 0) {
+            const asset = result.assets[0];
+            if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+                Alert.alert('File too large', 'Image exceeds the 5MB limit.');
+                return;
+            }
+            setSelectedImage(asset.uri);
+        }
+    };
+
     const handleSendMessage = () => {
-        if (!messageText.trim() || !conv || sendMessageMutation.isPending) return;
-        sendMessageMutation.mutate(messageText.trim());
+        if ((!messageText.trim() && !selectedImage) || !conv || sendMessageMutation.isPending) return;
+        sendMessageMutation.mutate({ text: messageText.trim(), imageUri: selectedImage });
+    };
+
+    const getImageUrl = (imagePath) => {
+        if (!imagePath) return null;
+        if (imagePath.startsWith('http')) return imagePath;
+        const cleanPath = imagePath.replace(/^\/?(storage\/)?/, '');
+        return `${BASE_URL}/storage/${cleanPath}`;
     };
 
     const formatTime = (timestamp) => {
         if (!timestamp) return '';
         const date = new Date(timestamp);
         const now = new Date();
-        const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        if (diffDays === 1) return 'Yesterday';
+        
+        const isToday = date.toDateString() === now.toDateString();
+        const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
+        
+        // Reset now to today
+        const today = new Date();
+        const diffMs = today - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (isToday) {
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+        if (isYesterday) return 'Yesterday';
         if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
@@ -165,16 +208,18 @@ export default function ChatScreen({ navigation, route }) {
                     </TouchableOpacity>
 
                     <View style={styles.chatHeaderInfo}>
-                        <View style={styles.chatHeaderAvatar}>
+                        <View style={[styles.chatHeaderAvatar, { overflow: 'hidden' }]}>
                             {conv?.property?.image_url ? (
                                 <Image 
-                                    source={{ uri: conv.property.image_url }} 
-                                    style={styles.avatar} 
+                                    source={{ uri: getImageUrl(conv.property.image_url) }} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover"
                                 />
                             ) : conv?.other_user?.profile_image ? (
                                 <Image 
-                                    source={{ uri: conv.other_user.profile_image }} 
-                                    style={styles.avatar} 
+                                    source={{ uri: getImageUrl(conv.other_user.profile_image) }} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover"
                                 />
                             ) : (
                                 <Text style={styles.chatHeaderAvatarText}>{getInitials(conv)}</Text>
@@ -227,7 +272,16 @@ export default function ChatScreen({ navigation, route }) {
                                 <View key={msg.id} style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                                     <View style={[styles.messageContent, isMine ? styles.myMessageContent : styles.theirMessageContent]}>
                                         <View style={[styles.messageBubble, isMine ? styles.myMessageBubble : styles.theirMessageBubble, isMine && { backgroundColor: theme.colors.primary }]}>
-                                            <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                            {msg.image_url && (
+                                                <Image 
+                                                    source={{ uri: getImageUrl(msg.image_url) }} 
+                                                    style={{ width: 200, height: 200, borderRadius: 8, marginBottom: msg.message ? 8 : 0 }} 
+                                                    resizeMode="cover" 
+                                                />
+                                            )}
+                                            {msg.message ? (
+                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                            ) : null}
                                         </View>
                                         <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>{formatTime(msg.created_at)}</Text>
                                     </View>
@@ -237,12 +291,33 @@ export default function ChatScreen({ navigation, route }) {
                     )}
                 </ScrollView>
 
+                {/* Selected Image Preview */}
+                {selectedImage && (
+                    <View style={{ padding: 12, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }}>
+                        <View style={{ position: 'relative' }}>
+                            <Image source={{ uri: selectedImage }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+                            <TouchableOpacity 
+                                style={{ position: 'absolute', top: -8, right: -8, backgroundColor: theme.colors.error, borderRadius: 12 }}
+                                onPress={() => setSelectedImage(null)}
+                            >
+                                <Ionicons name="close-circle" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
                 {/* Input Area */}
                 <SafeAreaView edges={["bottom"]} style={{ backgroundColor: 'transparent' }}>
                     <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-                        <TouchableOpacity style={styles.attachButton}><Ionicons name="add-circle" size={28} color={theme.colors.primary} /></TouchableOpacity>
+                        <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
+                            <Ionicons name="image" size={28} color={theme.colors.primary} />
+                        </TouchableOpacity>
                         <TextInput style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]} placeholder="Type a message..." placeholderTextColor="#9CA3AF" value={messageText} onChangeText={setMessageText} multiline />
-                        <TouchableOpacity style={[styles.sendButton, (!messageText.trim() || sendMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() || sendMessageMutation.isPending) && { backgroundColor: theme.colors.primary }]} onPress={handleSendMessage} disabled={!messageText.trim() || sendMessageMutation.isPending}>
+                        <TouchableOpacity 
+                            style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && { backgroundColor: theme.colors.primary }]} 
+                            onPress={handleSendMessage} 
+                            disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending}
+                        >
                             {sendMessageMutation.isPending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
                         </TouchableOpacity>
                     </View>

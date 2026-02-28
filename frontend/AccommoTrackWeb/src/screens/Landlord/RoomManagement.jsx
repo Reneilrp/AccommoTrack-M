@@ -459,8 +459,8 @@ export default function RoomManagement() {
             // SKELETON CARDS (same size as RoomCard)
             [...Array(3)].map((_, i) => (
               <div key={i} className="h-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse flex flex-col h-full">
-                  <div className="relative h-48 bg-gray-200" />
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden animate-pulse flex flex-col h-full">
+                  <div className="relative h-48 bg-gray-200 dark:bg-gray-700" />
                   <div className="p-4 flex flex-col h-full">
                     <div className="flex justify-between items-start mb-3">
                       <div>

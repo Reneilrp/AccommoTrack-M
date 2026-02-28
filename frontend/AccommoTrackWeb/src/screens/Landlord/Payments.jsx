@@ -428,7 +428,7 @@ export default function Payments() {
             <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full overflow-hidden shadow-2xl">
               <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                 <div>
-                  <h3 className="text-xl font-black dark:text-white text-gray-900 uppercase tracking-tight">Manage Invoice</h3>
+                  <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">Manage Invoice</h3>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-1">REF: {selectedInvoice.reference || `INV-${selectedInvoice.id}`}</p>
                 </div>
                 <button onClick={() => setShowInvoiceModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">

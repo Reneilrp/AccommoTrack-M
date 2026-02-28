@@ -64,8 +64,45 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   }, []);
 
   // Hide header/bottom nav on routes that implement their own header/navigation
-  const hideHeaderRoutes = new Set(['Settings','Profile', 'UpdatePassword', 'NotificationPreferences', 'HelpSupport', 'AccommodationDetails', 'RoomsList', 'RoomDetails', 'Chat', 'CreateMaintenanceRequest', 'Addons', 'BookingDetails']);
-  const hideBottomRoutes = new Set(['Profile', 'UpdatePassword', 'NotificationPreferences', 'HelpSupport', 'AccommodationDetails', 'RoomsList', 'RoomDetails', 'Chat', 'CreateMaintenanceRequest', 'Addons', 'BookingDetails']);
+  const hideHeaderRoutes = new Set([
+    'Profile', 
+    'UpdatePassword', 
+    'NotificationPreferences', 
+    'HelpSupport', 
+    'AccommodationDetails', 
+    'RoomsList', 
+    'RoomDetails', 
+    'Chat', 
+    'CreateMaintenanceRequest', 
+    'Addons', 
+    'BookingDetails',
+    'ReportProperty',
+    'LeaveReview',
+    'MyReviews',
+    'PaymentDetail',
+    'PaymentHistory',
+    'Notifications'
+  ]);
+  
+  const hideBottomRoutes = new Set([
+    'Profile', 
+    'UpdatePassword', 
+    'NotificationPreferences', 
+    'HelpSupport', 
+    'AccommodationDetails', 
+    'RoomsList', 
+    'RoomDetails', 
+    'Chat', 
+    'CreateMaintenanceRequest', 
+    'Addons', 
+    'BookingDetails',
+    'ReportProperty',
+    'LeaveReview',
+    'MyReviews',
+    'PaymentDetail',
+    'PaymentHistory',
+    'Notifications'
+  ]);
   
   // Also respect explicit route param hideLayout=true
   const hideLayoutParam = activeRouteParams?.hideLayout === true;
@@ -129,19 +166,34 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     }
   }, [activeRouteName, activeRouteParams, showBottom]);
 
+  // Determine header right button icon and action
+  const isProfileRoute = activeRouteName === 'TenantHome' || activeRouteName === 'Messages';
+  
+  const handleRightPress = () => {
+    if (isProfileRoute) {
+      if (isGuest) {
+        onAuthRequired?.();
+      } else {
+        navigate('Profile');
+      }
+    } else {
+      // Default to notifications for Dashboard and MyBookings
+      if (isGuest) {
+        onAuthRequired?.();
+      } else {
+        navigate('Notifications');
+      }
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {showHeader && (
         <Header
           title={title}
           onMenuPress={() => navigate('MenuModal')}
-          onProfilePress={() => {
-            if (isGuest) {
-              onAuthRequired?.();
-            } else {
-              navigate('Profile');
-            }
-          }}
+          rightIcon={isProfileRoute ? 'person-outline' : 'notifications-outline'}
+          onRightPress={handleRightPress}
         />
       )}
 

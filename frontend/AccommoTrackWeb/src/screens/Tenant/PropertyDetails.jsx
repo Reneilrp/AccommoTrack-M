@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
 import {
   MapPin,
   Star,
@@ -11,6 +12,8 @@ import {
   Maximize,
   ArrowLeft,
   MessageCircle,
+  Play,
+  X,
 } from 'lucide-react';
 import api from '../../utils/api'; 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -47,6 +50,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   const [roomFilter, setRoomFilter] = useState('available');
 
+  // Video State
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+
   // Reviews State
   const [reviews, setReviews] = useState({ reviews: [], summary: null });
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -68,7 +74,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // Contact Landlord handler
   const handleContactLandlord = () => {
     if (!isAuthenticated) {
-      alert("Please login to contact the landlord.");
+      toast.error("Please login to contact the landlord.", {
+        position: 'top-center',
+        duration: 4000,
+      });
       return;
     }
     
@@ -76,7 +85,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
     
     if (!landlordId) {
       console.error("Landlord ID missing", property);
-      alert("Cannot contact landlord: Owner information is missing.");
+      toast.error("Cannot contact landlord: Owner information is missing.", {
+        position: 'top-center',
+      });
       return;
     }
 
@@ -494,6 +505,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
+      <Toaster />
       {/* HEADER */}
       <div className="relative w-full h-[350px] md:h-[450px]">
         <img
@@ -507,9 +519,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
           <div className="mt-4 flex justify-between items-start">
             <button 
               onClick={onBack} 
-              className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white p-2 rounded-full transition-all"
+              className="z-[10] bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 text-gray-900 dark:text-white p-2.5 rounded-full transition-all shadow-lg border border-gray-200 dark:border-gray-700 group"
+              aria-label="Go back"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6 text-green-600 group-hover:scale-110 transition-transform" />
             </button>
             
             {/* Contact Landlord Button */}
@@ -534,9 +547,23 @@ export default function PropertyDetails({ propertyId, onBack }) {
               )}
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold mb-2 tracking-tight">{property.title}</h1>
-            <div className="flex items-center gap-2 text-white/90 text-sm md:text-base">
-              <MapPin className="w-5 h-5 text-green-400" />
-              <span>{property.street_address}, {property.barangay}, {property.city}</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-white/90 text-sm md:text-base">
+                <MapPin className="w-5 h-5 text-green-400" />
+                <span>{property.street_address}, {property.barangay}, {property.city}</span>
+              </div>
+              
+              {property.video_url && (
+                <button 
+                  onClick={() => setVideoModalOpen(true)}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-xl group self-start"
+                >
+                  <div className="p-1.5 bg-white/20 rounded-full">
+                    <Play className="w-5 h-5 fill-white" />
+                  </div>
+                  Watch Video Tour
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -591,6 +618,32 @@ export default function PropertyDetails({ propertyId, onBack }) {
             onBookingSuccess={handleBookingSuccessForProperty}
             bookingService={bookingService}
         />
+      )}
+
+      {/* VIDEO PLAYER MODAL */}
+      {videoModalOpen && property.video_url && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <button 
+            onClick={() => setVideoModalOpen(false)}
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:rotate-90 z-[5001]"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <div className="w-full max-w-5xl aspect-video relative mx-4 shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-black">
+            <video 
+              src={property.video_url} 
+              className="w-full h-full object-contain"
+              controls 
+              autoPlay
+              playsInline
+            />
+          </div>
+          
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+            Property Video Tour • 45s Max Duration
+          </div>
+        </div>
       )}
     </div>
   );

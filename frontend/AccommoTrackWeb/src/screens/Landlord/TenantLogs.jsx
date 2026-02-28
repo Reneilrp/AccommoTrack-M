@@ -220,9 +220,9 @@ export default function TenantLogs() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Column 1: Profile */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
-            <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
+            <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 font-black text-lg">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold text-lg">
                 {tenant?.first_name?.charAt(0) || tenant?.name?.charAt(0) || '?'}
               </div>
               <div>
@@ -233,15 +233,15 @@ export default function TenantLogs() {
             
             <div className="space-y-4">
               <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase mb-1">Current Room</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Current Room</p>
                 <p className="font-bold text-sm text-gray-900 dark:text-gray-200">
                   {currentRoom ? `Room ${currentRoom.room_number} • ${currentRoom.type_label || 'Active'}` : 'No active room'}
                 </p>
               </div>
 
               <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
-                <p className="text-[10px] font-black text-red-400 uppercase mb-1">Total Outstanding</p>
-                <p className="font-black text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
+                <p className="text-[10px] font-bold text-red-400 uppercase mb-1">Total Outstanding</p>
+                <p className="font-bold text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function TenantLogs() {
                 <button
                   key={f}
                   onClick={() => setPaymentFilter(f)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
                 >
                   {f}
                 </button>
