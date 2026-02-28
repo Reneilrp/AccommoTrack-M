@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, MessageCircle, Phone, HelpCircle, BookOpen, Clock } from 'lucide-react';
 import InquiryModal from '../../components/Modals/InquiryModal';
 import { helpService } from '../../services/helpService';
+import Footer from '../../components/Shared/Footer';
 
 const Help = () => {
   const navigate = useNavigate();
@@ -118,6 +119,7 @@ const Help = () => {
 
       {/* Inquiry Modal */}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
+      <Footer />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import HomePage from './HomePage';
 import Properties from './Properties';
 import Service from './Service';
 import About from './About';
+import Footer from '../../components/Shared/Footer';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { Sun, Moon, Menu } from 'lucide-react';
 
@@ -155,6 +156,7 @@ const LandingPage = ({ user }) => {
       <div id="about" className="scroll-mt-20">
         <About />
       </div>
+      <Footer />
     
     </div>
   );

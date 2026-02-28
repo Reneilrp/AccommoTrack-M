@@ -16,9 +16,9 @@ const Service = ({ onGetStarted }) => (
         AccommoTrack offers a suite of tools for tenants and landlords to make property management, searching, and booking seamless and secure.
       </p>
 
-      <div className="flex flex-col md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-16 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible snap-y snap-mandatory no-scrollbar p-1">
+      <div className="flex flex-col md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-16 p-1">
         {/* Service Card 1 */}
-        <div className="flex-none w-full md:w-auto snap-start bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
+        <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
           <div className="bg-blue-50 dark:bg-blue-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             🔍
           </div>
@@ -27,7 +27,7 @@ const Service = ({ onGetStarted }) => (
         </div>
 
         {/* Service Card 2 */}
-        <div className="flex-none w-full md:w-auto snap-start bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
+        <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
           <div className="bg-green-50 dark:bg-green-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             📝
           </div>
@@ -36,7 +36,7 @@ const Service = ({ onGetStarted }) => (
         </div>
 
         {/* Service Card 3 */}
-        <div className="flex-none w-full md:w-auto snap-start bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
+        <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
           <div className="bg-purple-50 dark:bg-purple-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             🏢
           </div>
@@ -45,7 +45,7 @@ const Service = ({ onGetStarted }) => (
         </div>
 
         {/* Service Card 4 */}
-        <div className="flex-none w-full md:w-auto snap-start bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
+        <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
           <div className="bg-orange-50 dark:bg-orange-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             💳
           </div>

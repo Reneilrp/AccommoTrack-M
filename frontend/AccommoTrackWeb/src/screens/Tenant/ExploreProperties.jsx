@@ -11,6 +11,7 @@ import bookingService from '../../services/bookingService';
 import { propertyService } from '../../services/propertyServices';
 import { useUIState } from "../../contexts/UIStateContext";
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
+import Footer from '../../components/Shared/Footer';
 
 const ExploreProperties = () => {
   const navigate = useNavigate();
@@ -833,6 +834,7 @@ const ExploreProperties = () => {
         </div>
       )}
 
+      <Footer />
     </div>
   );
 };
