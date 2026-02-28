@@ -17,6 +17,7 @@ import { DashboardStatSkeleton, PropertyCardSkeleton, BookingCardSkeleton } from
 import { showError } from '../../../../utils/toast';
 import Header from '../../components/Header.jsx';
 import { getStyles } from '../../../../styles/Tenant/DashboardScreen.js';
+import { BASE_URL } from '../../../../config';
 
 const DashboardScreen = () => {
   const navigation = useNavigation();
@@ -111,7 +112,7 @@ const DashboardScreen = () => {
     imagePath = imagePath.trim();
     if (imagePath.startsWith('http')) return imagePath;
 
-    const base = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.4:8000';
+    const base = BASE_URL;
     // If already starts with /storage, just prefix base
     if (imagePath.startsWith('/storage')) return `${base}${imagePath}`;
     // If contains storage segment already, ensure no duplicate slashes

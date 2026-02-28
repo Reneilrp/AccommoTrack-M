@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
-import { BASE_URL as API_BASE_URL } from '../../../config';
+import { API_BASE_URL, BASE_URL } from '../../../config';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function PropertyCard({ accommodation, property, onPress }) {
@@ -34,7 +34,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
       // If it's a relative path, construct full URL
       // Remove any leading 'storage/' if present since backend adds it
       const cleanPath = item.image.replace(/^\/?(storage\/)?/, '');
-      return { uri: `${API_BASE_URL}/storage/${cleanPath}` };
+      return { uri: `${BASE_URL}/storage/${cleanPath}` };
     }
 
     return item.image;

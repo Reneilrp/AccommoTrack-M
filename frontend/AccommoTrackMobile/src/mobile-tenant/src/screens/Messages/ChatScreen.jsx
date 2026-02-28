@@ -144,9 +144,19 @@ export default function ChatScreen({ navigation, route }) {
         if (!timestamp) return '';
         const date = new Date(timestamp);
         const now = new Date();
-        const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        if (diffDays === 1) return 'Yesterday';
+        
+        const isToday = date.toDateString() === now.toDateString();
+        const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
+        
+        // Reset now to today
+        const today = new Date();
+        const diffMs = today - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (isToday) {
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+        if (isYesterday) return 'Yesterday';
         if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
