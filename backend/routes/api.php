@@ -247,7 +247,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/inquiries', [InquiryController::class, 'index']);
         Route::patch('/inquiries/{id}', [InquiryController::class, 'update']);
         Route::delete('/inquiries/{id}', [InquiryController::class, 'destroy']);
-	Route::post('/inquiries/{id}/reply', [InquiryController::class, 'reply']);
+	    Route::post('/inquiries/{id}/reply', [InquiryController::class, 'reply']);
 
         // Admin: list all landlord verifications
         Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);
