@@ -9,7 +9,7 @@ import createEcho from '../../../../services/echo';
 import MessageService from '../../../../services/MessageService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { getStyles } from '../../../../styles/Landlord/Messages';
-import { BASE_URL as API_BASE_URL } from '../../../../config';
+import { API_BASE_URL, BASE_URL } from '../../../../config';
 
 export default function ChatScreen({ navigation, route }) {
     const { theme } = useTheme();
@@ -132,7 +132,8 @@ export default function ChatScreen({ navigation, route }) {
     const getImageUrl = (imagePath) => {
         if (!imagePath) return null;
         if (imagePath.startsWith('http')) return imagePath;
-        return `${API_BASE_URL}/storage/${imagePath.replace(/^\/?(storage\/)?/, '')}`;
+        const cleanPath = imagePath.replace(/^\/?(storage\/)?/, '');
+        return `${BASE_URL}/storage/${cleanPath}`;
     };
 
     const formatTime = (timestamp) => {
@@ -173,8 +174,16 @@ export default function ChatScreen({ navigation, route }) {
                     </TouchableOpacity>
 
                     <View style={styles.chatHeaderInfo}>
-                        <View style={styles.chatHeaderAvatar}>
-                            <Text style={styles.chatHeaderAvatarText}>{getInitials(tenant)}</Text>
+                        <View style={[styles.chatHeaderAvatar, { overflow: 'hidden' }]}>
+                            {tenant?.profile_image ? (
+                                <Image 
+                                    source={{ uri: getImageUrl(tenant.profile_image) }} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover"
+                                />
+                            ) : (
+                                <Text style={styles.chatHeaderAvatarText}>{getInitials(tenant)}</Text>
+                            )}
                         </View>
                         <View style={styles.chatHeaderText}>
                             <Text style={styles.chatHeaderName} numberOfLines={1}>

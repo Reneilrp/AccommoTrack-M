@@ -54,6 +54,22 @@ const LandlordDashboardService = {
         }
     },
 
+    async fetchUnreadNotificationsCount() {
+        try {
+            const response = await api.get('/notifications/unread-count');
+            return {
+                success: true,
+                data: response.data.count ?? response.data
+            };
+        } catch (error) {
+            console.error('Failed to fetch unread notification count:', error);
+            return {
+                success: false,
+                data: 0
+            };
+        }
+    },
+
     async fetchPropertyActivities(propertyId) {
         try {
             const response = await api.get(`/landlord/dashboard/recent-activities?property_id=${propertyId}`);

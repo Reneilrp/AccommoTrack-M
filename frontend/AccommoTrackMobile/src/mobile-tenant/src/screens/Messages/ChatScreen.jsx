@@ -10,7 +10,7 @@ import MessageService from '../../../../services/MessageService';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { showError } from '../../../../utils/toast';
 import { getStyles } from '../../../../styles/Tenant/MessagesPage';
-import { BASE_URL as API_BASE_URL } from '../../../../config';
+import { API_BASE_URL, BASE_URL } from '../../../../config';
 
 export default function ChatScreen({ navigation, route }) {
     const { theme } = useTheme();
@@ -136,7 +136,8 @@ export default function ChatScreen({ navigation, route }) {
     const getImageUrl = (imagePath) => {
         if (!imagePath) return null;
         if (imagePath.startsWith('http')) return imagePath;
-        return `${API_BASE_URL}/storage/${imagePath.replace(/^\/?(storage\/)?/, '')}`;
+        const cleanPath = imagePath.replace(/^\/?(storage\/)?/, '');
+        return `${BASE_URL}/storage/${cleanPath}`;
     };
 
     const formatTime = (timestamp) => {
@@ -197,16 +198,18 @@ export default function ChatScreen({ navigation, route }) {
                     </TouchableOpacity>
 
                     <View style={styles.chatHeaderInfo}>
-                        <View style={styles.chatHeaderAvatar}>
+                        <View style={[styles.chatHeaderAvatar, { overflow: 'hidden' }]}>
                             {conv?.property?.image_url ? (
                                 <Image 
-                                    source={{ uri: conv.property.image_url }} 
-                                    style={styles.avatar} 
+                                    source={{ uri: getImageUrl(conv.property.image_url) }} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover"
                                 />
                             ) : conv?.other_user?.profile_image ? (
                                 <Image 
-                                    source={{ uri: conv.other_user.profile_image }} 
-                                    style={styles.avatar} 
+                                    source={{ uri: getImageUrl(conv.other_user.profile_image) }} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover"
                                 />
                             ) : (
                                 <Text style={styles.chatHeaderAvatarText}>{getInitials(conv)}</Text>

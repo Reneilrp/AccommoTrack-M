@@ -833,22 +833,30 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                     </TouchableOpacity>
                   </View>
                   <View style={{ marginTop: 10, paddingHorizontal: 5, marginBottom: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.minLen ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.minLen ? '#16a34a' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.minLen ? '#16a34a' : '#9CA3AF' }}>Minimum 8 characters</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.hasUpper ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasUpper ? '#16a34a' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.hasUpper ? '#16a34a' : '#9CA3AF' }}>At least one uppercase letter</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.hasLower ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasLower ? '#16a34a' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.hasLower ? '#16a34a' : '#9CA3AF' }}>At least one lowercase letter</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                      <Ionicons name={passwordChecks.hasNumber ? "checkmark-circle" : "ellipse-outline"} size={16} color={passwordChecks.hasNumber ? '#16a34a' : '#9CA3AF'} />
-                      <Text style={{ marginLeft: 5, color: passwordChecks.hasNumber ? '#16a34a' : '#9CA3AF' }}>At least one number</Text>
-                    </View>
+                    {!passwordChecks.minLen && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                        <Text style={{ marginLeft: 5, color: '#9CA3AF' }}>Minimum 8 characters</Text>
+                      </View>
+                    )}
+                    {!passwordChecks.hasUpper && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                        <Text style={{ marginLeft: 5, color: '#9CA3AF' }}>At least one uppercase letter</Text>
+                      </View>
+                    )}
+                    {!passwordChecks.hasLower && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                        <Text style={{ marginLeft: 5, color: '#9CA3AF' }}>At least one lowercase letter</Text>
+                      </View>
+                    )}
+                    {!passwordChecks.hasNumber && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                        <Ionicons name="ellipse-outline" size={16} color='#9CA3AF' />
+                        <Text style={{ marginLeft: 5, color: '#9CA3AF' }}>At least one number</Text>
+                      </View>
+                    )}
                   </View>
                   {fieldErrors.password && <Text style={styles.inlineErrorText}>{fieldErrors.password}</Text>}
 

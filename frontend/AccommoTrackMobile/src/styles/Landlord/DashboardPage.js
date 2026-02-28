@@ -123,6 +123,22 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
   },
+  statCardBlue: {
+    backgroundColor: theme.isDark ? '#1E293B' : '#EFF6FF',
+    borderColor: theme.isDark ? '#334155' : '#DBEAFE',
+  },
+  statCardGreen: {
+    backgroundColor: theme.isDark ? '#064E3B' : '#F0FDF4',
+    borderColor: theme.isDark ? '#065F46' : '#DCFCE7',
+  },
+  statCardPurple: {
+    backgroundColor: theme.isDark ? '#4C1D95' : '#FAF5FF',
+    borderColor: theme.isDark ? '#5B21B6' : '#F3E8FF',
+  },
+  statCardAmber: {
+    backgroundColor: theme.isDark ? '#78350F' : '#FFFBEB',
+    borderColor: theme.isDark ? '#92400E' : '#FEF3C7',
+  },
   statIconContainer: {
     width: 48,
     height: 48,
@@ -150,6 +166,28 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textSecondary,
     marginTop: 2
+  },
+  chartContainer: {
+    marginTop: 24,
+    marginHorizontal: 16,
+    padding: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: theme.isDark ? 0.3 : 0.05,
+    shadowRadius: 2,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    alignSelf: 'flex-start',
+    marginBottom: 16
   },
   section: {
     padding: 20,

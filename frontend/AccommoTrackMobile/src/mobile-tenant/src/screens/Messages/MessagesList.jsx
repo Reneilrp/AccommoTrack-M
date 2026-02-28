@@ -5,6 +5,27 @@ import { Ionicons } from '@expo/vector-icons';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
 import { ConversationSkeleton, DashboardStatSkeleton } from '../../../../components/Skeletons';
 
+const formatTime = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  
+  const isToday = date.toDateString() === now.toDateString();
+  const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
+  
+  // Reset now to today
+  const today = new Date();
+  const diffMs = today - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (isToday) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+  if (isYesterday) return 'Yesterday';
+  if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 export default function MessagesList({
     theme,
     styles,
@@ -146,7 +167,7 @@ export default function MessagesList({
                                         <View style={styles.conversationInfo}>
                                             <View style={styles.conversationHeader}>
                                                 <Text style={[styles.conversationName, { color: theme.colors.text }]}>{conv.property?.title || `${conv.other_user?.first_name || ''} ${conv.other_user?.last_name || ''}`.trim()}</Text>
-                                                <Text style={styles.conversationTime}>{conv.last_message_at ? new Date(conv.last_message_at).toLocaleString() : ''}</Text>
+                                                <Text style={styles.conversationTime}>{formatTime(conv.last_message_at)}</Text>
                                             </View>
                                             <Text style={styles.propertyName}>{conv.other_user?.role ? conv.other_user.role.charAt(0).toUpperCase() + conv.other_user.role.slice(1) : 'Landlord'}</Text>
                                             <Text style={styles.lastMessage} numberOfLines={1}>{conv.last_message?.message || 'No messages yet'}</Text>

@@ -82,9 +82,9 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: theme.colors.backgroundSecondary,
-    borderRadius: 8,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
   },
   dateItem: {
     flex: 1,
@@ -216,9 +216,10 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
@@ -295,7 +296,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: 'transparent',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
@@ -314,6 +315,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   tableCell: {
     fontSize: 13,
@@ -325,9 +327,10 @@ export const getStyles = (theme) => StyleSheet.create({
   // Addon Styles
   addonSection: {
     padding: 16,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderTopWidth: 1,
     borderColor: theme.colors.border,
     marginTop: 16,
   },
@@ -344,6 +347,8 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: 'transparent',
     marginBottom: 8,
   },
   addonInfo: {
@@ -358,6 +363,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.primaryLight,
   },
   addonName: {
     fontSize: 14,

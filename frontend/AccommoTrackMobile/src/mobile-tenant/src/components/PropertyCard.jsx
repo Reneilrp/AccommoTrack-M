@@ -69,7 +69,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
       onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true }).start()}
       onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start()}
       onPress={() => onPress(item)}
-      activeOpacity={1}
+      activeOpacity={0.8}
     >
       {/* Image Section */}
       <View style={styles.imageContainer}>

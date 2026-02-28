@@ -100,30 +100,28 @@ export default function MyBookings() {
 
   const renderTabs = () => (
     <View style={styles.tabsContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            onPress={() => setActiveTab(tab.id)}
-            style={[
-              styles.tab,
-              activeTab === tab.id && styles.activeTab
-            ]}
-          >
-            <Ionicons 
-              name={tab.icon} 
-              size={18} 
-              color={activeTab === tab.id ? theme.colors.textInverse : theme.colors.textSecondary} 
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === tab.id && styles.activeTabText
-            ]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {TABS.map((tab) => (
+        <TouchableOpacity
+          key={tab.id}
+          onPress={() => setActiveTab(tab.id)}
+          style={[
+            styles.tab,
+            activeTab === tab.id && styles.activeTab
+          ]}
+        >
+          <Ionicons 
+            name={tab.icon} 
+            size={18} 
+            color={activeTab === tab.id ? theme.colors.textInverse : theme.colors.textSecondary} 
+          />
+          <Text style={[
+            styles.tabText,
+            activeTab === tab.id && styles.activeTabText
+          ]}>
+            {tab.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 

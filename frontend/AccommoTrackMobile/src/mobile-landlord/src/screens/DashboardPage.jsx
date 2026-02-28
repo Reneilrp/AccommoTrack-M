@@ -7,8 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert
+  Alert,
+  Dimensions
 } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,7 @@ import MenuDrawer from '../components/MenuDrawer';
 import PropertyService from '../../../services/PropertyServices';
 import ProfileService from '../../../services/ProfileService';
 import LandlordDashboardService from '../../../services/LandlordDashboardService';
+
 
 const activityColorMap = {
   green: { bg: '#DCFCE7', fg: '#166534' },
@@ -77,6 +80,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [firstProperty, setFirstProperty] = useState(null);
   const [loadingProperty, setLoadingProperty] = useState(true);
@@ -138,6 +142,18 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     }
   }, []);
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await LandlordDashboardService.fetchUnreadNotificationsCount();
+      if (isMountedRef.current && response.success) {
+        const count = typeof response.data === 'object' ? response.data.count : response.data;
+        setUnreadNotificationCount(Number(count) || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
   const initializeDashboard = useCallback(async () => {
     if (!isMountedRef.current) return;
     
@@ -145,7 +161,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     setDashboardError('');
     
     try {
-      await Promise.all([fetchDashboard(), fetchVerification()]);
+      await Promise.all([fetchDashboard(), fetchVerification(), fetchUnreadCount()]);
     } catch (error) {
       if (isMountedRef.current) {
         setDashboardError(error.message || 'Failed to initialize dashboard');
@@ -155,7 +171,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
         setDashboardLoading(false);
       }
     }
-  }, [fetchDashboard]);
+  }, [fetchDashboard, fetchVerification, fetchUnreadCount]);
 
   useEffect(() => {
     initializeDashboard();
@@ -190,9 +206,9 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchDashboard(), fetchFirstProperty(), fetchVerification()]);
+    await Promise.all([fetchDashboard(), fetchFirstProperty(), fetchVerification(), fetchUnreadCount()]);
     setRefreshing(false);
-  }, [fetchDashboard, fetchFirstProperty, fetchVerification]);
+  }, [fetchDashboard, fetchFirstProperty, fetchVerification, fetchUnreadCount]);
 
   const handleRetry = () => {
     initializeDashboard();
@@ -236,35 +252,6 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
     if (parts.length > 0) return parts.join(', ');
     return 'Location not set';
   };
-
-  const [recentActivity] = useState([
-    {
-      id: 1,
-      type: 'payment',
-      title: 'Payment received from John Doe',
-      subtitle: 'Room 101 • 2 hours ago',
-      amount: 5000,
-      icon: 'checkmark-circle',
-      iconColor: '#16a34a'
-    },
-    {
-      id: 2,
-      type: 'inquiry',
-      title: 'New tenant inquiry',
-      subtitle: 'Sarah Williams • 5 hours ago',
-      icon: 'person-add',
-      iconColor: '#2196F3'
-    },
-    {
-      id: 3,
-      type: 'maintenance',
-      title: 'Maintenance request',
-      subtitle: 'Room 203 • 1 day ago',
-      icon: 'warning',
-      iconColor: '#FF9800'
-    }
-  ]);
- 
 
   const stats = dashboardData.stats;
   const activities = dashboardData.activities || [];
@@ -326,7 +313,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
             Verification: {verificationStatus.status.replace('_', ' ').toUpperCase()}
           </Text>
           <Text style={styles.bannerText}>
-            {isRejected ? "Your documents were rejected. Tap to view reason." : 
+            {isRejected ? (verificationStatus.rejection_reason || "Your documents were rejected. Tap to view reason.") : 
              isPending ? "Your documents are being reviewed." : 
              "Submit your documents to verify your account."}
           </Text>
@@ -389,9 +376,11 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
           onPress={() => navigation.navigate('Notifications')}
         >
           <Ionicons name="notifications-outline" size={20} color="#fff" />
-          {pendingNotifications > 0 && (
+          {unreadNotificationCount > 0 && (
             <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>{pendingNotifications}</Text>
+              <Text style={styles.notificationBadgeText}>
+                {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
@@ -414,37 +403,37 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
         <View style={styles.statsContainer}>
           <View style={styles.statsGrid}>
             {/* Total Properties */}
-            <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: '#EEF2FF' }]}>
-                <Ionicons name="business" size={24} color="#6366F1" />
+            <View style={[styles.statCard, styles.statCardBlue]}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="business" size={24} color="#1D4ED8" />
               </View>
               <Text style={styles.statValue}>{stats?.properties?.total ?? 0}</Text>
               <Text style={styles.statLabel}>Total Properties</Text>
-                <View style={[styles.statBadge, { backgroundColor: theme.colors.successLight }]}>
-                <Text style={[styles.statBadgeText, { color: theme.colors.primary }]}>
+                <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
+                <Text style={[styles.statBadgeText, { color: '#1D4ED8' }]}>
                   {stats?.properties?.active ?? 0} Active
                 </Text>
               </View>
             </View>
 
             {/* Total Rooms */}
-            <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
-                <Ionicons name="home" size={24} color={theme.colors.primary} />
+            <View style={[styles.statCard, styles.statCardGreen]}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="home" size={24} color="#166534" />
               </View>
               <Text style={styles.statValue}>{stats?.rooms?.total ?? 0}</Text>
               <Text style={styles.statLabel}>Total Rooms</Text>
-              <View style={[styles.statBadge, { backgroundColor: '#DBEAFE' }]}>
-                <Text style={[styles.statBadgeText, { color: '#2563EB' }]}>
+              <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                <Text style={[styles.statBadgeText, { color: '#166534' }]}>
                   {stats?.rooms?.occupancyRate ?? 0}% Occupied
                 </Text>
               </View>
             </View>
 
             {/* Bookings */}
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, styles.statCardPurple]}>
               <View style={[styles.statIconContainer, { backgroundColor: '#F3E8FF' }]}>
-                <Ionicons name="calendar" size={24} color="#9333EA" />
+                <Ionicons name="calendar" size={24} color="#7E22CE" />
               </View>
               <Text style={styles.statValue}>{(stats?.bookings?.pending ?? 0) + (stats?.bookings?.confirmed ?? 0)}</Text>
               <Text style={styles.statLabel}>Total Bookings</Text>
@@ -455,8 +444,8 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
                   </Text>
                 </View>
               ) : (
-                <View style={[styles.statBadge, { backgroundColor: theme.colors.successLight }]}>
-                    <Text style={[styles.statBadgeText, { color: theme.colors.primary }]}>
+                <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.statBadgeText, { color: '#166534' }]}>
                       {stats?.bookings?.confirmed ?? 0} Confirmed
                     </Text>
                   </View>
@@ -464,19 +453,65 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
             </View>
 
             {/* Monthly Revenue */}
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, styles.statCardAmber]}>
               <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="cash" size={24} color="#F59E0B" />
+                <Ionicons name="cash" size={24} color="#B45309" />
               </View>
               <Text style={styles.statValue}>₱{(stats?.revenue?.monthly ?? 0).toLocaleString()}</Text>
               <Text style={styles.statLabel}>Monthly Revenue</Text>
-              <View style={[styles.statBadge, { backgroundColor: theme.colors.successLight, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                <Ionicons name="trending-up" size={12} color={theme.colors.primary} />
-                <Text style={[styles.statBadgeText, { color: theme.colors.primary }]}>This Month</Text>
+              <View style={[styles.statBadge, { backgroundColor: '#FEF3C7', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                <Ionicons name="trending-up" size={12} color="#B45309" />
+                <Text style={[styles.statBadgeText, { color: '#B45309' }]}>This Month</Text>
               </View>
             </View>
           </View>
         </View>
+
+        {/* Revenue Chart */}
+        {dashboardData.revenueChart?.labels?.length > 0 && (
+          <View style={styles.chartContainer}>
+            <Text style={styles.chartTitle}>Monthly Revenue Overview</Text>
+            <LineChart
+              data={{
+                labels: dashboardData.revenueChart.labels,
+                datasets: [
+                  {
+                    data: dashboardData.revenueChart.data,
+                    color: (opacity = 1) => `rgba(22, 163, 74, ${opacity})`, // theme.colors.primary
+                    strokeWidth: 3
+                  }
+                ],
+                legend: ["Revenue (₱)"]
+              }}
+              width={Dimensions.get("window").width - 64}
+              height={220}
+              yAxisLabel="₱"
+              yAxisSuffix=""
+              yAxisInterval={1}
+              chartConfig={{
+                backgroundColor: theme.colors.surface,
+                backgroundGradientFrom: theme.colors.surface,
+                backgroundGradientTo: theme.colors.surface,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(22, 163, 74, ${opacity})`,
+                labelColor: (opacity = 1) => theme.colors.textSecondary,
+                style: {
+                  borderRadius: 16
+                },
+                propsForDots: {
+                  r: "6",
+                  strokeWidth: "2",
+                  stroke: "#16a34a"
+                }
+              }}
+              bezier
+              style={{
+                marginVertical: 8,
+                borderRadius: 16
+              }}
+            />
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.section}>
