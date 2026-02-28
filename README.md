@@ -1,4 +1,10 @@
-# AccommoTrack
+# AccommoTrack 
+<p>This project is supported by:</p>
+<p>
+  <a href="https://www.digitalocean.com/">
+    <img src="https://opensource.nyc3.cdn.digitaloceanspaces.com/attribution/assets/SVG/DO_Logo_horizontal_blue.svg" width="201px">
+  </a>
+</p>
 
 **AccommoTrack** is a comprehensive property management and booking platform tailored for dormitories, boarding houses, and bedspace rentals. Ideally designed to bridge the gap between landlords and student or professional tenants, the system modernizes the accommodation hunting and management experience.
 
