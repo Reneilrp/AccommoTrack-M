@@ -277,6 +277,14 @@ export default function TenantsScreen({ navigation, route }) {
                   </View>
                 ) : <Text style={styles.helperText}>Not provided</Text>}
               </View>
+
+              <TouchableOpacity
+                style={{ marginTop: 16, backgroundColor: '#16A34A', paddingVertical: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                onPress={() => { setDetailVisible(false); navigation.navigate('TenantLogs', { tenantId: detailTenant.id, tenantName: `${detailTenant.first_name} ${detailTenant.last_name}` }); }}
+              >
+                <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>View Payment Logs</Text>
+              </TouchableOpacity>
             </ScrollView>
           )}
         </SafeAreaView>

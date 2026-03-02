@@ -106,17 +106,11 @@ export default function MessagesPage({ navigation, route }) {
             case 'Dashboard':
                 rootNavigate('Dashboard');
                 break;
-            case 'Future UI Demo':
-                rootNavigate('DemoUI');
-                break;
             case 'Notifications':
                 rootNavigate('Notifications');
                 break;
             case 'My Bookings':
                 rootNavigate('MyBookings');
-                break;
-            case 'Favorites':
-                rootNavigate('Favorites');
                 break;
             case 'Payments':
                 rootNavigate('Payments');

@@ -12,9 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { API_BASE_URL } from '../../../config';
+import api from '../../../services/api';
 
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) return '';
@@ -48,48 +47,19 @@ export default function NotificationsScreen({ navigation }) {
     default: { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' },
   };
 
-  const getAuthHeaders = async () => {
-    try {
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        const user = JSON.parse(userJson);
-        const token = user?.token || (await AsyncStorage.getItem('token'));
-        return {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        };
-      }
-    } catch (e) {}
-    const fallbackToken = await AsyncStorage.getItem('token');
-    return {
-      'Authorization': `Bearer ${fallbackToken}`,
-      'Accept': 'application/json',
-    };
-  };
-
   const fetchNotifications = useCallback(async () => {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Handle pagination structure (data.data) or simple array
-        const list = data.data || data || [];
-        setNotifications(list.map(n => ({
-            id: n.id,
-            type: n.type, // or logic to map backend type to simple type
-            title: n.data?.title || 'Notification',
-            message: n.data?.message || n.data?.description || '',
-            timestamp: n.created_at,
-            read: !!n.read_at,
-        })));
-      } else {
-        console.error('Failed to fetch notifications');
-      }
+      const response = await api.get('/notifications');
+      const data = response.data;
+      const list = data.data || data || [];
+      setNotifications(list.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.data?.title || 'Notification',
+        message: n.data?.message || n.data?.description || '',
+        timestamp: n.created_at,
+        read: !!n.read_at,
+      })));
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -114,13 +84,9 @@ export default function NotificationsScreen({ navigation }) {
     );
 
     try {
-        const headers = await getAuthHeaders();
-        await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
-            method: 'PATCH',
-            headers,
-        });
+      await api.patch(`/notifications/${id}/read`);
     } catch (error) {
-        console.error('Error marking as read:', error);
+      console.error('Error marking as read:', error);
     }
   };
 
@@ -129,13 +95,9 @@ export default function NotificationsScreen({ navigation }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
     try {
-        const headers = await getAuthHeaders();
-        await fetch(`${API_BASE_URL}/notifications/read-all`, {
-            method: 'PATCH',
-            headers,
-        });
+      await api.patch('/notifications/read-all');
     } catch (error) {
-        console.error('Error marking all as read:', error);
+      console.error('Error marking all as read:', error);
     }
   };
 

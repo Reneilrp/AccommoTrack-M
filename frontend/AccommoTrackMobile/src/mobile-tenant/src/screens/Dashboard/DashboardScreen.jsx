@@ -352,7 +352,7 @@ const DashboardScreen = () => {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.actionButton}
-                  onPress={() => navigation.navigate('Maintenance')}
+                  onPress={() => navigation.navigate('ServiceRequests')}
                 >
                   <Text style={[styles.actionText, { color: theme.colors.text }]}>Maintenance</Text>
                   <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />

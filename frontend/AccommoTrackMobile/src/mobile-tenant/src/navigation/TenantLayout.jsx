@@ -121,7 +121,6 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
       Dashboard: 'Dashboard',
       MyBookings: 'My Bookings',
       Messages: 'Messages',
-      Favorites: 'Favorites',
       Payments: 'Payments',
       Settings: 'Settings',
     };

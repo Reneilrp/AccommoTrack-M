@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Toast from 'react-native-toast-message';
 
 /* Core */
 import LandingPages from '../core/LandingPages/LandingPages.jsx';
@@ -10,6 +11,7 @@ import LandlordLayout from '../mobile-landlord/src/navigation/LandlordLayout.jsx
 import TenantLayout from '../mobile-tenant/src/navigation/TenantLayout.jsx';
 import { getStyles } from '../styles/AppNavigator.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { setForcedLogoutCallback } from './RootNavigation';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +21,30 @@ export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState(null); 
   const [authContext, setAuthContext] = useState(null);
+
+  // Register the forced-logout handler so the API interceptor can trigger a
+  // navigation reset to the auth stack when a 401 or blocked (403) is received.
+  useEffect(() => {
+    setForcedLogoutCallback(async (isBlocked) => {
+      try {
+        await AsyncStorage.removeItem('token');
+        await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('user_id');
+        await AsyncStorage.removeItem('isGuest');
+      } catch (e) {}
+      if (isBlocked) {
+        Toast.show({
+          type: 'error',
+          text1: 'Account Blocked',
+          text2: 'Your account has been blocked. Please contact support.',
+          visibilityTime: 6000,
+        });
+      }
+      setAuthContext('returning');
+      setUserRole('auth');
+    });
+    return () => setForcedLogoutCallback(null);
+  }, []);
 
   const handleLogout = async () => {
     try {

@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { triggerForcedLogout } from '../../../navigation/RootNavigation';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getStyles } from '../../../styles/Tenant/RoomDetailsScreen';
 import homeStyles from '../../../styles/Tenant/HomePage';
@@ -404,7 +405,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   if (onAuthRequired) {
                     onAuthRequired();
                   } else {
-                    navigation.navigate('Auth');
+                    triggerForcedLogout();
                   }
                 }
               }

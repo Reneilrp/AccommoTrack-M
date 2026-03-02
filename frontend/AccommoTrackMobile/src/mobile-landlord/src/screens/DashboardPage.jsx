@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../styles/Landlord/DashboardPage.js';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { triggerForcedLogout } from '../../../navigation/RootNavigation';
 import Button from '../components/Button';
 import MenuDrawer from '../components/MenuDrawer';
 import PropertyService from '../../../services/PropertyServices';
@@ -231,7 +232,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
               await onLogout();
             } else {
               await AsyncStorage.clear();
-              navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
+              triggerForcedLogout();
             }
           } catch (error) {
             console.error('Logout error:', error);

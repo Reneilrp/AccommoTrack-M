@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,9 @@ import {
   FlatList,
   RefreshControl,
   Modal,
-  Alert
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +36,8 @@ export default function Payments({ navigation }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
 
   const fetchInvoices = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -69,16 +73,9 @@ export default function Payments({ navigation }) {
 
   const handleUpdatePayment = async (status) => {
     if (!selectedInvoice?.booking_id) return;
-
     setUpdating(true);
     try {
-      // In mobile project, BookingService updateBookingPayment might be the standard way
-      // But let's use PaymentService logic if we want to be consistent with web
-      // Since mobile already has PropertyService.updateBookingPayment, let's check that
-      
-      // For now, let's use a standard alert confirmation
       const res = await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: status });
-      
       if (res.success) {
         setShowModal(false);
         fetchInvoices(true);
@@ -86,10 +83,43 @@ export default function Payments({ navigation }) {
       } else {
         Alert.alert('Error', res.error || 'Failed to update status');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    const amountNum = parseFloat(recordData.amount);
+    if (!recordData.amount || isNaN(amountNum) || amountNum <= 0) {
+      Alert.alert('Validation', 'Please enter a valid amount.');
+      return;
+    }
+    if (!selectedInvoice?.id) {
+      Alert.alert('Error', 'No invoice selected.');
+      return;
+    }
+    setRecording(true);
+    try {
+      const res = await PaymentService.recordLandlordPayment(selectedInvoice.id, {
+        amount_cents: Math.round(amountNum * 100),
+        method: recordData.method,
+        reference: recordData.reference || null,
+        notes: recordData.notes || null,
+      });
+      if (res.success) {
+        setShowModal(false);
+        setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
+        fetchInvoices(true);
+        Alert.alert('Success', 'Payment recorded successfully.');
+      } else {
+        Alert.alert('Error', res.error || 'Failed to record payment');
+      }
+    } catch {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setRecording(false);
     }
   };
 
@@ -167,7 +197,11 @@ export default function Payments({ navigation }) {
           {item.booking_id && (
             <TouchableOpacity 
               style={styles.viewButton}
-              onPress={() => { setSelectedInvoice(item); setShowModal(true); }}
+              onPress={() => {
+                setSelectedInvoice(item);
+                setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
+                setShowModal(true);
+              }}
             >
               <Text style={styles.viewButtonText}>Manage</Text>
             </TouchableOpacity>
@@ -266,75 +300,153 @@ export default function Payments({ navigation }) {
       <Modal
         visible={showModal}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Manage Payment</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              <View style={styles.summaryGrid}>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Tenant</Text>
-                  <Text style={styles.summaryValue}>
-                    {selectedInvoice?.tenant?.full_name || (selectedInvoice?.tenant ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` : '—')}
-                  </Text>
-                </View>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Property / Room</Text>
-                  <Text style={styles.summaryValue} numberOfLines={1}>
-                    {selectedInvoice?.property?.title || selectedInvoice?.property_title || '—'} 
-                    {selectedInvoice?.booking?.room?.room_number ? ` (Room ${selectedInvoice.booking.room.room_number})` : ''}
-                  </Text>
-                </View>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Amount</Text>
-                  <Text style={[styles.summaryValue, { color: '#16a34a' }]}>
-                    ₱{parseFloat(selectedInvoice?.amount || (selectedInvoice?.amount_cents / 100) || 0).toLocaleString()}
-                  </Text>
-                </View>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Manage Payment</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
               </View>
 
-              <Text style={styles.updateLabel}>Update Payment Status</Text>
-              <View style={styles.statusGrid}>
-                {[
-                  { id: 'unpaid', label: 'Unpaid', color: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
-                  { id: 'partial', label: 'Partial', color: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
-                  { id: 'paid', label: 'Paid', color: '#DCFCE7', text: '#166534', border: '#86EFAC' },
-                  { id: 'refunded', label: 'Refunded', color: '#F3E8FF', text: '#7E22CE', border: '#D8B4FE' },
-                ].map((s) => (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[styles.statusOption, { backgroundColor: s.color, borderColor: s.border }]}
-                    onPress={() => handleUpdatePayment(s.id)}
-                    disabled={updating}
-                  >
-                    {updating && selectedInvoice?.status === s.id ? (
-                      <ActivityIndicator size="small" color={s.text} />
-                    ) : (
-                      <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* Invoice Summary */}
+                <View style={styles.summaryGrid}>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Tenant</Text>
+                    <Text style={styles.summaryValue} numberOfLines={2}>
+                      {selectedInvoice?.tenant?.full_name || (selectedInvoice?.tenant ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` : '—')}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Invoice Total</Text>
+                    <Text style={[styles.summaryValue, { color: '#16a34a' }]}>
+                      ₱{parseFloat(selectedInvoice?.amount || ((selectedInvoice?.amount_cents ?? 0) / 100)).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
 
-              <View style={{ marginTop: 24 }}>
-                <TouchableOpacity 
-                  style={styles.cancelButton}
+                {/* ── Record a Payment ── */}
+                <View style={styles.sectionDivider}>
+                  <Text style={styles.sectionTitle}>Record a Payment</Text>
+                </View>
+
+                {/* Amount */}
+                <Text style={styles.fieldLabel}>Amount Paid (₱) *</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 5000"
+                  placeholderTextColor="#9CA3AF"
+                  value={recordData.amount}
+                  onChangeText={(v) => setRecordData((d) => ({ ...d, amount: v }))}
+                  returnKeyType="done"
+                />
+
+                {/* Payment Method */}
+                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Payment Method *</Text>
+                <View style={styles.methodRow}>
+                  {[
+                    { id: 'cash', label: 'Cash' },
+                    { id: 'gcash', label: 'GCash' },
+                    { id: 'bank_transfer', label: 'Bank' },
+                    { id: 'check', label: 'Check' },
+                    { id: 'other', label: 'Other' },
+                  ].map((m) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[
+                        styles.methodChip,
+                        recordData.method === m.id && styles.methodChipActive,
+                      ]}
+                      onPress={() => setRecordData((d) => ({ ...d, method: m.id }))}
+                    >
+                      <Text style={[
+                        styles.methodChipText,
+                        recordData.method === m.id && styles.methodChipTextActive,
+                      ]}>{m.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Reference */}
+                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Reference # (Optional)</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="Transaction / OR number…"
+                  placeholderTextColor="#9CA3AF"
+                  value={recordData.reference}
+                  onChangeText={(v) => setRecordData((d) => ({ ...d, reference: v }))}
+                />
+
+                {/* Notes */}
+                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Notes (Optional)</Text>
+                <TextInput
+                  style={[styles.fieldInput, styles.fieldTextarea]}
+                  placeholder="Add any internal notes…"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                  value={recordData.notes}
+                  onChangeText={(v) => setRecordData((d) => ({ ...d, notes: v }))}
+                />
+
+                <TouchableOpacity
+                  style={[styles.recordButton, recording && { opacity: 0.6 }]}
+                  onPress={handleRecordPayment}
+                  disabled={recording}
+                >
+                  {recording ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.recordButtonText}>Record Payment</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* ── Quick Status Update ── */}
+                <View style={[styles.sectionDivider, { marginTop: 24 }]}>
+                  <Text style={styles.sectionTitle}>Quick Status Update</Text>
+                </View>
+
+                <View style={styles.statusGrid}>
+                  {[
+                    { id: 'unpaid', label: 'Unpaid', color: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
+                    { id: 'partial', label: 'Partial', color: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
+                    { id: 'paid', label: 'Paid', color: '#DCFCE7', text: '#166534', border: '#86EFAC' },
+                    { id: 'refunded', label: 'Refunded', color: '#F3E8FF', text: '#7E22CE', border: '#D8B4FE' },
+                  ].map((s) => (
+                    <TouchableOpacity
+                      key={s.id}
+                      style={[styles.statusOption, { backgroundColor: s.color, borderColor: s.border }]}
+                      onPress={() => handleUpdatePayment(s.id)}
+                      disabled={updating}
+                    >
+                      {updating ? (
+                        <ActivityIndicator size="small" color={s.text} />
+                      ) : (
+                        <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.cancelButton, { marginTop: 20 }]}
                   onPress={() => setShowModal(false)}
                 >
                   <Text style={styles.cancelButtonText}>Close</Text>
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

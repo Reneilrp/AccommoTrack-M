@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../styles/Landlord/Settings';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { triggerForcedLogout } from '../../../navigation/RootNavigation';
 
 import ProfileService from '../../../services/ProfileService';
 
@@ -120,7 +121,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
               await onLogout();
             } else {
               await AsyncStorage.clear();
-              navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
+              triggerForcedLogout();
             }
           } catch (error) {
             console.error('Logout error:', error);

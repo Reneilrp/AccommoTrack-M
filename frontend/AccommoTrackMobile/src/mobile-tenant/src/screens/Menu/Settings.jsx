@@ -9,7 +9,7 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index';
 import ProfileService from '../../../../services/ProfileService';
 import { WEB_BASE_URL } from '../../../../config';
-import { navigate as rootNavigate } from '../../../../navigation/RootNavigation';
+import { navigate as rootNavigate, triggerForcedLogout } from '../../../../navigation/RootNavigation';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
@@ -149,7 +149,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     if (onLoginPress) {
       onLoginPress();
     } else {
-      rootNavigate('Auth');
+      triggerForcedLogout();
     }
   };
 
@@ -185,10 +185,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                 await onLogout();
               } else {
                 await AsyncStorage.clear();
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Auth' }]
-                });
+                triggerForcedLogout();
               }
             } catch (error) {
               console.error('Logout error:', error);

@@ -579,6 +579,25 @@ export default function DormProfileScreen({ route, navigation }) {
               <Ionicons name="list-outline" size={20} color="#6B7280" />
               <Text style={{ color: '#6B7280', fontWeight: '600', fontSize: 14 }}>Activity Logs</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{
+                marginTop: 12,
+                backgroundColor: '#FFFFFF',
+                paddingVertical: 12,
+                borderRadius: 8,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+                borderWidth: 1,
+                borderColor: '#2563EB'
+              }}
+              onPress={() => navigation.navigate('PropertyDetails', { propertyId: form.id })}
+            >
+              <Ionicons name="eye-outline" size={20} color="#2563EB" />
+              <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 14 }}>Preview as Tenant</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.sectionCard}>

@@ -20,7 +20,6 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
     const protectedItems = [
       'Dashboard', 
       'My Bookings', 
-      'Favorites', 
       'Payments', 
       'Notifications', 
       'Service Requests'
@@ -56,9 +55,6 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
         break;
       case 'Settings':
         rootNavigate('Settings');
-        break;
-      case 'Future UI Demo':
-        rootNavigate('DemoUI');
         break;
       case 'Help & Support':
         rootNavigate('HelpSupport');
