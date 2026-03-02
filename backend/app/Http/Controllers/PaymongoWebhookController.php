@@ -115,6 +115,34 @@ class PaymongoWebhookController extends Controller
 
                     $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
                 }
+            } elseif ($eventType === 'link.payment.paid') {
+                $metadata = $resourceAttr['metadata'] ?? null;
+                if ($metadata && isset($metadata['room_id']) && isset($metadata['tenant_id'])) {
+                    $room = \App\Models\Room::find($metadata['room_id']);
+                    if ($room) {
+                        $room->update(['status' => 'paid']);
+
+                        $tenant = \App\Models\User::find($metadata['tenant_id']);
+                        if ($tenant) {
+                            $tenant->notify(new \App\Notifications\RentPaidSuccess());
+                        }
+
+                        $landlord = $room->property->landlord;
+                        if ($landlord) {
+                            $landlord->notify(new \App\Notifications\NewPaymentReceived());
+                        }
+                    }
+                }
+            } elseif ($eventType === 'merchant.verified') {
+                $merchantId = $resourceData['id'] ?? null;
+                if ($merchantId) {
+                    $user = \App\Models\User::where('paymongo_child_id', $merchantId)->first();
+                    if ($user) {
+                        $user->update(['paymongo_verification_status' => 'verified']);
+                        // Optionally, you can notify the user that their account is verified.
+                        // $user->notify(new \App\Notifications\PayMongoAccountVerified());
+                    }
+                }
             }
 
             return response()->json(['received' => true]);

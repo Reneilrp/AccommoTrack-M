@@ -26,6 +26,8 @@ use App\Http\Controllers\AddonController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\InquiryController;
+use App\Http\Controllers\LandlordController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
 use App\Http\Controllers\ForgotPasswordController;
@@ -125,6 +127,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant: Maintenance Requests
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'index']);
         Route::post('/maintenance-requests', [MaintenanceRequestController::class, 'store']);
+
+        // Tenant: Create Payment Link
+        Route::post('/rooms/{room}/payment-link', [PaymentController::class, 'createPaymentLink']);
+
+        // Tenant: Generate Cash Invoice
+        Route::post('/rooms/{room}/generate-cash-invoice', [InvoiceController::class, 'generateCashInvoice']);
     });
 
     // ===== LANDLORD ROUTES =====
@@ -143,6 +151,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Landlord: Maintenance Requests
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'indexForLandlord']);
         Route::patch('/maintenance-requests/{id}/status', [MaintenanceRequestController::class, 'updateStatus']);
+
+        // Landlord: PayMongo Onboarding
+        Route::get('/paymongo/onboarding', [LandlordController::class, 'getOnboardingUrl']);
         
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
@@ -226,6 +237,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invoices/{id}/paymongo-pay', [PaymongoController::class, 'createPayment']);
 
     // ===== SHARED ROOM ROUTES (for landlord and caretaker with rooms permission) =====
+    Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);
     Route::get('/rooms/property/{propertyId}', [RoomController::class, 'index']);
     Route::get('/rooms/property/{propertyId}/stats', [RoomController::class, 'getStats']);
     Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);

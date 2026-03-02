@@ -702,4 +702,15 @@ class RoomController extends Controller
             return response()->json(['message' => 'Failed to extend stay', 'error' => $e->getMessage()], 500);
         }
     }
+
+    public function getPaymentOptions(Room $room)
+    {
+        $property = $room->property;
+        $methods = $property->accepted_payments; // e.g., ['cash', 'online']
+
+        return response()->json([
+            'methods' => $methods,
+            'is_paymongo_ready' => !empty($property->landlord->paymongo_child_id) && $property->landlord->paymongo_verification_status === 'verified',
+        ]);
+    }
 }

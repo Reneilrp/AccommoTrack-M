@@ -418,6 +418,8 @@ class PropertyController extends Controller
             'video' => 'nullable|mimes:mp4,mov,avi|max:92160',
             'credentials' => 'nullable|array',
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
+            'accepted_payments' => 'nullable|array',
+            'accepted_payments.*' => 'in:cash,online',
         ]);
 
         // Check if landlord is verified - unverified landlords can only create drafts
@@ -457,6 +459,7 @@ class PropertyController extends Controller
             'is_published' => $isPublished,
             'is_available' => $validated['is_available'] ?? false,
             'is_eligible' => $request->has('is_eligible') ? (bool)$request->input('is_eligible') : false,
+            'accepted_payments' => $validated['accepted_payments'] ?? null,
         ]);
 
         // Handle image uploads with Intervention
@@ -671,6 +674,8 @@ class PropertyController extends Controller
             'video' => 'nullable|mimes:mp4,mov,avi|max:92160',
             'credentials' => 'nullable|array',
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
+            'accepted_payments' => 'nullable|array',
+            'accepted_payments.*' => 'in:cash,online',
         ]);
 
         // Check if landlord is verified - unverified landlords can only have drafts

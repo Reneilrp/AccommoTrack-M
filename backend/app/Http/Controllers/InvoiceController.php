@@ -254,4 +254,37 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Failed to record offline payment', 'error' => $e->getMessage()], 500);
         }
     }
+
+    public function generateCashInvoice(\App\Models\Room $room)
+    {
+        $tenantId = Auth::id();
+        if (!$tenantId) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        DB::beginTransaction();
+        try {
+            $reference = 'CASH-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+
+            $invoice = Invoice::create([
+                'reference' => $reference,
+                'landlord_id' => $room->property->landlord_id,
+                'property_id' => $room->property_id,
+                'booking_id' => null, // No booking yet
+                'tenant_id' => $tenantId,
+                'description' => 'Cash Payment for ' . $room->property->title . ' - Room ' . $room->room_number,
+                'amount_cents' => (int) round($room->monthly_rate * 100),
+                'currency' => 'PHP',
+                'status' => 'pending',
+                'issued_at' => now(),
+                'due_date' => now()->addDays(3),
+            ]);
+
+            DB::commit();
+            return response()->json($invoice, 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to create cash invoice', 'error' => $e->getMessage()], 500);
+        }
+    }
 }
