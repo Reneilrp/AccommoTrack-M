@@ -7,9 +7,11 @@ use App\Models\Property;
 use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 
 class ReviewController extends Controller
 {
+    use ResolvesLandlordAccess;
     /**
      * Get all published reviews for a property (Public)
      */
@@ -146,16 +148,18 @@ class ReviewController extends Controller
      */
     public function respond(Request $request, $reviewId)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_view_rooms'); // or generic landlord permission
+
         $request->validate([
             'response' => 'required|string|max:500',
         ]);
 
         try {
-            $user = Auth::user();
             $review = Review::with('property')->findOrFail($reviewId);
 
             // Verify user is the property owner
-            if ($review->property->landlord_id !== $user->id) {
+            if ($review->property->landlord_id !== $context['landlord_id']) {
                 return response()->json(['message' => 'You can only respond to reviews on your properties'], 403);
             }
 
@@ -182,13 +186,26 @@ class ReviewController extends Controller
     public function getLandlordReviews(Request $request)
     {
         try {
-            $user = Auth::user();
-            
-            $query = Review::whereHas('property', function ($q) use ($user) {
-                $q->where('landlord_id', $user->id);
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_rooms');
+
+            $query = Review::whereHas('property', function ($q) use ($context) {
+                $q->where('landlord_id', $context['landlord_id']);
+                
+                if ($context['is_caretaker'] && $context['assignment']) {
+                    $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                    $q->whereIn('id', $assignedPropertyIds);
+                }
             });
 
             if ($request->has('property_id')) {
+                // If caretaker, ensure they have access to the specific property_id requested
+                if ($context['is_caretaker'] && $context['assignment']) {
+                    $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                    if (!in_array($request->property_id, $assignedPropertyIds)) {
+                        return response()->json(['message' => 'Unauthorized access to this property'], 403);
+                    }
+                }
                 $query->where('property_id', $request->property_id);
             }
 

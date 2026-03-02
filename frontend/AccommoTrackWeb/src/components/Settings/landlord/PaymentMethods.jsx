@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../utils/api';
 import toast from 'react-hot-toast';
-import { CreditCard, Save } from 'lucide-react';
+import { CreditCard, Save, AlertCircle } from 'lucide-react';
 
 export default function PaymentMethods({ user, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [allowed, setAllowed] = useState(user.payment_methods_settings?.allowed || ['cash']);
   const [details, setDetails] = useState(user.payment_methods_settings?.details || {});
+
+  const payMongoStatus = user?.paymongo_account?.status;
+  const isPayMongoActive = payMongoStatus === 'verified';
 
   // Sync state if user prop updates (e.g. after a re-fetch)
   useEffect(() => {
@@ -67,6 +70,35 @@ export default function PaymentMethods({ user, onUpdate }) {
 
       <div className="space-y-6">
         <p className="text-sm text-gray-500 dark:text-gray-400">Select the payment methods you accept from tenants. These will be shown to tenants when they book a room.</p>
+
+        {/* Online (PayMongo) Option */}
+        <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="flex items-start gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <input
+              type="checkbox"
+              id="pm_online"
+              checked={allowed.includes('online')}
+              onChange={() => handleToggle('online')}
+              disabled={!isPayMongoActive}
+              className="mt-1 w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <label htmlFor="pm_online" className={`flex-1 ${isPayMongoActive ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+              <span className="block font-medium text-gray-900 dark:text-white">Online Payment (GCash, Maya, etc.)</span>
+              <span className="block text-sm text-gray-500 dark:text-gray-400">Accept credit/debit cards and e-wallets via PayMongo.</span>
+            </label>
+          </div>
+
+          {!isPayMongoActive && (
+            <div className="px-4 pb-4 pl-12">
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-800/50 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+                  Your online payments are disabled until your PayMongo verification is complete.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Cash Option */}
         <div className="flex items-start gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">

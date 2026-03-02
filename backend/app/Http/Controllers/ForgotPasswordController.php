@@ -19,14 +19,21 @@ class ForgotPasswordController extends Controller
     public function sendCode(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email|exists:users,email'
+            'email' => 'required|email'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Email not found or invalid.', 'errors' => $validator->errors()], 422);
+            return response()->json(['message' => 'Invalid email address.'], 422);
         }
 
         $email = $request->email;
+        $user = User::where('email', $email)->first();
+
+        // If user doesn't exist, still return success to prevent enumeration
+        if (!$user) {
+            return response()->json(['message' => 'If your email is registered, a reset code has been sent.'], 200);
+        }
+
         $code = rand(100000, 999999);
 
         // Remove old codes for this email
@@ -46,7 +53,7 @@ class ForgotPasswordController extends Controller
             return response()->json(['message' => 'Failed to send email. Please try again later.'], 500);
         }
 
-        return response()->json(['message' => 'Reset code sent to your email.'], 200);
+        return response()->json(['message' => 'If your email is registered, a reset code has been sent.'], 200);
     }
 
     /**

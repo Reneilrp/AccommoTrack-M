@@ -200,13 +200,16 @@ class RoomController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         DB::beginTransaction();
 
         try {
             $room = Room::findOrFail($id);
 
             // Verify room's property belongs to authenticated landlord
-            if ($room->property->landlord_id !== Auth::id()) {
+            if ($room->property->landlord_id !== $context['landlord_id']) {
                 return response()->json([
                     'message' => 'Unauthorized access'
                 ], 403);
@@ -321,15 +324,18 @@ class RoomController extends Controller
     /**
      * Delete a room
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
         DB::beginTransaction();
 
         try {
             $room = Room::findOrFail($id);
 
             // Verify room's property belongs to authenticated landlord
-            if ($room->property->landlord_id !== Auth::id()) {
+            if ($room->property->landlord_id !== $context['landlord_id']) {
                 return response()->json([
                     'message' => 'Unauthorized access'
                 ], 403);

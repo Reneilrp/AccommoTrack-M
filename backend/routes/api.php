@@ -37,21 +37,23 @@ use App\Http\Controllers\ReportController;
 // ====================================
 // PUBLIC ROUTES (No authentication)
 // ====================================
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-attempts');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-attempts');
 Route::post('/inquiries', [InquiryController::class, 'store']);
 
 // Forgot Password Routes
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendCode']);
-Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode']);
-Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendCode'])->middleware('throttle:auth-attempts');
+Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode'])->middleware('throttle:auth-attempts');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->middleware('throttle:auth-attempts');
 
 // Public: check if email exists
-Route::get('/check-email', [AuthController::class, 'checkEmail']);
+Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:10,1');
 
 Route::get('/public/properties', [PropertyController::class, 'getAllProperties']);
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
+
+Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
@@ -229,7 +231,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions/{id}/refund', [TransactionController::class, 'refund']);
     // Stripe webhook (public endpoint - ensure secret verification)
     // Stripe webhook removed - using PayMongo instead
-    Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
     // PayMongo create source for invoice
     Route::post('/invoices/{id}/paymongo-source', [PaymongoController::class, 'createSource']);
@@ -260,10 +261,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
 
         // Admin: Inquiries
-        Route::get('/inquiries', [InquiryController::class, 'index']);
-        Route::patch('/inquiries/{id}', [InquiryController::class, 'update']);
-        Route::delete('/inquiries/{id}', [InquiryController::class, 'destroy']);
-	    Route::post('/inquiries/{id}/reply', [InquiryController::class, 'reply']);
+        Route::prefix('inquiries')->group(function () {
+            Route::get('/', [InquiryController::class, 'index']);
+            Route::patch('/{id}', [InquiryController::class, 'update']);
+            Route::delete('/{id}', [InquiryController::class, 'destroy']);
+            Route::post('/{id}/reply', [InquiryController::class, 'reply']);
+        });
 
         // Admin: list all landlord verifications
         Route::get('/landlord-verifications', [LandlordVerificationController::class, 'index']);

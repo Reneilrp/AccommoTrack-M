@@ -24,18 +24,27 @@ class PaymongoWebhookController extends Controller
             ?? $request->header('X-Paymongo-Signature')
             ?? null;
 
-        if ($webhookSecret && $signatureHeader) {
-            $sig = $signatureHeader;
-            if (strpos($signatureHeader, 'v1=') !== false) {
-                if (preg_match('/v1=([a-f0-9]+)/i', $signatureHeader, $m)) {
-                    $sig = $m[1];
-                }
+        if (!$webhookSecret) {
+            Log::error('PayMongo webhook secret is not set in environment.');
+            return response()->json(['message' => 'Webhook configuration error'], 400);
+        }
+
+        if (!$signatureHeader) {
+            Log::warning('PayMongo webhook received without signature header.');
+            return response()->json(['message' => 'Missing signature'], 400);
+        }
+
+        $sig = $signatureHeader;
+        if (strpos($signatureHeader, 'v1=') !== false) {
+            if (preg_match('/v1=([a-f0-9]+)/i', $signatureHeader, $m)) {
+                $sig = $m[1];
             }
-            $expected = hash_hmac('sha256', $rawPayload, $webhookSecret);
-            if (!hash_equals($expected, $sig)) {
-                Log::warning('PayMongo webhook signature mismatch', ['header' => $signatureHeader, 'expected' => $expected]);
-                return response()->json(['message' => 'Invalid signature'], 400);
-            }
+        }
+        
+        $expected = hash_hmac('sha256', $rawPayload, $webhookSecret);
+        if (!hash_equals($expected, $sig)) {
+            Log::warning('PayMongo webhook signature mismatch', ['header' => $signatureHeader, 'expected' => $expected]);
+            return response()->json(['message' => 'Invalid signature'], 400);
         }
 
         $payload = $request->json()->all();

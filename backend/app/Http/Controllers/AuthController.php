@@ -21,7 +21,7 @@ class AuthController extends Controller
         $exists = User::where('email', $request->email)->exists();
         return response()->json([
             'available' => !$exists,
-            'message' => $exists ? 'This email is already taken.' : 'This email is available.'
+            'message' => $exists ? 'Email is already in use.' : 'Email is available.'
         ]);
     }
     public function register(Request $request)
@@ -70,15 +70,9 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['This email is not registered.'],
-            ]);
-        }
-
-        if (!Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'password' => ['The password you entered is incorrect.'],
+                'email' => ['Invalid email or password.'],
             ]);
         }
 
