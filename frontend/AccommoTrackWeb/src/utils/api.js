@@ -32,11 +32,26 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const isBlocked =
+            error.response?.status === 403 &&
+            (error.response?.data?.status === 'blocked' ||
+             error.response?.data?.message?.toLowerCase().includes('blocked'));
+
+        if (isBlocked) {
+            try {
+                localStorage.removeItem('userData');
+                localStorage.removeItem('authToken');
+                // Navigation and toast are handled by the auth:blocked listener in App.jsx
+                window.dispatchEvent(new CustomEvent('auth:blocked'));
+            } catch (e) {
+                // ignore
+            }
+        } else if (error.response?.status === 401) {
             try {
                 localStorage.removeItem('userData');
                 localStorage.removeItem('authToken');
                 window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+                window.location.href = '/login';
             } catch (e) {
                 // ignore
             }

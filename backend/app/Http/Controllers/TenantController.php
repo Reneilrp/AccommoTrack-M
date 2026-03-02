@@ -37,29 +37,71 @@ class TenantController extends Controller
 
             $landlordId = $context['landlord_id'];
 
-            // Start with a simpler query to avoid relationship issues
-            // Get all tenants who are occupying rooms in landlord's properties (legacy system only for now)
+            $confirmedStatuses = ['confirmed', 'completed', 'partial-completed'];
+
+            // Get tenants who either:
+            //   (a) have a room assigned via current_tenant_id (legacy), OR
+            //   (b) have a confirmed/completed booking for a room in this landlord's properties
             $query = User::where('role', 'tenant')
-                ->with(['tenantProfile', 'room.property', 'bookings' => function($q) {
-                    $q->where('status', 'confirmed')
-                      ->orWhere('status', 'completed')
-                      ->orWhere('status', 'partial-completed')
-                      ->orderBy('created_at', 'desc');
-                }])
-                ->whereHas('room', function ($q) use ($landlordId) {
-                    $q->whereHas('property', function ($q2) use ($landlordId) {
-                        $q2->where('landlord_id', $landlordId);
+                ->with([
+                    'tenantProfile',
+                    'room.property',
+                    'bookings' => function ($q) use ($confirmedStatuses) {
+                        $q->whereIn('status', $confirmedStatuses)
+                          ->with('room.property')
+                          ->orderBy('created_at', 'desc');
+                    },
+                ])
+                ->where(function ($q) use ($landlordId, $confirmedStatuses) {
+                    // (a) legacy: room.current_tenant_id points to this user
+                    $q->whereHas('room', function ($q2) use ($landlordId) {
+                        $q2->whereHas('property', function ($q3) use ($landlordId) {
+                            $q3->where('landlord_id', $landlordId);
+                        });
+                    })
+                    // (b) booking-based: tenant has a confirmed booking for a room in landlord's property
+                    ->orWhereHas('bookings', function ($q2) use ($landlordId, $confirmedStatuses) {
+                        $q2->whereIn('status', $confirmedStatuses)
+                           ->whereHas('room', function ($q3) use ($landlordId) {
+                               $q3->whereHas('property', function ($q4) use ($landlordId) {
+                                   $q4->where('landlord_id', $landlordId);
+                               });
+                           });
                     });
                 });
 
             // Filter by specific property if provided
             if ($propertyId) {
-                $query->whereHas('room', function ($q) use ($propertyId) {
-                    $q->where('property_id', $propertyId);
+                $query->where(function ($q) use ($propertyId, $confirmedStatuses) {
+                    // (a) legacy room assignment on this property
+                    $q->whereHas('room', function ($q2) use ($propertyId) {
+                        $q2->where('property_id', $propertyId);
+                    })
+                    // (b) confirmed booking for a room on this property
+                    ->orWhereHas('bookings', function ($q2) use ($propertyId, $confirmedStatuses) {
+                        $q2->whereIn('status', $confirmedStatuses)
+                           ->where('property_id', $propertyId);
+                    });
                 });
             }
 
-            $tenants = $query->get()->map(function ($tenant) {
+            $tenants = $query->get()->map(function ($tenant) use ($propertyId, $confirmedStatuses) {
+                // Prefer legacy room assignment; fall back to the latest confirmed booking's room
+                $legacyRoom = $tenant->room;
+
+                // If filtering by property, pick booking room that matches the requested property
+                $latestBooking = $propertyId
+                    ? $tenant->bookings->where('property_id', $propertyId)->first()
+                    : $tenant->bookings->first();
+
+                $bookingRoom = $latestBooking?->room;
+
+                // Use legacy room if it exists and (no filter or it matches the property),
+                // otherwise fall back to the booking room
+                $room = ($legacyRoom && (!$propertyId || (string) $legacyRoom->property_id === (string) $propertyId))
+                    ? $legacyRoom
+                    : $bookingRoom;
+
                 return [
                     'id' => $tenant->id,
                     'first_name' => $tenant->first_name,
@@ -71,14 +113,15 @@ class TenantController extends Controller
                     'profile_image' => $tenant->profile_image,
                     'is_active' => $tenant->is_active,
 
-                    // Room assignment (legacy system)
-                    'room' => $tenant->room ? [
-                        'id' => $tenant->room->id,
-                        'room_number' => $tenant->room->room_number,
-                        'room_type' => $tenant->room->room_type,
-                        'monthly_rate' => $tenant->room->monthly_rate,
-                        'property_name' => $tenant->room->property->title ?? 'N/A',
-                        'property_id' => $tenant->room->property_id,
+                    // Room — resolved from either legacy assignment or confirmed booking
+                    'room' => $room ? [
+                        'id' => $room->id,
+                        'room_number' => $room->room_number,
+                        'room_type' => $room->room_type,
+                        'type_label' => $room->type,
+                        'monthly_rate' => $latestBooking ? $latestBooking->monthly_rent : $room->monthly_rate,
+                        'property_name' => $room->property->title ?? 'N/A',
+                        'property_id' => $room->property_id,
                     ] : null,
 
                     // Tenant profile details
@@ -96,15 +139,15 @@ class TenantController extends Controller
                     ] : null,
 
                     // Latest booking information for payment tracking
-                    'latestBooking' => $tenant->bookings->first() ? [
-                        'id' => $tenant->bookings->first()->id,
-                        'status' => $tenant->bookings->first()->status,
-                        'payment_status' => $tenant->bookings->first()->payment_status,
-                        'created_at' => $tenant->bookings->first()->created_at,
-                        'updated_at' => $tenant->bookings->first()->updated_at,
-                        'start_date' => $tenant->bookings->first()->start_date,
-                        'end_date' => $tenant->bookings->first()->end_date,
-                        'total_amount' => $tenant->bookings->first()->total_amount,
+                    'latestBooking' => $latestBooking ? [
+                        'id' => $latestBooking->id,
+                        'status' => $latestBooking->status,
+                        'payment_status' => $latestBooking->payment_status,
+                        'created_at' => $latestBooking->created_at,
+                        'updated_at' => $latestBooking->updated_at,
+                        'start_date' => $latestBooking->start_date,
+                        'end_date' => $latestBooking->end_date,
+                        'total_amount' => $latestBooking->total_amount,
                     ] : null,
                 ];
             });

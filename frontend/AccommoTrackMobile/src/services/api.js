@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
+import { triggerForcedLogout } from '../navigation/RootNavigation';
 
 // Create axios instance
 const api = axios.create({
@@ -43,10 +44,10 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Handle common errors (optional pero maganda)
+// Handle common errors — auto-clear session on 401 or blocked (403)
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // Log detailed error info for debugging
     console.error('[api] Request failed:', {
       url: error.config?.url,
@@ -54,11 +55,25 @@ api.interceptors.response.use(
       message: error.message,
       data: error.response?.data,
     });
-    
-    if (error.response?.status === 401) {
-      // Optional: Auto logout if token expired
-      console.log('Token expired or invalid');
+
+    const isBlocked =
+      error.response?.status === 403 &&
+      (error.response?.data?.status === 'blocked' ||
+       error.response?.data?.message?.toLowerCase().includes('blocked'));
+
+    if (error.response?.status === 401 || isBlocked) {
+      try {
+        await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('token');
+        await AsyncStorage.removeItem('user_id');
+        await AsyncStorage.removeItem('isGuest');
+        // Trigger navigation reset to auth stack (and show blocked toast if applicable)
+        triggerForcedLogout(isBlocked);
+      } catch (e) {
+        console.error('Failed to clear storage on auth error:', e);
+      }
     }
+
     return Promise.reject(error);
   }
 );

@@ -170,14 +170,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/room-types', [AnalyticsController::class, 'getRoomTypeAnalytics']);
         Route::get('/analytics/properties', [AnalyticsController::class, 'getPropertyComparison']);
         Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
-            Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
-            Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
+        Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
+        Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
             
-            // Reports (Tenant)
-            Route::post('/reports', [ReportController::class, 'store']);
+        // Reports (Tenant)
+        Route::post('/reports', [ReportController::class, 'store']);
         
-            Route::post('/tenants', [TenantController::class, 'store']);
-            Route::put('/tenants/{id}', [TenantController::class, 'update']);        Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
+        Route::post('/tenants', [TenantController::class, 'store']);
+        Route::put('/tenants/{id}', [TenantController::class, 'update']);        
+        Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
         Route::get('/caretakers', [CaretakerController::class, 'index']);

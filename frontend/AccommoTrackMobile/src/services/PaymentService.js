@@ -163,6 +163,29 @@ class PaymentService {
   }
 
   /**
+   * LANDLORD: Record an offline/cash payment against an invoice.
+   * amount_cents – integer (e.g. 500000 = ₱5,000)
+   * method      – 'cash' | 'bank_transfer' | 'gcash' | 'check' | 'other'
+   * reference   – optional reference string
+   * notes       – optional notes
+   */
+  async recordLandlordPayment(invoiceId, { amount_cents, method, reference = null, notes = null }) {
+    try {
+      const response = await api.post(`/invoices/${invoiceId}/record`, {
+        amount_cents,
+        method,
+        reference,
+        notes,
+        received_at: new Date().toISOString(),
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error recording payment:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Failed to record payment' };
+    }
+  }
+
+  /**
    * LANDLORD: Update booking payment status
    */
   async updateBookingPayment(bookingId, payload) {

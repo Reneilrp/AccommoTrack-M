@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\TenantProfile;
+use App\Models\User;
+use App\Notifications\NewBookingNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -70,6 +72,12 @@ class BookingService
 
             // Mark room as occupied immediately to prevent double booking
             $room->update(['status' => 'occupied']);
+
+            // Notify landlord of the new booking request
+            $landlord = User::find($room->property->landlord_id);
+            if ($landlord) {
+                $landlord->notify(new NewBookingNotification($booking));
+            }
 
             return $booking;
         });
