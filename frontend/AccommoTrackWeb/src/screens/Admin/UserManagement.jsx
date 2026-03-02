@@ -154,7 +154,11 @@ const UserManagement = () => {
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{u.gender || '—'}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{u.role}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                      {u.role === 'landlord' ? (
+                      {u.is_blocked ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                          Blocked
+                        </span>
+                      ) : u.role === 'landlord' ? (
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           u.verification_status === 'approved' 
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
@@ -173,8 +177,8 @@ const UserManagement = () => {
                                 : 'Not Submitted'}
                         </span>
                       ) : (
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${u.is_blocked ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'}`}>
-                          {u.is_blocked ? 'Blocked' : 'Active'}
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          Active
                         </span>
                       )}
                     </td>
@@ -226,7 +230,11 @@ const UserManagement = () => {
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400 capitalize mb-2">{selectedUser.role}</p>
                   <div>
-                    {selectedUser.role === 'landlord' ? (
+                    {selectedUser.is_blocked ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        Blocked
+                      </span>
+                    ) : selectedUser.role === 'landlord' ? (
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         selectedUser.verification_status === 'approved' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
@@ -245,8 +253,8 @@ const UserManagement = () => {
                               : 'Not Submitted'}
                       </span>
                     ) : (
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${selectedUser.is_blocked ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'}`}>
-                        {selectedUser.is_blocked ? 'Blocked' : 'Active'}
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                        Active
                       </span>
                     )}
                   </div>

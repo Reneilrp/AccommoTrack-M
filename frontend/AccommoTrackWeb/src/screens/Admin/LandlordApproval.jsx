@@ -116,6 +116,42 @@ export default function LandlordApproval() {
     setShowModal(true);
   };
 
+  const FilePreview = ({ path, label }) => {
+    if (!path) return <div className="h-40 flex items-center justify-center text-gray-400 dark:text-gray-500 italic">No {label} provided</div>;
+  
+    const url = getImageUrl(path);
+    const ext = path.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+  
+    if (isImage) {
+      return (
+        <img 
+          src={url} 
+          alt={label} 
+          className="w-full h-auto rounded object-contain max-h-[400px]" 
+        />
+      );
+    }
+  
+    return (
+      <div className="flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+        <FileText className="w-16 h-16 text-blue-500 mb-4" />
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase">
+          {ext} Document
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Click below to view or download</p>
+        <a 
+          href={url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm"
+        >
+          <Eye className="w-4 h-4" /> View Document
+        </a>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -222,39 +258,23 @@ export default function LandlordApproval() {
             </div>
 
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
+              <div className="space-y-4 text-center sm:text-left">
                 <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <h4>Valid ID ({selectedVerification.valid_id_type})</h4>
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
-                  {selectedVerification.valid_id_path ? (
-                    <img 
-                      src={getImageUrl(selectedVerification.valid_id_path)} 
-                      alt="Valid ID" 
-                      className="w-full h-auto rounded object-contain max-h-[400px]" 
-                    />
-                  ) : (
-                    <div className="h-40 flex items-center justify-center text-gray-400 dark:text-gray-500">No Image</div>
-                  )}
+                  <FilePreview path={selectedVerification.valid_id_path} label="Valid ID" />
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 text-center sm:text-left">
                 <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 font-semibold border-b dark:border-gray-700 pb-2">
                   <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   <h4>Business Permit / Authorization</h4>
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-700">
-                  {selectedVerification.permit_path ? (
-                    <img 
-                      src={getImageUrl(selectedVerification.permit_path)} 
-                      alt="Permit" 
-                      className="w-full h-auto rounded object-contain max-h-[400px]" 
-                    />
-                  ) : (
-                    <div className="h-40 flex items-center justify-center text-gray-400 dark:text-gray-500">No Image</div>
-                  )}
+                  <FilePreview path={selectedVerification.permit_path} label="Permit" />
                 </div>
               </div>
             </div>
