@@ -275,7 +275,10 @@ class PaymongoController extends Controller
             $body = json_decode((string)$res->getBody(), true);
             $tx->gateway_reference = $body['data']['id'] ?? null;
             $tx->gateway_response = $body;
+            $tx->status = 'succeeded'; // If /payments succeeds, it's paid
             $tx->save();
+
+            $this->updateInvoiceAndBooking($invoice->id, $amount);
 
             DB::commit();
             return response()->json(['transaction' => $tx, 'payment' => $body], 200);
@@ -361,7 +364,10 @@ class PaymongoController extends Controller
             $body = json_decode((string)$res->getBody(), true);
             $tx->gateway_reference = $body['data']['id'] ?? null;
             $tx->gateway_response = $body;
+            $tx->status = 'succeeded'; // If /payments succeeds, it's paid
             $tx->save();
+
+            $this->updateInvoiceAndBooking($invoice->id, $amount);
 
             DB::commit();
             return response()->json(['transaction' => $tx, 'payment' => $body], 200);
@@ -439,37 +445,31 @@ class PaymongoController extends Controller
                 $status = $resource['status'] ?? null;
 
                 if ($status) {
-                    if (in_array($status, ['chargeable','succeeded','paid'])) {
+                    if ($status === 'chargeable') {
+                        // CRITICAL: If source is chargeable, we MUST create a payment to collect money
+                        Log::info("Paymongo refresh: source {$ref} is chargeable. Creating payment...");
+                        $paymentBody = $this->createPaymentFromSource($client, $ref, $tx->amount_cents, $tx->currency);
+                        if ($paymentBody) {
+                            $tx->status = 'succeeded';
+                            $tx->gateway_reference = $paymentBody['data']['id'] ?? $tx->gateway_reference;
+                            $tx->gateway_response = $paymentBody;
+                            $tx->save();
+                            $updated = true;
+                        }
+                    } elseif (in_array($status, ['succeeded', 'paid'])) {
                         $tx->status = 'succeeded';
+                        $tx->gateway_response = $body;
+                        $tx->save();
+                        $updated = true;
                     } else {
                         $tx->status = $status;
+                        $tx->gateway_response = $body;
+                        $tx->save();
                     }
-                    $tx->gateway_response = $body;
-                    $tx->save();
-                    $updated = true;
 
                     // update invoice status if applicable
-                    if ($tx->invoice_id) {
-                        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
-                        if ($tx->amount_cents >= $invoiceTotal) {
-                            $invoice->status = 'paid';
-                            $invoice->paid_at = now();
-                        } else {
-                            $invoice->status = 'partial';
-                        }
-                        $invoice->save();
-
-                        if ($invoice->booking_id) {
-                            try {
-                                $booking = \App\Models\Booking::find($invoice->booking_id);
-                                if ($booking) {
-                                    $booking->payment_status = ($invoice->status === 'paid') ? 'paid' : 'partial';
-                                    $booking->save();
-                                }
-                            } catch (\Exception $be) {
-                                Log::error('Failed to update booking payment_status during refresh: ' . $be->getMessage());
-                            }
-                        }
+                    if ($updated && $tx->invoice_id) {
+                        $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
                     }
                 }
             } catch (\GuzzleHttp\Exception\ClientException $e) {
@@ -485,26 +485,7 @@ class PaymongoController extends Controller
                         $updated = true;
 
                         if ($tx->invoice_id) {
-                            $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
-                            if ($tx->amount_cents >= $invoiceTotal) {
-                                $invoice->status = 'paid';
-                                $invoice->paid_at = now();
-                            } else {
-                                $invoice->status = 'partial';
-                            }
-                            $invoice->save();
-
-                            if ($invoice->booking_id) {
-                                try {
-                                    $booking = \App\Models\Booking::find($invoice->booking_id);
-                                    if ($booking) {
-                                        $booking->payment_status = ($invoice->status === 'paid') ? 'paid' : 'partial';
-                                        $booking->save();
-                                    }
-                                } catch (\Exception $be) {
-                                    Log::error('Failed to update booking payment_status during refresh (payments): ' . $be->getMessage());
-                                }
-                            }
+                            $this->updateInvoiceAndBooking($tx->invoice_id, $tx->amount_cents);
                         }
                     }
                 } catch (\Exception $e2) {
@@ -516,5 +497,64 @@ class PaymongoController extends Controller
         }
 
         return response()->json(['success' => true, 'updated' => $updated]);
+    }
+
+    /**
+     * Helper to create a payment from a chargeable source.
+     */
+    private function createPaymentFromSource($client, $sourceId, $amount, $currency)
+    {
+        try {
+            $res = $client->post('payments', [
+                'auth' => [env('PAYMONGO_SECRET'), ''],
+                'json' => [
+                    'data' => [
+                        'attributes' => [
+                            'amount' => intval($amount),
+                            'currency' => strtoupper($currency),
+                            'source' => [
+                                'id' => $sourceId,
+                                'type' => 'source'
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+            return json_decode((string)$res->getBody(), true);
+        } catch (\Exception $e) {
+            Log::error('Failed to create payment from source ' . $sourceId . ': ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Helper to update invoice and booking status.
+     */
+    private function updateInvoiceAndBooking($invoiceId, $paidAmountCents)
+    {
+        $invoice = Invoice::find($invoiceId);
+        if (!$invoice) return;
+
+        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+        if ($paidAmountCents >= $invoiceTotal) {
+            $invoice->status = 'paid';
+            $invoice->paid_at = now();
+        } else {
+            $invoice->status = 'partial';
+        }
+        $invoice->save();
+
+        if ($invoice->booking_id) {
+            try {
+                $booking = \App\Models\Booking::find($invoice->booking_id);
+                if ($booking) {
+                    $booking->payment_status = ($invoice->status === 'paid') ? 'paid' : 'partial';
+                    $booking->save();
+                    Log::info('Booking payment_status updated', ['booking_id' => $booking->id, 'payment_status' => $booking->payment_status]);
+                }
+            } catch (\Exception $be) {
+                Log::error('Failed to update booking payment_status: ' . $be->getMessage());
+            }
+        }
     }
 }

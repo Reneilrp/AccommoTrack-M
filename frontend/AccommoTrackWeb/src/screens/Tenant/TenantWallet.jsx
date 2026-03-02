@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { paymentService } from '../../services/paymentService';
+import api from '../../utils/api';
 import { SkeletonWallet } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
