@@ -164,6 +164,15 @@ export default function Payments() {
     }
   };
 
+  const updateBookingStatus = async (bookingId, status) => {
+    try {
+      await api.patch(`/bookings/${bookingId}/status`, { status });
+    } catch (e) {
+      console.error('Failed to update booking status', e);
+      toast.error('Failed to update booking status');
+    }
+  };
+
   const formatDate = (d) => {
     try {
       return new Date(d).toLocaleDateString();
@@ -185,6 +194,10 @@ export default function Payments() {
   };
 
   const filteredInvoices = invoices.filter(inv => {
+    // Exclude invoices linked to cancelled or pending bookings
+    const bookingStatus = (bookingsMap[inv.booking_id]?.status || inv.booking?.status || '').toLowerCase();
+    if (bookingStatus === 'cancelled' || bookingStatus === 'pending') return false;
+
     // payment filter
     const statusNormalized = (inv.status || inv.booking?.payment_status || inv.payment_status || 'unpaid').toString().toLowerCase();
     if (paymentFilter !== 'all' && statusNormalized !== paymentFilter) return false;
@@ -243,6 +256,8 @@ export default function Payments() {
     const room = roomCandidates.find(r => r !== undefined && r !== null && r !== '') || '—';
     const issued = inv.issued_at || inv.created_at || '';
     const price = inv.amount_cents ? (inv.amount_cents/100) : (inv.amount ? Number(inv.amount) : 0);
+    const paidAmount = inv.transactions?.reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents/100 : Number(tx.amount || 0)), 0) || 0;
+    const balance = Math.max(0, price - paidAmount);
     const status = (inv.status || inv.booking?.payment_status || inv.payment_status || 'unpaid');
 
     // Determine display values, but show a Loading placeholder when booking is referenced but not yet fetched
@@ -263,6 +278,8 @@ export default function Payments() {
           </div>
         </td>
         <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white"><PriceRow amount={price} /></td>
+        <td className="px-6 py-4 text-sm font-semibold text-green-600 dark:text-green-400"><PriceRow amount={paidAmount} /></td>
+        <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400"><PriceRow amount={balance} /></td>
         <td className="px-6 py-4">
           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(status)}`}>
             {status ? (status.charAt(0).toUpperCase() + status.slice(1)) : '—'}
@@ -292,6 +309,8 @@ export default function Payments() {
       <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-28"></div></td>
       <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
       <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div></td>
+      <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div></td>
+      <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div></td>
       <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div></td>
       <td className="px-6 py-4"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-16"></div></td>
       <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12"></div></td>
@@ -336,6 +355,8 @@ export default function Payments() {
                     <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div></th>
                     <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div></th>
                     <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-14 animate-pulse"></div></th>
+                    <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-14 animate-pulse"></div></th>
+                    <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div></th>
                     <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div></th>
                     <th className="px-6 py-3 text-left"><div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div></th>
                   </tr>
@@ -397,6 +418,8 @@ export default function Payments() {
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Issued</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Paid</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider">Balance</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -404,7 +427,7 @@ export default function Payments() {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center">
+                    <td colSpan="10" className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <Receipt className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-2" />
                         <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">No payments yet</h2>
@@ -438,22 +461,37 @@ export default function Payments() {
               
               <div className="p-6 space-y-6">
                 {/* Summary Info */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
-                    <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">Tenant</p>
-                    <p className="font-semibold dark:text-white text-gray-900 truncate">
-                      {selectedInvoice.tenant?.first_name 
-                        ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}` 
-                        : (selectedInvoice.tenant?.name || '—')}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
-                    <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">Invoice Total</p>
-                    <p className="font-bold text-green-600 dark:text-green-400">
-                      <PriceRow amount={selectedInvoice.amount_cents ? selectedInvoice.amount_cents/100 : selectedInvoice.amount} />
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const selTotal = selectedInvoice.amount_cents ? selectedInvoice.amount_cents/100 : Number(selectedInvoice.amount || 0);
+                  const selPaid = selectedInvoice.transactions?.reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents/100 : Number(tx.amount || 0)), 0) || 0;
+                  const selRemaining = Math.max(0, selTotal - selPaid);
+                  return (
+                    <>
+                      <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                        <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">Tenant</p>
+                        <p className="font-semibold dark:text-white text-gray-900 truncate">
+                          {selectedInvoice.tenant?.first_name
+                            ? `${selectedInvoice.tenant.first_name} ${selectedInvoice.tenant.last_name}`
+                            : (selectedInvoice.tenant?.name || '—')}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                          <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">Total</p>
+                          <p className="font-bold text-gray-900 dark:text-white"><PriceRow amount={selTotal} /></p>
+                        </div>
+                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                          <p className="text-green-600 dark:text-green-400 mb-1 uppercase text-xs font-bold">Paid</p>
+                          <p className="font-bold text-green-600 dark:text-green-400"><PriceRow amount={selPaid} /></p>
+                        </div>
+                        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
+                          <p className="text-red-500 dark:text-red-400 mb-1 uppercase text-xs font-bold">Remaining</p>
+                          <p className="font-bold text-red-600 dark:text-red-400"><PriceRow amount={selRemaining} /></p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">Record Payment</h4>
@@ -544,6 +582,25 @@ export default function Payments() {
                     ))}
                   </div>
                 </div>
+
+                  {/* Mark Fully Paid & Completed — only shown when payment status is partial */}
+                  {(selectedInvoice?.status || selectedInvoice?.booking?.payment_status || '').toLowerCase() === 'partial' && (
+                    <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-900/30 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-3">
+                      <p className="text-[10px] text-yellow-700 dark:text-yellow-400 font-bold uppercase mb-2">Partial Payment — Action Required</p>
+                      <button
+                        onClick={async () => {
+                          if (selectedInvoice.booking_id && window.confirm('Mark this booking as fully paid and completed?')) {
+                            await updateBookingPayment(selectedInvoice.booking_id, 'paid');
+                            await updateBookingStatus(selectedInvoice.booking_id, 'completed');
+                            setShowInvoiceModal(false);
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
+                      >
+                        ✓ Mark Fully Paid & Completed
+                      </button>
+                    </div>
+                  )}
               </div>
 
               <div className="p-6 bg-gray-50 dark:bg-gray-700/30 text-right">

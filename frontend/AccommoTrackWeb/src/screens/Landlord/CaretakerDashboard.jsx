@@ -94,6 +94,20 @@ export default function CaretakerDashboard({ user }) {
     );
   }
 
+  if (!loading && (!stats?.properties?.total || stats.properties.total === 0)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center px-4">
+        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-2">
+          <Building2 className="w-10 h-10 text-gray-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">No Properties Assigned</h2>
+        <p className="text-gray-500 dark:text-gray-400 max-w-md">
+          You don't have any properties assigned to your caretaker account. Please contact the landlord to grant access.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Welcome Section */}

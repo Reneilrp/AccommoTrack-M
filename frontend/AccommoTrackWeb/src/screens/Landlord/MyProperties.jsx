@@ -229,14 +229,14 @@ export default function MyProperties({ user }) {
     <div className="min-h-screen bg-transparent dark:bg-gray-900">
       {/* Verification Warning Banner */}
       {isVerified === false && (
-        <div className="bg-yellow-50 border-b border-yellow-200">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <ShieldAlert className="w-6 h-6 text-yellow-600" />
+                <ShieldAlert className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
                 <div>
-                  <h4 className="text-yellow-800 font-semibold">Draft-Only Mode</h4>
-                  <p className="text-yellow-700 text-sm">
+                  <h4 className="text-yellow-800 dark:text-yellow-200 font-semibold">Draft-Only Mode</h4>
+                  <p className="text-yellow-700 dark:text-yellow-400 text-sm">
                     Your account is pending verification. Properties can only be saved as drafts until approved.
                   </p>
                 </div>
@@ -244,7 +244,7 @@ export default function MyProperties({ user }) {
               <Link
                 to="/settings"
                 state={{ tab: 'verification' }}
-                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium text-sm transition-colors"
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600 text-white rounded-lg font-medium text-sm transition-colors"
               >
                 Check Status
               </Link>
@@ -394,10 +394,10 @@ export default function MyProperties({ user }) {
                           <span
                             className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize flex-shrink-0 ${
                               property.current_status === 'active'
-                                ? 'bg-green-100 text-green-700'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                 : property.current_status === 'inactive'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-yellow-100 text-yellow-700'
+                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                             }`}
                           >
                             {property.current_status}

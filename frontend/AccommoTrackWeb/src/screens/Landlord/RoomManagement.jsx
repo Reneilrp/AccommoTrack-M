@@ -565,7 +565,11 @@ export default function RoomManagement() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Type</label>
                   <select
                     value={selectedRoom.type}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, type: e.target.value })}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      const capacityMap = { 'Single Room': 1, 'Double Room': 2, 'Quad Room': 4, 'Bed Spacer': 1 };
+                      setSelectedRoom({ ...selectedRoom, type, capacity: capacityMap[type] ?? selectedRoom.capacity });
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option>Single Room</option>

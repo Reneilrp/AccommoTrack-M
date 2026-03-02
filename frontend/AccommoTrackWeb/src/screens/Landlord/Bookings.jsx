@@ -424,6 +424,33 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         );
                       }
 
+                      // Partial Completed - allow transitioning to fully completed
+                      if (status === 'partial-completed') {
+                        return (
+                          <div className="w-full">
+                            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-3">
+                              <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                                <strong>Partial Complete:</strong> This booking has been partially paid. Mark as completed once the full payment is received.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Mark this booking as fully completed and paid?')) {
+                                  if (paymentStatus !== 'paid') {
+                                    handleUpdatePayment(selectedBooking.id, 'paid');
+                                  }
+                                  handleUpdateStatus(selectedBooking.id, 'completed');
+                                }
+                              }}
+                              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                              Mark Fully Paid & Completed
+                            </button>
+                          </div>
+                        );
+                      }
+
                       // Pending status - can confirm or cancel
                       if (status === 'pending') {
                         return (

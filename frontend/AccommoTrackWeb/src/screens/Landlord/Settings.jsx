@@ -109,11 +109,31 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
   const handleSaveProfile = async () => {
     try {
-      const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, phone: profileData.phone });
-      onUserUpdate?.(result.data.user);
+      const hasNewPhoto = fileInputRef.current?.files?.[0];
+      if (hasNewPhoto) {
+        const formData = new FormData();
+        formData.append('profile_image', fileInputRef.current.files[0]);
+        formData.append('first_name', profileData.firstName);
+        formData.append('last_name', profileData.lastName);
+        formData.append('phone', profileData.phone);
+        const result = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        onUserUpdate?.(result.data.user);
+        setProfilePhoto(result.data.user?.profile_image || null);
+        setPhotoPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, phone: profileData.phone });
+        onUserUpdate?.(result.data.user);
+      }
       setIsEditingProfile(false);
       toast.success('Profile updated successfully!');
     } catch (error) { toast.error('Failed to update profile.'); }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoPreview(null);
+    setProfilePhoto(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handlePhotoSelect = (e) => {
@@ -184,7 +204,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                 { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
                 { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
                 { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" /> },
-                { id: 'caretaker', label: 'Caretaker', icon: <Users className="w-4 h-4" /> }
+                { id: 'caretaker', label: 'Caretaker Management', icon: <Users className="w-4 h-4" /> }
               ].map(tab => (
                 <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
                   {tab.icon} {tab.label}
@@ -202,7 +222,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         </div>
 
         <div className="lg:col-span-3">
-          {activeTab === 'profile' && <MyProfile user={user} profileData={profileData} setProfileData={setProfileData} isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} handleSaveProfile={handleSaveProfile} profilePhoto={profilePhoto} photoPreview={photoPreview} isUploadingPhoto={isUploadingPhoto} fileInputRef={fileInputRef} handlePhotoSelect={handlePhotoSelect} handlePhotoUpload={handlePhotoUpload} />}
+          {activeTab === 'profile' && <MyProfile user={user} profileData={profileData} setProfileData={setProfileData} isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} handleSaveProfile={handleSaveProfile} profilePhoto={profilePhoto} setProfilePhoto={setProfilePhoto} photoPreview={photoPreview} setPhotoPreview={setPhotoPreview} fileInputRef={fileInputRef} handlePhotoSelect={handlePhotoSelect} handleRemovePhoto={handleRemovePhoto} />}
           {activeTab === 'notifications' && <Notifications user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'security' && <Security passwordData={passwordData} setPasswordData={setPasswordData} isEditingPassword={isEditingPassword} setIsEditingPassword={setIsEditingPassword} security={security} setSecurity={setSecurity} isEditingSecurity={isEditingSecurity} setIsEditingSecurity={setIsEditingSecurity} />}
           {activeTab === 'caretaker' && (

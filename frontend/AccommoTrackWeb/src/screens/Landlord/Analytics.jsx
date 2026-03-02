@@ -298,9 +298,16 @@ export default function Analytics({ user }) {
                     <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overall</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Payment Rate</p>
-                  <p className={`text-lg md:text-2xl font-bold ${analytics.payments.payment_rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
-                    {analytics.payments.payment_rate}%
-                  </p>
+                  {(() => {
+                    const paid = Number(analytics.payments.paid || 0);
+                    const total = paid + Number(analytics.payments.unpaid || 0) + Number(analytics.payments.partial || 0) + Number(analytics.payments.overdue || 0);
+                    const rate = total > 0 ? Math.round((paid / total) * 100) : (Number(analytics.payments.payment_rate) || 0);
+                    return (
+                      <p className={`text-lg md:text-2xl font-bold ${rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
+                        {rate}%
+                      </p>
+                    );
+                  })()}
                 </div>
 
                 {/* Row 2: Operations */}

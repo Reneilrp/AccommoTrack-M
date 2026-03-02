@@ -158,17 +158,17 @@ const HomePage = ({ onGetStarted }) => {
           </div>
           
           {/* Background Blobs - Positioned relative to the visible area */}
-          <div className="absolute top-[10%] left-[5%] w-48 h-48 md:w-64 md:h-64 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob pointer-events-none"></div>
-          <div className="absolute top-[10%] right-[5%] w-48 h-48 md:w-64 md:h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
+          <div className="absolute top-[10%] left-[5%] w-48 h-48 md:w-64 md:h-64 bg-green-200 dark:bg-green-800 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 dark:opacity-10 animate-blob pointer-events-none"></div>
+          <div className="absolute top-[10%] right-[5%] w-48 h-48 md:w-64 md:h-64 bg-blue-200 dark:bg-blue-800 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 dark:opacity-10 animate-blob animation-delay-2000 pointer-events-none"></div>
           
           {/* University Logos - Safely docked at the bottom */}
           <div className="w-full z-10 pb-10 md:pb-12 flex-none">
             <p className="text-center text-[10px] md:text-xs font-bold uppercase mb-6 text-gray-400 dark:text-gray-500">Built for students from</p>
             <div className="flex justify-center gap-6 md:gap-16 flex-wrap">
-              <span className="text-lg md:text-xl font-bold text-[#DC143C]">WMSU</span>
-              <span className="text-lg md:text-xl font-bold text-sky-500">ADZU</span>
-              <span className="text-lg md:text-xl font-bold text-green-600">UZ</span>
-              <span className="text-lg md:text-xl font-bold text-[#800000]">ZPPSU</span>
+              <span className="text-lg md:text-xl font-bold text-[#DC143C] dark:text-red-400">WMSU</span>
+              <span className="text-lg md:text-xl font-bold text-sky-500 dark:text-sky-400">ADZU</span>
+              <span className="text-lg md:text-xl font-bold text-green-600 dark:text-green-400">UZ</span>
+              <span className="text-lg md:text-xl font-bold text-[#800000] dark:text-red-500">ZPPSU</span>
             </div>
           </div>
         </section>

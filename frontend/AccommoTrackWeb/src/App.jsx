@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import api from './utils/api';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import WebNavigator from './Navigation/WebNavigator.jsx';
@@ -55,6 +56,21 @@ function App() {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, [navigate]);
 
+  // Listen for blocked-user events emitted by the axios interceptor
+  useEffect(() => {
+    const handleBlocked = () => {
+      setUser(null);
+      localStorage.removeItem('userData');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('lastLoginAt');
+      try { delete api.defaults.headers.common['Authorization']; } catch (e) {}
+      toast.error('Your account has been blocked. Please contact support.', { duration: 6000 });
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('auth:blocked', handleBlocked);
+    return () => window.removeEventListener('auth:blocked', handleBlocked);
+  }, [navigate]);
+
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('userData');
@@ -65,12 +81,19 @@ function App() {
 
   const handleLogin = (userData, token) => {
     setUser(userData);
-    localStorage.setItem('userData', JSON.stringify(userData));
+    const { profile_image: _pi, ...safeLogin } = userData;
+    localStorage.setItem('userData', JSON.stringify(safeLogin));
     if (token) {
       localStorage.setItem('authToken', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       localStorage.setItem('lastLoginAt', Date.now().toString());
     }
+  };
+
+  const handleUserUpdate = (updatedUser) => {
+    setUser(updatedUser);
+    const { profile_image, ...safeUser } = updatedUser;
+    localStorage.setItem('userData', JSON.stringify(safeUser));
   };
 
   if (isLoading) {
@@ -120,7 +143,7 @@ function App() {
               <WebNavigator
                 user={user}
                 onLogout={handleLogout}
-                onUserUpdate={setUser}
+                onUserUpdate={handleUserUpdate}
               />
             }
           />

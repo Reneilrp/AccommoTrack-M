@@ -16,6 +16,8 @@ import api, { isCancel } from '../../utils/api';
 
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);
+  // TODO: Terms & Conditions modal — content not yet available but coming soon
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -858,7 +860,7 @@ const LandlordRegister = () => {
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label className="text-green-800 dark:text-green-300">I agree to the <a href="/terms" className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</a>.</label>
+                    <label className="text-green-800 dark:text-green-300">I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</button>.</label>
                     {fieldErrors.agree && <p className="text-xs text-red-500 mt-1">{fieldErrors.agree}</p>}
                   </div>
                 </div>
@@ -880,6 +882,40 @@ const LandlordRegister = () => {
               </>
             )}
           </form>
+        </div>
+      )}
+
+      {/* Terms and Conditions Modal — TODO: We still don't have the actual content, but coming soon */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-8 flex flex-col items-center gap-4 text-center">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h4 className="text-xl font-bold text-gray-900 dark:text-white">Coming Soon</h4>
+              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+                We're still working on our Terms and Conditions. They will be available soon. Thank you for your patience!
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 text-right">
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-all"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
