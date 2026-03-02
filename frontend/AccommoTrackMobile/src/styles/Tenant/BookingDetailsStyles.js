@@ -344,7 +344,70 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     spacing: {
         height: 100
-    }
+    },
+    modalOverlay: {
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        backgroundColor: 'rgba(0,0,0,0.5)'
+    },
+    modalInner: {
+        backgroundColor: theme.colors.surface, 
+        borderRadius: 10, 
+        padding: 20, 
+        width: '90%'
+    },
+    modalFooter: {
+        marginTop: 20
+    },
+    modalCloseBtn: {
+        color: theme.colors.primary, 
+        textAlign: 'center'
+    },
+    roomImageScroll: {
+        paddingHorizontal: 16, 
+        paddingTop: 16
+    },
+    roomImage: {
+        width: screenWidth * 0.6, 
+        height: 150, 
+        borderRadius: 8, 
+        marginRight: 10
+    },
+    noImagesBox: {
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: 150
+    },
+    noImagesText: {
+        color: theme.colors.textTertiary
+    },
+    roomContent: {
+        padding: 16
+    },
+    descriptionLabel: {
+        color: theme.colors.text, 
+        marginTop: 10, 
+        marginBottom: 5, 
+        fontWeight: 'bold'
+    },
+    descriptionText: {
+        color: theme.colors.textSecondary
+    },
+    amenitiesList: {
+        flexDirection: 'row', 
+        flexWrap: 'wrap'
+    },
+    amenityRow: {
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        width: '50%', 
+        marginBottom: 8
+    },
+    amenityName: {
+        color: theme.colors.text, 
+        marginLeft: 5
+    },
 });
 
 export default getStyles;
