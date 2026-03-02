@@ -29,7 +29,9 @@ class LandlordController extends Controller
             'paymongo_verification_status' => 'pending'
         ]);
     
-        // Send the user to PayMongo to upload their ID
-        return redirect($res['data']['attributes']['onboarding_url']);
+        // Return the URL in a JSON response for the mobile app
+        return response()->json([
+            'onboarding_url' => $res['data']['attributes']['onboarding_url']
+        ]);
     }
 }

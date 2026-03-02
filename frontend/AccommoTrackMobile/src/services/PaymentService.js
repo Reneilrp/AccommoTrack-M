@@ -216,6 +216,40 @@ class PaymentService {
       return { success: false, error: error.response?.data?.message || 'Failed to refresh invoice status' };
     }
   }
+
+  /**
+   * Create a PayMongo split payment link for a room
+   * Matches: POST /api/tenant/rooms/{roomId}/payment-link
+   */
+  async createPaymentLink(roomId, data = {}) {
+    try {
+      const response = await api.post(`/tenant/rooms/${roomId}/payment-link`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error creating payment link:', error.response?.data || error.message);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to create payment link' 
+      };
+    }
+  }
+
+  /**
+   * Generate a cash invoice for a room
+   * Matches: POST /api/rooms/{roomId}/generate-cash-invoice
+   */
+  async generateCashInvoice(roomId, data = {}) {
+    try {
+      const response = await api.post(`/rooms/${roomId}/generate-cash-invoice`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error generating cash invoice:', error.response?.data || error.message);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to generate cash invoice' 
+      };
+    }
+  }
 }
 
 export default new PaymentService();

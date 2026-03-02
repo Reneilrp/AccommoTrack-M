@@ -17,7 +17,7 @@ class PaymentController extends Controller
         ])->post('https://api.paymongo.com/v1/links', [
                 'data' => [
                     'attributes' => [
-                        'amount' => $room->price * 100, // Amount in cents
+                        'amount' => $room->monthly_rate * 100, // Amount in cents
                         'description' => "Rent for {$room->name}",
                         'remarks' => $room->id, // Use this to track the room later
                         'metadata' => [
@@ -39,6 +39,11 @@ class PaymentController extends Controller
                 ]
             ]);
     
-        return redirect($response->json()['data']['attributes']['checkout_url']);
+        $res = $response->json();
+        
+        // Return the checkout URL in a JSON response for the mobile app
+        return response()->json([
+            'checkout_url' => $res['data']['attributes']['checkout_url']
+        ]);
     }
 }

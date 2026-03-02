@@ -1,4 +1,3 @@
-import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -6,7 +5,8 @@ import {
   Switch,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -42,15 +42,30 @@ const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
       );
     }
 
+    if (item.type === 'status') {
+      const statusStyle = {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        backgroundColor: item.value === 'Verified' ? theme.colors.successLight : (item.value === 'Pending' ? theme.colors.warningLight : theme.colors.backgroundTertiary)
+      };
+      const textStyle = {
+        fontSize: 12,
+        fontWeight: '600',
+        color: item.value === 'Verified' ? theme.colors.successDark : (item.value === 'Pending' ? theme.colors.warningDark : theme.colors.textSecondary)
+      };
+      return <View style={statusStyle}><Text style={textStyle}>{item.value}</Text></View>;
+    }
+
     return (
       <View style={styles.settingRight}>
         {item.value ? <Text style={[styles.settingValue, { color: theme.colors.textSecondary }]}>{item.value}</Text> : null}
-        {item.type === 'navigate' ? <Ionicons name="chevron-forward" size={18} color="#94A3B8" /> : null}
+        {item.type === 'navigate' || item.type === 'action' ? <Ionicons name="chevron-forward" size={18} color="#94A3B8" /> : null}
       </View>
     );
   };
 
-  const isDisabled = item.type === 'info';
+  const isDisabled = item.type === 'info' || item.disabled;
 
   return (
     <TouchableOpacity
@@ -135,6 +150,21 @@ export default function SettingsScreen({ navigation, onLogout }) {
     Alert.alert(label, 'This option will be available soon.');
   };
 
+  const handleConnectPayMongo = async () => {
+    try {
+      const res = await ProfileService.getPayMongoOnboardingUrl();
+      if (res.success && res.data.onboarding_url) {
+        await Linking.openURL(res.data.onboarding_url);
+        // Refresh settings after user comes back to the app
+        loadSettings();
+      } else {
+        Alert.alert('Error', res.error || 'Could not start PayMongo connection.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred.');
+    }
+  };
+
   const handleItemPress = (item) => {
     if (item.type === 'navigate') {
       navigation.navigate(item.target);
@@ -144,9 +174,11 @@ export default function SettingsScreen({ navigation, onLogout }) {
       item.action();
       return;
     }
-    if (item.type === 'value') {
-      handleUnavailable(item.label);
+    if (item.type === 'value' || item.type === 'status') {
+      // For status, maybe navigate to a detail screen in the future
+      return;
     }
+    handleUnavailable(item.label);
   };
 
   const handleToggle = async (item) => {
@@ -162,12 +194,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
     setNotificationPrefs(newPrefs);
 
     try {
-      // Use profile update to save notification preferences
-      await ProfileService.updateProfile({
-        notification_preferences: newPrefs
-      });
-      
-      // Update local storage for consistency
+      await ProfileService.updateProfile({ notification_preferences: newPrefs });
       const stored = await AsyncStorage.getItem('user');
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -181,125 +208,68 @@ export default function SettingsScreen({ navigation, onLogout }) {
 
   const sections = useMemo(
     () => {
+      const payMongoStatus = !user?.paymongo_child_id
+        ? 'Not Connected'
+        : user.paymongo_verification_status === 'verified'
+        ? 'Verified'
+        : 'Pending';
+
       const allSections = [
         {
           title: 'Account',
           items: [
+            { id: 'verification', label: 'ID Verification', description: 'ID and business permit status', icon: 'shield-checkmark-outline', type: 'navigate', target: 'VerificationStatus', role: 'landlord' },
+            { id: 'caretakers', label: 'Caretaker Management', description: 'Manage access and permissions', icon: 'people-outline', type: 'navigate', target: 'Caretakers', role: 'landlord' }
+          ]
+        },
+        {
+          title: 'Payments',
+          items: [
             {
-              id: 'verification',
-              label: 'Verification Status',
-              description: 'ID and business permit status',
-              icon: 'shield-checkmark-outline',
-              type: 'navigate',
-              target: 'VerificationStatus',
-              role: 'landlord'
+              id: 'paymongo-status',
+              label: 'PayMongo Status',
+              icon: 'card-outline',
+              type: 'status',
+              value: payMongoStatus
             },
             {
-              id: 'caretakers',
-              label: 'Caretaker Management',
-              description: 'Manage access and permissions',
-              icon: 'people-outline',
-              type: 'navigate',
-              target: 'Caretakers',
-              role: 'landlord'
+              id: 'paymongo-connect',
+              label: payMongoStatus === 'Not Connected' ? 'Connect to PayMongo' : 'View Account',
+              description: 'Enable online payments for your properties',
+              icon: 'link-outline',
+              type: 'action',
+              action: handleConnectPayMongo
             }
           ]
         },
         {
           title: 'Security',
           items: [
-            {
-              id: 'change-password',
-              label: 'Change Password',
-              description: 'Update your login credentials',
-              icon: 'lock-closed-outline',
-              type: 'navigate',
-              target: 'UpdatePassword'
-            }
+            { id: 'change-password', label: 'Change Password', description: 'Update your login credentials', icon: 'lock-closed-outline', type: 'navigate', target: 'UpdatePassword' }
           ]
         },
         {
           title: 'Notifications',
           items: [
-            {
-              id: 'payment-alerts',
-              label: 'Payment Updates',
-              icon: 'cash-outline',
-              type: 'toggle',
-              value: notificationPrefs.payments,
-              stateKey: 'payments'
-            },
-            {
-              id: 'message-alerts',
-              label: 'New Messages',
-              icon: 'chatbubble-ellipses-outline',
-              type: 'toggle',
-              value: notificationPrefs.messages,
-              stateKey: 'messages'
-            },
-            {
-              id: 'maintenance-alerts',
-              label: 'Maintenance Requests',
-              icon: 'construct-outline',
-              type: 'toggle',
-              value: notificationPrefs.maintenance,
-              stateKey: 'maintenance'
-            }
+            { id: 'payment-alerts', label: 'Payment Updates', icon: 'cash-outline', type: 'toggle', value: notificationPrefs.payments, stateKey: 'payments' },
+            { id: 'message-alerts', label: 'New Messages', icon: 'chatbubble-ellipses-outline', type: 'toggle', value: notificationPrefs.messages, stateKey: 'messages' },
+            { id: 'maintenance-alerts', label: 'Maintenance Requests', icon: 'construct-outline', type: 'toggle', value: notificationPrefs.maintenance, stateKey: 'maintenance' }
           ]
         },
         {
           title: 'Support',
           items: [
-            {
-              id: 'help',
-              label: 'Help & Support',
-              description: 'FAQs and contact options',
-              icon: 'help-circle-outline',
-              type: 'navigate',
-              target: 'HelpSupport'
-            },
-            {
-              id: 'report',
-              label: 'Report a Problem',
-              icon: 'flag-outline',
-              type: 'action',
-              action: () => handleUnavailable('Report a Problem')
-            },
-            {
-              id: 'about',
-              label: 'About AccommoTrack',
-              description: 'Release notes, dev team, and terms',
-              icon: 'information-circle-outline',
-              type: 'navigate',
-              target: 'About'
-            }
+            { id: 'help', label: 'Help & Support', description: 'FAQs and contact options', icon: 'help-circle-outline', type: 'navigate', target: 'HelpSupport' },
+            { id: 'report', label: 'Report a Problem', icon: 'flag-outline', type: 'action', action: () => handleUnavailable('Report a Problem') },
+            { id: 'about', label: 'About AccommoTrack', description: 'Release notes, dev team, and terms', icon: 'information-circle-outline', type: 'navigate', target: 'About' }
           ]
         },
         {
           title: 'App Info',
           items: [
-            {
-              id: 'dark-mode',
-              label: 'Dark Mode',
-              icon: isDarkMode ? 'moon' : 'moon-outline',
-              type: 'toggle',
-              value: isDarkMode,
-              stateKey: 'darkMode'
-            },
-            {
-              id: 'version',
-              label: 'Version',
-              icon: 'albums-outline',
-              type: 'info',
-              value: '1.0.0'
-            },
-            {
-              id: 'updates',
-              label: 'Release Channel',
-              icon: 'cloud-download-outline',
-              type: 'info',
-              value: 'Testing'
-            }
+            { id: 'dark-mode', label: 'Dark Mode', icon: isDarkMode ? 'moon' : 'moon-outline', type: 'toggle', value: isDarkMode, stateKey: 'darkMode' },
+            { id: 'version', label: 'Version', icon: 'albums-outline', type: 'info', value: '1.0.0' },
+            { id: 'updates', label: 'Release Channel', icon: 'cloud-download-outline', type: 'info', value: 'Testing' }
           ]
         }
       ];
@@ -309,7 +279,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
         items: section.items.filter(item => !item.role || item.role === userRole)
       })).filter(section => section.items.length > 0);
     },
-    [notificationPrefs, userRole, isDarkMode]
+    [notificationPrefs, userRole, isDarkMode, user]
   );
 
   const initials = () => {

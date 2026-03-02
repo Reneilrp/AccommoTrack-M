@@ -857,6 +857,27 @@ const PropertyService = {
         }
     },
 
+    /**
+     * Get payment options for a room
+     * Matches: GET /api/rooms/{roomId}/payment-options
+     */
+    async getRoomPaymentOptions(roomId) {
+        try {
+            const response = await api.get(`/rooms/${roomId}/payment-options`);
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error) {
+            console.error('Error fetching payment options:', error.response?.data || error.message);
+            return {
+                success: false,
+                data: { methods: ['cash'], is_paymongo_ready: false }, // Default to cash only on error
+                error: extractErrorMessage(error)
+            };
+        }
+    },
+
     getImageUrl
 };
 

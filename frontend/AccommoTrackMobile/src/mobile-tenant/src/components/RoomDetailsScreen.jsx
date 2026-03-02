@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  Linking,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ import { getStyles } from '../../../styles/Tenant/RoomDetailsScreen';
 import homeStyles from '../../../styles/Tenant/HomePage';
 import BookingService from '../../../services/BookingServices';
 import PropertyService from '../../../services/PropertyServices';
+import PaymentService from '../../../services/PaymentService';
 import { BASE_URL as API_BASE_URL } from '../../../config';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -57,12 +59,29 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [refreshing, setRefreshing] = useState(false);
   const [propertyData, setPropertyData] = useState(property || null);
   const [roomData, setRoomData] = useState(room || null);
+  const [paymentOptions, setPaymentOptions] = useState({ methods: ['cash'], is_paymongo_ready: false });
+  const [optionsLoading, setOptionsLoading] = useState(false);
 
   useEffect(() => {
     // keep roomData in sync when navigation param changes
     setRoomData(room);
     setPropertyData(property);
+    if (room?.id) fetchPaymentOptions(room.id);
   }, [room, property]);
+
+  const fetchPaymentOptions = async (roomId) => {
+    try {
+      setOptionsLoading(true);
+      const res = await PropertyService.getRoomPaymentOptions(roomId);
+      if (res.success && res.data) {
+        setPaymentOptions(res.data);
+      }
+    } catch (error) {
+      console.error('Error fetching payment options:', error);
+    } finally {
+      setOptionsLoading(false);
+    }
+  };
 
   // Hide parent tab bar and mark route to hide layout (TenantLayout)
   useEffect(() => {
@@ -368,11 +387,23 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       console.log('Submitting booking:', data);
 
+      // Create the booking first
       const result = await BookingService.createBooking(data);
 
-      console.log('Booking result:', result);
-
       if (result.success) {
+        // If payment method is online, create payment link
+        if (bookingData.payment_method === 'online') {
+          const payRes = await PaymentService.createPaymentLink(activeRoom.id);
+          if (payRes.success && payRes.data.checkout_url) {
+            await Linking.openURL(payRes.data.checkout_url);
+          } else {
+            Alert.alert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+          }
+        } else if (bookingData.payment_method === 'cash') {
+          // If cash, generate a cash invoice
+          await PaymentService.generateCashInvoice(activeRoom.id);
+        }
+
         Alert.alert(
           'Success',
           `Booking submitted successfully! Reference: ${result.data.booking?.booking_reference || 'N/A'}`,
@@ -387,34 +418,16 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           ]
         );
       } else {
-        // Check if it's an authentication error
+        // Handle errors...
         if (result.error && (
           result.error.toLowerCase().includes('authentication') ||
-          result.error.toLowerCase().includes('unauthenticated') ||
-          result.error.toLowerCase().includes('token') ||
-          result.error.toLowerCase().includes('login')
+          result.error.toLowerCase().includes('unauthenticated')
         )) {
-          Alert.alert(
-            'Session Expired',
-            'Your session has expired. Please log in again.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  setBookingModalVisible(false);
-                  if (onAuthRequired) {
-                    onAuthRequired();
-                  } else {
-                    triggerForcedLogout();
-                  }
-                }
-              }
-            ]
-          );
+          if (onAuthRequired) onAuthRequired();
+          else triggerForcedLogout();
           return;
         }
 
-        // Handle validation errors
         if (result.details) {
           const errorMessages = Object.values(result.details).flat().join('\n');
           Alert.alert('Validation Error', errorMessages);
@@ -806,7 +819,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               <Text style={styles.inputLabel}>Payment Method <Text style={{color: '#ef4444'}}>*</Text></Text>
               
               <View style={styles.paymentMethodRow}>
-                {allowedMethods.includes('cash') && (
+                {paymentOptions.methods.includes('cash') && (
                   <TouchableOpacity 
                     style={[
                       styles.paymentMethodBtn, 
@@ -821,28 +834,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </TouchableOpacity>
                 )}
 
-                {allowedMethods.includes('gcash') && (
+                {paymentOptions.methods.includes('online') && paymentOptions.is_paymongo_ready && (
                   <TouchableOpacity 
                     style={[
                       styles.paymentMethodBtn, 
-                      bookingData.payment_method === 'gcash' && styles.paymentMethodBtnActive
+                      bookingData.payment_method === 'online' && styles.paymentMethodBtnActive
                     ]}
-                    onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'gcash' }))}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'online' }))}
                   >
                      <Text style={[
                        styles.paymentMethodBtnText, 
-                       bookingData.payment_method === 'gcash' && styles.paymentMethodBtnTextActive
-                     ]}>GCash</Text>
+                       bookingData.payment_method === 'online' && styles.paymentMethodBtnTextActive
+                     ]}>Online (PayMongo)</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              
-              {bookingData.payment_method === 'gcash' && gcashDetails && (
-                <View style={styles.gcashDetailsBox}>
-                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Please send payment to:</Text>
-                  <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '500', marginTop: 2 }}>{gcashDetails}</Text>
-                </View>
-              )}
             </View>
 
             {/* Duration & Cost Summary */}
