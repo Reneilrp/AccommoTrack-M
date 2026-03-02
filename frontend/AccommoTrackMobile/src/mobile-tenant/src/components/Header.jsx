@@ -28,13 +28,8 @@ export default function Header({
   const showRightIcon = typeof propShowRightIcon === 'boolean' ? propShowRightIcon : (routeName !== 'Settings');
 
   return (
-    <View style={{ backgroundColor: theme.colors.primary, paddingTop: insets.top }}>
-      <View style={[
-        styles.header, 
-        { 
-          backgroundColor: theme.colors.primary,
-        }
-      ]}> 
+    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View style={styles.header}> 
         <View style={styles.headerSide}>
           {onBack ? (
             <TouchableOpacity style={styles.headerIcon} onPress={onBack}>
@@ -48,7 +43,7 @@ export default function Header({
         </View>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]} numberOfLines={1}>{title}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
         </View>
 
         <View style={styles.headerSide}>
@@ -57,21 +52,8 @@ export default function Header({
               <View>
                 <Ionicons name={rightIcon} size={24} color={theme.colors.textInverse} />
                 {rightIcon === 'notifications-outline' && notificationCount > 0 && (
-                  <View style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    backgroundColor: '#EF4444',
-                    borderRadius: 8,
-                    minWidth: 16,
-                    height: 16,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    paddingHorizontal: 2,
-                    borderWidth: 1.5,
-                    borderColor: theme.colors.primary
-                  }}>
-                    <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold' }}>
+                  <View style={[styles.notificationBadge, { borderColor: theme.colors.primary }]}>
+                    <Text style={styles.notificationBadgeText}>
                       {notificationCount > 99 ? '99+' : notificationCount}
                     </Text>
                   </View>

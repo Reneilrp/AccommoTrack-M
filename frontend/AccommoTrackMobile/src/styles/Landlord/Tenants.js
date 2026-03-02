@@ -438,7 +438,28 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.isDark ? theme.colors.text : '#B91C1C',
     fontSize: 13,
     fontWeight: '500'
-  }
+  },
+  loadingIndicator: {
+    marginTop: 40,
+  },
+  modalHeaderView: {
+    width: 48,
+  },
+  profileScroll: {
+    marginTop: 16, 
+    backgroundColor: '#16A34A', 
+    paddingVertical: 12, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    gap: 8
+  },
+  profileBtn: {
+    color: '#FFFFFF', 
+    fontWeight: '600', 
+    fontSize: 14
+  },
 });
 
 export default getStyles;

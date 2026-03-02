@@ -559,7 +559,7 @@ export default function AddProperty({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Property</Text>
-        <View style={{ width: 48 }} />
+        <View style={styles.iconButtonEmpty} />
       </View>
 
       {renderStepIndicator()}
@@ -568,7 +568,7 @@ export default function AddProperty({ navigation }) {
         ref={scrollRef}
         style={styles.formContent} 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.modalScroll}
         scrollEnabled={scrollEnabled}
       >
         {error ? (
@@ -584,7 +584,7 @@ export default function AddProperty({ navigation }) {
         {isVerified === false && (
           <View style={styles.verificationWarning}>
             <Ionicons name="shield-alert" size={24} color="#D97706" />
-            <View style={{ flex: 1 }}>
+            <View style={styles.inputHalf}>
               <Text style={styles.warningTitle}>Account Verification Required</Text>
               <Text style={styles.warningText}>
                 You can save as draft, but you can't submit for approval until your account is verified.
@@ -647,7 +647,7 @@ export default function AddProperty({ navigation }) {
               <View style={styles.imagesRow}>
                 {selectedImages.map((image, index) => (
                   <View key={index} style={styles.imagePreview}>
-                    <Image source={{ uri: image.uri }} style={{ width: '100%', height: '100%' }} />
+                    <Image source={{ uri: image.uri }} style={styles.imageFull} />
                     <TouchableOpacity 
                       style={styles.imageRemove} 
                       onPress={() => setSelectedImages(prev => prev.filter((_, i) => i !== index))}
@@ -659,7 +659,7 @@ export default function AddProperty({ navigation }) {
                 {selectedImages.length < 10 && (
                   <TouchableOpacity style={styles.addImageButton} onPress={handlePickImages}>
                     <Ionicons name="camera" size={32} color="#94A3B8" />
-                    <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Add Photo</Text>
+                    <Text style={styles.helperText}>Add Photo</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -673,7 +673,7 @@ export default function AddProperty({ navigation }) {
                 {selectedVideo ? (
                   <View style={styles.imagePreview}>
                     {/* Placeholder for video thumbnail; in real implementation, you might use expo-video to generate or show a thumbnail. */}
-                    <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.videoThumbnail}>
                        <Ionicons name="play-circle" size={40} color="#FFFFFF" />
                     </View>
                     <TouchableOpacity 
@@ -682,14 +682,14 @@ export default function AddProperty({ navigation }) {
                     >
                       <Ionicons name="close" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
-                    <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 4, borderRadius: 4 }}>
-                       <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>VIDEO</Text>
+                    <View style={styles.videoLabelBadge}>
+                       <Text style={styles.videoLabelText}>VIDEO</Text>
                     </View>
                   </View>
                 ) : (
                   <TouchableOpacity style={styles.addImageButton} onPress={handlePickVideo}>
                     <Ionicons name="videocam" size={32} color="#94A3B8" />
-                    <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Add Video</Text>
+                    <Text style={styles.helperText}>Add Video</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -735,8 +735,8 @@ export default function AddProperty({ navigation }) {
                 placeholder="e.g., 123 Maria Clara St."
               />
               
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1 }}>
+              <View style={styles.inputRow}>
+                <View style={styles.inputHalf}>
                   <Text style={styles.label}>Barangay</Text>
                   <TextInput 
                     style={styles.input} 
@@ -745,7 +745,7 @@ export default function AddProperty({ navigation }) {
                     placeholder="Barangay Name"
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.inputHalf}>
                   <Text style={styles.label}>City <Text style={styles.requiredAsterisk}>*</Text></Text>
                   <TextInput 
                     style={styles.input} 
@@ -756,17 +756,17 @@ export default function AddProperty({ navigation }) {
                 </View>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1 }}>
+              <View style={styles.inputRow}>
+                <View style={styles.inputHalf}>
                   <Text style={styles.label}>Province</Text>
                   <TextInput 
-                    style={[styles.input, form.city.toLowerCase().includes('zamboanga city') && { backgroundColor: '#F3F4F6' }]} 
+                    style={[styles.input, form.city.toLowerCase().includes('zamboanga city') && { backgroundColor: theme.colors.backgroundTertiary }]} 
                     value={form.province} 
                     editable={!form.city.toLowerCase().includes('zamboanga city')}
                     onChangeText={(text) => updateForm('province', text)}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.inputHalf}>
                   <Text style={styles.label}>Postal Code</Text>
                   <TextInput 
                     style={styles.input} 
@@ -809,13 +809,13 @@ export default function AddProperty({ navigation }) {
                       style={[styles.pill, active && styles.pillActive]}
                       onPress={() => toggleAmenity(amenity)}
                     >
-                      <Text style={[styles.pillText, active && { color: '#166534' }]}>{amenity}</Text>
+                      <Text style={[styles.pillText, active && styles.pillTextActive]}>{amenity}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <View style={styles.inputPillAdd}>
                 <TextInput
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
                   placeholder="Custom amenity..."
@@ -823,10 +823,10 @@ export default function AddProperty({ navigation }) {
                   onChangeText={setNewAmenity}
                 />
                 <TouchableOpacity 
-                  style={[styles.pill, { paddingVertical: 0, justifyContent: 'center', borderColor: '#16A34A' }]} 
+                  style={[styles.pill, styles.inputPill]} 
                   onPress={addCustomAmenity}
                 >
-                  <Ionicons name="add" size={20} color="#16A34A" />
+                  <Ionicons name="add" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -844,13 +844,13 @@ export default function AddProperty({ navigation }) {
                       style={[styles.pill, active && styles.pillActive]}
                       onPress={() => toggleRule(rule)}
                     >
-                      <Text style={[styles.pillText, active && { color: '#166534' }]}>{rule}</Text>
+                      <Text style={[styles.pillText, active && styles.pillTextActive]}>{rule}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={styles.inputPillAdd}>
                 <TextInput
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
                   placeholder="Add custom rule..."
@@ -858,10 +858,10 @@ export default function AddProperty({ navigation }) {
                   onChangeText={setNewRule}
                 />
                 <TouchableOpacity 
-                  style={[styles.pill, { paddingVertical: 0, justifyContent: 'center', borderColor: '#16A34A' }]} 
+                  style={[styles.pill, styles.inputPill]} 
                   onPress={addCustomRule}
                 >
-                  <Ionicons name="add" size={20} color="#16A34A" />
+                  <Ionicons name="add" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
 
@@ -870,7 +870,7 @@ export default function AddProperty({ navigation }) {
                   {form.rules.map((rule, index) => (
                     <View key={index} style={styles.ruleItem}>
                       <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
-                      <Text style={{ flex: 1, fontSize: 14 }}>{rule}</Text>
+                      <Text style={[styles.inputHalf, { fontSize: 14 }]}>{rule}</Text>
                       <TouchableOpacity onPress={() => toggleRule(rule)}>
                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                       </TouchableOpacity>

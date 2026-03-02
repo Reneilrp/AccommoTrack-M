@@ -44,39 +44,39 @@ const RoomDetails = ({ room, theme, styles }) => {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Room</Text>
             <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, padding: 0 }]}>
                 {room.images && room.images.length > 0 ? (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roomImageScroll}>
                         {room.images.map(image => (
                             <Image
                                 key={image.id}
                                 source={{ uri: `${API_BASE_URL}/storage/${image.image_url.replace(/^\/?(storage\/)?/, '')}` }}
-                                style={{ width: screenWidth * 0.6, height: 150, borderRadius: 8, marginRight: 10 }}
+                                style={styles.roomImage}
                             />
                         ))}
                     </ScrollView>
                 ) : (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', height: 150 }}>
+                    <View style={styles.noImagesBox}>
                         <Ionicons name="image-outline" size={40} color={theme.colors.textTertiary} />
-                        <Text style={{ color: theme.colors.textTertiary }}>No room images</Text>
+                        <Text style={styles.noImagesText}>No room images</Text>
                     </View>
                 )}
 
-                <View style={{ padding: 16 }}>
+                <View style={styles.roomContent}>
                     <InfoRow icon="information-circle-outline" label="Room Type" value={room.room_type} theme={theme} styles={styles} />
                     <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
                     <InfoRow icon="people-outline" label="Capacity" value={`${room.capacity} person(s)`} theme={theme} styles={styles} />
                     <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-                    <Text style={{ color: theme.colors.text, marginTop: 10, marginBottom: 5, fontWeight: 'bold' }}>Description</Text>
-                    <Text style={{ color: theme.colors.textSecondary }}>{room.description || 'No description available.'}</Text>
+                    <Text style={styles.descriptionLabel}>Description</Text>
+                    <Text style={styles.descriptionText}>{room.description || 'No description available.'}</Text>
 
                     {room.amenities && room.amenities.length > 0 && (
                         <>
                             <View style={[styles.separator, { backgroundColor: theme.colors.border, marginVertical: 15 }]} />
-                            <Text style={{ color: theme.colors.text, marginBottom: 10, fontWeight: 'bold' }}>Amenities</Text>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                            <Text style={styles.descriptionLabel}>Amenities</Text>
+                            <View style={styles.amenitiesList}>
                                 {room.amenities.map(amenity => (
-                                    <View key={amenity.id} style={{ flexDirection: 'row', alignItems: 'center', width: '50%', marginBottom: 8 }}>
+                                    <View key={amenity.id} style={styles.amenityRow}>
                                         <Ionicons name="checkmark-circle-outline" size={16} color={theme.colors.primary} />
-                                        <Text style={{ color: theme.colors.text, marginLeft: 5 }}>{amenity.name}</Text>
+                                        <Text style={styles.amenityName}>{amenity.name}</Text>
                                     </View>
                                 ))}
                             </View>
@@ -89,6 +89,7 @@ const RoomDetails = ({ room, theme, styles }) => {
 };
 
 const MaintenanceRequestModal = ({ visible, onClose, theme }) => {
+    const styles = getStyles(theme);
     return (
         <Modal
             animationType="slide"
@@ -96,12 +97,12 @@ const MaintenanceRequestModal = ({ visible, onClose, theme }) => {
             visible={visible}
             onRequestClose={onClose}
         >
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                <View style={{ backgroundColor: theme.colors.surface, borderRadius: 10, padding: 20, width: '90%' }}>
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 }}>Request Maintenance</Text>
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalInner}>
+                    <Text style={styles.modalTitle}>Request Maintenance</Text>
                     {/* Form will go here */}
-                    <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
-                        <Text style={{ color: theme.colors.primary, textAlign: 'center' }}>Close</Text>
+                    <TouchableOpacity onPress={onClose} style={styles.modalFooter}>
+                        <Text style={styles.modalCloseBtn}>Close</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -110,6 +111,7 @@ const MaintenanceRequestModal = ({ visible, onClose, theme }) => {
 };
 
 const AddonModal = ({ visible, onClose, theme }) => {
+    const styles = getStyles(theme);
     return (
         <Modal
             animationType="slide"
@@ -117,12 +119,12 @@ const AddonModal = ({ visible, onClose, theme }) => {
             visible={visible}
             onRequestClose={onClose}
         >
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                <View style={{ backgroundColor: theme.colors.surface, borderRadius: 10, padding: 20, width: '90%' }}>
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 }}>Request Addon</Text>
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalInner}>
+                    <Text style={styles.modalTitle}>Request Addon</Text>
                     {/* Form will go here */}
-                    <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
-                        <Text style={{ color: theme.colors.primary, textAlign: 'center' }}>Close</Text>
+                    <TouchableOpacity onPress={onClose} style={styles.modalFooter}>
+                        <Text style={styles.modalCloseBtn}>Close</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -284,7 +286,7 @@ export default function BookingDetails() {
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <View style={styles.fullFlex}>
             <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
             
             <Header 
@@ -294,7 +296,7 @@ export default function BookingDetails() {
             />
 
             <ScrollView 
-                style={{ flex: 1 }}
+                style={styles.fullFlex}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 20 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
@@ -460,7 +462,7 @@ export default function BookingDetails() {
                 borderTopWidth: 1,
                 paddingTop: 16
             }]}>
-                <View style={[styles.actionRow, { marginTop: 10 }]}>
+                <View style={styles.actionRow}>
                     <TouchableOpacity 
                         onPress={() => setMaintenanceModalVisible(true)}
                         style={[styles.secondaryActionBtn, { backgroundColor: theme.colors.primary + '10' }]}

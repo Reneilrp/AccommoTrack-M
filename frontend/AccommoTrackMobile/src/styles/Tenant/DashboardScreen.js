@@ -301,6 +301,98 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 8,
   },
+  fullFlex: {
+    flex: 1,
+  },
+  headerWrapper: {
+    padding: 0, 
+    borderBottomWidth: 0
+  },
+  scrollContent: {
+    paddingBottom: 40
+  },
+  statCardInner: {
+    padding: 16, 
+    borderRadius: 12, 
+    marginBottom: 16
+  },
+  statSubtitle: {
+    fontSize: 12, 
+    marginTop: 4
+  },
+  propertyBadge: {
+    position: 'absolute', 
+    top: 12, 
+    right: 12, 
+    paddingHorizontal: 10, 
+    paddingVertical: 4, 
+    borderRadius: 8
+  },
+  propertyBadgeText: {
+    fontSize: 11, 
+    fontWeight: 'bold', 
+    textTransform: 'uppercase'
+  },
+  propertyActionBtn: {
+    paddingVertical: 12, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 12, 
+    borderWidth: 1
+  },
+  propertyActionText: {
+    fontWeight: 'bold', 
+    fontSize: 14
+  },
+  emptyStateWrapper: {
+    padding: 24, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  emptyStateInner: {
+    width: '100%', 
+    padding: 24, 
+    borderRadius: 20, 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderStyle: 'dashed'
+  },
+  emptyStateIcon: {
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 20
+  },
+  emptyStateTitle: {
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginBottom: 8
+  },
+  emptyStateText: {
+    fontSize: 14, 
+    textAlign: 'center', 
+    lineHeight: 20, 
+    marginBottom: 24
+  },
+  emptyStateBtn: {
+    paddingHorizontal: 24, 
+    paddingVertical: 14, 
+    borderRadius: 12, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8
+  },
+  emptyStateBtnText: {
+    color: '#fff', 
+    fontWeight: 'bold', 
+    fontSize: 16
+  },
+  actionList: {
+    gap: 8,
+  },
 });
 
 export default getStyles;

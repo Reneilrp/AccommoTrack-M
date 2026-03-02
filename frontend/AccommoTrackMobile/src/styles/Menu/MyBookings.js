@@ -391,7 +391,256 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  tabIcon: {
+    marginRight: 0,
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stayCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  stayContent: {
+    padding: 20,
+  },
+  stayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  stayTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.5,
+  },
+  stayAddress: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  stayBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  stayBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    textTransform: 'uppercase',
+  },
+  stayMeta: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  stayMetaItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  stayMetaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  stayMetaValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  staySection: {
+    marginBottom: 20,
+  },
+  staySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  staySectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  historyCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  historyStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  historyDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  historyDetailItem: {
+    flex: 1,
+  },
+  historyDetailLabel: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    marginBottom: 2,
+  },
+  historyDetailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  historyFooter: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stayHeaderCard: {
+    marginBottom: 16, 
+    backgroundColor: '#FFFBEB', 
+    borderColor: '#FEF3C7'
+  },
+  stayHeaderInner: {
+    borderBottomColor: '#FEF3C7'
+  },
+  stayHeaderLabel: {
+    color: '#92400E'
+  },
+  stayHeaderValue: {
+    color: '#92400E', 
+    fontSize: 14, 
+    fontWeight: '500'
+  },
+  stayHeaderBtn: {
+    marginTop: 12, 
+    backgroundColor: '#D97706'
+  },
+  stayHeaderBtnText: {
+    color: '#fff', 
+    fontWeight: 'bold', 
+    fontSize: 12
+  },
+  avatarSmall: {
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  avatarSmallText: {
+    fontWeight: 'bold', 
+    fontSize: 18
+  },
+  managerName: {
+    fontWeight: 'bold',
+  },
+  managerEmail: {
+    fontSize: 12,
+  },
+  financialsNotice: {
+    marginBottom: 16, 
+    backgroundColor: '#EFF6FF', 
+    borderColor: '#DBEAFE'
+  },
+  financialsNoticeHeader: {
+    borderBottomColor: '#DBEAFE'
+  },
+  financialsNoticeTitle: {
+    color: '#1E40AF'
+  },
+  financialsNoticeText: {
+    color: '#1E40AF', 
+    fontSize: 14
+  },
+  invoiceDueDateCell: {
+    flex: 1.5
+  },
+  invoiceAmountCell: {
+    flex: 2
+  },
+  invoiceStatusCell: {
+    flex: 1.5
+  },
+  emptyHistoryCard: {
+    backgroundColor: theme.colors.surface, 
+    borderRadius: 16, 
+    padding: 32
+  },
+  emptyHistoryIcon: {
+    alignSelf: 'center'
+  },
+  emptyHistoryTitle: {
+    textAlign: 'center'
+  },
+  emptyHistoryText: {
+    textAlign: 'center'
+  },
+  historyItemCard: {
+    backgroundColor: theme.colors.surface
+  },
+  historyItemImage: {
+    width: 80, 
+    height: 80, 
+    borderRadius: 8
+  },
+  historyItemContent: {
+    flex: 1, 
+    justifyContent: 'center'
+  },
+  historyItemName: {
+    fontSize: 16, 
+  },
+  historyItemDate: {
+    fontSize: 12, 
+    marginTop: 4
+  },
+  historyItemBadge: {
+    alignSelf: 'flex-start', 
+    marginTop: 8
+  },
+  historyItemRight: {
+    justifyContent: 'center', 
+    alignItems: 'flex-end'
+  },
 });
 
 export default getStyles;

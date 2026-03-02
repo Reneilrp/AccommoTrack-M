@@ -399,7 +399,51 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700'
-  }
+  },
+  iconButtonEmpty: {
+    width: 48,
+  },
+  imageFull: {
+    width: '100%',
+    height: '100%',
+  },
+  videoThumbnail: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  videoLabelBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 4,
+    borderRadius: 4
+  },
+  videoLabelText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold'
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  inputHalf: {
+    flex: 1
+  },
+  inputPill: {
+    paddingVertical: 0,
+    justifyContent: 'center',
+    borderColor: theme.colors.primary
+  },
+  inputPillAdd: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8
+  },
 });
 
 export default getStyles;

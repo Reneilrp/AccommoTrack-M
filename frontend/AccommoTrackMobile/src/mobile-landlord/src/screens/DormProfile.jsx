@@ -455,7 +455,7 @@ export default function DormProfileScreen({ route, navigation }) {
   if (!propertyId) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <View style={[styles.centered, { padding: 24 }]}>
           <Text style={{ fontSize: 16, color: '#6B7280', textAlign: 'center' }}>
             Unable to load property. Please go back and select a property again.
           </Text>
@@ -488,7 +488,7 @@ export default function DormProfileScreen({ route, navigation }) {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : (
@@ -526,16 +526,7 @@ export default function DormProfileScreen({ route, navigation }) {
             </View>
 
             <TouchableOpacity 
-              style={{
-                marginTop: 16,
-                backgroundColor: theme.colors.primary,
-                paddingVertical: 12,
-                borderRadius: 8,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 8
-              }}
+              style={styles.primaryBtn}
               onPress={() => navigation.navigate('RoomManagement', { propertyId: form.id })}
             >
               <Ionicons name="bed-outline" size={20} color="#FFFFFF" />
@@ -543,18 +534,7 @@ export default function DormProfileScreen({ route, navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={{
-                marginTop: 12,
-                backgroundColor: '#FFFFFF',
-                paddingVertical: 12,
-                borderRadius: 8,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 8,
-                borderWidth: 1,
-                borderColor: theme.colors.primary
-              }}
+              style={[styles.outlineBtn, styles.outlineBtnPrimary]}
               onPress={() => navigation.navigate('AddonManagement', { propertyId: form.id, propertyTitle: form.title })}
             >
               <Ionicons name="sparkles-outline" size={20} color={theme.colors.primary} />
@@ -562,18 +542,7 @@ export default function DormProfileScreen({ route, navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={{
-                marginTop: 12,
-                backgroundColor: '#FFFFFF',
-                paddingVertical: 12,
-                borderRadius: 8,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 8,
-                borderWidth: 1,
-                borderColor: '#6B7280'
-              }}
+              style={[styles.outlineBtn, styles.outlineBtnSecondary]}
               onPress={() => navigation.navigate('PropertyActivityLogs', { propertyId: form.id, propertyTitle: form.title })}
             >
               <Ionicons name="list-outline" size={20} color="#6B7280" />
@@ -581,18 +550,7 @@ export default function DormProfileScreen({ route, navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={{
-                marginTop: 12,
-                backgroundColor: '#FFFFFF',
-                paddingVertical: 12,
-                borderRadius: 8,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 8,
-                borderWidth: 1,
-                borderColor: '#2563EB'
-              }}
+              style={[styles.outlineBtn, styles.outlineBtnBlue]}
               onPress={() => navigation.navigate('PropertyDetails', { propertyId: form.id })}
             >
               <Ionicons name="eye-outline" size={20} color="#2563EB" />
@@ -747,7 +705,7 @@ export default function DormProfileScreen({ route, navigation }) {
                     onPress={() => isEditing && toggleAmenity(amenity)}
                     activeOpacity={isEditing ? 0.8 : 1}
                   >
-                    <Text style={styles.pillText}>{amenity}</Text>
+                    <Text style={[styles.pillText, active && styles.pillTextActive]}>{amenity}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -759,7 +717,7 @@ export default function DormProfileScreen({ route, navigation }) {
                 {form.customAmenities.map((amenity, index) => (
                   <View key={`${amenity}-${index}`} style={styles.ruleItem}>
                     <Ionicons name="star" size={16} color="#F59E0B" />
-                    <Text style={{ flex: 1, color: '#111827' }}>{amenity}</Text>
+                    <Text style={{ flex: 1, color: theme.colors.text }}>{amenity}</Text>
                     {isEditing && (
                       <TouchableOpacity onPress={() => removeCustomAmenity(index)}>
                         <Ionicons name="close-circle" size={18} color="#DC2626" />
@@ -795,7 +753,7 @@ export default function DormProfileScreen({ route, navigation }) {
                 <View key={`${rule}-${index}`}>
                   <View style={styles.ruleItem}>
                     <Ionicons name="information-circle" size={16} color={theme.colors.primary} />
-                    <Text style={{ flex: 1, color: '#111827' }}>{rule}</Text>
+                    <Text style={{ flex: 1, color: theme.colors.text }}>{rule}</Text>
                     {isEditing && (
                       <TouchableOpacity onPress={() => removeRule(index)}>
                         <Ionicons name="close-circle" size={18} color="#DC2626" />
@@ -831,12 +789,12 @@ export default function DormProfileScreen({ route, navigation }) {
               <View style={styles.imagesRow}>
                 {form.images.map((image) => (
                   <View key={image.id} style={styles.imagePreview}>
-                    <Image source={{ uri: image.uri }} style={{ width: '100%', height: '100%' }} />
+                    <Image source={{ uri: image.uri }} style={styles.imageFull} />
                   </View>
                 ))}
                 {selectedImages.map((image, index) => (
                   <View key={`${image.uri}-${index}`} style={styles.imagePreview}>
-                    <Image source={{ uri: image.uri }} style={{ width: '100%', height: '100%' }} />
+                    <Image source={{ uri: image.uri }} style={styles.imageFull} />
                     <TouchableOpacity style={styles.imageRemove} onPress={() => removeNewImage(index)}>
                       <Ionicons name="trash" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
@@ -861,23 +819,23 @@ export default function DormProfileScreen({ route, navigation }) {
               <View style={styles.imagesRow}>
                 {selectedVideo ? (
                   <View style={styles.imagePreview}>
-                    <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.videoThumbnail}>
                        <Ionicons name="play-circle" size={40} color="#FFFFFF" />
                     </View>
                     <TouchableOpacity style={styles.imageRemove} onPress={() => setSelectedVideo(null)}>
                       <Ionicons name="trash" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
-                    <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 4, borderRadius: 4 }}>
-                       <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>NEW VIDEO</Text>
+                    <View style={styles.badgePill}>
+                       <Text style={styles.badgeTextPill}>NEW VIDEO</Text>
                     </View>
                   </View>
                 ) : form.videoUrl ? (
                   <View style={styles.imagePreview}>
-                    <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.videoThumbnail}>
                        <Ionicons name="play-circle" size={40} color="#FFFFFF" />
                     </View>
-                    <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 4, borderRadius: 4 }}>
-                       <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>CURRENT VIDEO</Text>
+                    <View style={styles.badgePill}>
+                       <Text style={styles.badgeTextPill}>CURRENT VIDEO</Text>
                     </View>
                   </View>
                 ) : null}
@@ -903,14 +861,14 @@ export default function DormProfileScreen({ route, navigation }) {
           {isEditing && (
             <View style={styles.actionRow}>
               <TouchableOpacity
-                style={[styles.actionButton, { flex: 1 }]}
+                style={[styles.actionButton, styles.inputHalf]}
                 onPress={handleSave}
                 disabled={saving}
               >
                 {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.actionButtonText}>Save Changes</Text>}
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton, { flex: 1 }]}
+                style={[styles.actionButton, styles.secondaryButton, styles.inputHalf]}
                 onPress={handleCancelEdit}
                 disabled={saving}
               >

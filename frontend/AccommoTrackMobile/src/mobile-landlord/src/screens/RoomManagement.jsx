@@ -530,15 +530,15 @@ export default function RoomManagementScreen({ navigation, route }) {
               <Ionicons name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>{modalMode === 'add' ? 'Add New Room' : 'Edit Room'}</Text>
-            <View style={{ width: 42 }} />
+            <View style={styles.modalEmptyView} />
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
             <Text style={styles.sectionTitle}>Basic Information</Text>
             
             {/* Row 1: Room Number | Floor | Room Type */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
                 <Text style={styles.label}>Room Number <Text style={styles.requiredAsterisk}>*</Text></Text>
                 <TextInput 
                   style={[styles.input, fieldErrors.roomNumber && { borderColor: '#EF4444' }]} 
@@ -547,7 +547,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   placeholder="e.g., 301"
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={styles.inputHalf}>
                 <Text style={styles.label}>Floor <Text style={styles.requiredAsterisk}>*</Text></Text>
                 <View style={styles.pickerWrapper}>
                   <Picker selectedValue={formData.floor} onValueChange={v => handleInputChange('floor', v)}>
@@ -558,7 +558,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             </View>
 
             <Text style={styles.label}>Room Type <Text style={styles.requiredAsterisk}>*</Text></Text>
-            <View style={[styles.pickerWrapper, isBedSpacerProperty && { backgroundColor: '#F3F4F6' }]}>
+            <View style={[styles.pickerWrapper, isBedSpacerProperty && { backgroundColor: theme.colors.backgroundSecondary }]}>
               <Picker 
                 selectedValue={formData.roomType} 
                 onValueChange={v => handleInputChange('roomType', v)}
@@ -579,9 +579,9 @@ export default function RoomManagementScreen({ navigation, route }) {
               </Picker>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={styles.inputRow}>
               {(formData.billingPolicy !== 'daily') && (
-                <View style={{ flex: 1 }}>
+                <View style={styles.inputHalf}>
                   <Text style={styles.label}>Monthly Rate (₱/month) <Text style={styles.requiredAsterisk}>*</Text></Text>
                   <TextInput 
                     style={[styles.input, fieldErrors.monthlyRate && { borderColor: '#EF4444' }]} 
@@ -593,7 +593,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 </View>
               )}
               {(formData.billingPolicy !== 'monthly') && (
-                <View style={{ flex: 1 }}>
+                <View style={styles.inputHalf}>
                   <Text style={styles.label}>Daily Rate (₱/day) <Text style={styles.requiredAsterisk}>*</Text></Text>
                   <TextInput 
                     style={[styles.input, fieldErrors.dailyRate && { borderColor: '#EF4444' }]} 
@@ -607,8 +607,8 @@ export default function RoomManagementScreen({ navigation, route }) {
             </View>
 
             {/* Min Stay & Capacity Row */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
                 <Text style={styles.label}>Minimum Stay (days)</Text>
                 <TextInput 
                   style={[styles.input, fieldErrors.minStayDays && { borderColor: '#EF4444' }]} 
@@ -618,12 +618,12 @@ export default function RoomManagementScreen({ navigation, route }) {
                   placeholder="e.g., 30"
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={styles.inputHalf}>
+                <View style={styles.inputLabelRow}>
                   <Text style={styles.label}>Capacity <Text style={styles.requiredAsterisk}>*</Text></Text>
                 </View>
                 <TextInput 
-                  style={[styles.input, (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && { backgroundColor: '#F3F4F6' }, fieldErrors.capacity && { borderColor: '#EF4444' }]} 
+                  style={[styles.input, (isDormitory || isBoarding) && formData.roomType !== 'bedSpacer' && { backgroundColor: theme.colors.backgroundSecondary }, fieldErrors.capacity && { borderColor: '#EF4444' }]} 
                   keyboardType="numeric" 
                   value={formData.capacity}
                   onChangeText={t => handleInputChange('capacity', t)}
@@ -637,15 +637,15 @@ export default function RoomManagementScreen({ navigation, route }) {
               {formData.roomType === 'bedSpacer' ? 'Bed Spacer rooms use per-bed pricing only' : 'How should tenants pay for this room?'}
             </Text>
             
-            <View style={{ gap: 10 }}>
+            <View style={styles.pricingGroup}>
               {formData.roomType !== 'bedSpacer' && (
                 <TouchableOpacity 
                   style={[styles.pricingCard, formData.pricingModel === 'full_room' && styles.pricingCardActive]}
                   onPress={() => handleInputChange('pricingModel', 'full_room')}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={styles.pricingRadioRow}>
                     <Ionicons name={formData.pricingModel === 'full_room' ? "radio-button-on" : "radio-button-off"} size={20} color={formData.pricingModel === 'full_room' ? "#16A34A" : "#6B7280"} />
-                    <View style={{ flex: 1 }}>
+                    <View style={styles.pricingTextContent}>
                       <Text style={[styles.pricingCardTitle, formData.pricingModel === 'full_room' && { color: '#16A34A' }]}>Room Price</Text>
                       <Text style={styles.pricingCardDesc}>
                         {parseInt(formData.capacity) > 1 
@@ -662,9 +662,9 @@ export default function RoomManagementScreen({ navigation, route }) {
                   style={[styles.pricingCard, formData.pricingModel === 'per_bed' && styles.pricingCardActive]}
                   onPress={() => handleInputChange('pricingModel', 'per_bed')}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={styles.pricingRadioRow}>
                     <Ionicons name={formData.pricingModel === 'per_bed' ? "radio-button-on" : "radio-button-off"} size={20} color={formData.pricingModel === 'per_bed' ? "#16A34A" : "#6B7280"} />
-                    <View style={{ flex: 1 }}>
+                    <View style={styles.pricingTextContent}>
                       <Text style={[styles.pricingCardTitle, formData.pricingModel === 'per_bed' && { color: '#16A34A' }]}>Per Bed/Tenant Price</Text>
                       <Text style={styles.pricingCardDesc}>Each tenant pays ₱${formData.monthlyRate || '0'} for their bed (independent billing)</Text>
                     </View>
@@ -694,7 +694,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { flex: 1, marginBottom: 0 }]}
                 placeholder="Add new rule (e.g., no smoking)"
@@ -722,7 +722,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { flex: 1, marginBottom: 0 }]}
                 placeholder="e.g., Water Heater, Study Lamp"

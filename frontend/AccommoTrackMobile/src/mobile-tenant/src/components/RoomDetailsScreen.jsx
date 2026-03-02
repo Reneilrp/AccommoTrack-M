@@ -584,14 +584,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, backgroundColor: theme.colors.primary, borderBottomWidth: 0.5, borderBottomColor: theme.colors.primary }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+      <View style={[styles.headerBar, { backgroundColor: theme.colors.primary, borderBottomColor: theme.colors.primary }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse || '#fff'} />
         </TouchableOpacity>
 
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: theme.colors.textInverse || '#fff' }}>Room Details</Text>
+        <Text style={[styles.titleTxt, { color: theme.colors.textInverse || '#fff' }]}>Room Details</Text>
 
-        <View style={{ width: 40 }} />
+        <View style={styles.emptyHeaderSide} />
       </View>
 
       <ScrollView
@@ -685,7 +685,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               </View>
             </View>
             {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
-              <Text style={{ marginTop: 6, fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
+              <Text style={styles.psText}>
                 PS: This room has a capacity of {activeRoom.capacity}. The monthly rent can be divided if you find another tenant (or wait for one); otherwise you'll pay the full room rent.
               </Text>
             )}
@@ -751,7 +751,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Book Room {activeRoom.room_number}</Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>Monthly = 30 days (no prorate)</Text>
+            <Text style={styles.psText}>Monthly = 30 days (no prorate)</Text>
 
             {/* Start Date Picker */}
             <View style={styles.inputContainer}>
@@ -805,34 +805,40 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Payment Method <Text style={{color: '#ef4444'}}>*</Text></Text>
               
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 5 }}>
-                    {allowedMethods.includes('cash') && (
+              <View style={styles.paymentMethodRow}>
+                {allowedMethods.includes('cash') && (
                   <TouchableOpacity 
                     style={[
-                      styles.dateButton, 
-                      { flex: 1, borderColor: bookingData.payment_method === 'cash' ? theme.colors.primary : '#ddd', backgroundColor: bookingData.payment_method === 'cash' ? theme.colors.successLight : '#fff' }
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_method === 'cash' && styles.paymentMethodBtnActive
                     ]}
                     onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'cash' }))}
                   >
-                     <Text style={{ color: bookingData.payment_method === 'cash' ? theme.colors.primary : '#374151', fontWeight: 'bold', textAlign: 'center' }}>Cash</Text>
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_method === 'cash' && styles.paymentMethodBtnTextActive
+                     ]}>Cash</Text>
                   </TouchableOpacity>
                 )}
 
                 {allowedMethods.includes('gcash') && (
                   <TouchableOpacity 
                     style={[
-                      styles.dateButton, 
-                      { flex: 1, borderColor: bookingData.payment_method === 'gcash' ? theme.colors.primary : '#ddd', backgroundColor: bookingData.payment_method === 'gcash' ? theme.colors.successLight : '#fff' }
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_method === 'gcash' && styles.paymentMethodBtnActive
                     ]}
                     onPress={() => setBookingData(prev => ({ ...prev, payment_method: 'gcash' }))}
                   >
-                     <Text style={{ color: bookingData.payment_method === 'gcash' ? theme.colors.primary : '#374151', fontWeight: 'bold', textAlign: 'center' }}>GCash</Text>
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_method === 'gcash' && styles.paymentMethodBtnTextActive
+                     ]}>GCash</Text>
                   </TouchableOpacity>
                 )}
               </View>
               
               {bookingData.payment_method === 'gcash' && gcashDetails && (
-                <View style={{ marginTop: 8, padding: 10, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border }}>
+                <View style={styles.gcashDetailsBox}>
                   <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Please send payment to:</Text>
                   <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '500', marginTop: 2 }}>{gcashDetails}</Text>
                 </View>

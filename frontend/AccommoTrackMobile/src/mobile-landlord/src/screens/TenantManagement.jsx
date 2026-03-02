@@ -237,7 +237,7 @@ export default function TenantsScreen({ navigation, route }) {
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTenants(true)} tintColor="#16a34a" />}
-        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={{marginTop: 40}} color="#16a34a" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
+        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#16a34a" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
       />
 
       <Modal visible={detailVisible} animationType="slide" onRequestClose={() => setDetailVisible(false)}>
@@ -247,7 +247,7 @@ export default function TenantsScreen({ navigation, route }) {
               <Ionicons name="close" size={24} color="#0F172A" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Tenant Profile</Text>
-            <View style={{width: 48}} />
+            <View style={styles.modalHeaderView} />
           </View>
           {detailTenant && (
             <ScrollView contentContainerStyle={styles.modalContent}>
@@ -279,11 +279,11 @@ export default function TenantsScreen({ navigation, route }) {
               </View>
 
               <TouchableOpacity
-                style={{ marginTop: 16, backgroundColor: '#16A34A', paddingVertical: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                style={styles.profileScroll}
                 onPress={() => { setDetailVisible(false); navigation.navigate('TenantLogs', { tenantId: detailTenant.id, tenantName: `${detailTenant.first_name} ${detailTenant.last_name}` }); }}
               >
                 <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
-                <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>View Payment Logs</Text>
+                <Text style={styles.profileBtn}>View Payment Logs</Text>
               </TouchableOpacity>
             </ScrollView>
           )}

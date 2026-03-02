@@ -86,18 +86,11 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
   const fabTab = tabs.find(t => t.id === 'Explore');
 
   return (
-    <View style={{ backgroundColor: theme.colors.surface, position: 'relative', paddingBottom: insets.bottom }}>
+    <View style={[styles.navContainer, { paddingBottom: insets.bottom }]}>
       <View
         style={[
           styles.bottomNav,
-          {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.border,
-            height: 60,
-            paddingVertical: 0,
-            paddingBottom: 0,
-            alignItems: 'center',
-          },
+          styles.tabButtonContainer,
         ]}
       >
         {/* Render tabs with a center placeholder so FAB has an empty slot */}
@@ -152,16 +145,7 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
         // allow touches to pass through this overlay except for its children (the FAB)
         <View 
           pointerEvents="box-none" 
-          style={{ 
-            position: 'absolute', 
-            left: 0, 
-            right: 0, 
-            bottom: insets.bottom + 10,
-            zIndex: 30, 
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            height: 100,
-          }}
+          style={[styles.fabOverlay, { bottom: insets.bottom + 10 }]}
         >
           <TouchableOpacity
             style={[styles.fabButton, { backgroundColor: theme.colors.primary, marginBottom: 0 }]}

@@ -137,20 +137,20 @@ export default function MyBookings() {
       <View style={styles.content}>
         {/* Conditional Pending/No Stay Header */}
         {!hasActiveStay && (
-          <View style={[styles.sectionCard, { marginBottom: 16, backgroundColor: '#FFFBEB', borderColor: '#FEF3C7' }]}>
-            <View style={[styles.sectionHeader, { borderBottomColor: '#FEF3C7' }]}>
+          <View style={[styles.sectionCard, styles.stayHeaderCard]}>
+            <View style={[styles.sectionHeader, styles.stayHeaderInner]}>
               <Ionicons name="information-circle-outline" size={20} color="#D97706" />
-              <Text style={[styles.sectionTitle, { color: '#92400E' }]}>Stay Information</Text>
+              <Text style={[styles.sectionTitle, styles.stayHeaderLabel]}>Stay Information</Text>
             </View>
             <View style={{ padding: 16 }}>
-              <Text style={{ color: '#92400E', fontSize: 14, fontWeight: '500' }}>
+              <Text style={styles.stayHeaderValue}>
                 {pendingBookings.length > 0 
                   ? `You have a pending booking request for ${pendingBookings[0].propertyTitle}.`
                   : "You don't have an active stay at the moment. Explore our properties to find your next home."}
               </Text>
               {!pendingBookings.length && (
                 <TouchableOpacity 
-                  style={[styles.primaryButton, { marginTop: 12, backgroundColor: '#D97706' }]}
+                  style={[styles.primaryButton, styles.stayHeaderBtn]}
                   onPress={() => navigation.navigate('TenantHome')}
                 >
                   <Text style={styles.primaryButtonText}>Explore Properties</Text>
@@ -234,11 +234,11 @@ export default function MyBookings() {
            <View style={styles.addonHeader}>
               <Text style={styles.sectionTitle}>Add-ons & Extras</Text>
               <TouchableOpacity 
-                style={{ backgroundColor: hasActiveStay ? theme.colors.primary : theme.colors.textTertiary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                style={[styles.stayHeaderBtn, { marginTop: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: hasActiveStay ? theme.colors.primary : theme.colors.textTertiary }]}
                 disabled={!hasActiveStay}
                 onPress={() => navigation.navigate('Addons')}
               >
-                 <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>+ Request</Text>
+                 <Text style={styles.stayHeaderBtnText}>+ Request</Text>
               </TouchableOpacity>
            </View>
 
@@ -290,16 +290,16 @@ export default function MyBookings() {
               <Text style={[styles.sectionTitle, !hasActiveStay && { color: theme.colors.textTertiary }]}>Property Manager</Text>
            </View>
            <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: hasActiveStay ? theme.colors.primaryLight : theme.colors.backgroundTertiary, alignItems: 'center', justifyContent: 'center' }}>
-                 <Text style={{ color: hasActiveStay ? theme.colors.primary : theme.colors.textTertiary, fontWeight: 'bold', fontSize: 18 }}>
+              <View style={[styles.avatarSmall, { backgroundColor: hasActiveStay ? theme.colors.primaryLight : theme.colors.backgroundTertiary }]}>
+                 <Text style={[styles.avatarSmallText, { color: hasActiveStay ? theme.colors.primary : theme.colors.textTertiary }]}>
                    {hasActiveStay ? (landlord?.name?.charAt(0) || '?') : '?'}
                  </Text>
               </View>
               <View>
-                 <Text style={{ fontWeight: 'bold', color: hasActiveStay ? theme.colors.text : theme.colors.textTertiary }}>
+                 <Text style={[styles.managerName, { color: hasActiveStay ? theme.colors.text : theme.colors.textTertiary }]}>
                    {hasActiveStay ? landlord?.name : 'No Manager'}
                  </Text>
-                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                 <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>
                    {hasActiveStay ? landlord?.email : 'N/A'}
                  </Text>
               </View>
@@ -316,13 +316,13 @@ export default function MyBookings() {
     return (
       <ScrollView style={styles.financialsContainer} showsVerticalScrollIndicator={false}>
          {!hasActiveStay && (
-            <View style={[styles.sectionCard, { marginBottom: 16, backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
-              <View style={[styles.sectionHeader, { borderBottomColor: '#DBEAFE' }]}>
+            <View style={[styles.sectionCard, styles.financialsNotice]}>
+              <View style={[styles.sectionHeader, styles.financialsNoticeHeader]}>
                 <Ionicons name="cash-outline" size={20} color="#2563EB" />
-                <Text style={[styles.sectionTitle, { color: '#1E40AF' }]}>Payment Records</Text>
+                <Text style={[styles.sectionTitle, styles.financialsNoticeTitle]}>Payment Records</Text>
               </View>
               <View style={{ padding: 16 }}>
-                <Text style={{ color: '#1E40AF', fontSize: 14 }}>
+                <Text style={styles.financialsNoticeText}>
                   Financial records and invoices will be available once you have an active stay.
                 </Text>
               </View>
@@ -352,16 +352,16 @@ export default function MyBookings() {
                <Text style={[styles.sectionTitle, !hasActiveStay && { color: theme.colors.textTertiary }]}>Invoice History</Text>
             </View>
             <View style={styles.tableHeader}>
-               <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Due Date</Text>
-               <Text style={[styles.tableHeaderText, { flex: 2 }]}>Amount</Text>
-               <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Status</Text>
+               <Text style={[styles.tableHeaderText, styles.invoiceDueDateCell]}>Due Date</Text>
+               <Text style={[styles.tableHeaderText, styles.invoiceAmountCell]}>Amount</Text>
+               <Text style={[styles.tableHeaderText, styles.invoiceStatusCell]}>Status</Text>
             </View>
             {hasActiveStay && financials.invoices?.length > 0 ? (
               financials.invoices.map((inv, idx) => (
                 <View key={`inv-${idx}`} style={styles.tableRow}>
-                   <Text style={[styles.tableCell, { flex: 1.5 }]}>{inv.dueDate || inv.issuedAt}</Text>
-                   <Text style={[styles.tableCell, styles.tableCellBold, { flex: 2 }]}>{formatCurrency(inv.amount)}</Text>
-                   <View style={{ flex: 1.5 }}>
+                   <Text style={[styles.tableCell, styles.invoiceDueDateCell]}>{inv.dueDate || inv.issuedAt}</Text>
+                   <Text style={[styles.tableCell, styles.tableCellBold, styles.invoiceAmountCell]}>{formatCurrency(inv.amount)}</Text>
+                   <View style={styles.invoiceStatusCell}>
                       <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(inv.status)}15`, alignSelf: 'flex-start' }]}>
                         <Text style={[styles.statusText, { color: getStatusColor(inv.status), fontSize: 10 }]}>{inv.status}</Text>
                       </View>
@@ -387,10 +387,10 @@ export default function MyBookings() {
     if (historyData.length === 0) {
       return (
         <View style={styles.content}>
-           <View style={[styles.emptyState, { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 32 }]}>
-            <Ionicons name="time-outline" size={64} color={theme.colors.textTertiary} />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Past Stays</Text>
-            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+           <View style={styles.emptyHistoryCard}>
+            <Ionicons name="time-outline" size={64} color={theme.colors.textTertiary} style={styles.emptyHistoryIcon} />
+            <Text style={[styles.emptyTitle, styles.emptyHistoryTitle, { color: theme.colors.text }]}>No Past Stays</Text>
+            <Text style={[styles.emptyText, styles.emptyHistoryText, { color: theme.colors.textSecondary }]}>
               Your completed and past bookings will appear here.
             </Text>
           </View>
@@ -403,21 +403,21 @@ export default function MyBookings() {
         {historyData.map((booking) => (
           <TouchableOpacity 
             key={booking.id} 
-            style={[styles.bookingCard, { backgroundColor: theme.colors.surface }]}
+            style={[styles.bookingCard, styles.historyItemCard]}
             onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.property?.id })}
           >
             <View style={{ flexDirection: 'row', padding: 12, gap: 12 }}>
-               <Image source={getImageUrl(booking.property?.image)} style={{ width: 80, height: 80, borderRadius: 8 }} />
-               <View style={{ flex: 1, justifyContent: 'center' }}>
-                  <Text style={[styles.bookingName, { fontSize: 16, color: theme.colors.text }]}>{booking.property?.title || 'Past Stay'}</Text>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 4 }}>
+               <Image source={getImageUrl(booking.property?.image)} style={styles.historyItemImage} />
+               <View style={styles.historyItemContent}>
+                  <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>{booking.property?.title || 'Past Stay'}</Text>
+                  <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
                     {formatDate(booking.period?.startDate)} - {formatDate(booking.period?.endDate)}
                   </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.status)}15`, alignSelf: 'flex-start', marginTop: 8 }]}>
+                  <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.status)}15` }]}>
                     <Text style={[styles.statusText, { color: getStatusColor(booking.status), fontSize: 10 }]}>{booking.status}</Text>
                   </View>
                </View>
-               <View style={{ justifyContent: 'center', alignItems: 'flex-end' }}>
+               <View style={styles.historyItemRight}>
                   <Text style={{ fontSize: 11, color: theme.colors.textTertiary, textTransform: 'uppercase', fontWeight: 'bold' }}>Total Paid</Text>
                   <Text style={{ fontSize: 15, fontWeight: 'bold', color: theme.colors.primary, marginTop: 2 }}>
                     {formatCurrency(booking.financials?.totalPaid || booking.amount)}

@@ -331,6 +331,60 @@ export const getStyles = (theme) => StyleSheet.create({
   requiredAsterisk: {
     color: theme.colors.error,
   },
+  centered: {
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  iconButtonHeader: {
+    padding: 10,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  primaryBtn: {
+    marginTop: 16,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8
+  },
+  outlineBtn: {
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+  },
+  outlineBtnPrimary: {
+    borderColor: theme.colors.primary
+  },
+  outlineBtnSecondary: {
+    borderColor: '#6B7280'
+  },
+  outlineBtnBlue: {
+    borderColor: '#2563EB'
+  },
+  badgePill: {
+    position: 'absolute', 
+    bottom: 4, 
+    left: 4, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    paddingHorizontal: 4, 
+    borderRadius: 4
+  },
+  badgeTextPill: {
+    color: '#FFF', 
+    fontSize: 10, 
+    fontWeight: 'bold'
+  },
 });
 
 export default getStyles;

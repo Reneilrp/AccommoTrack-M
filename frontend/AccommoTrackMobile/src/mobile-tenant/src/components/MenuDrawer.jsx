@@ -126,7 +126,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
       onRequestClose={handleClose}
       statusBarTranslucent={true}
     >
-      <View style={{ flex: 1 }}>
+      <View style={styles.fullFlex}>
         {/* Backdrop with fade animation */}
         <Animated.View 
           style={[
@@ -143,7 +143,7 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
           ]}
         >
           <TouchableOpacity
-            style={{ flex: 1 }}
+            style={styles.fullFlex}
             activeOpacity={1}
             onPress={handleClose}
           />
@@ -196,24 +196,24 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, isGuest 
           </ScrollView>
 
           {/* Footer actions: show Settings (only for auth users) and Logout (only for auth users) */}
-          <SafeAreaView edges={["bottom"]} style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingVertical: 8, paddingHorizontal: 12 }}>
+          <SafeAreaView edges={["bottom"]} style={[styles.drawerFooter, { borderTopColor: theme.colors.border }]}>
             {!isGuest && settingsItem && (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}
+                style={styles.drawerFooterItem}
                 onPress={() => onMenuItemPress(settingsItem.title)}
               >
                 <Ionicons name={settingsItem.icon} size={20} color={settingsItem.color} />
-                <Text style={[styles.menuItemText, { color: theme.colors.text, marginLeft: 12 }]}>Settings</Text>
+                <Text style={[styles.drawerFooterText, { color: theme.colors.text }]}>Settings</Text>
               </TouchableOpacity>
             )}
 
             {!isGuest && logoutItem && (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}
+                style={styles.drawerFooterItem}
                 onPress={() => onMenuItemPress(logoutItem.title)}
               >
                 <Ionicons name={logoutItem.icon} size={20} color={logoutItem.color} />
-                <Text style={[styles.menuItemText, { color: logoutItem.color, marginLeft: 12 }]}>Logout</Text>
+                <Text style={[styles.drawerFooterText, { color: logoutItem.color }]}>Logout</Text>
               </TouchableOpacity>
             )}
           </SafeAreaView>

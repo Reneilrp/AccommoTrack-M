@@ -146,7 +146,7 @@ const DashboardScreen = () => {
   const loading = stayLoading || statsLoading;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       {/* Content Area */}
       <View style={styles.contentContainer}>
         {loading ? (
@@ -177,11 +177,11 @@ const DashboardScreen = () => {
                 <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary }]}>
                   <Ionicons name="bed-outline" size={24} color="#fff" />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                <Text style={styles.statValue}>
                   {stayData?.hasActiveStay ? stayData.room?.room_number : 'None'}
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Current Room</Text>
-                <Text style={[styles.statSubLabel, { color: theme.colors.textTertiary }]}>
+                <Text style={styles.statLabel}>Current Room</Text>
+                <Text style={styles.statSubLabel}>
                   {stayData?.hasActiveStay ? stayData.room?.type : 'No active stay'}
                 </Text>
               </View>
@@ -190,11 +190,11 @@ const DashboardScreen = () => {
                 <View style={[styles.iconContainer, { backgroundColor: '#3B82F6' }]}>
                   <Ionicons name="calendar-outline" size={24} color="#fff" />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                <Text style={styles.statValue}>
                   {stayData?.hasActiveStay ? calculateDaysStayed(stayData.booking?.start_date) : '0'}
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Days Stayed</Text>
-                <Text style={[styles.statSubLabel, { color: theme.colors.textTertiary }]}>
+                <Text style={styles.statLabel}>Days Stayed</Text>
+                <Text style={styles.statSubLabel}>
                   {stayData?.hasActiveStay ? `Since ${formatDate(stayData.booking?.start_date)}` : 'Not staying'}
                 </Text>
               </View>
@@ -205,11 +205,11 @@ const DashboardScreen = () => {
                 <View style={[styles.iconContainer, { backgroundColor: '#9333EA' }]}>
                   <Ionicons name="cash-outline" size={24} color="#fff" />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                <Text style={styles.statValue}>
                   {formatCurrency(stayData?.hasActiveStay ? stayData.booking?.monthly_rent : 0)}
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Monthly Rent</Text>
-                <Text style={[styles.statSubLabel, { color: theme.colors.textTertiary }]}>
+                <Text style={styles.statLabel}>Monthly Rent</Text>
+                <Text style={styles.statSubLabel}>
                   {stayData?.hasActiveStay ? `Due on ${stayData.booking?.due_day}th` : 'No active rent'}
                 </Text>
               </View>
@@ -218,17 +218,17 @@ const DashboardScreen = () => {
                 <View style={[styles.iconContainer, { backgroundColor: '#F59E0B' }]}>
                   <Ionicons name="wallet-outline" size={24} color="#fff" />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                <Text style={styles.statValue}>
                   {formatCurrency(stats?.payments?.totalPaid || 0)}
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Total Paid</Text>
-                <Text style={[styles.statSubLabel, { color: theme.colors.textTertiary }]}>All time</Text>
+                <Text style={styles.statLabel}>Total Paid</Text>
+                <Text style={styles.statSubLabel}>All time</Text>
               </View>
             </View>
 
             {stayData?.hasActiveStay ? (
               /* Property Card (Only when stay is active) */
-              <View style={[styles.propertyCard, { backgroundColor: theme.colors.surface }]}>
+              <View style={styles.propertyCard}>
                 <Image
                   source={{
                     uri: (
@@ -256,15 +256,15 @@ const DashboardScreen = () => {
                       style={styles.landlordAvatar}
                     />
                     <View style={styles.landlordInfo}>
-                      <Text style={[styles.landlordLabel, { color: theme.colors.textSecondary }]}>
+                      <Text style={styles.landlordLabel}>
                         Property Manager
                       </Text>
-                      <Text style={[styles.landlordName, { color: theme.colors.text }]}>
+                      <Text style={styles.landlordName}>
                         {stayData.landlord?.name}
                       </Text>
                     </View>
                     <TouchableOpacity
-                      style={[styles.messageButton, { borderColor: theme.colors.border }]}
+                      style={styles.messageButton}
                       onPress={() => navigation.navigate('Messages')}
                     >
                       <Ionicons name="chatbubble-outline" size={20} color={theme.colors.primary} />
@@ -274,16 +274,16 @@ const DashboardScreen = () => {
               </View>
             ) : (
               /* Empty State Main Card (When no active stay) */
-              <View style={[styles.emptyState, { backgroundColor: theme.colors.surface }]}>
+              <View style={styles.emptyState}>
                 <View style={[styles.emptyIcon, { backgroundColor: theme.colors.primaryLight }]}>
                   <Ionicons name="home-outline" size={40} color={theme.colors.primary} />
                 </View>
-                <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Find Your Home</Text>
-                <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.emptyTitle}>Find Your Home</Text>
+                <Text style={styles.emptyText}>
                   Browse our verified properties and find the perfect room for your needs.
                 </Text>
                 <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+                  style={styles.primaryButton}
                   onPress={() => navigation.navigate('TenantHome')}
                 >
                   <Text style={styles.primaryButtonText}>Explore Properties</Text>
@@ -312,19 +312,19 @@ const DashboardScreen = () => {
             )}
 
             {/* Payment Overview - Always visible */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, marginTop: stayData?.hasActiveStay ? 0 : 16 }]}>
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Payment Overview</Text>
+            <View style={[styles.card, { marginTop: stayData?.hasActiveStay ? 0 : 16 }]}>
+              <Text style={styles.cardTitle}>Payment Overview</Text>
               <View style={styles.paymentRow}>
-                <Text style={[styles.paymentLabel, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.paymentLabel}>
                   Pending Due
                 </Text>
                 <Text style={[styles.paymentValue, { color: '#EF4444' }]}>
                   {formatCurrency(stats?.payments?.monthlyDue || 0)}
                 </Text>
               </View>
-              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+              <View style={styles.divider} />
               <View style={styles.paymentRow}>
-                <Text style={[styles.paymentLabel, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.paymentLabel}>
                   Total Paid
                 </Text>
                 <Text style={[styles.paymentValue, { color: theme.colors.primary }]}>
@@ -332,7 +332,7 @@ const DashboardScreen = () => {
                 </Text>
               </View>
               <TouchableOpacity
-                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+                style={styles.primaryButton}
                 onPress={() => navigation.navigate('Payments')}
               >
                 <Text style={styles.primaryButtonText}>View Wallet</Text>
@@ -340,28 +340,28 @@ const DashboardScreen = () => {
             </View>
 
             {/* Quick Actions (Matching web sidebar) */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Quick Actions</Text>
-              <View style={{ gap: 8 }}>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Quick Actions</Text>
+              <View style={styles.actionList}>
                 <TouchableOpacity 
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('MyBookings')}
                 >
-                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Booking History</Text>
+                  <Text style={styles.actionText}>Booking History</Text>
                   <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('ServiceRequests')}
                 >
-                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Maintenance</Text>
+                  <Text style={styles.actionText}>Maintenance</Text>
                   <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('Messages')}
                 >
-                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Messages</Text>
+                  <Text style={styles.actionText}>Messages</Text>
                   <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
               </View>
@@ -371,6 +371,7 @@ const DashboardScreen = () => {
       </View>
     </View>
   );
+};
 };
 
 export default DashboardScreen;

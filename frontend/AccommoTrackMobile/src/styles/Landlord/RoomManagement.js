@@ -561,7 +561,36 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: theme.colors.textSecondary
-  }
+  },
+  modalEmptyView: {
+    width: 42,
+  },
+  inputHalf: {
+    flex: 1,
+  },
+  inputRow: {
+    flexDirection: 'row', 
+    gap: 12
+  },
+  inputLabelRow: {
+    flexDirection: 'row', 
+    justifyContent: 'space-between'
+  },
+  pricingGroup: {
+    gap: 10
+  },
+  pricingRadioRow: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10
+  },
+  pricingTextContent: {
+    flex: 1
+  },
+  pricingSelectionBox: {
+    flexDirection: 'row', 
+    gap: 10
+  },
 });
 
 export default getStyles;

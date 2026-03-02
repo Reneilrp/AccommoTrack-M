@@ -400,6 +400,69 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  headerContainer: {
+    backgroundColor: theme.colors.primary,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    borderWidth: 1.5,
+  },
+  notificationBadgeText: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  navContainer: {
+    backgroundColor: theme.colors.surface,
+    position: 'relative',
+  },
+  tabButtonContainer: {
+    backgroundColor: theme.colors.surface,
+    borderTopColor: theme.colors.border,
+    height: 60,
+    paddingVertical: 0,
+    paddingBottom: 0,
+    alignItems: 'center',
+  },
+  fabOverlay: {
+    position: 'absolute', 
+    left: 0, 
+    right: 0, 
+    zIndex: 30, 
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: 100,
+  },
+  drawerContainer: {
+    flex: 1,
+  },
+  drawerFooter: {
+    borderTopWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  drawerFooterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  drawerFooterText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 12,
+  },
+  fullFlex: {
+    flex: 1,
+  },
 });
 
 export default getStyles;

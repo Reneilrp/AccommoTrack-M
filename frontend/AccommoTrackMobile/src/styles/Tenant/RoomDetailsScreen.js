@@ -381,8 +381,126 @@ summaryNote: {
 },
 
 // Update existing submitButtonDisabled style
-submitButtonDisabled: {
-  backgroundColor: theme.colors.textTertiary,
-  opacity: 0.6,
-},
+  submitButtonDisabled: {
+    backgroundColor: theme.colors.textTertiary,
+    opacity: 0.6,
+  },
+  fullFlex: {
+    flex: 1,
+  },
+  modalCloseHeader: {
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 20
+  },
+  modalHeaderSpace: {
+    width: 24
+  },
+  headerIconWrapper: {
+    padding: 4
+  },
+  modalFormTitle: {
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: theme.colors.text
+  },
+  modalFormSubtitle: {
+    fontSize: 14, 
+    color: theme.colors.textSecondary, 
+    marginBottom: 16
+  },
+  modalFormGroup: {
+    marginBottom: 16
+  },
+  modalFormLabel: {
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: theme.colors.text, 
+    marginBottom: 8
+  },
+  modalFormInput: {
+    borderWidth: 1, 
+    borderColor: theme.colors.border, 
+    borderRadius: 8, 
+    padding: 12, 
+    color: theme.colors.text, 
+    fontSize: 16
+  },
+  modalFormAction: {
+    backgroundColor: theme.colors.primary, 
+    paddingVertical: 14, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    marginTop: 10
+  },
+  modalFormActionText: {
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600'
+  },
+  modalFormCancel: {
+    paddingVertical: 12, 
+    alignItems: 'center'
+  },
+  headerBar: {
+    height: 56, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 12, 
+    borderBottomWidth: 0.5,
+  },
+  backBtn: {
+    padding: 8
+  },
+  titleTxt: {
+    flex: 1, 
+    textAlign: 'center', 
+    fontSize: 18, 
+    fontWeight: '600'
+  },
+  emptyHeaderSide: {
+    width: 40
+  },
+  psText: {
+    marginTop: 6, 
+    fontSize: 12, 
+    color: '#6b7280', 
+    fontStyle: 'italic'
+  },
+  paymentMethodRow: {
+    flexDirection: 'row', 
+    gap: 10, 
+    marginTop: 5
+  },
+  paymentMethodBtn: {
+    flex: 1, 
+    borderColor: '#ddd', 
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  paymentMethodBtnActive: {
+    borderColor: theme.colors.primary, 
+    backgroundColor: theme.colors.successLight
+  },
+  paymentMethodBtnText: {
+    color: '#374151', 
+    fontWeight: 'bold', 
+    textAlign: 'center'
+  },
+  paymentMethodBtnTextActive: {
+    color: theme.colors.primary
+  },
+  gcashDetailsBox: {
+    marginTop: 8, 
+    padding: 10, 
+    backgroundColor: theme.colors.backgroundSecondary, 
+    borderRadius: 6, 
+    borderWidth: 1, 
+    borderColor: theme.colors.border
+  },
 });
