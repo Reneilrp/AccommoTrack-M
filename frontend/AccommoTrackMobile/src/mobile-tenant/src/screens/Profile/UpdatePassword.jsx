@@ -21,6 +21,23 @@ export default function UpdatePasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [passwordChecks, setPasswordChecks] = useState({
+    minLen: false,
+    hasUpper: false,
+    hasLower: false,
+    hasNumber: false,
+  });
+
+  const handleNewPasswordChange = (value) => {
+    setNewPassword(value);
+    setPasswordChecks({
+      minLen: value.length >= 8,
+      hasUpper: /[A-Z]/.test(value),
+      hasLower: /[a-z]/.test(value),
+      hasNumber: /\d/.test(value),
+    });
+  };
+
   const getAuthHeaders = async () => {
     try {
       const userJson = await AsyncStorage.getItem('user');
@@ -41,8 +58,12 @@ export default function UpdatePasswordPage() {
   };
 
   const validate = () => {
-    if (!newPassword || newPassword.length < 6) {
-      Alert.alert('Validation', 'New password must be at least 6 characters');
+    if (!currentPassword) {
+      Alert.alert('Validation', 'Current password is required');
+      return false;
+    }
+    if (!passwordChecks.minLen || !passwordChecks.hasUpper || !passwordChecks.hasLower || !passwordChecks.hasNumber) {
+      Alert.alert('Validation', 'New password does not meet requirements');
       return false;
     }
     if (newPassword !== confirmPassword) {
@@ -57,8 +78,8 @@ export default function UpdatePasswordPage() {
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/tenant/change-password`, {
-        method: 'PUT',
+      const response = await fetch(`${API_URL}/change-password`, {
+        method: 'POST',
         headers: {
           ...headers,
           'Content-Type': 'application/json'
@@ -70,14 +91,14 @@ export default function UpdatePasswordPage() {
         })
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         Alert.alert('Success', 'Password updated successfully', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
-        let errText = 'Failed to change password';
-        try { const err = await response.json(); if (err?.message) errText = err.message; } catch(e){}
-        Alert.alert('Error', errText);
+        Alert.alert('Error', data.message || 'Failed to change password');
       }
     } catch (error) {
       console.error('Change password error:', error);
@@ -88,7 +109,7 @@ export default function UpdatePasswordPage() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       <Header 
@@ -97,7 +118,7 @@ export default function UpdatePasswordPage() {
         showProfile={false}
       />
 
-      <View style={localStyles.formContainer}>
+      <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.colors.text }]}>Current Password</Text>
           <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -110,7 +131,7 @@ export default function UpdatePasswordPage() {
               placeholder="Enter current password"
               placeholderTextColor={theme.colors.textTertiary}
             />
-            <TouchableOpacity onPress={() => setShowCurrent(s => !s)} style={localStyles.eyeBtn}>
+            <TouchableOpacity onPress={() => setShowCurrent(s => !s)} style={styles.eyeBtn}>
               <Ionicons name={showCurrent ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -123,14 +144,49 @@ export default function UpdatePasswordPage() {
             <TextInput
               style={[styles.input, { color: theme.colors.text }]}
               value={newPassword}
-              onChangeText={setNewPassword}
+              onChangeText={handleNewPasswordChange}
               secureTextEntry={!showNew}
               placeholder="Enter new password"
               placeholderTextColor={theme.colors.textTertiary}
             />
-            <TouchableOpacity onPress={() => setShowNew(s => !s)} style={localStyles.eyeBtn}>
+            <TouchableOpacity onPress={() => setShowNew(s => !s)} style={styles.eyeBtn}>
               <Ionicons name={showNew ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
+          </View>
+          
+          <View style={styles.passwordChecksContainer}>
+            <View style={styles.passwordCheckItem}>
+              <Ionicons 
+                name={passwordChecks.minLen ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordChecks.minLen ? theme.colors.success : '#9CA3AF'} 
+              />
+              <Text style={[styles.passwordCheckText, passwordChecks.minLen && { color: theme.colors.success }]}>Minimum 8 characters</Text>
+            </View>
+            <View style={styles.passwordCheckItem}>
+              <Ionicons 
+                name={passwordChecks.hasUpper ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordChecks.hasUpper ? theme.colors.success : '#9CA3AF'} 
+              />
+              <Text style={[styles.passwordCheckText, passwordChecks.hasUpper && { color: theme.colors.success }]}>At least one uppercase letter</Text>
+            </View>
+            <View style={styles.passwordCheckItem}>
+              <Ionicons 
+                name={passwordChecks.hasLower ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordChecks.hasLower ? theme.colors.success : '#9CA3AF'} 
+              />
+              <Text style={[styles.passwordCheckText, passwordChecks.hasLower && { color: theme.colors.success }]}>At least one lowercase letter</Text>
+            </View>
+            <View style={styles.passwordCheckItem}>
+              <Ionicons 
+                name={passwordChecks.hasNumber ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordChecks.hasNumber ? theme.colors.success : '#9CA3AF'} 
+              />
+              <Text style={[styles.passwordCheckText, passwordChecks.hasNumber && { color: theme.colors.success }]}>At least one number</Text>
+            </View>
           </View>
         </View>
 
@@ -146,24 +202,24 @@ export default function UpdatePasswordPage() {
               placeholder="Confirm new password"
               placeholderTextColor={theme.colors.textTertiary}
             />
-            <TouchableOpacity onPress={() => setShowConfirm(s => !s)} style={localStyles.eyeBtn}>
+            <TouchableOpacity onPress={() => setShowConfirm(s => !s)} style={styles.eyeBtn}>
               <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity 
-          style={[localStyles.saveButton, { backgroundColor: theme.colors.primary }]} 
+          style={[styles.saveButton, { backgroundColor: theme.colors.primary }, (saving || !newPassword) && { opacity: 0.6 }]} 
           onPress={handleSave}
           disabled={saving || !newPassword}
         >
           {saving ? (
             <ActivityIndicator size="small" color={theme.colors.textInverse} />
           ) : (
-            <Text style={[localStyles.saveButtonText, { color: theme.colors.textInverse }]}>Update Password</Text>
+            <Text style={[styles.saveButtonText, { color: theme.colors.textInverse }]}>Update Password</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }

@@ -206,6 +206,19 @@ export default function SettingsScreen({ navigation, onLogout }) {
           ]
         },
         {
+          title: 'Security',
+          items: [
+            {
+              id: 'change-password',
+              label: 'Change Password',
+              description: 'Update your login credentials',
+              icon: 'lock-closed-outline',
+              type: 'navigate',
+              target: 'UpdatePassword'
+            }
+          ]
+        },
+        {
           title: 'Notifications',
           items: [
             {

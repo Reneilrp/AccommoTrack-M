@@ -88,9 +88,9 @@ class TenantSettingsController extends Controller
             $user = User::findOrFail($userId);
 
             $validated = $request->validate([
-                'first_name'                    => 'sometimes|required|string|max:255',
-                'middle_name'                   => 'nullable|string|max:255',
-                'last_name'                     => 'sometimes|required|string|max:255',
+                'first_name'                    => 'sometimes|required|string|max:100',
+                'middle_name'                   => 'nullable|string|max:100',
+                'last_name'                     => 'sometimes|required|string|max:100',
                 'email'                         => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
                 'phone'                         => 'nullable|string|max:20',
                 'profile_image'                 => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -201,7 +201,17 @@ class TenantSettingsController extends Controller
         try {
             $validated = $request->validate([
                 'current_password' => 'required|string',
-                'new_password'     => 'required|string|min:8|confirmed',
+                'new_password'     => [
+                    'required', 
+                    'string', 
+                    'min:8', 
+                    'confirmed',
+                    'regex:/[a-z]/',
+                    'regex:/[A-Z]/',
+                    'regex:/[0-9]/',
+                ],
+            ], [
+                'new_password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, and one number.',
             ]);
 
             $userId = Auth::id();

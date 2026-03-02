@@ -181,6 +181,39 @@ export const getStyles = (theme) => StyleSheet.create({
   toggleCircleActive: {
     alignSelf: 'flex-end',
   },
+  eyeBtn: {
+    padding: 8,
+  },
+  saveButton: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  passwordChecksContainer: {
+    marginTop: 10,
+    paddingHorizontal: 5,
+    marginBottom: 10,
+  },
+  passwordCheckItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  passwordCheckText: {
+    marginLeft: 5,
+    color: '#9CA3AF',
+  },
 });
 
 export default getStyles;

@@ -152,15 +152,21 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
+    // Basic validation
+    if (!profileData.firstName?.trim() || !profileData.lastName?.trim()) {
+      Alert.alert('Validation Error', 'First and Last name are required.');
+      return;
+    }
+
     try {
       setSaving(true);
       
       const updateData = {
-        first_name: profileData.firstName,
-        middle_name: profileData.middleName,
-        last_name: profileData.lastName,
-        phone: profileData.phone || '',
-        notes: profileData.bio || '',
+        first_name: profileData.firstName.trim(),
+        middle_name: profileData.middleName?.trim() || null,
+        last_name: profileData.lastName.trim(),
+        phone: profileData.phone?.trim() || '',
+        notes: profileData.bio?.trim() || '',
         preference: profileData.preferences,
         date_of_birth: profileData.dateOfBirth || null,
       };
@@ -409,6 +415,7 @@ export default function ProfilePage() {
                 editable={isEditing}
                 placeholder="First Name"
                 placeholderTextColor={theme.colors.textTertiary}
+                maxLength={100}
               />
             </View>
           </View>
@@ -425,6 +432,7 @@ export default function ProfilePage() {
                 editable={isEditing}
                 placeholder="Middle Name"
                 placeholderTextColor={theme.colors.textTertiary}
+                maxLength={100}
               />
             </View>
           </View>
@@ -441,6 +449,7 @@ export default function ProfilePage() {
                 editable={isEditing}
                 placeholder="Last Name"
                 placeholderTextColor={theme.colors.textTertiary}
+                maxLength={100}
               />
             </View>
           </View>
@@ -511,6 +520,7 @@ export default function ProfilePage() {
                 keyboardType="phone-pad"
                 placeholder="Enter phone number"
                 placeholderTextColor={theme.colors.textTertiary}
+                maxLength={20}
               />
             </View>
           </View>

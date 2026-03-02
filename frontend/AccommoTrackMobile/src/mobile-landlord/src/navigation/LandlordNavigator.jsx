@@ -34,6 +34,7 @@ import PropertyDetailsScreen from '../../../mobile-tenant/src/components/Propert
 import MaintenanceRequests from '../screens/MaintenanceRequests.jsx';
 import Reviews from '../screens/Reviews.jsx';
 import Caretakers from '../screens/Caretakers.jsx';
+import UpdatePassword from '../../../mobile-tenant/src/screens/Profile/UpdatePassword.jsx';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -253,6 +254,7 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
       <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
       <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
+      <Stack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
       {userRole === 'landlord' && (
         <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
       )}

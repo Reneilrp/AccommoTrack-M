@@ -85,12 +85,18 @@ export default function MyProfileScreen({ navigation }) {
 
   // Function to handle saving changes
   const handleSave = async () => {
+    // Basic validation
+    if (!tempUser.first_name?.trim() || !tempUser.last_name?.trim()) {
+      Alert.alert('Validation Error', 'First and Last name are required.');
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await ProfileService.updateProfile({
-        first_name: tempUser.first_name,
-        last_name: tempUser.last_name,
-        phone: tempUser.phone,
+        first_name: tempUser.first_name.trim(),
+        last_name: tempUser.last_name.trim(),
+        phone: tempUser.phone?.trim() || '',
       }, selectedImage);
       
       if (response.success) {
@@ -161,7 +167,7 @@ export default function MyProfileScreen({ navigation }) {
   };
 
   // Define a reusable component for profile fields
-  const ProfileField = ({ label, value, editable, onChangeText, iconName, keyboardType = 'default', styles }) => (
+  const ProfileField = ({ label, value, editable, onChangeText, iconName, keyboardType = 'default', maxLength, styles }) => (
     <View style={styles.fieldContainer}>
       <View style={styles.fieldLabelContainer}>
         <Ionicons name={iconName} size={20} color="#6B7280" />
@@ -175,6 +181,7 @@ export default function MyProfileScreen({ navigation }) {
         placeholder={label}
         placeholderTextColor="#9CA3AF"
         keyboardType={keyboardType}
+        maxLength={maxLength}
       />
     </View>
   );
@@ -265,6 +272,7 @@ export default function MyProfileScreen({ navigation }) {
             editable={isEditing}
             onChangeText={(text) => setTempUser({ ...tempUser, first_name: text })}
             iconName="person-outline"
+            maxLength={100}
             styles={styles}
           />
           <ProfileField
@@ -273,6 +281,7 @@ export default function MyProfileScreen({ navigation }) {
             editable={isEditing}
             onChangeText={(text) => setTempUser({ ...tempUser, last_name: text })}
             iconName="person-outline"
+            maxLength={100}
             styles={styles}
           />
           <ProfileField
@@ -289,6 +298,7 @@ export default function MyProfileScreen({ navigation }) {
             onChangeText={(text) => setTempUser({ ...tempUser, phone: text })}
             iconName="call-outline"
             keyboardType="phone-pad"
+            maxLength={20}
             styles={styles}
           />
         </View>
