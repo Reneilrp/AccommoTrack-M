@@ -152,18 +152,23 @@ export default function SettingsScreen({ navigation, onLogout }) {
   };
 
   const handleConnectPayMongo = async () => {
-    try {
-      const res = await ProfileService.getPayMongoOnboardingUrl();
-      if (res.success && res.data.onboarding_url) {
-        await Linking.openURL(res.data.onboarding_url);
-        // Refresh settings after user comes back to the app
-        loadSettings();
-      } else {
-        Alert.alert('Error', res.error || 'Could not start PayMongo connection.');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred.');
-    }
+    // TODO: Re-enable once PayMongo approves Connect/Platform API access on our account
+    // try {
+    //   const res = await ProfileService.getPayMongoOnboardingUrl();
+    //   if (res.success && res.data.onboarding_url) {
+    //     await Linking.openURL(res.data.onboarding_url);
+    //     loadSettings();
+    //   } else {
+    //     Alert.alert('Error', res.error || 'Could not start PayMongo connection.');
+    //   }
+    // } catch (error) {
+    //   Alert.alert('Error', 'An unexpected error occurred.');
+    // }
+    Alert.alert(
+      'Coming Soon',
+      'PayMongo online payment onboarding is currently being set up. We will notify you once it is available.',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleItemPress = (item) => {

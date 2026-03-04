@@ -37,21 +37,26 @@ export default function PaymentMethods({ user, onUpdate }) {
   };
 
   const handleConnectPayMongo = async () => {
-    try {
-      setConnectingPaymongo(true);
-      const res = await api.get('/landlord/paymongo/onboarding');
-      if (res.data?.onboarding_url) {
-        window.open(res.data.onboarding_url, '_blank');
-        toast.success('Onboarding link opened in a new tab');
-      } else {
-        toast.error('Could not get onboarding link');
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error(e.response?.data?.message || 'Failed to start PayMongo onboarding');
-    } finally {
-      setConnectingPaymongo(false);
-    }
+    // TODO: Re-enable once PayMongo approves Connect/Platform API access on our account
+    // try {
+    //   setConnectingPaymongo(true);
+    //   const res = await api.get('/landlord/paymongo/onboarding');
+    //   if (res.data?.onboarding_url) {
+    //     window.open(res.data.onboarding_url, '_blank');
+    //     toast.success('Onboarding link opened in a new tab');
+    //   } else {
+    //     toast.error('Could not get onboarding link');
+    //   }
+    // } catch (e) {
+    //   console.error(e);
+    //   toast.error(e.response?.data?.message || 'Failed to start PayMongo onboarding');
+    // } finally {
+    //   setConnectingPaymongo(false);
+    // }
+    setMessage({
+      type: 'info',
+      text: 'PayMongo online payment onboarding is currently being set up. We will notify you once it is available.'
+    });
   };
 
   const handleToggle = (method) => {
