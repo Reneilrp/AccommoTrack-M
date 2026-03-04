@@ -72,7 +72,6 @@ class LandlordController extends Controller
                         'email'         => $landlord->email,
                         'country'       => 'PH',
                         'business_name' => $businessName ?: 'Landlord',
-                        'features'      => ['card', 'gcash', 'grab_pay', 'paymaya'],
                     ]
                 ]
             ]);
