@@ -60,14 +60,19 @@ class LandlordController extends Controller
         }
 
         try {
+            $landlord = $context['user'];
+            $businessName = trim(($landlord->first_name ?? '') . ' ' . ($landlord->last_name ?? ''));
+
             // Make the POST request to PayMongo
             /** @var \Illuminate\Http\Client\Response $response */
             $response = $pendingRequest->post('https://api.paymongo.com/v1/merchants/children', [
                 'data' => [
                     'attributes' => [
-                        'business_type'     => 'individual',
-                        'features'          => ['payment_gateway', 'wallet'],
-                        'hosted_onboarding' => true
+                        'accepted_terms_and_conditions' => true,
+                        'email'         => $landlord->email,
+                        'country'       => 'PH',
+                        'business_name' => $businessName ?: 'Landlord',
+                        'features'      => ['card', 'gcash', 'grab_pay', 'paymaya'],
                     ]
                 ]
             ]);
