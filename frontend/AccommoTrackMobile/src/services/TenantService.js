@@ -1,5 +1,5 @@
-import api from './api';
-import { API_BASE_URL as API_URL } from '../config';
+import api from './api.js';
+import { API_BASE_URL as API_URL } from '../config/index.js';
 
 class TenantService {
 
@@ -105,7 +105,7 @@ class TenantService {
    */
   async cancelAddonRequest(addonId) {
     try {
-      const response = await api.delete(`/tenant/addons/request/${addonId}`);
+      const response = await api.delete(`/tenant/addons/${addonId}/cancel`);
 
       return {
         success: true,
@@ -129,13 +129,15 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
+        status: response.status
       };
     } catch (error) {
       console.error('Error fetching available addons:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch available addons'
+        error: error.response?.data?.message || 'Failed to fetch available addons',
+        status: error.response?.status
       };
     }
   }
@@ -149,13 +151,15 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
+        status: response.status
       };
     } catch (error) {
       console.error('Error fetching addon requests:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch addon requests'
+        error: error.response?.data?.message || 'Failed to fetch addon requests',
+        status: error.response?.status
       };
     }
   }

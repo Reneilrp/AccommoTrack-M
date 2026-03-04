@@ -1,4 +1,4 @@
-import api from './api';
+import api from './api.js';
 
 /**
  * Landlord dashboard aggregated data fetcher mirroring the web admin endpoints.

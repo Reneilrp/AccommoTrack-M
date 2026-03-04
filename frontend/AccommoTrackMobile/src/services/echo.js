@@ -1,7 +1,7 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ECHO_HOST, ECHO_PORT, ECHO_AUTH_ENDPOINT } from '../config';
+import { ECHO_HOST, ECHO_PORT, ECHO_AUTH_ENDPOINT } from '../config/index.js';
 
 window.Pusher = Pusher;
 

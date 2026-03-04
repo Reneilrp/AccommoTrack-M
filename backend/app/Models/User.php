@@ -82,6 +82,8 @@ class User extends Authenticatable
         'payment_methods_settings',
         'notification_preferences',
         'is_blocked',
+        'paymongo_child_id',
+        'paymongo_verification_status',
     ];
 
     protected $hidden = [

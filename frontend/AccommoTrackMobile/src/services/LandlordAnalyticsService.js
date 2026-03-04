@@ -1,4 +1,4 @@
-import api from './api';
+import api from './api.js';
 
 const buildErrorMessage = (error, fallbackMessage) => {
   if (error?.response?.data) {

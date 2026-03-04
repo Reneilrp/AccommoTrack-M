@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../utils/api';
 import toast from 'react-hot-toast';
-import { CreditCard, Save, AlertCircle } from 'lucide-react';
+import { CreditCard, Save, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function PaymentMethods({ user, onUpdate }) {
   const [loading, setLoading] = useState(false);
+  const [connectingPaymongo, setConnectingPaymongo] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [allowed, setAllowed] = useState(user.payment_methods_settings?.allowed || ['cash']);
   const [details, setDetails] = useState(user.payment_methods_settings?.details || {});
 
-  const payMongoStatus = user?.paymongo_account?.status;
+  const payMongoStatus = user?.paymongo_verification_status || 'not_connected';
   const isPayMongoActive = payMongoStatus === 'verified';
 
   // Sync state if user prop updates (e.g. after a re-fetch)
@@ -18,6 +20,39 @@ export default function PaymentMethods({ user, onUpdate }) {
       setDetails(user.payment_methods_settings.details || {});
     }
   }, [user]);
+
+  const refreshUser = async () => {
+    try {
+      setRefreshing(true);
+      const res = await api.get('/me');
+      if (onUpdate && res.data?.user) {
+        onUpdate(res.data.user);
+        toast.success('Status updated');
+      }
+    } catch (e) {
+      toast.error('Failed to refresh status');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleConnectPayMongo = async () => {
+    try {
+      setConnectingPaymongo(true);
+      const res = await api.get('/landlord/paymongo/onboarding');
+      if (res.data?.onboarding_url) {
+        window.open(res.data.onboarding_url, '_blank');
+        toast.success('Onboarding link opened in a new tab');
+      } else {
+        toast.error('Could not get onboarding link');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e.response?.data?.message || 'Failed to start PayMongo onboarding');
+    } finally {
+      setConnectingPaymongo(false);
+    }
+  };
 
   const handleToggle = (method) => {
     setAllowed(prev => {
@@ -90,11 +125,41 @@ export default function PaymentMethods({ user, onUpdate }) {
 
           {!isPayMongoActive && (
             <div className="px-4 pb-4 pl-12">
-              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-800/50 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
-                  Your online payments are disabled until your PayMongo verification is complete.
-                </p>
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-800/50 rounded-lg flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+                    Your online payments are disabled until your PayMongo verification is complete.
+                    {user?.paymongo_child_id && ` Current status: ${payMongoStatus.replace('_', ' ')}`}
+                  </p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={handleConnectPayMongo}
+                    disabled={connectingPaymongo || !user?.is_verified}
+                    className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-bold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {connectingPaymongo ? 'Loading...' : user?.paymongo_child_id ? 'Complete Onboarding' : 'Connect to PayMongo'}
+                  </button>
+
+                  {user?.paymongo_child_id && (
+                    <button
+                      onClick={refreshUser}
+                      disabled={refreshing}
+                      className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-md transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                      Refresh Status
+                    </button>
+                  )}
+                </div>
+
+                {!user?.is_verified && (
+                  <p className="text-[10px] text-yellow-700 dark:text-yellow-400">
+                    * Admin verification must be completed first.
+                  </p>
+                )}
               </div>
             </div>
           )}

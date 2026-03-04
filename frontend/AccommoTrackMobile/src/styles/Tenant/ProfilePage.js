@@ -122,6 +122,10 @@ export const getStyles = (theme) => StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
   },
+  divider: {
+    height: 1,
+    width: '100%',
+  },
   preferencesSection: {
     marginTop: 24,
   },

@@ -1,4 +1,7 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
+const actionCardSize = 80;
 
 export const getStyles = (theme) => StyleSheet.create({
   container: {
@@ -101,27 +104,39 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: 'bold'
   },
   statsContainer: {
-    marginTop: 16,
-    paddingHorizontal: 16
+    marginTop: 8,
+    paddingHorizontal: 12
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12
+    gap: 8
   },
   statCard: {
     width: '48%',
     backgroundColor: theme.colors.surface,
-    padding: 14,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    flexDirection: 'row',
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: theme.isDark ? 0.3 : 0.05,
     shadowRadius: 2,
+  },
+  statCardLeft: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  statCardRight: {
+    flex: 1,
+    paddingLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statCardBlue: {
     backgroundColor: theme.isDark ? '#1E293B' : '#EFF6FF',
@@ -140,32 +155,31 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.isDark ? '#92400E' : '#FEF3C7',
   },
   statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10
   },
   statBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginTop: 8
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   statBadgeText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '600'
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: theme.colors.text
+    color: theme.colors.text,
+    lineHeight: 26,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: theme.colors.textSecondary,
-    marginTop: 2
+    marginTop: 1,
   },
   chartContainer: {
     marginTop: 24,
@@ -216,15 +230,15 @@ export const getStyles = (theme) => StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 16
+    justifyContent: 'space-around',
+    gap: 6,
+    marginTop: 8
   },
   actionCard: {
-    width: '31%',
+    width: actionCardSize,
+    height: actionCardSize,
     backgroundColor: theme.colors.surface,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    borderRadius: actionCardSize / 2,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 4,
@@ -236,19 +250,23 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8
+    marginBottom: 2,
   },
   actionTitle: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '600',
     color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 4
+    paddingHorizontal: 2,
+  },
+  quickActionsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   actionArrow: {
     marginTop: 2

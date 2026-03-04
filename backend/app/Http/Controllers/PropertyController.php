@@ -676,6 +676,7 @@ class PropertyController extends Controller
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
             'accepted_payments' => 'nullable|array',
             'accepted_payments.*' => 'in:cash,online',
+            'delete_video' => 'sometimes|boolean',
         ]);
 
         // Check if landlord is verified - unverified landlords can only have drafts
@@ -800,6 +801,17 @@ class PropertyController extends Controller
                     'original_name' => $file->getClientOriginalName(),
                     'mime' => $file->getClientMimeType(),
                 ]);
+            }
+        }
+
+        // Handle delete_video request (delete without replacement)
+        if (!$request->hasFile('video') && $request->boolean('delete_video')) {
+            $existingVideos = PropertyImage::where('property_id', $property->id)
+                ->where('media_type', 'video')
+                ->get();
+            foreach ($existingVideos as $ev) {
+                Storage::disk('public')->delete($ev->image_url);
+                $ev->delete();
             }
         }
 

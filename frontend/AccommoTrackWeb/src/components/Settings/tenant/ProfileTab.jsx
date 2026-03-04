@@ -143,29 +143,20 @@ const ProfileTab = ({ onUserUpdate }) => {
           }
           return;
         }
-        
-        // Handle Gender directly (since it has its own column now)
-        if (key === 'gender') {
-            if (formData[key]) data.append('gender', formData[key]);
-            return;
-        }
 
-        // Only append fields that have values
-        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
-             data.append(key, formData[key]);
+        // Always send every field (including empty strings) so the backend
+        // can clear nullable fields like middle_name, gender, phone, etc.
+        if (formData[key] !== null && formData[key] !== undefined) {
+          data.append(key, formData[key]);
         }
       });
       
       const response = await tenantService.updateProfile(data);
       
-      // Update global user state if onUserUpdate exists
+      // Propagate the updated user up to App.jsx (updates header avatar, etc.)
+      // App.jsx's handleUserUpdate handles both setUser() and localStorage correctly.
       if (onUserUpdate && response.user) {
-        // The backend returns the updated user. We need to make sure 
-        // the profile_image path is correctly handled if it's just a path.
-        const updatedUser = { ...response.user };
-        // The global user state in App.jsx should have the latest info
-        onUserUpdate(updatedUser);
-        localStorage.setItem('userData', JSON.stringify(updatedUser));
+        onUserUpdate(response.user);
       }
 
       setMessage({ type: 'success', text: 'Profile updated successfully!' });

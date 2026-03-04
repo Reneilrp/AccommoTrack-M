@@ -13,7 +13,9 @@ import {
   ArrowRight,
   X,
   ShieldAlert,
-  Clock
+  Clock,
+  Video,
+  Play
 } from 'lucide-react';
 
 // Leaflet
@@ -37,6 +39,8 @@ export default function AddProperty({ onBack, onSave }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
@@ -191,6 +195,35 @@ export default function AddProperty({ onBack, onSave }) {
       ...prev,
       images: [...prev.images, ...files]
     }));
+  };
+
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 90 * 1024 * 1024) {
+      toast.error('Video is too large. Maximum size is 90MB.');
+      return;
+    }
+
+    const videoEl = document.createElement('video');
+    videoEl.preload = 'metadata';
+    videoEl.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoEl.src);
+      if (videoEl.duration > 45) {
+        toast.error('Video must be 45 seconds or less.');
+        return;
+      }
+      setVideoFile(file);
+      setVideoPreview(URL.createObjectURL(file));
+    };
+    videoEl.src = URL.createObjectURL(file);
+  };
+
+  const removeVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
   };
 
   const removeImage = (index) => {
@@ -371,6 +404,11 @@ export default function AddProperty({ onBack, onSave }) {
         payload.append(`credentials[${index}]`, file);
       }
     });
+
+    // Append video tour if any
+    if (videoFile) {
+      payload.append('video', videoFile);
+    }
 
     try {
       const result = await api.post('/landlord/properties', payload, {
@@ -557,10 +595,10 @@ export default function AddProperty({ onBack, onSave }) {
             </div>
 
             {/* Property Images */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Images</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property Images</h2>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8">
                 <input
                   type="file"
                   multiple
@@ -573,14 +611,14 @@ export default function AddProperty({ onBack, onSave }) {
                 {formData.images.length === 0 ? (
                   <label htmlFor="image-upload" className="cursor-pointer block text-center">
                     <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1">Click to upload or drag and drop</p>
                     <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
                   </label>
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-4 gap-3">
                       {formData.images.map((img, index) => (
-                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                        <div key={index} className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group">
                           <img
                             src={typeof img === 'string' ? img : URL.createObjectURL(img)}
                             alt={`Property ${index + 1}`}
@@ -595,7 +633,7 @@ export default function AddProperty({ onBack, onSave }) {
                         </div>
                       ))}
                       {formData.images.length < 10 && (
-                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
+                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
                           <Plus className="w-8 h-8 text-gray-400" />
                         </label>
                       )}
@@ -603,6 +641,58 @@ export default function AddProperty({ onBack, onSave }) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Property Video Tour */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Video className="w-5 h-5 text-green-600" />
+                  Property Video Tour
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>90MB</strong>.
+                </p>
+              </div>
+
+              {!videoPreview ? (
+                <label
+                  htmlFor="video-upload"
+                  className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-green-500 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50 transition-colors group"
+                >
+                  <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-green-500 transition-colors">
+                    <Play className="w-10 h-10" />
+                    <span className="text-sm font-medium">Click to upload video</span>
+                    <span className="text-xs">MP4, MOV, AVI (max 90MB, 45s)</span>
+                  </div>
+                  <input
+                    id="video-upload"
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                  />
+                </label>
+              ) : (
+                <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-black">
+                  <video
+                    src={videoPreview}
+                    className="w-full max-h-64 object-contain"
+                    controls
+                  />
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
+                    <Video className="w-3 h-3" /> VIDEO TOUR
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StatusBar } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { navigationRef, notifyNavigationStateChange } from './src/navigation/RootNavigation';
+import { navigationRef, notifyNavigationStateChange } from './src/navigation/RootNavigation.js';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -9,7 +9,7 @@ import AppNavigator from './src/navigation/AppNavigator.jsx';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
 
-import { getToastConfig } from './src/config/toastConfig';
+import { getToastConfig } from './src/config/toastConfig.jsx';
 
 const MyLightTheme = {
   ...DefaultTheme,

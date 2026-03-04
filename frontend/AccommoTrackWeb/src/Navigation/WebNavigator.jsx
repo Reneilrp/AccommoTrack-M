@@ -47,7 +47,7 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
 
   // Tenant role
   if (user?.role === 'tenant') {
-    return <TenantNavigator user={user} onLogout={onLogout} />;
+    return <TenantNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
   }
 
   return null;

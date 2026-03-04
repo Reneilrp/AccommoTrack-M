@@ -5,13 +5,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
 /* Core */
-import LandingPages from '../core/LandingPages/LandingPages.jsx';
-import AuthScreens from '../core/AuthScreen/Mobile-Auth.jsx';
-import LandlordLayout from '../mobile-landlord/src/navigation/LandlordLayout.jsx';
-import TenantLayout from '../mobile-tenant/src/navigation/TenantLayout.jsx';
+import LandingPages from '../features/auth/screens/LandingPages.jsx';
+import AuthScreens from '../features/auth/screens/AuthScreen.jsx';
+import LandlordLayout from '../features/landlord/navigation/LandlordLayout.jsx';
+import TenantLayout from '../features/tenant/navigation/TenantLayout.jsx';
 import { getStyles } from '../styles/AppNavigator.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
-import { setForcedLogoutCallback } from './RootNavigation';
+import { setForcedLogoutCallback } from './RootNavigation.js';
 
 const Stack = createNativeStackNavigator();
 

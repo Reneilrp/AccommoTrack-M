@@ -54,7 +54,7 @@ class PaymongoController extends Controller
                 'method' => 'paymongo_' . $method,
             ]);
 
-                $verifyEnv = env('PAYMONGO_VERIFY_SSL', true);
+                $verifyEnv = config('services.paymongo.verify_ssl', true);
                 // Allow boolean-like values or a path to a CA bundle file
                 if (is_string($verifyEnv) && file_exists($verifyEnv)) {
                     $verify = $verifyEnv; // path to bundle
@@ -85,11 +85,14 @@ class PaymongoController extends Controller
             ];
 
             $res = $client->post('sources', [
-                'auth' => [env('PAYMONGO_SECRET'), ''],
+                'auth' => [config('services.paymongo.secret_key'), ''],
                 'json' => $payload,
             ]);
 
             $body = json_decode((string)$res->getBody(), true);
+            if (!is_array($body)) {
+                throw new \Exception('Invalid response from PayMongo');
+            }
 
             // attach gateway info to local transaction
             $gatewayId = $body['data']['id'] ?? ($body['data']['attributes']['id'] ?? null);
@@ -147,7 +150,7 @@ class PaymongoController extends Controller
                 'method' => 'paymongo_' . $method,
             ]);
 
-            $verifyEnv = env('PAYMONGO_VERIFY_SSL', true);
+            $verifyEnv = config('services.paymongo.verify_ssl', true);
             if (is_string($verifyEnv) && file_exists($verifyEnv)) {
                 $verify = $verifyEnv;
             } else {
@@ -177,11 +180,14 @@ class PaymongoController extends Controller
             ];
 
             $res = $client->post('sources', [
-                'auth' => [env('PAYMONGO_SECRET'), ''],
+                'auth' => [config('services.paymongo.secret_key'), ''],
                 'json' => $payload,
             ]);
 
             $body = json_decode((string)$res->getBody(), true);
+            if (!is_array($body)) {
+                throw new \Exception('Invalid response from PayMongo');
+            }
 
             $gatewayId = $body['data']['id'] ?? ($body['data']['attributes']['id'] ?? null);
             $tx->gateway_reference = $gatewayId;
@@ -225,7 +231,7 @@ class PaymongoController extends Controller
 
         DB::beginTransaction();
         try {
-                $verifyEnv = env('PAYMONGO_VERIFY_SSL', true);
+                $verifyEnv = config('services.paymongo.verify_ssl', true);
                 if (is_string($verifyEnv) && file_exists($verifyEnv)) {
                     $verify = $verifyEnv;
                 } else {
@@ -268,11 +274,14 @@ class PaymongoController extends Controller
             ]);
 
             $res = $client->post('payments', [
-                'auth' => [env('PAYMONGO_SECRET'), ''],
+                'auth' => [config('services.paymongo.secret_key'), ''],
                 'json' => $paymentPayload,
             ]);
 
             $body = json_decode((string)$res->getBody(), true);
+            if (!is_array($body)) {
+                throw new \Exception('Invalid response from PayMongo');
+            }
             $tx->gateway_reference = $body['data']['id'] ?? null;
             $tx->gateway_response = $body;
             $tx->status = 'succeeded'; // If /payments succeeds, it's paid
@@ -315,7 +324,7 @@ class PaymongoController extends Controller
 
         DB::beginTransaction();
         try {
-            $verifyEnv = env('PAYMONGO_VERIFY_SSL', true);
+            $verifyEnv = config('services.paymongo.verify_ssl', true);
             if (is_string($verifyEnv) && file_exists($verifyEnv)) {
                 $verify = $verifyEnv;
             } else {
@@ -357,11 +366,14 @@ class PaymongoController extends Controller
             ]);
 
             $res = $client->post('payments', [
-                'auth' => [env('PAYMONGO_SECRET'), ''],
+                'auth' => [config('services.paymongo.secret_key'), ''],
                 'json' => $paymentPayload,
             ]);
 
             $body = json_decode((string)$res->getBody(), true);
+            if (!is_array($body)) {
+                throw new \Exception('Invalid response from PayMongo');
+            }
             $tx->gateway_reference = $body['data']['id'] ?? null;
             $tx->gateway_response = $body;
             $tx->status = 'succeeded'; // If /payments succeeds, it's paid
@@ -422,7 +434,7 @@ class PaymongoController extends Controller
         // find any local payment transactions for this invoice that have a gateway reference
         $txs = PaymentTransaction::where('invoice_id', $invoice->id)->whereNotNull('gateway_reference')->get();
 
-        $verifyEnv = env('PAYMONGO_VERIFY_SSL', true);
+        $verifyEnv = config('services.paymongo.verify_ssl', true);
         if (is_string($verifyEnv) && file_exists($verifyEnv)) {
             $verify = $verifyEnv;
         } else {
@@ -439,8 +451,11 @@ class PaymongoController extends Controller
             $ref = $tx->gateway_reference;
             try {
                 // Try sources endpoint first
-                $res = $client->get("sources/{$ref}", [ 'auth' => [env('PAYMONGO_SECRET'), ''] ]);
+                $res = $client->get("sources/{$ref}", [ 'auth' => [config('services.paymongo.secret_key'), ''] ]);
                 $body = json_decode((string)$res->getBody(), true);
+                if (!is_array($body)) {
+                    throw new \Exception('Invalid response from PayMongo');
+                }
                 $resource = $body['data']['attributes'] ?? null;
                 $status = $resource['status'] ?? null;
 
@@ -475,8 +490,11 @@ class PaymongoController extends Controller
             } catch (\GuzzleHttp\Exception\ClientException $e) {
                 // not found on sources, try payments
                 try {
-                    $res = $client->get("payments/{$ref}", [ 'auth' => [env('PAYMONGO_SECRET'), ''] ]);
+                    $res = $client->get("payments/{$ref}", [ 'auth' => [config('services.paymongo.secret_key'), ''] ]);
                     $body = json_decode((string)$res->getBody(), true);
+                    if (!is_array($body)) {
+                        throw new \Exception('Invalid response from PayMongo');
+                    }
                     $payment = $body['data']['attributes'] ?? null;
                     if ($payment) {
                         $tx->status = 'succeeded';
@@ -506,7 +524,7 @@ class PaymongoController extends Controller
     {
         try {
             $res = $client->post('payments', [
-                'auth' => [env('PAYMONGO_SECRET'), ''],
+                'auth' => [config('services.paymongo.secret_key'), ''],
                 'json' => [
                     'data' => [
                         'attributes' => [

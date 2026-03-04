@@ -18,7 +18,13 @@ export default function Notifications({ user, onUpdate }) {
 
   useEffect(() => {
     if (user?.notification_preferences) {
-      setSettings(prev => ({ ...prev, ...user.notification_preferences }));
+      // Normalize string '1'/'0' values (from old FormData saves) to proper booleans
+      const normalized = {};
+      Object.keys(user.notification_preferences).forEach(k => {
+        const v = user.notification_preferences[k];
+        normalized[k] = v === true || v === 1 || v === '1';
+      });
+      setSettings(prev => ({ ...prev, ...normalized }));
     }
   }, [user]);
 

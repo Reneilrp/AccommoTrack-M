@@ -16,7 +16,7 @@ class PaymongoTokenizeController extends Controller
      */
     public function show(Request $request, $invoiceId)
     {
-        $publicKey = env('PAYMONGO_PUBLIC');
+        $publicKey = config('services.paymongo.public_key');
         $returnUrl = $request->query('return_url', 'about:blank');
 
         // Build the HTML without using PHP string interpolation to avoid deprecation warnings

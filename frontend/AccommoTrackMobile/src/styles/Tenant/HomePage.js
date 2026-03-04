@@ -12,8 +12,8 @@ export const getStyles = (theme) => StyleSheet.create({
   // HEADER STYLES
   header: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 8,
-    minHeight: 56,
+    paddingHorizontal: 12,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -24,18 +24,18 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
   },
   headerSide: {
-    width: 50,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerCenter: {
-    flex: 1,
+    flex: 3,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',

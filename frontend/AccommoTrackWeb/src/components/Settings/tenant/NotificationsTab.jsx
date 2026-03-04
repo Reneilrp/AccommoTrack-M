@@ -33,7 +33,14 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 	const mapDataToSettings = (profile) => {
 		if (profile.notification_preferences) {
 			const backendPrefs = profile.notification_preferences;
-			const merged = { ...savedSettings, ...backendPrefs };
+			// Normalize string '1'/'0' values (from old FormData saves) to proper booleans
+			// so that '0' doesn't appear truthy and toggle incorrectly as ON.
+			const normalized = {};
+			Object.keys(backendPrefs).forEach(k => {
+				const v = backendPrefs[k];
+				normalized[k] = v === true || v === 1 || v === '1';
+			});
+			const merged = { ...savedSettings, ...normalized };
 			setSavedSettings(merged);
 			setSettings(merged);
 		}
@@ -72,24 +79,15 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 	const handleSave = async () => {
 		setSaving(true);
 		try {
+			// Send as a JSON string so boolean values are preserved correctly.
+			// Using `notification_preferences[key] = '1'` via FormData stores strings;
+			// '0' is truthy in JS and breaks toggle display. JSON preserves real booleans.
 			const formData = new FormData();
-			// Send as JSON string (or individual fields if backend expects array, but we configured cast 'array')
-			// Since we use FormData for the endpoint, and the backend expects 'notification_preferences' as array/json.
-			// Laravel's $casts to array handles JSON string automatically if passed correctly? 
-			// Actually, with FormData, sending nested arrays/objects can be tricky.
-			// Let's iterate and send as array or just send individual keys if we mapped them.
-			// But we added 'notification_preferences' column.
-			// Best to send: notification_preferences[key] = value
-			
-			// Strategy: Loop keys and append `notification_preferences[key]`
-			Object.keys(settings).forEach(key => {
-				// Convert boolean to 1/0 or string 'true'/'false'
-				formData.append(`notification_preferences[${key}]`, settings[key] ? '1' : '0');
-			});
+			formData.append('notification_preferences', JSON.stringify(settings));
 
 			await tenantService.updateProfile(formData);
-			
-			setSavedSettings(settings);
+
+			setSavedSettings({ ...settings });
 			setIsEditing(false);
 			toast.success('Preferences saved successfully');
 		} catch (error) {

@@ -1,5 +1,5 @@
-import api from './api';
-import { API_BASE_URL as API_URL } from '../config';
+import api from './api.js';
+import { API_BASE_URL as API_URL } from '../config/index.js';
 
 class ReviewService {
 

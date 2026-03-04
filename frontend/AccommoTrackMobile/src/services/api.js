@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config';
-import { triggerForcedLogout } from '../navigation/RootNavigation';
+import { API_BASE_URL } from '../config/index.js';
+import { triggerForcedLogout } from '../navigation/RootNavigation.js';
 
 // Create axios instance
 const api = axios.create({

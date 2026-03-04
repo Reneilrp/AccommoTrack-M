@@ -15,6 +15,8 @@ import {
   Star,
   Home,
   Users,
+  Video,
+  Play,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '../../utils/api';
@@ -80,6 +82,12 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
   const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
   const [deletedImageIds, setDeletedImageIds] = useState([]);
   const [draggedImageIndex, setDraggedImageIndex] = useState(null);
+  // Video tour state
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [videoId, setVideoId] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
+  const [deleteExistingVideo, setDeleteExistingVideo] = useState(false);
 
   // Map tiles based on theme
   const tileUrl = effectiveTheme === 'dark' 
@@ -103,9 +111,26 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       const amenitiesData = data.amenities_list || data.amenities || [];
       const parsedAmenities = parseAmenities(amenitiesData);
 
+      // Separate video from images — backend stores both as PropertyImage rows
+      const rawImages = data.images || [];
+      const videoRecord = rawImages.find(img => img && img.media_type === 'video');
+      const imageRecords = rawImages.filter(img => !img || img.media_type !== 'video');
+
+      // Extract video info
+      if (videoRecord) {
+        setVideoId(videoRecord.id || null);
+        setVideoUrl(videoRecord.image_url || null);
+      } else {
+        setVideoId(null);
+        setVideoUrl(null);
+      }
+      setVideoFile(null);
+      setVideoPreview(null);
+      setDeleteExistingVideo(false);
+
       // Parse images - backend returns objects with image_url property that's already a full URL
       // Keep full image objects to preserve id, is_primary, and display_order
-      const images = (data.images || []).map((img, idx) => {
+      const images = imageRecords.map((img, idx) => {
         // If it's already a string URL, convert to object format
         if (typeof img === 'string') {
           return { id: null, url: img, is_primary: idx === 0, display_order: idx };
@@ -324,6 +349,40 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
     }));
   };
 
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 90 * 1024 * 1024) {
+      toast.error('Video is too large. Maximum size is 90MB.');
+      return;
+    }
+
+    const videoEl = document.createElement('video');
+    videoEl.preload = 'metadata';
+    videoEl.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoEl.src);
+      if (videoEl.duration > 45) {
+        toast.error('Video must be 45 seconds or less.');
+        return;
+      }
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
+      setVideoFile(file);
+      setVideoPreview(URL.createObjectURL(file));
+      setDeleteExistingVideo(false);
+    };
+    videoEl.src = URL.createObjectURL(file);
+  };
+
+  const removeVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
+    if (videoId) setDeleteExistingVideo(true); // flag existing video for deletion on save
+    setVideoUrl(null);
+    setVideoId(null);
+  };
+
   const handleCredentialUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -490,6 +549,7 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
       // If there are any new File objects in images, send multipart/form-data
       const imageFiles = (dormData.images || []).filter((i) => i instanceof File);
       const credentialFiles = (dormData.credentials || []).filter((c) => c && c.file instanceof File).map(c => c.file);
+      const hasVideoChanges = videoFile || (deleteExistingVideo && videoId);
       
       // Get primary image ID (if it's an existing image)
       const primaryImage = (dormData.images || []).find(img => img && img.is_primary && img.id);
@@ -501,8 +561,8 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         .map(img => ({ id: img.id, display_order: img.display_order }));
 
       let response;
-      // Use multipart if we have any new images or credential files to upload
-      if (imageFiles.length > 0 || credentialFiles.length > 0) {
+      // Use multipart if we have any new images, credential files, or video changes
+      if (imageFiles.length > 0 || credentialFiles.length > 0 || hasVideoChanges) {
         const fd = new FormData();
 
         // Append updateData fields. Arrays should be appended as indexed entries.
@@ -529,6 +589,13 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         credentialFiles.forEach((file) => {
           fd.append('credentials[]', file);
         });
+
+        // Append video tour changes
+        if (videoFile) {
+          fd.append('video', videoFile);
+        } else if (deleteExistingVideo && videoId) {
+          fd.append('delete_video', '1');
+        }
 
         // Append ids of credentials the user removed so backend can delete them
         if (deletedCredentialIds.length > 0) {
@@ -583,16 +650,19 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
         if (imageOrder.length > 0) {
           payload.image_order = imageOrder;
         }
+        if (deleteExistingVideo && videoId) {
+          payload.delete_video = true;
+        }
         response = await api.put(`/landlord/properties/${propertyId}`, payload);
       }
 
       toast.success('Property updated successfully!');
-      // alert('Property updated successfully!');
       setIsEditing(false);
       setFieldErrors({});
       // Clear staged deletions after successful save
       setDeletedCredentialIds([]);
       setDeletedImageIds([]);
+      setDeleteExistingVideo(false);
       fetchPropertyDetails();
     } catch (err) {
       console.error('Error updating property:', err);
@@ -1110,6 +1180,89 @@ export default function DormProfileSettings({ propertyId, onBack, onDeleteReques
                 </div>
               )}
             </div>
+
+            {/* Property Video Tour */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Video className="w-5 h-5 text-green-600" />
+                  Property Video Tour
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Max <strong>45 seconds</strong> and <strong>90MB</strong>. Uploading a new video replaces the existing one.
+                </p>
+              </div>
+
+              {(videoPreview || videoUrl) && !deleteExistingVideo ? (
+                <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-black">
+                  <video
+                    src={videoPreview || videoUrl}
+                    className="w-full max-h-64 object-contain"
+                    controls
+                  />
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
+                      title="Remove video"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
+                    <Video className="w-3 h-3" />
+                    {videoPreview ? 'NEW VIDEO (unsaved)' : 'VIDEO TOUR'}
+                  </div>
+                </div>
+              ) : (
+                isEditing ? (
+                  <label
+                    htmlFor="video-upload-edit"
+                    className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-green-500 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50 transition-colors group"
+                  >
+                    <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-green-500 transition-colors">
+                      <Play className="w-10 h-10" />
+                      <span className="text-sm font-medium">Click to upload video</span>
+                      <span className="text-xs">MP4, MOV, AVI (max 90MB, 45s)</span>
+                    </div>
+                    <input
+                      id="video-upload-edit"
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={handleVideoUpload}
+                    />
+                  </label>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                    <Play className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No video tour uploaded</p>
+                  </div>
+                )
+              )}
+
+              {isEditing && (videoPreview || videoUrl) && !deleteExistingVideo && (
+                <div className="mt-3">
+                  <label
+                    htmlFor="video-replace-edit"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium text-sm"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Replace Video
+                  </label>
+                  <input
+                    id="video-replace-edit"
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                  />
+                </div>
+              )}
+            </div>
+
           </div>
 
           {/* Sidebar */}

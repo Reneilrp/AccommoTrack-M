@@ -129,8 +129,11 @@ class Property extends Model
 
         // Status
         'is_published',
-        'is_available'
-        ,'is_eligible'
+        'is_available',
+        'is_eligible',
+
+        // Payment Methods
+        'accepted_payments',
     ];
 
     protected $casts = [
@@ -149,6 +152,7 @@ class Property extends Model
         'is_available' => 'boolean',
         'is_eligible' => 'boolean',
         'property_rules' => 'array',
+        'accepted_payments' => 'array',
     ];
 
     protected $appends = ['image_url'];

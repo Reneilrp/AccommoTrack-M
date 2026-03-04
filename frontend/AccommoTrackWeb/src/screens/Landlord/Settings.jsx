@@ -115,15 +115,24 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         formData.append('profile_image', fileInputRef.current.files[0]);
         formData.append('first_name', profileData.firstName);
         formData.append('last_name', profileData.lastName);
+        formData.append('email', profileData.email);
         formData.append('phone', profileData.phone);
         const result = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         onUserUpdate?.(result.data.user);
         setProfilePhoto(result.data.user?.profile_image || null);
         setPhotoPreview(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
+        if (result.data.user) {
+          const u = result.data.user;
+          setProfileData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '' });
+        }
       } else {
-        const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, phone: profileData.phone });
+        const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, email: profileData.email, phone: profileData.phone });
         onUserUpdate?.(result.data.user);
+        if (result.data.user) {
+          const u = result.data.user;
+          setProfileData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '' });
+        }
       }
       setIsEditingProfile(false);
       toast.success('Profile updated successfully!');

@@ -17,7 +17,7 @@ class PaymongoWebhookController extends Controller
     public function handle(Request $request)
     {
         $rawPayload = $request->getContent();
-        $webhookSecret = env('PAYMONGO_WEBHOOK_SECRET');
+        $webhookSecret = config('services.paymongo.webhook_secret');
         $signatureHeader = $request->header('Paymongo-Signature')
             ?? $request->header('PayMongo-Signature')
             ?? $request->header('paymongo-signature')
@@ -75,10 +75,21 @@ class PaymongoWebhookController extends Controller
                 if ($tx && $tx->status !== 'succeeded') {
                     Log::info("Webhook: Source {$resourceId} is chargeable. Consuming...");
                     
+                    $verifyEnv = config('services.paymongo.verify_ssl', true);
+                    if (is_string($verifyEnv) && file_exists($verifyEnv)) {
+                        $verify = $verifyEnv;
+                    } else {
+                        $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                        if (is_null($verify)) $verify = true;
+                    }
+
                     // Call PayMongo API to create payment
-                    $client = new \GuzzleHttp\Client(['base_uri' => 'https://api.paymongo.com/v1/']);
+                    $client = new \GuzzleHttp\Client([
+                        'base_uri' => 'https://api.paymongo.com/v1/',
+                        'verify' => $verify,
+                    ]);
                     $res = $client->post('payments', [
-                        'auth' => [env('PAYMONGO_SECRET'), ''],
+                        'auth' => [config('services.paymongo.secret_key'), ''],
                         'json' => [
                             'data' => [
                                 'attributes' => [

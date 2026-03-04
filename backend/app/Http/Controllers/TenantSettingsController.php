@@ -119,7 +119,20 @@ class TenantSettingsController extends Controller
             if ($request->has('last_name')) $userData['last_name'] = $validated['last_name'];
             if ($request->has('email')) $userData['email'] = $validated['email'];
             if ($request->has('phone')) $userData['phone'] = $validated['phone'];
-            if ($request->has('notification_preferences')) $userData['notification_preferences'] = $validated['notification_preferences'];
+            if ($request->has('notification_preferences')) {
+                $prefs = $validated['notification_preferences'];
+                // When sent as a JSON string via FormData, decode it first
+                if (is_string($prefs)) {
+                    $decoded = json_decode($prefs, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $prefs = $decoded;
+                    }
+                }
+                if (is_array($prefs)) {
+                    // Normalize all values to proper booleans before storing
+                    $userData['notification_preferences'] = array_map(fn($v) => (bool)$v, $prefs);
+                }
+            }
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {

@@ -189,6 +189,22 @@ export const getStyles = (theme) => StyleSheet.create({
         marginTop: 6,
         color: theme.colors.textSecondary,
     },
+    emptyState: {
+        alignItems: 'center',
+        marginTop: 60,
+        paddingHorizontal: 20,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 16,
+        color: theme.colors.text,
+    },
+    emptySub: {
+        fontSize: 14,
+        marginTop: 4,
+        color: theme.colors.textSecondary,
+    },
     centered: {
         flex: 1, 
         justifyContent: 'center', 

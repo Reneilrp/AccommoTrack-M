@@ -6,15 +6,32 @@ use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
     public function createPaymentLink(Room $room) {
         $landlord = $room->property->landlord;
     
-        $response = Http::withHeaders([
+        $verifyEnv = config('services.paymongo.verify_ssl', true);
+        if (is_string($verifyEnv) && file_exists($verifyEnv)) {
+            $verify = $verifyEnv;
+        } else {
+            $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if (is_null($verify)) $verify = true;
+        }
+
+        $pendingRequest = Http::withHeaders([
             'Authorization' => 'Basic ' . base64_encode(config('services.paymongo.secret_key') . ':'),
-        ])->post('https://api.paymongo.com/v1/links', [
+        ]);
+
+        if ($verify === false) {
+            $pendingRequest = $pendingRequest->withoutVerifying();
+        } elseif (is_string($verify)) {
+            $pendingRequest = $pendingRequest->withOptions(['verify' => $verify]);
+        }
+
+        $response = $pendingRequest->post('https://api.paymongo.com/v1/links', [
                 'data' => [
                     'attributes' => [
                         'amount' => $room->monthly_rate * 100, // Amount in cents
@@ -40,8 +57,24 @@ class PaymentController extends Controller
             ]);
     
         $res = $response->json();
+
+        Log::info('PayMongo create link response', [
+            'status' => $response->status(),
+            'body'   => $res,
+        ]);
+
+        if ($response->failed() || !is_array($res) || empty($res['data']['attributes']['checkout_url'])) {
+            $errorDetail = 'Unknown error from PayMongo.';
+            if (is_array($res) && isset($res['errors']) && is_array($res['errors']) && !empty($res['errors'])) {
+                $errorDetail = $res['errors'][0]['detail'] ?? $res['errors'][0]['code'] ?? $errorDetail;
+            }
+
+            return response()->json([
+                'message' => 'Failed to create payment link: ' . $errorDetail,
+                'paymongo_response' => $res,
+            ], 422);
+        }
         
-        // Return the checkout URL in a JSON response for the mobile app
         return response()->json([
             'checkout_url' => $res['data']['attributes']['checkout_url']
         ]);

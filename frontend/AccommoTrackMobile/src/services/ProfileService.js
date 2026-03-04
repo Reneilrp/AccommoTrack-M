@@ -1,6 +1,25 @@
-import api from './api';
+import api from './api.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileService = {
+  /**
+   * Determine the correct profile endpoint based on the logged-in user's role.
+   * Tenants → /tenant/profile  (TenantSettingsController)
+   * Landlord/Caretaker → /me  (AuthController)
+   */
+  async _getProfileEndpoint() {
+    try {
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        if (user.role === 'landlord' || user.role === 'caretaker') {
+          return '/me';
+        }
+      }
+    } catch (e) { /* ignore – fall through to tenant default */ }
+    return '/tenant/profile';
+  },
+
   /**
    * Get current user profile
    */
@@ -30,7 +49,8 @@ const ProfileService = {
   async updateProfile(profileData, image = null) {
     try {
       let response;
-      const endpoint = '/tenant/profile';
+      // Use /me for landlords/caretakers, /tenant/profile for tenants
+      const endpoint = await this._getProfileEndpoint();
       
       if (image) {
         // Use FormData for image upload
@@ -90,7 +110,8 @@ const ProfileService = {
    */
   async updateSettings(settings) {
     try {
-      const response = await api.put('/tenant/profile', settings);
+      const endpoint = await this._getProfileEndpoint();
+      const response = await api.put(endpoint, settings);
       return {
         success: true,
         data: response.data.user || response.data,
@@ -198,21 +219,21 @@ const ProfileService = {
   async getPayMongoOnboardingUrl() {
     try {
       const response = await api.get('/landlord/paymongo/onboarding');
-      // This endpoint should perform a redirect, but axios will handle it
-      // and the final URL should be in the response.request.responseURL
-      // However, if the backend sends a JSON response with the URL, that's easier.
-      // Assuming the backend sends { url: '...' } or a direct redirect.
-      // If it's a redirect, the final URL might be in a different place depending on the HTTP client.
-      // For this case, we'll assume the backend is configured to return JSON with the URL.
       return {
         success: true,
         data: response.data
       };
     } catch (error) {
-      console.error('Error getting PayMongo onboarding URL:', error);
+      const serverData = error.response?.data;
+      const errMsg = serverData?.message
+        || serverData?.error
+        || error.message
+        || 'Failed to get onboarding link';
+      console.error('Error getting PayMongo onboarding URL:', errMsg, serverData);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to get onboarding link'
+        error: errMsg,
+        status: error.response?.status,
       };
     }
   }

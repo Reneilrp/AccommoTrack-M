@@ -14,8 +14,8 @@ import {
   SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL as API_URL } from '../config';
-import { useTheme } from '../contexts/ThemeContext';
+import { API_BASE_URL as API_URL } from '../config/index.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const ForgotPasswordModal = ({ visible, onClose }) => {
   const { theme, isDarkMode } = useTheme();

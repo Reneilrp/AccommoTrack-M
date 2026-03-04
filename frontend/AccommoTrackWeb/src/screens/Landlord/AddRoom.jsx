@@ -8,9 +8,6 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PricingHelp from '../../components/Rooms/PricingHelp';
-import PriceRow from '../../components/Shared/PriceRow';
-import api from '../../utils/api';
-import { usePreferences } from '../../contexts/PreferencesContext';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {
   const { effectiveTheme } = usePreferences();
