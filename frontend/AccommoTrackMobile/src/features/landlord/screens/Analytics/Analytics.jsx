@@ -17,7 +17,7 @@ import * as Sharing from 'expo-sharing';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Landlord/Analytics.js';
-import LandlordAnalyticsService from '../../../../services/LandlordAnalyticsService.js';
+import analyticsService from '../../../../services/analyticsService.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -55,7 +55,7 @@ export default function Analytics({ navigation }) {
   const [exporting, setExporting] = useState(false);
 
   const loadProperties = useCallback(async () => {
-    const response = await LandlordAnalyticsService.fetchProperties();
+    const response = await analyticsService.getProperties();
     if (response.success) {
       setProperties(response.data || []);
     }
@@ -65,7 +65,7 @@ export default function Analytics({ navigation }) {
     setErrorMessage('');
     if (!refreshing) setLoading(true);
     try {
-      const response = await LandlordAnalyticsService.fetchDashboard({
+      const response = await analyticsService.getDashboardAnalytics({
         timeRange,
         propertyId: selectedProperty
       });
