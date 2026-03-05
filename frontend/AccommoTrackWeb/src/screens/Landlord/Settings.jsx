@@ -174,19 +174,55 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         permissions: serializeCaretakerPermissions(caretakerPermissions), 
         property_ids: selectedPropertyIds 
       });
-      
-      // Reset state and clear form
       setCaretakerState({ loading: false, error: '', message: '' });
       setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
       setSelectedPropertyIds([]);
-      
-      // Refresh the list
       fetchCaretakers();
-      
       toast.success('Caretaker account created successfully!');
     } catch (e) { 
       const errorMsg = e.response?.data?.message || 'Failed to create caretaker account.';
       setCaretakerState(prev => ({ ...prev, loading: false, error: errorMsg })); 
+      toast.error(errorMsg);
+      throw e;
+    }
+  };
+
+  const handleUpdateCaretaker = async (assignmentId) => {
+    try {
+      setCaretakerState(prev => ({ ...prev, loading: true, error: '', message: '' }));
+      const payload = {
+        first_name: caretakerForm.first_name,
+        last_name: caretakerForm.last_name,
+        email: caretakerForm.email,
+        phone: caretakerForm.phone,
+        property_ids: selectedPropertyIds,
+        permissions: serializeCaretakerPermissions(caretakerPermissions),
+      };
+      if (caretakerForm.password) {
+        payload.password = caretakerForm.password;
+        payload.password_confirmation = caretakerForm.password_confirmation;
+      }
+      await api.patch(`/landlord/caretakers/${assignmentId}`, payload);
+      setCaretakerState({ loading: false, error: '', message: '' });
+      setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
+      setSelectedPropertyIds([]);
+      setCaretakerPermissions(createCaretakerPermissionDefaults());
+      fetchCaretakers();
+      toast.success('Caretaker updated successfully!');
+    } catch (e) {
+      const errorMsg = e.response?.data?.message || 'Failed to update caretaker.';
+      setCaretakerState(prev => ({ ...prev, loading: false, error: errorMsg }));
+      toast.error(errorMsg);
+      throw e;
+    }
+  };
+
+  const handleRevokeCaretaker = async (assignmentId, reason) => {
+    try {
+      await api.delete(`/landlord/caretakers/${assignmentId}`, { data: { reason } });
+      fetchCaretakers();
+    } catch (e) {
+      const errorMsg = e.response?.data?.message || 'Failed to revoke access.';
       toast.error(errorMsg);
       throw e;
     }
@@ -236,13 +272,17 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
           {activeTab === 'security' && <Security passwordData={passwordData} setPasswordData={setPasswordData} isEditingPassword={isEditingPassword} setIsEditingPassword={setIsEditingPassword} security={security} setSecurity={setSecurity} isEditingSecurity={isEditingSecurity} setIsEditingSecurity={setIsEditingSecurity} />}
           {activeTab === 'caretaker' && (
             <CareTakerAccess 
-              caretakers={caretakers} 
+              caretakers={caretakers}
+              setCaretakers={setCaretakers}
               landlordProperties={landlordProperties} 
               selectedPropertyIds={selectedPropertyIds} 
               setSelectedPropertyIds={setSelectedPropertyIds} 
               caretakerState={caretakerState} 
               setCaretakerState={setCaretakerState}
-              handleCreateCaretaker={handleCreateCaretaker} 
+              handleCreateCaretaker={handleCreateCaretaker}
+              handleUpdateCaretaker={handleUpdateCaretaker}
+              handleRevokeCaretaker={handleRevokeCaretaker}
+              fetchCaretakers={fetchCaretakers}
               caretakerForm={caretakerForm} 
               setCaretakerForm={setCaretakerForm} 
               caretakerPermissions={caretakerPermissions} 

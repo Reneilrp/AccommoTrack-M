@@ -32,6 +32,7 @@ export default function CareTakerAccess({
   caretakerState,
   setCaretakerState,
   handleCreateCaretaker,
+  handleUpdateCaretaker,
   handleRevokeCaretaker,
   fetchCaretakers,
   resetCaretakerPermissions,
@@ -42,6 +43,8 @@ export default function CareTakerAccess({
   const [selectedCaretaker, setSelectedCaretaker] = useState(null);
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [propertyError, setPropertyError] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({
     first_name: '',
     last_name: '',
@@ -91,10 +94,48 @@ export default function CareTakerAccess({
     },
   ];
 
+  const resetEditState = () => {
+    setIsEditing(false);
+    setEditId(null);
+    if (setCaretakerForm) setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
+    if (resetCaretakerPermissions) resetCaretakerPermissions();
+    if (setSelectedPropertyIds) setSelectedPropertyIds([]);
+    setFieldErrors({ first_name: '', last_name: '', email: '', phone: '' });
+  };
+
+  const handleEditClick = (c) => {
+    if (setCaretakerForm) {
+      setCaretakerForm({
+        first_name: c.caretaker.first_name || '',
+        last_name: c.caretaker.last_name || '',
+        email: c.caretaker.email || '',
+        phone: c.caretaker.phone || '',
+        password: '',
+        password_confirmation: ''
+      });
+    }
+    if (setCaretakerPermissions) {
+      setCaretakerPermissions({
+        bookings: c.permissions.bookings ?? false,
+        messages: c.permissions.messages ?? false,
+        tenants: c.permissions.tenants ?? false,
+        rooms: c.permissions.rooms ?? false,
+        properties: c.permissions.properties ?? false,
+      });
+    }
+    if (setSelectedPropertyIds) {
+      setSelectedPropertyIds((c.assigned_properties || []).map(p => p.id));
+    }
+    setIsEditing(true);
+    setEditId(c.id);
+    setSelectedCaretaker(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const validateField = (name, value) => {
     let error = '';
     if (name === 'first_name' || name === 'last_name') {
-      if (/\d/.test(value)) error = 'Names cannot contain numbers';
+      if (!value || !value.trim()) error = 'This field is required';
     }
     if (name === 'phone') {
       if (/[a-zA-Z]/.test(value)) error = 'Phone must contain only numbers';
@@ -163,8 +204,12 @@ export default function CareTakerAccess({
       return;
     }
     
-    if (!safeForm.first_name || !safeForm.last_name || !safeForm.email || !safeForm.password) {
-      toast.error('Please fill in all required fields including password');
+    if (!safeForm.first_name || !safeForm.last_name || !safeForm.email) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    if (!isEditing && !safeForm.password) {
+      toast.error('Password is required when creating a caretaker');
       return;
     }
 
@@ -175,13 +220,19 @@ export default function CareTakerAccess({
     }
     setPropertyError(false);
 
-    if (safeForm.password !== safeForm.password_confirmation) {
+    if (safeForm.password && safeForm.password !== safeForm.password_confirmation) {
       toast.error('Passwords do not match');
       return;
     }
 
     try {
-      await handleCreateCaretaker();
+      if (isEditing && typeof handleUpdateCaretaker === 'function') {
+        await handleUpdateCaretaker(editId);
+        setIsEditing(false);
+        setEditId(null);
+      } else {
+        await handleCreateCaretaker();
+      }
     } catch (err) {
       // Error handled by parent
     }
@@ -194,8 +245,8 @@ export default function CareTakerAccess({
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-center">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add New Caretaker</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Grant property management access to a trusted person.</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isEditing ? 'Edit Caretaker Assignment' : 'Add New Caretaker'}</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{isEditing ? 'Update personal details, permissions, or assigned properties.' : 'Grant property management access to a trusted person.'}</p>
             </div>
           </div>
 
@@ -268,7 +319,9 @@ export default function CareTakerAccess({
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.phone ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Account Password</label>
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">
+                    Account Password {isEditing && <span className="text-gray-400 font-normal">(leave blank to keep current)</span>}
+                  </label>
                   <div className="relative">
                     <input
                       type={showPasswords ? "text" : "password"}
@@ -392,17 +445,26 @@ export default function CareTakerAccess({
             )}
 
             <div className="flex gap-3 pt-4 border-t border-gray-50 dark:border-gray-700">
+              {isEditing && (
+                <button
+                  className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
+                  onClick={resetEditState}
+                  disabled={safeState.loading}
+                >
+                  Cancel
+                </button>
+              )}
               <button
                 className="flex-1 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50"
                 onClick={handleRegister}
                 disabled={safeState.loading}
               >
                 {safeState.loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                {safeState.loading ? 'Creating Account...' : 'Confirm & Add Caretaker'}
+                {safeState.loading ? (isEditing ? 'Saving...' : 'Creating Account...') : (isEditing ? 'Save Changes' : 'Confirm & Add Caretaker')}
               </button>
               <button
                 className="px-6 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
-                onClick={resetCaretakerPermissions}
+                onClick={isEditing ? resetEditState : resetCaretakerPermissions}
               >
                 Reset
               </button>
@@ -656,13 +718,19 @@ export default function CareTakerAccess({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-2 gap-3">
+            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-3 gap-3">
+              <button
+                onClick={() => handleEditClick(selectedCaretaker)}
+                className="py-3 px-4 rounded-2xl border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex items-center justify-center gap-2"
+              >
+                Edit
+              </button>
               <button
                 onClick={() => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' })}
                 className="py-3 px-4 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Revoke Access
+                Revoke
               </button>
               <button
                 onClick={() => setSelectedCaretaker(null)}

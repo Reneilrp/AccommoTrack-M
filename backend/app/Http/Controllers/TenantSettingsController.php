@@ -88,9 +88,9 @@ class TenantSettingsController extends Controller
             $user = User::findOrFail($userId);
 
             $validated = $request->validate([
-                'first_name'                    => 'sometimes|required|string|max:100',
-                'middle_name'                   => 'nullable|string|max:100',
-                'last_name'                     => 'sometimes|required|string|max:100',
+                'first_name'                    => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'middle_name'                   => ['nullable', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'last_name'                     => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'email'                         => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
                 'phone'                         => 'nullable|string|max:20',
                 'profile_image'                 => 'nullable|image|mimes:jpeg,png,jpg|max:2048',

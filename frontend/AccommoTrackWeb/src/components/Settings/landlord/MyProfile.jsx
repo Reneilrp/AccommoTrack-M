@@ -1,7 +1,21 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, setProfilePhoto, photoPreview, setPhotoPreview, isUploadingPhoto, setIsUploadingPhoto, fileInputRef, handlePhotoSelect, handlePhotoUpload, handleRemovePhoto }) {
+  const NAME_REGEX = /^[\p{L}\s'\-]+$/u;
+  const [nameErrors, setNameErrors] = useState({ firstName: '', lastName: '' });
+
+  const handleNameChange = (field, value) => {
+    if (value && !NAME_REGEX.test(value)) {
+      setNameErrors(prev => ({ ...prev, [field]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
+    } else {
+      setNameErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    setProfileData({ ...profileData, [field]: value });
+  };
+
+  const hasNameErrors = Object.values(nameErrors).some(e => e !== '');
+
   // Helper to get initials for avatar fallback
   const getUserInitials = () => {
     if (!profileData.firstName && !profileData.lastName) return '?';
@@ -113,19 +127,23 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
                         <input
                           type="text"
+                          maxLength={20}
                           value={profileData.firstName}
-                          onChange={e => setProfileData({ ...profileData, firstName: e.target.value })}
+                          onChange={e => handleNameChange('firstName', e.target.value)}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
+                        {nameErrors.firstName && <p className="mt-1 text-xs text-red-500">{nameErrors.firstName}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
                         <input
                           type="text"
+                          maxLength={20}
                           value={profileData.lastName}
-                          onChange={e => setProfileData({ ...profileData, lastName: e.target.value })}
+                          onChange={e => handleNameChange('lastName', e.target.value)}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
+                        {nameErrors.lastName && <p className="mt-1 text-xs text-red-500">{nameErrors.lastName}</p>}
                       </div>
                     </div>
                     <div>
@@ -178,10 +196,13 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   </button>
                   <button
                     onClick={() => {
-                      handleSaveProfile();
-                      setIsEditingProfile(false);
+                      if (!hasNameErrors) {
+                        handleSaveProfile();
+                        setIsEditingProfile(false);
+                      }
                     }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    disabled={hasNameErrors}
+                    className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${hasNameErrors ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Save Changes
                   </button>

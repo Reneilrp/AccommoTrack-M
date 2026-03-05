@@ -12,6 +12,7 @@ const ProfileTab = ({ onUserUpdate }) => {
   const [loading, setLoading] = useState(!cachedProfile);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [nameErrors, setNameErrors] = useState({});
   const [imagePreview, setImagePreview] = useState(null);
   
   // Edit Mode State
@@ -98,9 +99,19 @@ const ProfileTab = ({ onUserUpdate }) => {
     }
   };
 
+  const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
+  const NAME_REGEX = /^[\p{L}\s'\-]+$/u;
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (NAME_FIELDS.includes(name)) {
+      if (value && !NAME_REGEX.test(value)) {
+        setNameErrors(prev => ({ ...prev, [name]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
+      } else {
+        setNameErrors(prev => ({ ...prev, [name]: '' }));
+      }
+    }
   };
 
   const handleGenderSelectChange = (e) => {
@@ -130,6 +141,10 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (Object.values(nameErrors).some(e => e)) {
+      setMessage({ type: 'error', text: 'Please fix the name errors before saving.' });
+      return;
+    }
     setSaving(true);
     setMessage({ type: '', text: '' });
 
@@ -234,22 +249,26 @@ const ProfileTab = ({ onUserUpdate }) => {
             <input
               type="text"
               name="first_name"
+              maxLength={20}
               value={formData.first_name}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
+            {nameErrors.first_name && <p className="mt-1 text-xs text-red-500">{nameErrors.first_name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Last Name</label>
             <input
               type="text"
               name="last_name"
+              maxLength={20}
               value={formData.last_name}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
+            {nameErrors.last_name && <p className="mt-1 text-xs text-red-500">{nameErrors.last_name}</p>}
           </div>
           
           {/* Gender Section */}
@@ -374,8 +393,8 @@ const ProfileTab = ({ onUserUpdate }) => {
             </button>
             <button
                 type="submit"
-                disabled={saving}
-                className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={saving || Object.values(nameErrors).some(e => e)}
+                className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${(saving || Object.values(nameErrors).some(e => e)) ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
                 {saving ? 'Saving...' : 'Save Changes'}
             </button>

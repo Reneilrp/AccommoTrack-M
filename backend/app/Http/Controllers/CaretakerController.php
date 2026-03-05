@@ -160,6 +160,11 @@ class CaretakerController extends Controller
         $this->assertNotCaretaker($context);
 
         $validated = $request->validate([
+            'first_name' => 'sometimes|string|max:255',
+            'last_name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|max:255',
+            'phone' => 'sometimes|nullable|string|max:20',
+            'password' => 'sometimes|nullable|string|min:6|confirmed',
             'permissions' => 'sometimes|array',
             'permissions.can_view_bookings' => 'sometimes|boolean',
             'permissions.can_view_messages' => 'sometimes|boolean',
@@ -173,6 +178,17 @@ class CaretakerController extends Controller
         $assignment = CaretakerAssignment::where('landlord_id', $context['landlord_id'])
             ->with('caretaker')
             ->findOrFail($assignmentId);
+
+        // Update caretaker personal details if provided
+        $caretakerUpdates = [];
+        if (isset($validated['first_name'])) $caretakerUpdates['first_name'] = $validated['first_name'];
+        if (isset($validated['last_name']))  $caretakerUpdates['last_name']  = $validated['last_name'];
+        if (isset($validated['email']))      $caretakerUpdates['email']      = $validated['email'];
+        if (array_key_exists('phone', $validated)) $caretakerUpdates['phone'] = $validated['phone'];
+        if (!empty($validated['password']))  $caretakerUpdates['password']   = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        if (!empty($caretakerUpdates)) {
+            $assignment->caretaker->update($caretakerUpdates);
+        }
 
         // Update permissions if provided
         if (isset($validated['permissions'])) {
