@@ -15,7 +15,8 @@ import {
   ShieldAlert,
   Clock,
   Video,
-  Play
+  Play,
+  Camera
 } from 'lucide-react';
 
 // Leaflet
@@ -321,7 +322,7 @@ export default function AddProperty({ onBack, onSave }) {
     return {
       title: formData.propertyName,
       description: formData.description || null,
-      property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
+      property_type: formData.propertyType === 'others' ? 'others' : formData.propertyType,
       // If saving as draft, mark draft; otherwise default to pending
       current_status: isDraft ? 'draft' : 'pending',
       street_address: formData.streetAddress,
@@ -423,7 +424,13 @@ export default function AddProperty({ onBack, onSave }) {
       if (onBack) onBack();
 
     } catch (err) {
-      setError(err.message || 'Something went wrong');
+      const errData = err.response?.data;
+      if (errData?.errors) {
+        const messages = Object.values(errData.errors).flat().join(' ');
+        setError(messages);
+      } else {
+        setError(errData?.message || err.message || 'Something went wrong');
+      }
     } finally {
       setLoading(false);
     }
@@ -431,30 +438,6 @@ export default function AddProperty({ onBack, onSave }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-3 items-center">
-            <div className="flex items-center">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-2 text-green-600 hover:text-green-800 dark:text-green-500 dark:hover:text-green-400"
-                aria-label="Back to Properties"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="sr-only">Back to Properties</span>
-              </button>
-            </div>
-
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add New Property</h1>
-            </div>
-
-            <div />
-          </div>
-        </div>
-      </header>
-
       {/* Error Message */}
       {error && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -598,7 +581,7 @@ export default function AddProperty({ onBack, onSave }) {
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property Images</h2>
 
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 hover:border-green-500 dark:hover:border-green-500 transition-colors group">
                 <input
                   type="file"
                   multiple
@@ -609,10 +592,12 @@ export default function AddProperty({ onBack, onSave }) {
                 />
                 
                 {formData.images.length === 0 ? (
-                  <label htmlFor="image-upload" className="cursor-pointer block text-center">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1">Click to upload or drag and drop</p>
-                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                  <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center justify-center">
+                    <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-green-500 transition-colors">
+                      <Camera className="w-10 h-10" />
+                      <span className="text-sm font-medium">Click to upload or drag and drop</span>
+                      <span className="text-xs">PNG, JPG up to 10MB</span>
+                    </div>
                   </label>
                 ) : (
                   <div className="space-y-4">

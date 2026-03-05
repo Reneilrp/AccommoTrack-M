@@ -8,7 +8,8 @@ import {
 } from '@env';
 
 // 1. Backend 
-const cleanUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+const safeApiUrl = API_URL || '';
+const cleanUrl = safeApiUrl.endsWith('/') ? safeApiUrl.slice(0, -1) : safeApiUrl;
 export const BASE_URL = cleanUrl;
 export const API_BASE_URL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 console.log('[Config] API_BASE_URL:', API_BASE_URL);
@@ -21,8 +22,8 @@ export const ECHO_CONFIG = {
     broadcaster: 'reverb',
     key: REVERB_APP_KEY,
     wsHost: ECHO_HOST,
-    wsPort: parseInt(ECHO_PORT),
-    wssPort: parseInt(ECHO_PORT),
+    wsPort: parseInt(ECHO_PORT, 10) || 80,
+    wssPort: parseInt(ECHO_PORT, 10) || 443,
     forceTLS: ECHO_SCHEME === 'https',
     enabledTransports: ['ws', 'wss'],
     authEndpoint: `${API_BASE_URL}/broadcasting/auth`,

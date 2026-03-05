@@ -46,7 +46,7 @@ export default function MessagesList({
     setSelectedPropertyId,
 }) {
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
             <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
                 <View style={styles.container}>
 

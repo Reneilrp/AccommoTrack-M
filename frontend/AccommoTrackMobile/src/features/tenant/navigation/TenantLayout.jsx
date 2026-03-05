@@ -81,7 +81,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'MyReviews',
     'PaymentDetail',
     'PaymentHistory',
-    'Notifications'
+    'Notifications',
+    'Messages'
   ]);
   
   const hideBottomRoutes = new Set([

@@ -5,9 +5,9 @@ use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\BookingController;
+use App\Http\Controllers\LandlordBookingController;
 use App\Http\Controllers\CaretakerController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LandlordDashboardController;
 use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PropertyController;
@@ -171,11 +171,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
         Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
         Route::get('/rooms', [RoomController::class, 'index']);
-        Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
-        Route::get('/dashboard/recent-activities', [DashboardController::class, 'getRecentActivities']);
-        Route::get('/dashboard/upcoming-payments', [DashboardController::class, 'getUpcomingPayments']);
-        Route::get('/dashboard/revenue-chart', [DashboardController::class, 'getRevenueChart']);
-        Route::get('/dashboard/property-performance', [DashboardController::class, 'getPropertyPerformance']);
+        Route::get('/dashboard/stats', [LandlordDashboardController::class, 'getStats']);
+        Route::get('/dashboard/recent-activities', [LandlordDashboardController::class, 'getRecentActivities']);
+        Route::get('/dashboard/upcoming-payments', [LandlordDashboardController::class, 'getUpcomingPayments']);
+        Route::get('/dashboard/revenue-chart', [LandlordDashboardController::class, 'getRevenueChart']);
+        Route::get('/dashboard/property-performance', [LandlordDashboardController::class, 'getPropertyPerformance']);
         Route::get('/analytics/dashboard', [AnalyticsController::class, 'getDashboardAnalytics']);
         Route::get('/analytics/overview', [AnalyticsController::class, 'getOverviewStats']);
         Route::get('/analytics/revenue', [AnalyticsController::class, 'getRevenueAnalytics']);
@@ -214,12 +214,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Allow authenticated users (tenants) to submit reviews via /api/reviews
     Route::post('/reviews', [ReviewController::class, 'store']);
 
-    Route::get('/bookings', [BookingController::class, 'index']);
-    Route::post('/bookings', [BookingController::class, 'store']);
-    Route::get('/bookings/stats', [BookingController::class, 'getStats']);
-    Route::get('/bookings/{id}', [BookingController::class, 'show']);
-    Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
-    Route::patch('/bookings/{id}/payment', [BookingController::class, 'updatePaymentStatus']);
+    Route::get('/bookings', [LandlordBookingController::class, 'index']);
+    Route::post('/bookings', [LandlordBookingController::class, 'store']);
+    Route::get('/bookings/stats', [LandlordBookingController::class, 'getStats']);
+    Route::get('/bookings/{id}', [LandlordBookingController::class, 'show']);
+    Route::patch('/bookings/{id}/status', [LandlordBookingController::class, 'updateStatus']);
+    Route::patch('/bookings/{id}/payment', [LandlordBookingController::class, 'updatePaymentStatus']);
 
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);
