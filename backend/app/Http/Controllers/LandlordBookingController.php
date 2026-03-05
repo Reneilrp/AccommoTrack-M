@@ -13,7 +13,7 @@ use App\Models\Booking;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
-class BookingController extends Controller
+class LandlordBookingController extends Controller
 {
     use ResolvesLandlordAccess;
 

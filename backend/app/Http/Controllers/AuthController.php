@@ -4,13 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use App\Services\AuthService;
+use App\Exceptions\AccountBlockedException;
+use App\Exceptions\PendingVerificationException;
 
 class AuthController extends Controller
 {
+    protected AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     // Live email uniqueness check for registration
     public function checkEmail(Request $request)
     {
@@ -40,17 +50,7 @@ class AuthController extends Controller
             'email.email' => 'Email address is not valid or cannot receive mail.',
         ]);
 
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $validated['role'],
-            'phone' => $validated['phone'] ?? null,
-            'is_verified' => false,
-            'is_active' => true,
-        ]);
+        $user = $this->authService->register($validated);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -63,68 +63,44 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $request->validate([
+        $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        try {
+            $user = $this->authService->login($credentials);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid email or password.'],
-            ]);
-        }
+            $token = $user->createToken('auth_token')->plainTextToken;
 
-        if ($user->is_blocked) {
+            $responseData = [
+                'user' => $user,
+                'token' => $token,
+                'message' => 'Login successful'
+            ];
+
+            // Add verification info for landlords on successful login
+            if ($user->role === 'landlord' && !$user->is_verified) {
+                $verification = $user->landlordVerification;
+                $responseData['verification_status'] = $verification ? $verification->status : 'pending';
+                $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
+            }
+
+            return response()->json($responseData);
+
+        } catch (ValidationException $e) {
+            throw $e; // Re-throw validation exception to let Laravel handle the response
+        } catch (AccountBlockedException $e) {
             return response()->json([
                 'status' => 'blocked',
-                'message' => 'Your account has been blocked by the administrator. Please contact support for assistance.'
+                'message' => $e->getMessage()
+            ], 403);
+        } catch (PendingVerificationException $e) {
+            return response()->json([
+                'status' => 'pending_verification',
+                'message' => $e->getMessage()
             ], 403);
         }
-
-        // Check landlord verification status
-        if ($user->role === 'landlord') {
-            $verification = $user->landlordVerification;
-            
-            if ($verification) {
-                if ($verification->status === 'pending') {
-                    return response()->json([
-                        'status' => 'pending_verification',
-                        'message' => 'Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.'
-                    ], 403);
-                }
-                // Allow login if rejected, but frontend will handle the modal
-            } elseif (!$user->is_verified) {
-                // Fallback for unverified landlords without a verification record
-                return response()->json([
-                    'status' => 'pending_verification',
-                    'message' => 'Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.'
-                ], 403);
-            }
-        }
-
-        // Load caretaker assignment if user is a caretaker
-        if ($user->role === 'caretaker') {
-            $user->load('caretakerAssignment');
-        }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        $responseData = [
-            'user' => $user,
-            'token' => $token,
-            'message' => 'Login successful'
-        ];
-
-        // Add verification info for landlords
-        if ($user->role === 'landlord' && !$user->is_verified) {
-            $verification = $user->landlordVerification;
-            $responseData['verification_status'] = $verification ? $verification->status : 'pending';
-            $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
-        }
-
-        return response()->json($responseData);
     }
 
     public function logout(Request $request)
@@ -156,9 +132,9 @@ class AuthController extends Controller
             $user = $request->user();
 
             $validated = $request->validate([
-                'first_name' => 'sometimes|required|string|max:100',
-                'middle_name' => 'nullable|string|max:100',
-                'last_name' => 'sometimes|required|string|max:100',
+                'first_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'phone' => 'nullable|string|max:20',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
                 'payment_methods_settings' => 'nullable|array',
