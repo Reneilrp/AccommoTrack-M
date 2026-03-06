@@ -81,7 +81,7 @@ class LandlordBookingController extends Controller
 
             return response()->json([
                 'message' => 'Booking created successfully',
-                'booking' => new BookingResource($booking->load(['property', 'tenant', 'room']))
+                'booking' => (new BookingResource($booking->load(['property', 'tenant', 'room'])))->resolve()
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed', ['errors' => $e->errors()]);
@@ -129,7 +129,7 @@ class LandlordBookingController extends Controller
 
             return response()->json([
                 'message' => 'Booking status updated successfully',
-                'booking' => new BookingResource($result['booking']),
+                'booking' => (new BookingResource($result['booking']))->resolve(),
                 'room_updated' => $result['room_updated'],
                 'tenant_name' => $result['tenant_name']
             ], 200);
@@ -167,7 +167,7 @@ class LandlordBookingController extends Controller
                 'message' => $result['status_upgraded'] 
                     ? 'Payment updated and booking upgraded to completed!' 
                     : 'Payment status updated successfully',
-                'booking' => new BookingResource($result['booking']),
+                'booking' => (new BookingResource($result['booking']))->resolve(),
                 'status_upgraded' => $result['status_upgraded']
             ], 200);
         } catch (\Exception $e) {
@@ -226,7 +226,7 @@ class LandlordBookingController extends Controller
 
             $booking = $query->findOrFail($id);
 
-            return response()->json(new BookingResource($booking), 200);
+            return response()->json((new BookingResource($booking))->resolve(), 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Booking not found',

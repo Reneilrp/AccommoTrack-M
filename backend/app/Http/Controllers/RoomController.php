@@ -45,7 +45,7 @@ class RoomController extends Controller
                 ->orderBy('room_number')
                 ->get();
 
-            return RoomResource::collection($rooms);
+            return response()->json(RoomResource::collection($rooms)->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Property not found or access denied'], 404);
         } catch (\Exception $e) {
@@ -58,7 +58,7 @@ class RoomController extends Controller
         try {
             $property = Property::findOrFail($request->validated()['property_id']);
             $room = $this->roomService->createRoom($request->validated(), $property);
-            return new RoomResource($room->fresh(['currentTenant:id,first_name,last_name', 'amenities', 'images']));
+            return response()->json((new RoomResource($room->fresh(['currentTenant:id,first_name,last_name', 'amenities', 'images'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -76,7 +76,7 @@ class RoomController extends Controller
             
             $updatedRoom = $this->roomService->updateRoom($room, $request->validated());
 
-            return new RoomResource($updatedRoom->load(['currentTenant:id,first_name,last_name', 'amenities', 'images']));
+            return response()->json((new RoomResource($updatedRoom->load(['currentTenant:id,first_name,last_name', 'amenities', 'images'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -119,7 +119,7 @@ class RoomController extends Controller
             
             $updatedRoom = $this->roomService->updateStatus($room, $validated['status']);
 
-            return new RoomResource($updatedRoom);
+            return response()->json((new RoomResource($updatedRoom))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Exception $e) {

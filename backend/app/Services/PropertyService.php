@@ -110,7 +110,17 @@ class PropertyService
         }
 
         if ($request->has('type') && !empty($request->type) && $request->type !== 'All') {
-            $type = strtolower(str_replace(' ', '_', $request->type));
+            $type = $request->type;
+            $allowed = ['dormitory', 'apartment', 'boardingHouse', 'bedSpacer', 'others'];
+            if (!in_array($type, $allowed)) {
+                 $normalized = strtolower(str_replace([' ', '_'], '', $type));
+                 foreach($allowed as $a) {
+                     if (strtolower($a) === $normalized) {
+                         $type = $a;
+                         break;
+                     }
+                 }
+            }
             $query->where('property_type', $type);
         }
 

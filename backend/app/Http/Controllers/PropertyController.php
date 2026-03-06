@@ -34,7 +34,7 @@ class PropertyController extends Controller
     {
         try {
             $properties = $this->propertyService->getPublicProperties($request);
-            return PropertyResource::collection($properties);
+            return response()->json(PropertyResource::collection($properties)->resolve());
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch properties', 'error' => $e->getMessage()], 500);
         }
@@ -52,7 +52,7 @@ class PropertyController extends Controller
                 ])
                 ->findOrFail($id);
 
-            return new PropertyResource($property);
+            return response()->json((new PropertyResource($property))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Property not found or not available'], 404);
         } catch (\Exception $e) {
@@ -108,7 +108,7 @@ class PropertyController extends Controller
 
             $property = $this->propertyService->createProperty($request->validated(), $context['user']);
 
-            return new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms']));
+            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to create property', 'error' => $e->getMessage()], 500);
         }
@@ -120,7 +120,7 @@ class PropertyController extends Controller
             ->with(['rooms', 'images', 'amenities', 'credentials'])
             ->findOrFail($id);
         
-        return new PropertyResource($property);
+        return response()->json((new PropertyResource($property))->resolve());
     }
 
     public function update(UpdatePropertyRequest $request, $id)
@@ -141,7 +141,7 @@ class PropertyController extends Controller
 
             $property = $this->propertyService->updateProperty($property, $request->validated(), $request);
             
-            return new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms']));
+            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to update property', 'error' => $e->getMessage()], 500);
         }
