@@ -355,7 +355,19 @@ const ExploreProperties = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  {property.video_url && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVideoToPlay(property.video_url);
+                        setVideoModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                    >
+                      <Play className="w-4 h-4 fill-current" /> Video Tour
+                    </button>
+                  )}
                   <span className="px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg group-hover:bg-green-100 dark:group-hover:bg-green-900/50 transition-colors">
                     More Details
                   </span>
