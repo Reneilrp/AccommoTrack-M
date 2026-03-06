@@ -55,9 +55,9 @@ class PropertyResource extends JsonResource
                 : 'Price on request',
             'rating' => $avgRating,
             'reviews_count' => $this->whenLoaded('reviews', fn() => $this->reviews->count()),
-            'image' => $coverImage ? asset('storage/' . ltrim($coverImage->image_url, '/')) : 'https://via.placeholder.com/400x200?text=No+Image',
-            'video_url' => $video ? asset('storage/' . ltrim($video->image_url, '/')) : null,
-            'images' => $this->whenLoaded('images', fn() => $this->images->where('media_type', 'image')->sortBy('display_order')->map(fn ($img) => asset('storage/' . ltrim($img->image_url, '/')))->values()->toArray()),
+            'image' => $coverImage ? (str_starts_with($coverImage->image_url, 'http') ? $coverImage->image_url : asset('storage/' . ltrim($coverImage->image_url, '/'))) : 'https://via.placeholder.com/400x200?text=No+Image',
+            'video_url' => $video ? (str_starts_with($video->image_url, 'http') ? $video->image_url : asset('storage/' . ltrim($video->image_url, '/'))) : null,
+            'images' => $this->whenLoaded('images', fn() => $this->images->where('media_type', 'image')->sortBy('display_order')->map(fn ($img) => str_starts_with($img->image_url, 'http') ? $img->image_url : asset('storage/' . ltrim($img->image_url, '/')))->values()->toArray()),
             'landlord_id' => $this->landlord_id,
             'landlord' => $this->whenLoaded('landlord', fn() => [
                 'id' => $this->landlord->id,
