@@ -762,6 +762,3 @@ export default function PropertyDetails({ propertyId, onBack }) {
     </div>
   );
 }
-    </div>
-  );
-}
