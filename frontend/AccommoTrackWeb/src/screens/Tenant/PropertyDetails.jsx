@@ -111,7 +111,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // Fetch reviews for property
   const fetchReviews = async (propId) => {
     try {
-      setReviewsLoading(true);
+      reviewsLoading(true);
       const res = await api.get(`/public/properties/${propId}/reviews`);
       setReviews(res.data);
     } catch (err) {
@@ -684,93 +684,110 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
       {/* FULL MEDIA GALLERY MODAL */}
       {galleryOpen && galleryItems.length > 0 && (
-        <div className="fixed inset-0 z-[5000] flex flex-col bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-          {/* Header */}
-          <div className="p-4 md:p-6 flex items-center justify-between text-white border-b border-white/10 bg-black/20">
-            <div>
-              <h3 className="font-bold text-lg md:text-xl tracking-tight">{property?.title || 'Property Gallery'}</h3>
-              <p className="text-xs md:text-sm text-white/60 font-medium uppercase tracking-widest mt-0.5">
-                {galleryIndex + 1} of {galleryItems.length}
-              </p>
+        <div 
+          className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/95 backdrop-blur-3xl animate-in fade-in duration-300"
+          onClick={() => setGalleryOpen(false)}
+        >
+          {/* Ambient Background Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] bg-green-500/5 blur-[150px] rounded-full pointer-events-none"></div>
+
+          <div 
+            className="w-full h-full bg-transparent flex flex-col relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 md:p-6 flex items-center justify-between text-white border-b border-white/5 bg-black/40 backdrop-blur-md z-20">
+              {/* Left Placeholder for Centering */}
+              <div className="w-10 hidden md:block"></div>
+              
+              <div className="text-center flex-1">
+                <h3 className="font-bold text-lg md:text-xl tracking-tight line-clamp-1">
+                  {property?.title || 'Property Gallery'}
+                </h3>
+                <p className="text-[10px] md:text-xs text-white/40 font-bold uppercase tracking-[0.2em] mt-1">
+                  {galleryIndex + 1} / {galleryItems.length}
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setGalleryOpen(false)}
+                className="p-2 md:p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all hover:rotate-90 active:scale-90"
+              >
+                <X className="w-5 h-5 md:w-6 md:h-6 text-white/80" />
+              </button>
             </div>
-            <button 
-              onClick={() => setGalleryOpen(false)}
-              className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:rotate-90 active:scale-90"
-            >
-              <X className="w-6 h-6 md:w-7 md:h-7" />
-            </button>
-          </div>
 
-          {/* Main Media Content Area */}
-          <div className="flex-1 relative flex items-center justify-center min-h-0 pb-4">
-            <Swiper
-              modules={[Navigation, Pagination, Keyboard, A11y]}
-              spaceBetween={20}
-              slidesPerView={1}
-              keyboard={{ enabled: true }}
-              onSlideChange={(swiper) => setGalleryIndex(swiper.activeIndex)}
-              initialSlide={galleryIndex}
-              className="w-full h-full"
-              onSwiper={(swiper) => {
-                window._detailsGallerySwiper = swiper;
-              }}
-            >
-              {galleryItems.map((item, i) => (
-                <SwiperSlide key={i} className="h-full flex items-center justify-center">
-                  <div className="w-full h-full flex items-center justify-center p-4 md:p-12">
-                    {item.type === 'video' ? (
-                      <div className="w-full max-w-5xl max-h-full aspect-video bg-black rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 relative">
-                        <video 
-                          src={item.url} 
-                          className="w-full h-full object-contain"
-                          controls 
-                          autoPlay={i === galleryIndex}
-                          playsInline
-                        />
-                      </div>
-                    ) : (
-                      <img 
-                        src={item.url} 
-                        alt={`Gallery item ${i + 1}`} 
-                        className="max-w-full max-h-full object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5"
-                      />
-                    )}
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          </div>
-
-          {/* Modern Thumbnail Strip (Bottom Container) */}
-          <div className="p-4 md:p-6 bg-gradient-to-t from-black to-transparent border-t border-white/5 z-10">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex items-center gap-3 overflow-x-auto py-4 no-scrollbar snap-x px-2">
+            {/* Main Media Content Area */}
+            <div className="flex-1 relative flex items-center justify-center min-h-0">
+              <Swiper
+                modules={[Navigation, Pagination, Keyboard, A11y]}
+                spaceBetween={0}
+                slidesPerView={1}
+                keyboard={{ enabled: true }}
+                onSlideChange={(swiper) => setGalleryIndex(swiper.activeIndex)}
+                initialSlide={galleryIndex}
+                className="w-full h-full"
+                onSwiper={(swiper) => {
+                  window._detailsGallerySwiper = swiper;
+                }}
+              >
                 {galleryItems.map((item, i) => (
-                  <div 
-                    key={i}
-                    className={`
-                      relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 cursor-pointer flex-shrink-0 snap-center
-                      ${i === galleryIndex 
-                        ? 'border-green-500 scale-110 shadow-[0_0_20px_rgba(34,197,94,0.4)] ring-4 ring-green-500/20' 
-                        : 'border-white/10 opacity-40 hover:opacity-100 hover:border-white/30'
-                      }
-                    `}
-                    onClick={() => window._detailsGallerySwiper?.slideTo(i)}
-                  >
-                    {item.type === 'video' ? (
-                      <div className="w-full h-full bg-gray-900 flex items-center justify-center text-white">
-                        <Play className="w-6 h-6 fill-current" />
-                        <div className="absolute inset-0 bg-black/20"></div>
-                      </div>
-                    ) : (
-                      <img src={item.url} className="w-full h-full object-cover" loading="lazy" />
-                    )}
-                    {/* Active Overlay */}
-                    {i === galleryIndex && (
-                      <div className="absolute inset-0 bg-green-500/10 animate-pulse"></div>
-                    )}
-                  </div>
+                  <SwiperSlide key={i} className="h-full flex items-center justify-center">
+                    <div className="w-full h-full flex items-center justify-center p-0">
+                      {item.type === 'video' ? (
+                        <div className="w-full h-full bg-black relative flex items-center justify-center">
+                          <video 
+                            src={item.url} 
+                            className="w-full h-full object-contain"
+                            controls 
+                            autoPlay={i === galleryIndex}
+                            playsInline
+                          />
+                        </div>
+                      ) : (
+                        <img 
+                          src={item.url} 
+                          alt={`Gallery item ${i + 1}`} 
+                          className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+                        />
+                      )}
+                    </div>
+                  </SwiperSlide>
                 ))}
+              </Swiper>
+            </div>
+
+            {/* Modern Thumbnail Strip (Bottom Container) */}
+            <div className="px-4 pb-4 md:px-6 md:pb-6 pt-2 bg-gradient-to-t from-black/90 to-transparent z-10 backdrop-blur-sm">
+              <div className="max-w-6xl mx-auto">
+                <div className="flex items-center gap-2.5 overflow-x-auto py-2 no-scrollbar snap-x px-2">
+                  {galleryItems.map((item, i) => (
+                    <div 
+                      key={i}
+                      className={`
+                        relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 cursor-pointer flex-shrink-0 snap-center
+                        ${i === galleryIndex 
+                          ? 'border-green-500 scale-110 shadow-[0_0_30px_rgba(34,197,94,0.5)] ring-4 ring-green-500/20' 
+                          : 'border-white/10 opacity-40 hover:opacity-100 hover:border-white/30'
+                        }
+                      `}
+                      onClick={() => window._detailsGallerySwiper?.slideTo(i)}
+                    >
+                      {item.type === 'video' ? (
+                        <div className="w-full h-full bg-gray-900 flex items-center justify-center text-white">
+                          <Play className="w-6 h-6 fill-current" />
+                          <div className="absolute inset-0 bg-black/20"></div>
+                        </div>
+                      ) : (
+                        <img src={item.url} className="w-full h-full object-cover" loading="lazy" />
+                      )}
+                      {/* Active Overlay */}
+                      {i === galleryIndex && (
+                        <div className="absolute inset-0 bg-green-500/10 animate-pulse"></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
