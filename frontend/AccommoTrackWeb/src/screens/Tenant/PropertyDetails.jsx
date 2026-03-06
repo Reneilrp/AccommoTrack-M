@@ -744,7 +744,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
           {/* Modern Thumbnail Strip (Bottom Container) */}
           <div className="p-4 md:p-6 bg-gradient-to-t from-black to-transparent border-t border-white/5 z-10">
             <div className="max-w-6xl mx-auto">
-              <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar snap-x px-2">
+              <div className="flex items-center gap-3 overflow-x-auto py-4 no-scrollbar snap-x px-2">
                 {galleryItems.map((item, i) => (
                   <div 
                     key={i}
