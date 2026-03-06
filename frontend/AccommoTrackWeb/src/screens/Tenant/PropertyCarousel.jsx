@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getImageUrl } from '../../utils/api';
+import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 
 const PropertyCarousel = ({ property, onOpenDetails }) => {
   const carouselRef = useRef(null);
@@ -57,12 +58,16 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           >
             {/* Image Click -> Open Room Details */}
             <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
-              <img
-                src={getImageUrl(room.image)}
-                alt={room.name}
-                className="w-full h-full object-cover transform group-hover/card:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
+              {getImageUrl(room.image) ? (
+                <img
+                  src={getImageUrl(room.image)}
+                  alt={room.name}
+                  className="w-full h-full object-cover transform group-hover/card:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
+              ) : (
+                <ImagePlaceholder className="w-full h-full" />
+              )}
               {room.reserved_by_me ? (
                 <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm bg-amber-50 text-amber-800 border border-amber-100">
                   Reserved by you (Pending)

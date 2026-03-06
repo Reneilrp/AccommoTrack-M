@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Calendar, Check, Info, Users, BedDouble, DollarSign, Layers, Shield, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
+import ImagePlaceholder from '../Shared/ImagePlaceholder';
 import bookingServiceDefault from '../../services/bookingService';
 
 export default function RoomDetailsModal({ room, property, onClose, isAuthenticated, onLoginRequired, initialView, onBookingSuccess, bookingService }) {
@@ -215,11 +216,15 @@ export default function RoomDetailsModal({ room, property, onClose, isAuthentica
                   {/* LEFT: Image */}
                   <div>
                     <div className="aspect-[4/3] bg-gray-200 dark:bg-gray-700 rounded-2xl overflow-hidden relative shadow-sm group">
-                      <img 
-                        src={room.images?.[0] || 'https://via.placeholder.com/600x400?text=Room+Image'} 
-                        alt={`Room ${room.room_number}`}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
+                      {getImageUrl(room.images?.[0]) ? (
+                        <img 
+                          src={getImageUrl(room.images?.[0])} 
+                          alt={`Room ${room.room_number}`}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                      ) : (
+                        <ImagePlaceholder className="w-full h-full" />
+                      )}
                       <div className="absolute top-3 right-3">
                         {room.reserved_by_me ? (
                           <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">Reserved by you (Pending)</span>

@@ -12,6 +12,7 @@ import { propertyService } from '../../services/propertyServices';
 import { useUIState } from "../../contexts/UIStateContext";
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 import Footer from '../../components/Shared/Footer';
+import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Keyboard, A11y } from 'swiper/modules';
@@ -540,17 +541,15 @@ const ExploreProperties = () => {
                                                       className="h-[250px] w-full relative bg-gray-200 group cursor-pointer flex-shrink-0"
                                                       onClick={() => openFullGallery(drawerData)}
                                                     >
-                                                      <img
-                                                        src={
-                                                          (drawerData.image && drawerData.image.includes('.')) 
-                                                            ? getImageUrl(drawerData.image) 
-                                                            : (drawerData.rooms?.[0]?.image && drawerData.rooms[0].image.includes('.'))
-                                                              ? getImageUrl(drawerData.rooms[0].image)
-                                                              : 'https://via.placeholder.com/400x300?text=No+Image+Available'
-                                                        }
-                                                        alt={drawerData.name}
-                                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                      />
+                                                      {getImageUrl(drawerData.image) || getImageUrl(drawerData.rooms?.[0]?.image) ? (
+                                                        <img
+                                                          src={getImageUrl(drawerData.image) || getImageUrl(drawerData.rooms?.[0]?.image)}
+                                                          alt={drawerData.name}
+                                                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                        />
+                                                      ) : (
+                                                        <ImagePlaceholder className="w-full h-full" />
+                                                      )}
                                                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                           
                                                       {/* Close Selection Button */}
@@ -675,7 +674,11 @@ const ExploreProperties = () => {
                                                                   className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group cursor-pointer"
                                                                   onClick={() => openFullGallery(drawerData)}
                                                                 >
-                                                                  <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                                  {getImageUrl(drawerData.image) ? (
+                                                                    <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                                  ) : (
+                                                                    <ImagePlaceholder className="w-full h-full" />
+                                                                  )}
                                                                   <div className="absolute inset-0 flex items-center justify-center">
                                                                     <div className="w-12 h-12 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/40 dark:border-white/20 group-hover:scale-110 transition-transform">
                                                                       <Play className="w-6 h-6 text-white fill-white ml-1" />
@@ -691,7 +694,11 @@ const ExploreProperties = () => {
                                                                   className="col-span-2 h-32 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative cursor-pointer"
                                                                   onClick={() => openFullGallery(drawerData)}
                                                                 >
-                                                                  <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover" />
+                                                                  {getImageUrl(drawerData.image) ? (
+                                                                    <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover" />
+                                                                  ) : (
+                                                                    <ImagePlaceholder className="w-full h-full" />
+                                                                  )}
                                                                   <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-1.5 rounded">MAIN VIEW</span>
                                                                 </div>
                                                               )}
@@ -702,7 +709,11 @@ const ExploreProperties = () => {
                                                                   className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative cursor-pointer"
                                                                   onClick={() => openFullGallery(drawerData)}
                                                                 >
-                                                                  <img src={getImageUrl(room)} className="w-full h-full object-cover" />
+                                                                  {getImageUrl(room) ? (
+                                                                    <img src={getImageUrl(room)} className="w-full h-full object-cover" />
+                                                                  ) : (
+                                                                    <ImagePlaceholder className="w-full h-full" />
+                                                                  )}
                                                                 </div>
                                                               ))}
                                                               {(drawerData.rooms?.length || 0) > 2 && (

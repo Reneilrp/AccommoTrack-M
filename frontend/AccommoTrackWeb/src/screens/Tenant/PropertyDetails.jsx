@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api'; 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Keyboard, A11y } from 'swiper/modules';
@@ -287,16 +288,14 @@ export default function PropertyDetails({ propertyId, onBack }) {
               <div key={room.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-shadow flex flex-col">
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                    {/* Placeholder for room image if available, or generic */}
-                   {room.images && room.images.length > 0 ? (
+                   {getImageUrl(room.images?.[0] || room.image) ? (
                       <img 
-                        src={typeof room.images[0] === 'string' ? room.images[0] : (room.images[0].image_url || 'https://via.placeholder.com/400x300?text=Room')} 
+                        src={getImageUrl(room.images?.[0] || room.image)} 
                         alt={`Room ${room.room_number}`} 
                         className="w-full h-full object-cover" 
                       />
                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700">
-                        <BedDouble className="w-12 h-12 opacity-20" />
-                      </div>
+                      <ImagePlaceholder className="w-full h-full" />
                    )}
                    <div className="absolute top-3 right-3">
                       {room.reserved_by_me ? (
@@ -561,11 +560,15 @@ export default function PropertyDetails({ propertyId, onBack }) {
       <Toaster />
       {/* HEADER */}
       <div className="relative w-full h-[350px] md:h-[450px] group cursor-pointer" onClick={() => openFullGallery(0)}>
-        <img
-          src={property.images?.[0] || 'https://via.placeholder.com/1200x600?text=Property+Image'}
-          alt={property.title}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
+        {getImageUrl(property.images?.[0]) ? (
+          <img
+            src={getImageUrl(property.images?.[0])}
+            alt={property.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <ImagePlaceholder className="w-full h-full" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
         <div className="absolute inset-0 flex flex-col justify-between px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">

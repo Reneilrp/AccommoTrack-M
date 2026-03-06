@@ -19,6 +19,11 @@ export const getImageUrl = (imageSource) => {
 
     if (!imagePath || typeof imagePath !== 'string') return null;
     
+    // NEW: Reject placeholder URLs from the backend
+    if (imagePath.includes('via.placeholder.com') || imagePath.includes('placehold.co')) {
+        return null;
+    }
+    
     // If it's a full URL, ensure it uses the current BASE_URL domain if it's a local storage link
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         try {

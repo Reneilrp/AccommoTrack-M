@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../services/tenantService';
 import { getImageUrl } from '../../utils/api';
+import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
 import ReviewModal from '../../components/Modals/ReviewModal';
 import { useUIState } from "../../contexts/UIStateContext";
@@ -290,11 +291,15 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
         {/* Room Details Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
           <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-            <img
-              src={getImageUrl(property.image) || 'https://via.placeholder.com/800x400?text=No+Image'}
-              alt={property.title}
-              className="w-full h-full object-cover"
-            />
+            {getImageUrl(property.image) ? (
+              <img
+                src={getImageUrl(property.image)}
+                alt={property.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <ImagePlaceholder className="w-full h-full" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
               <div>
                 <h2 className="text-2xl font-bold text-white">{property.title}</h2>
@@ -610,11 +615,15 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-600">
-                <img
-                  src={getImageUrl(booking.property.image) || 'https://via.placeholder.com/64'}
-                  alt={booking.property.title}
-                  className="w-full h-full object-cover"
-                />
+                {getImageUrl(booking.property.image) ? (
+                  <img
+                    src={getImageUrl(booking.property.image)}
+                    alt={booking.property.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ImagePlaceholder className="w-full h-full" />
+                )}
               </div>
               <div>
                 <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property.title}</h4>
