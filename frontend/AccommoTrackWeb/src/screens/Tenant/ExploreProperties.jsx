@@ -541,7 +541,13 @@ const ExploreProperties = () => {
                                                       onClick={() => openFullGallery(drawerData)}
                                                     >
                                                       <img
-                                                        src={getImageUrl(drawerData.image) || getImageUrl(drawerData.rooms?.[0]?.image) || 'https://via.placeholder.com/400x200?text=No+Image'}
+                                                        src={
+                                                          (drawerData.image && drawerData.image.includes('.')) 
+                                                            ? getImageUrl(drawerData.image) 
+                                                            : (drawerData.rooms?.[0]?.image && drawerData.rooms[0].image.includes('.'))
+                                                              ? getImageUrl(drawerData.rooms[0].image)
+                                                              : 'https://via.placeholder.com/400x300?text=No+Image+Available'
+                                                        }
                                                         alt={drawerData.name}
                                                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                                       />

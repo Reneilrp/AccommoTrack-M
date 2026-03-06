@@ -686,16 +686,16 @@ export default function AddProperty({ onBack, onSave }) {
         {currentStep === 2 && (
           <div className="space-y-6">
             {/* Map Section */}
-            <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
               <div className="flex items-start gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-red-500 mt-0.5" />
                 <div>
-                  <h3 className="font-semibold text-gray-900">Set Property Coordinates</h3>
-                  <p className="text-sm text-gray-600">Drag or click on the map below to set the exact location of your property</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Set Property Coordinates</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Drag or click on the map below to set the exact location of your property</p>
                 </div>
               </div>
 
-              <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center mb-4" style={{ position: 'relative', height: '300px' }}>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-64 flex items-center justify-center mb-4" style={{ position: 'relative', height: '300px' }}>
                 <MapContainer
                   center={[
                     formData.latitude ? parseFloat(formData.latitude) : 6.912559646590693,
@@ -707,7 +707,7 @@ export default function AddProperty({ onBack, onSave }) {
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url={tileUrl}
                   />
                   <DraggableMarker
                     position={[
@@ -728,30 +728,30 @@ export default function AddProperty({ onBack, onSave }) {
 
               {/* <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Latitude</label>
                   <input
                     type="text"
                     value={formData.latitude}
                     onChange={(e) => handleInputChange('latitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-white"
                     placeholder="e.g., 6.9147"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Longitude</label>
                   <input
                     type="text"
                     value={formData.longitude}
                     onChange={(e) => handleInputChange('longitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-white"
                     placeholder="e.g., 122.0781"
                   />
                 </div>
               </div> */}
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <h2 className="text-xl font-semibold text-gray-900 mb-1 shrink-0">Location Details</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1 shrink-0">Location Details</h2>
                 {Object.keys(fieldErrors).some(k => ['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].includes(k)) && (
                   <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
                     {['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
@@ -760,7 +760,7 @@ export default function AddProperty({ onBack, onSave }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Street Address <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -768,11 +768,11 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., 123 Main Street"
                     value={formData.streetAddress}
                     onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Barangay
                   </label>
                   <input
@@ -780,14 +780,14 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Barangay 123"
                     value={formData.barangay}
                     onChange={(e) => handleInputChange('barangay', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     City <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -795,12 +795,12 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Manila"
                     value={formData.city}
                     onChange={(e) => handleInputChange('city', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.city ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Province/Region <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -808,7 +808,7 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Metro Manila"
                     value={formData.provinceRegion}
                     onChange={(e) => handleInputChange('provinceRegion', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
                 </div>
@@ -816,7 +816,7 @@ export default function AddProperty({ onBack, onSave }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Postal Code
                   </label>
                   <input
@@ -824,12 +824,12 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., 1000"
                     value={formData.postalCode}
                     onChange={(e) => handleInputChange('postalCode', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Country
                   </label>
                   <input
@@ -837,21 +837,21 @@ export default function AddProperty({ onBack, onSave }) {
                     placeholder="e.g., Philippines"
                     value={formData.country}
                     onChange={(e) => handleInputChange('country', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nearby Landmarks</label>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nearby Landmarks</label>
               <textarea
                 placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
                 value={formData.nearbyLandmarks}
                 onChange={(e) => handleInputChange('nearbyLandmarks', e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
