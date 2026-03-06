@@ -999,7 +999,11 @@ const ExploreProperties = () => {
                           <div className="absolute inset-0 bg-black/20"></div>
                         </div>
                       ) : (
-                        <img src={item.url} className="w-full h-full object-cover" loading="lazy" />
+                        item.url ? (
+                          <img src={item.url} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <ImagePlaceholder className="w-full h-full" />
+                        )
                       )}
                       {/* Active Overlay */}
                       {i === galleryIndex && (

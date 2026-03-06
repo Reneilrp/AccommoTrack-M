@@ -5,6 +5,7 @@ import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import { propertyService } from '../../services/propertyServices';
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
+import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 
 // --- ROO DETAILS MODAL COMPONENT ---
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -31,11 +32,15 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
 
         {/* LEFT SIDE: Hero Image */}
         <div className="w-full md:w-5/12 h-64 md:h-auto relative bg-gray-100 dark:bg-gray-700 group flex-shrink-0">
-          <img 
-            src={getImageUrl(room.image)} 
-            alt={room.name} 
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
+          {getImageUrl(room.image) ? (
+            <img 
+              src={getImageUrl(room.image)} 
+              alt={room.name} 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          ) : (
+            <ImagePlaceholder className="w-full h-full" />
+          )}
           {/* Image Overlay Gradient */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-24">
              <div className="flex items-center justify-between mb-2">

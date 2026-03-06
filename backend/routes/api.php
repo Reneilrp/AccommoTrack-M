@@ -55,6 +55,7 @@ Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getProp
 
 // --- Add aliases to match frontend Service calls that omit /public prefix ---
 Route::get('/properties', [PropertyController::class, 'getAllProperties']);
+Route::middleware('auth:sanctum')->get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
 Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 // ---------------------------------------------------------------------------
 
