@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use App\Channels\DatabaseChannel;
 
 class RentPaidSuccess extends Notification implements ShouldQueue
 {
@@ -26,7 +27,7 @@ class RentPaidSuccess extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', DatabaseChannel::class];
     }
 
     /**
@@ -48,8 +49,24 @@ class RentPaidSuccess extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
+            'type' => 'rent_paid',
+            'title' => 'Rent Payment Successful',
             'message' => 'Your rent payment was successful.',
             'url' => '/tenant/payments',
+        ];
+    }
+
+    /**
+     * Custom method for our custom database notifications table.
+     */
+    public function toDatabase(object $notifiable): array
+    {
+        $data = $this->toArray($notifiable);
+        return [
+            'type'    => $data['type'] ?? 'notification',
+            'title'   => $data['title'] ?? 'Rent Payment Successful',
+            'message' => $data['message'],
+            'data'    => $data,
         ];
     }
 }

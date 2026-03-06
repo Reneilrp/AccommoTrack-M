@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Booking;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use App\Channels\DatabaseChannel;
 
 class NewBookingNotification extends Notification
 {
@@ -22,7 +23,7 @@ class NewBookingNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return [DatabaseChannel::class];
     }
 
     /**
@@ -42,6 +43,20 @@ class NewBookingNotification extends Notification
             'message'    => "{$tenantName} has submitted a booking request for room #{$this->booking->room_id}.",
             'booking_id' => $this->booking->id,
             'reference'  => $this->booking->booking_reference,
+        ];
+    }
+
+    /**
+     * Custom method for our custom database notifications table.
+     */
+    public function toDatabase(object $notifiable): array
+    {
+        $data = $this->toArray($notifiable);
+        return [
+            'type'    => $data['type'],
+            'title'   => $data['title'],
+            'message' => $data['message'],
+            'data'    => $data,
         ];
     }
 }
