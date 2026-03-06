@@ -62,6 +62,8 @@ class Addon extends Model
         'is_active' => 'boolean'
     ];
 
+    protected $appends = ['price_type_label', 'addon_type_label', 'has_stock'];
+
     /**
      * Relationship: Addon belongs to Property
      */
@@ -126,6 +128,14 @@ class Addon extends Model
         }
 
         return $this->stock > 0;
+    }
+
+    /**
+     * Accessor: exposes hasStock() as a JSON-serializable attribute
+     */
+    public function getHasStockAttribute(): bool
+    {
+        return $this->hasStock();
     }
 
     /**

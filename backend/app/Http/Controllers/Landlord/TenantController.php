@@ -170,6 +170,90 @@ class TenantController extends Controller
     }
 
     /**
+     * Get a single tenant by ID
+     */
+    public function show(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_tenants');
+            $landlordId = $context['landlord_id'];
+            $confirmedStatuses = ['confirmed', 'completed', 'partial-completed'];
+
+            $tenant = User::where('role', 'tenant')
+                ->with([
+                    'tenantProfile',
+                    'room.property',
+                    'bookings' => function ($q) use ($confirmedStatuses) {
+                        $q->whereIn('status', $confirmedStatuses)
+                          ->with('room.property')
+                          ->orderBy('created_at', 'desc');
+                    },
+                ])
+                ->where(function ($q) use ($landlordId, $confirmedStatuses) {
+                    $q->whereHas('room', function ($q2) use ($landlordId) {
+                        $q2->whereHas('property', fn($q3) => $q3->where('landlord_id', $landlordId));
+                    })->orWhereHas('bookings', function ($q2) use ($landlordId, $confirmedStatuses) {
+                        $q2->whereIn('status', $confirmedStatuses)
+                           ->whereHas('room', function ($q3) use ($landlordId) {
+                               $q3->whereHas('property', fn($q4) => $q4->where('landlord_id', $landlordId));
+                           });
+                    });
+                })
+                ->findOrFail($id);
+
+            $latestBooking = $tenant->bookings->first();
+            $room = $latestBooking?->room ?? $tenant->room;
+
+            return response()->json([
+                'id' => $tenant->id,
+                'first_name' => $tenant->first_name,
+                'middle_name' => $tenant->middle_name,
+                'last_name' => $tenant->last_name,
+                'full_name' => $tenant->first_name . ' ' . $tenant->last_name,
+                'email' => $tenant->email,
+                'phone' => $tenant->phone,
+                'profile_image' => $tenant->profile_image,
+                'is_active' => $tenant->is_active,
+                'room' => $room ? [
+                    'id' => $room->id,
+                    'room_number' => $room->room_number,
+                    'room_type' => $room->room_type,
+                    'monthly_rate' => $latestBooking ? $latestBooking->monthly_rent : $room->monthly_rate,
+                    'property_name' => $room->property->title ?? 'N/A',
+                    'property_id' => $room->property_id,
+                ] : null,
+                'tenantProfile' => $tenant->tenantProfile ? [
+                    'move_in_date' => $tenant->tenantProfile->move_in_date,
+                    'move_out_date' => $tenant->tenantProfile->move_out_date,
+                    'status' => $tenant->tenantProfile->status,
+                    'date_of_birth' => $tenant->tenantProfile->date_of_birth,
+                    'emergency_contact_name' => $tenant->tenantProfile->emergency_contact_name,
+                    'emergency_contact_phone' => $tenant->tenantProfile->emergency_contact_phone,
+                    'emergency_contact_relationship' => $tenant->tenantProfile->emergency_contact_relationship,
+                    'current_address' => $tenant->tenantProfile->current_address,
+                    'preference' => $tenant->tenantProfile->preference,
+                    'notes' => $tenant->tenantProfile->notes,
+                ] : null,
+                'latestBooking' => $latestBooking ? [
+                    'id' => $latestBooking->id,
+                    'status' => $latestBooking->status,
+                    'payment_status' => $latestBooking->payment_status,
+                    'created_at' => $latestBooking->created_at,
+                    'updated_at' => $latestBooking->updated_at,
+                    'start_date' => $latestBooking->start_date,
+                    'end_date' => $latestBooking->end_date,
+                    'total_amount' => $latestBooking->total_amount,
+                ] : null,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Tenant not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load tenant', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Create a new tenant
      */
     public function store(Request $request): JsonResponse

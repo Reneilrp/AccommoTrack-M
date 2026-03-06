@@ -375,7 +375,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
               <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
               <div className="space-y-3">
                 {addons.active.map((addon) => (
-                  <AddonItem key={addon.pivotId} addon={addon} status="active" />
+                  <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
                 ))}
               </div>
             </div>
@@ -388,7 +388,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
               <div className="space-y-3">
                 {addons.pending.map((addon) => (
                   <AddonItem 
-                    key={addon.pivotId} 
+                    key={addon.pivot?.id || addon.id} 
                     addon={addon} 
                     status="pending"
                     onCancel={() => onCancelAddon(addon.id)}
@@ -668,7 +668,7 @@ const HistoryTab = ({ data, onLoadMore, onReview }) => {
               <div className="flex flex-wrap gap-2">
                 {booking.addons.map((addon, idx) => (
                   <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded border border-gray-200 dark:border-gray-600">
-                    {addon.name} ({addon.priceType === 'monthly' ? '₱' + addon.price + '/mo' : '₱' + addon.price})
+                    {addon.name} ({addon.price_type === 'monthly' ? '₱' + parseFloat(addon.price || 0).toLocaleString() + '/mo' : '₱' + parseFloat(addon.price || 0).toLocaleString()})
                   </span>
                 ))}
               </div>
@@ -731,14 +731,14 @@ const AddonItem = ({ addon, status, onCancel }) => (
       <div>
         <p className="font-bold text-gray-900 dark:text-white leading-tight">{addon.name}</p>
         <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
-          {addon.priceTypeLabel} <span className="mx-1 opacity-30">•</span> {addon.addonType === 'rental' ? 'Rental' : 'Service Fee'}
+          {addon.price_type_label} <span className="mx-1 opacity-30">•</span> {addon.addon_type === 'rental' ? 'Rental' : 'Service Fee'}
         </p>
       </div>
     </div>
     <div className="flex items-center gap-3">
       <span className="font-bold text-gray-900 dark:text-white">
-        ₱{addon.price.toLocaleString()}
-        {addon.priceType === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
+        ₱{parseFloat(addon.price || 0).toLocaleString()}
+        {addon.price_type === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
       </span>
       {status === 'pending' && onCancel && (
         <button
@@ -782,11 +782,11 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
                     <div className="flex items-center gap-2 mb-2">
                       <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                        addon.priceType === 'monthly' 
+                        addon.price_type === 'monthly' 
                           ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
                           : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                       }`}>
-                        {addon.priceTypeLabel}
+                        {addon.price_type_label}
                       </span>
                     </div>
                     {addon.description && (
@@ -794,21 +794,21 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
                     )}
                     <div className="flex items-baseline gap-2">
                       <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                        ₱{addon.price.toLocaleString()}
+                        ₱{parseFloat(addon.price || 0).toLocaleString()}
                       </p>
-                      {addon.priceType === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
+                      {addon.price_type === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
                     </div>
                     {addon.stock !== null && (
-                      <p className={`text-[10px] font-bold uppercase mt-2 ${addon.hasStock ? 'text-gray-400 dark:text-gray-500' : 'text-red-500'}`}>
-                        {addon.hasStock ? `${addon.stock} Available` : 'Out of stock'}
+                      <p className={`text-[10px] font-bold uppercase mt-2 ${addon.has_stock ? 'text-gray-400 dark:text-gray-500' : 'text-red-500'}`}>
+                        {addon.has_stock ? `${addon.stock} Available` : 'Out of stock'}
                       </p>
                     )}
                   </div>
                   <button
                     onClick={() => onRequest(addon)}
-                    disabled={!addon.hasStock || requestingId === addon.id}
+                    disabled={!addon.has_stock || requestingId === addon.id}
                     className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                      addon.hasStock && requestingId !== addon.id
+                      addon.has_stock && requestingId !== addon.id
                         ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     }`}

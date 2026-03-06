@@ -156,6 +156,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Tenant: Generate Cash Invoice
         Route::post('/rooms/{room}/generate-cash-invoice', [InvoiceController::class, 'generateCashInvoice']);
+
+        // Tenant: Resubmit verification documents after rejection
+        Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
     });
 
     // ===== LANDLORD ROUTES =====
@@ -229,11 +232,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/{propertyId}/addons/pending', [AddonController::class, 'getPendingRequests']);
         Route::get('/properties/{propertyId}/addons/active', [AddonController::class, 'getActiveAddons']);
         Route::patch('/bookings/{bookingId}/addons/{addonId}', [AddonController::class, 'handleRequest']);
+
+        // Landlord: Add a rule to a property
+        Route::post('/properties/{id}/rules', [PropertyController::class, 'addRule']);
+
+        // Landlord: Get single tenant
+        Route::get('/tenants/{id}', [TenantController::class, 'show']);
     });
 
     // ===== SHARED BOOKINGS =====
     // Allow authenticated users (tenants) to submit reviews via /api/reviews
     Route::post('/reviews', [ReviewController::class, 'store']);
+    // Allow authenticated users (tenants) to submit reports
+    Route::post('/reports', [ReportController::class, 'store']);
 
     Route::get('/bookings', [LandlordBookingController::class, 'index']);
     Route::post('/bookings', [LandlordBookingController::class, 'store']);
@@ -265,6 +276,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
     // extend stay - extend active tenant assignment by days or months
     Route::post('/rooms/{id}/extend', [RoomController::class, 'extendStay']);
+    // Alias for mobile frontend (without /tenant/ prefix)
+    Route::post('/rooms/{room}/generate-cash-invoice', [InvoiceController::class, 'generateCashInvoice']);
 
     // ===== ADMIN ROUTES (Admins only) =====
     Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function () {

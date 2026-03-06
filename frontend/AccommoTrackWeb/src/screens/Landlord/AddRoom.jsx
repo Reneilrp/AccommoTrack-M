@@ -779,9 +779,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
             <div className="space-y-2">
               {/* Full Room Price - NOT shown for bedSpacer */}
               {formData.roomType !== 'bedSpacer' && (
-                <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                  style={{ backgroundColor: formData.pricingModel === 'full_room' ? '#dbeafe' : 'transparent' }}
-                >
+                <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${formData.pricingModel === 'full_room' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
                   <input
                     type="radio"
                     name="pricingModel"
@@ -807,9 +805,7 @@ export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded,
 
               {/* Per Bed Price - shown for all non-single rooms OR bedSpacer */}
               {(formData.roomType !== 'single' || formData.roomType === 'bedSpacer') && (
-                <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                  style={{ backgroundColor: formData.pricingModel === 'per_bed' ? '#dbeafe' : 'transparent' }}
-                >
+                <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${formData.pricingModel === 'per_bed' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
                   <input
                     type="radio"
                     name="pricingModel"

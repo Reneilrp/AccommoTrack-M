@@ -209,4 +209,20 @@ class PropertyController extends Controller
         }
         return response()->json(['message' => 'Amenity added successfully', 'amenity' => $amenity->name], 200);
     }
+
+    public function addRule(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+        $request->validate(['rule' => 'required|string|max:255']);
+        $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
+        $rules = $property->property_rules ?? [];
+        $newRule = trim($request->rule);
+        if (!in_array($newRule, $rules)) {
+            $rules[] = $newRule;
+            $property->property_rules = $rules;
+            $property->save();
+        }
+        return response()->json(['message' => 'Rule added successfully', 'rule' => $newRule, 'rules' => $rules], 200);
+    }
 }
