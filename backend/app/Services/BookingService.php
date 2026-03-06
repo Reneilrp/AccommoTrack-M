@@ -22,18 +22,20 @@ class BookingService
         return DB::transaction(function() use ($data, $tenantId) {
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
 
-            // Check if there are any pending bookings for this room
-            $hasPending = Booking::where('room_id', $room->id)
+            // Calculate effective occupancy (confirmed + pending bookings)
+            $pendingCount = Booking::where('room_id', $room->id)
                 ->where('status', 'pending')
-                ->exists();
-
-            if ($hasPending) {
-                throw new \Exception('Room is currently pending confirmation for another user.');
-            }
+                ->count();
+            
+            $effectiveOccupancy = $room->occupied + $pendingCount;
 
             // Check if room has available slots
-            if (!$room->isAvailable() || $room->available_slots <= 0) {
-                throw new \Exception('Room is not available for booking');
+            if ($effectiveOccupancy >= $room->capacity) {
+                throw new \Exception('Room is already fully booked or has pending reservations.');
+            }
+
+            if ($room->status === 'maintenance') {
+                throw new \Exception('Room is currently under maintenance');
             }
 
             $startDate = Carbon::parse($data['start_date']);
@@ -70,8 +72,16 @@ class BookingService
                 'notes' => $data['notes'] ?? null
             ]);
 
-            // Mark room as occupied immediately to prevent double booking
-            $room->update(['status' => 'occupied']);
+            // Re-calculate effective occupancy after this new booking
+            $newEffectiveOccupancy = $effectiveOccupancy + 1;
+
+            // Update room status to occupied if it's now full (confirmed + pending)
+            if ($newEffectiveOccupancy >= $room->capacity) {
+                $room->update(['status' => 'occupied']);
+            }
+
+            // Update property stats
+            $room->property->updateAvailableRooms();
 
             // Notify landlord of the new booking request
             $landlord = User::find($room->property->landlord_id);

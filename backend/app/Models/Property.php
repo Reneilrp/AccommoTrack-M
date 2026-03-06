@@ -375,10 +375,19 @@ class Property extends Model
 
     /**
      * Update available rooms count based on actual room data
+     * A room is only available if it has slots left after accounting for
+     * both confirmed tenants and pending booking requests.
      */
     public function updateAvailableRooms()
     {
-        $this->available_rooms = $this->rooms()->where('status', 'available')->count();
+        $this->available_rooms = $this->rooms()
+            ->where('status', 'available')
+            ->get()
+            ->filter(function($room) {
+                 return $room->isAvailable();
+            })
+            ->count();
+            
         $this->save();
     }
 

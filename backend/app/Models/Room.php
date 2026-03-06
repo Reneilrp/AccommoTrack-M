@@ -216,6 +216,7 @@ class Room extends Model
 
     /**
      * Get available slots in the room
+     * Subtracts confirmed tenants AND pending bookings from capacity.
      */
     public function getAvailableSlotsAttribute()
     {
@@ -224,7 +225,11 @@ class Room extends Model
         }
         
         $occupiedCount = $this->occupied;
-        return max(0, $this->capacity - $occupiedCount);
+        $pendingCount = Booking::where('room_id', $this->id)
+            ->where('status', 'pending')
+            ->count();
+            
+        return max(0, $this->capacity - ($occupiedCount + $pendingCount));
     }
 
     /**
@@ -370,10 +375,15 @@ class Room extends Model
 
     /**
      * Scope: Get only available rooms
+     * Excludes rooms under maintenance, fully occupied, or fully reserved by pending bookings.
      */
     public function scopeAvailable($query)
     {
-        return $query->where('status', 'available');
+        return $query->where('status', 'available')
+            ->where(function ($q) {
+                // Ensure room has slots left after accounting for pending bookings
+                $q->whereRaw('(capacity - (SELECT COUNT(*) FROM room_tenant_assignments rta WHERE rta.room_id = rooms.id AND rta.status = "active") - (SELECT COUNT(*) FROM bookings b WHERE b.room_id = rooms.id AND b.status = "pending")) > 0');
+            });
     }
 
     /**
