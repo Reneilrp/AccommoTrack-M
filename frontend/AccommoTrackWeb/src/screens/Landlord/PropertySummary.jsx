@@ -284,7 +284,7 @@ export default function PropertySummary() {
             <div className="relative w-full h-full flex flex-col">
               <div ref={galleryRef} className="relative flex-1 bg-black rounded-xl overflow-hidden flex flex-col min-h-[400px]">
                 <div className="w-full flex-1 relative flex flex-col">
-                  {images.length > 0 ? (
+                  {images.length > 0 || property?.video_url ? (
                     <>
                       <Swiper
                         modules={[Navigation, Pagination, Autoplay, Keyboard, A11y]}
@@ -293,11 +293,25 @@ export default function PropertySummary() {
                         navigation={false}
                         pagination={false}
                         autoplay={{ delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: true }}
-                        loop={images.length > 1}
+                        loop={(images.length + (property?.video_url ? 1 : 0)) > 1}
                         className="w-full h-full"
                         onSlideChange={(swiper) => setIdx(swiper.realIndex)}
                         onSwiper={(s) => setSwiperInstance(s)}
                       >
+                        {property?.video_url && (
+                          <SwiperSlide key="video" className="h-full bg-black">
+                            <div className="w-full h-full flex items-center justify-center relative">
+                              <video
+                                src={property.video_url}
+                                controls
+                                className="max-w-full max-h-[400px] object-contain"
+                                onPlay={() => swiperInstance?.autoplay?.stop()}
+                                onPause={() => swiperInstance?.autoplay?.start()}
+                                onEnded={() => swiperInstance?.slideNext()}
+                              />
+                            </div>
+                          </SwiperSlide>
+                        )}
                         {images.map((src, i) => (
                           <SwiperSlide key={i} className="h-full bg-black">
                             <div className="w-full h-full flex items-center justify-center">
@@ -312,7 +326,7 @@ export default function PropertySummary() {
                         ))}
                       </Swiper>
 
-                      {swiperInstance && (
+                      {swiperInstance && (images.length + (property?.video_url ? 1 : 0)) > 1 && (
                         <div className="absolute inset-0 flex items-center justify-between px-3 z-20 pointer-events-none">
                           <button
                             aria-label="Previous image"
@@ -333,13 +347,13 @@ export default function PropertySummary() {
                       )}
 
                       {/* Thumbnails removed per UX request; overlay arrows remain */}
-                      {images.length > 1 && (
+                      {(images.length + (property?.video_url ? 1 : 0)) > 1 && (
                         <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center z-20">
                           <div className="flex items-center gap-2">
-                            {images.map((_, i) => (
+                            {Array.from({ length: images.length + (property?.video_url ? 1 : 0) }).map((_, i) => (
                               <button
                                 key={i}
-                                aria-label={`Go to image ${i + 1}`}
+                                aria-label={`Go to slide ${i + 1}`}
                                 onClick={() => {
                                   if (!swiperInstance) return;
                                   swiperInstance.slideToLoop(i);
@@ -352,9 +366,9 @@ export default function PropertySummary() {
                       )}
                     </>
                   ) : (
-                    <div className="text-center text-gray-500 dark:text-gray-400">
+                    <div className="text-center text-gray-500 dark:text-gray-400 m-auto">
                       <Building2 className="w-16 h-16 mx-auto mb-2" />
-                      <p>No photos available</p>
+                      <p>No photos or video available</p>
                     </div>
                   )}
                 </div>
