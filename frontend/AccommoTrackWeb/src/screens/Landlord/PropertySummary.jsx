@@ -93,7 +93,7 @@ export default function PropertySummary() {
       
       setError(null);
       const res = await api.get(`/landlord/properties/${id}?t=${Date.now()}`);
-      const data = res.data;
+      const data = res.data?.data || res.data;
       setProperty(data);
       
       const newState = { ...uiState.data?.[cacheKey], property: data };
@@ -114,7 +114,7 @@ export default function PropertySummary() {
     try {
       if (rooms.length === 0) setRoomsLoading(true);
       const res = await api.get(`/rooms/property/${id}?t=${Date.now()}`);
-      const data = res.data || [];
+      const data = res.data?.data || res.data || [];
       setRooms(data);
       
       const newState = { ...uiState.data?.[cacheKey], rooms: data };

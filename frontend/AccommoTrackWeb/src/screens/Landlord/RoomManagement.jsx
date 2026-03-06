@@ -114,7 +114,7 @@ export default function RoomManagement() {
         api.get(`/rooms/property/${selectedPropertyId}/stats?t=${Date.now()}`)
       ]);
 
-      const roomsData = roomsRes.data;
+      const roomsData = roomsRes.data?.data || roomsRes.data || [];
       const statsData = statsRes.data;
       setRooms(roomsData);
       setStats(statsData);

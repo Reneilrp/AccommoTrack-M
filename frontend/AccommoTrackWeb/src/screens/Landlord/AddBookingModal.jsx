@@ -58,8 +58,9 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       }
       try {
         const res = await api.get(`/rooms/property/${propertyId}`);
+        const roomsData = res.data?.data || res.data || [];
         // Only show available rooms for new bookings
-        setRooms((res.data || []).filter(r => r.status === 'available'));
+        setRooms(roomsData.filter(r => r.status === 'available'));
       } catch (err) {
         console.error('Failed to load rooms', err);
       }

@@ -42,6 +42,7 @@ class UpdatePropertyRequest extends FormRequest
             'is_draft' => 'sometimes|boolean',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
+            'is_eligible' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
