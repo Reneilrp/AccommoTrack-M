@@ -12,7 +12,7 @@ export const getImageUrl = (imageSource) => {
     // Handle object input (e.g. { image_url: '...', image_path: '...' })
     let imagePath = '';
     if (typeof imageSource === 'object') {
-        imagePath = imageSource.image_url || imageSource.url || imageSource.image_path || '';
+        imagePath = imageSource.image_url || imageSource.url || imageSource.image_path || imageSource.image || '';
     } else {
         imagePath = imageSource;
     }

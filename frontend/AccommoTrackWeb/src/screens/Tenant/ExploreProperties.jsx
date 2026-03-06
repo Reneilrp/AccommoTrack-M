@@ -13,6 +13,12 @@ import { useUIState } from "../../contexts/UIStateContext";
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 import Footer from '../../components/Shared/Footer';
 
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Keyboard, A11y } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+
 const ExploreProperties = () => {
   const navigate = useNavigate();
   const { uiState, updateScreenState } = useUIState();
@@ -52,6 +58,47 @@ const ExploreProperties = () => {
   // Video State
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [videoToPlay, setVideoToPlay] = useState(null);
+
+  // Full Gallery State
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  const openFullGallery = (property) => {
+    if (!property) return;
+    
+    const items = [];
+    
+    // 1. Add Video Tour if exists (as first item)
+    if (property.video_url) {
+      items.push({ type: 'video', url: property.video_url });
+    }
+    
+    // 2. Add Property main image
+    if (property.image) {
+      items.push({ type: 'image', url: getImageUrl(property.image) });
+    }
+    
+    // 3. Add all unique room images
+    const roomImages = new Set();
+    (property.rooms || []).forEach(room => {
+      if (room.image) roomImages.add(getImageUrl(room.image));
+      if (Array.isArray(room.images)) {
+        room.images.forEach(img => roomImages.add(getImageUrl(img)));
+      }
+    });
+    
+    roomImages.forEach(url => {
+      // Don't duplicate the main property image if it's the same
+      if (url !== getImageUrl(property.image)) {
+        items.push({ type: 'image', url });
+      }
+    });
+    
+    setGalleryItems(items);
+    setGalleryIndex(0);
+    setGalleryOpen(true);
+  };
 
   // Fetch reviews when drawer opens
   const fetchPropertyReviews = async (propertyId) => {
@@ -488,164 +535,183 @@ const ExploreProperties = () => {
                         {/* SINGLE SCROLLABLE CONTAINER */}
                         <div className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
 
-                          {/* Image Section */}
-                          <div className="h-[250px] w-full relative bg-gray-200 group cursor-pointer flex-shrink-0">
-                            <img
-                              src={getImageUrl(drawerData.rooms?.[0]) || 'https://via.placeholder.com/400x200?text=No+Image'}
-                              alt={drawerData.name}
-                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-
-                            {/* Close Selection Button */}
-                            <button
-                              onClick={() => setDrawerOpen(false)}
-                              className="absolute top-4 right-4 p-2 bg-black/30 hover:bg-black/50 backdrop-blur-md rounded-full text-white transition-colors border border-white/20 z-10"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-
-                            {/* See Photos Badge (Bottom Left) */}
-                            <div className="absolute bottom-4 left-4 z-10">
-                              <button className="bg-black/60 hover:bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all">
-                                <div className="w-4 h-4 grid grid-cols-2 gap-px opacity-80">
-                                  <div className="bg-white rounded-[1px]"></div>
-                                  <div className="bg-white rounded-[1px]"></div>
-                                  <div className="bg-white rounded-[1px]"></div>
-                                  <div className="bg-white rounded-[1px]"></div>
-                                </div>
-                                See photos
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* HEADER INFO SECTION */}
-                          <div className="p-5 pb-0 bg-white dark:bg-gray-800">
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight mb-2">{drawerData.name}</h2>
-
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="flex items-center text-sm font-bold text-gray-900 dark:text-white">
-                                {drawerData.rating ? drawerData.rating : 'New'}
-                                <div className="flex ml-1">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star key={i} className={`w-3 h-3 ${i < Math.floor(drawerData.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
-                                  ))}
-                                </div>
-                              </div>
-                              <span className="text-gray-400 text-xs">•</span>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">({drawerReviews.summary?.total_reviews || 0} reviews)</span>
-                              <span className="text-gray-400 text-xs">•</span>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">{drawerData.type}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-500 font-medium mb-3">
-                              <div className="w-4 h-4 rounded-full border border-green-600 dark:border-green-500 flex items-center justify-center">
-                                <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500"></div>
-                              </div>
-                              Open Now
-                              <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">• Closes 9PM</span>
-                            </div>
-                          </div>
-
-                          {/* TABS HEADER - STICKY */}
-                          <div className="flex items-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-30 px-5 pt-2 shadow-sm">
-                            {['Overview', 'Reviews', 'About'].map((tab) => (
-                              <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`mr-6 py-3 text-sm font-bold text-center relative transition-colors ${activeTab === tab
-                                  ? 'text-teal-700 dark:text-teal-400'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                  }`}
-                              >
-                                {tab}
-                                {activeTab === tab && (
-                                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-700 dark:bg-teal-400 rounded-t-full" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Scrollable Content (Tabbed) */}
-                          <div className="p-5 bg-gray-50/50 dark:bg-gray-900/50 min-h-[500px]">
-
-                            {activeTab === 'Overview' && (
-                              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
-
-                                {/* Address Section */}
-                                <div className="flex items-start gap-4 border-b border-gray-100 dark:border-gray-700 pb-5">
-                                  <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                                    <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-tight mb-1">{drawerData.address}</h4>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Zamboanga City, Philippines</p>
-                                  </div>
-                                  <button className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors">
-                                    <Map className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                                  </button>
-                                </div>
-
-                                {/* Visit Schedule */}
-                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-3">
-                                  <div className="bg-orange-50 dark:bg-orange-900/30 p-2 rounded-lg">
-                                    <div className="w-5 h-5 text-orange-500 dark:text-orange-400 font-bold flex items-center justify-center">🕒</div>
-                                  </div>
-                                  <div>
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">Visiting Hours</h4>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Physical viewing schedule</p>
-                                    <span className="inline-block mt-2 text-[10px] font-bold text-white bg-orange-400 px-2 py-0.5 rounded">COMING SOON</span>
-                                  </div>
-                                </div>
-
-                                {/* Gallery Preview */}
-                                <div>
-                                  <div className="flex items-center justify-between mb-3">
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Gallery</h4>
-                                    <span className="text-xs text-teal-600 dark:text-teal-400 font-bold cursor-pointer hover:underline">View All</span>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {/* 1. Main Video/Image */}
-                                    {drawerData.video_url ? (
-                                      <div 
-                                        className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group cursor-pointer"
-                                        onClick={() => {
-                                          setVideoToPlay(drawerData.video_url);
-                                          setVideoModalOpen(true);
-                                        }}
-                                      >
-                                        <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <div className="w-12 h-12 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/40 dark:border-white/20 group-hover:scale-110 transition-transform">
-                                            <Play className="w-6 h-6 text-white fill-white ml-1" />
-                                          </div>
-                                        </div>
-                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
-                                          VIDEO TOUR
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <div className="col-span-2 h-32 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative">
-                                        <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover" />
-                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-1.5 rounded">MAIN VIEW</span>
-                                      </div>
-                                    )}
-                                    {/* 2. Room Grid */}
-                                    {(drawerData.rooms || []).slice(0, 2).map((room, idx) => (
-                                      <div key={idx} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative">
-                                        <img src={getImageUrl(room)} className="w-full h-full object-cover" />
-                                      </div>
-                                    ))}
-                                    {(drawerData.rooms?.length || 0) > 2 && (
-                                      <div className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-xs font-bold text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                                        +{(drawerData.rooms.length - 2)} More
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                                                    {/* Image Section */}
+                                                    <div 
+                                                      className="h-[250px] w-full relative bg-gray-200 group cursor-pointer flex-shrink-0"
+                                                      onClick={() => openFullGallery(drawerData)}
+                                                    >
+                                                      <img
+                                                        src={getImageUrl(drawerData.image) || getImageUrl(drawerData.rooms?.[0]?.image) || 'https://via.placeholder.com/400x200?text=No+Image'}
+                                                        alt={drawerData.name}
+                                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                      />
+                                                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                          
+                                                      {/* Close Selection Button */}
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setDrawerOpen(false);
+                                                        }}
+                                                        className="absolute top-4 right-4 p-2 bg-black/30 hover:bg-black/50 backdrop-blur-md rounded-full text-white transition-colors border border-white/20 z-10"
+                                                      >
+                                                        <X className="w-4 h-4" />
+                                                      </button>
+                          
+                                                      {/* See Photos Badge (Bottom Left) */}
+                                                      <div className="absolute bottom-4 left-4 z-10">
+                                                        <button className="bg-black/60 hover:bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all">
+                                                          <div className="w-4 h-4 grid grid-cols-2 gap-px opacity-80">
+                                                            <div className="bg-white rounded-[1px]"></div>
+                                                            <div className="bg-white rounded-[1px]"></div>
+                                                            <div className="bg-white rounded-[1px]"></div>
+                                                            <div className="bg-white rounded-[1px]"></div>
+                                                          </div>
+                                                          See photos
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                          
+                                                    {/* HEADER INFO SECTION */}
+                                                    <div className="p-5 pb-0 bg-white dark:bg-gray-800">
+                                                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight mb-2">{drawerData.name}</h2>
+                          
+                                                      <div className="flex items-center gap-2 mb-3">
+                                                        <div className="flex items-center text-sm font-bold text-gray-900 dark:text-white">
+                                                          {drawerData.rating ? drawerData.rating : 'New'}
+                                                          <div className="flex ml-1">
+                                                            {[...Array(5)].map((_, i) => (
+                                                              <Star key={i} className={`w-3 h-3 ${i < Math.floor(drawerData.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                                                            ))}
+                                                          </div>
+                                                        </div>
+                                                        <span className="text-gray-400 text-xs">•</span>
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400">({drawerReviews.summary?.total_reviews || 0} reviews)</span>
+                                                        <span className="text-gray-400 text-xs">•</span>
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400">{drawerData.type}</span>
+                                                      </div>
+                          
+                                                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-500 font-medium mb-3">
+                                                        <div className="w-4 h-4 rounded-full border border-green-600 dark:border-green-500 flex items-center justify-center">
+                                                          <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500"></div>
+                                                        </div>
+                                                        Open Now
+                                                        <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">• Closes 9PM</span>
+                                                      </div>
+                                                    </div>
+                          
+                                                    {/* TABS HEADER - STICKY */}
+                                                    <div className="flex items-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-30 px-5 pt-2 shadow-sm">
+                                                      {['Overview', 'Reviews', 'About'].map((tab) => (
+                                                        <button
+                                                          key={tab}
+                                                          onClick={() => setActiveTab(tab)}
+                                                          className={`mr-6 py-3 text-sm font-bold text-center relative transition-colors ${activeTab === tab
+                                                            ? 'text-teal-700 dark:text-teal-400'
+                                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                                            }`}
+                                                        >
+                                                          {tab}
+                                                          {activeTab === tab && (
+                                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-700 dark:bg-teal-400 rounded-t-full" />
+                                                          )}
+                                                        </button>
+                                                      ))}
+                                                    </div>
+                          
+                                                    {/* Scrollable Content (Tabbed) */}
+                                                    <div className="p-5 bg-gray-50/50 dark:bg-gray-900/50 min-h-[500px]">
+                          
+                                                      {activeTab === 'Overview' && (
+                                                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
+                          
+                                                          {/* Address Section */}
+                                                          <div className="flex items-start gap-4 border-b border-gray-100 dark:border-gray-700 pb-5">
+                                                            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                                                              <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                              <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-tight mb-1">{drawerData.address}</h4>
+                                                              <p className="text-xs text-gray-500 dark:text-gray-400">Zamboanga City, Philippines</p>
+                                                            </div>
+                                                            <button className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors">
+                                                              <Map className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                                            </button>
+                                                          </div>
+                          
+                                                          {/* Visit Schedule */}
+                                                          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-3">
+                                                            <div className="bg-orange-50 dark:bg-orange-900/30 p-2 rounded-lg">
+                                                              <div className="w-5 h-5 text-orange-500 dark:text-orange-400 font-bold flex items-center justify-center">🕒</div>
+                                                            </div>
+                                                            <div>
+                                                              <h4 className="text-sm font-bold text-gray-900 dark:text-white">Visiting Hours</h4>
+                                                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Physical viewing schedule</p>
+                                                              <span className="inline-block mt-2 text-[10px] font-bold text-white bg-orange-400 px-2 py-0.5 rounded">COMING SOON</span>
+                                                            </div>
+                                                          </div>
+                          
+                                                          {/* Gallery Preview */}
+                                                          <div>
+                                                            <div className="flex items-center justify-between mb-3">
+                                                              <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Gallery</h4>
+                                                              <span 
+                                                                className="text-xs text-teal-600 dark:text-teal-400 font-bold cursor-pointer hover:underline"
+                                                                onClick={() => openFullGallery(drawerData)}
+                                                              >
+                                                                View All
+                                                              </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                              {/* 1. Main Video/Image */}
+                                                              {drawerData.video_url ? (
+                                                                <div 
+                                                                  className="col-span-2 h-32 bg-gray-800 dark:bg-gray-950 rounded-xl overflow-hidden relative group cursor-pointer"
+                                                                  onClick={() => openFullGallery(drawerData)}
+                                                                >
+                                                                  <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                                  <div className="absolute inset-0 flex items-center justify-center">
+                                                                    <div className="w-12 h-12 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/40 dark:border-white/20 group-hover:scale-110 transition-transform">
+                                                                      <Play className="w-6 h-6 text-white fill-white ml-1" />
+                                                                    </div>
+                                                                  </div>
+                                                                  <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                                                                    VIDEO TOUR
+                                                                  </span>
+                                                                </div>
+                                                              ) : (
+                                                                <div 
+                                                                  className="col-span-2 h-32 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative cursor-pointer"
+                                                                  onClick={() => openFullGallery(drawerData)}
+                                                                >
+                                                                  <img src={getImageUrl(drawerData.image)} className="w-full h-full object-cover" />
+                                                                  <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-1.5 rounded">MAIN VIEW</span>
+                                                                </div>
+                                                              )}
+                                                              {/* 2. Room Grid */}
+                                                              {(drawerData.rooms || []).slice(0, 2).map((room, idx) => (
+                                                                <div 
+                                                                  key={idx} 
+                                                                  className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden relative cursor-pointer"
+                                                                  onClick={() => openFullGallery(drawerData)}
+                                                                >
+                                                                  <img src={getImageUrl(room)} className="w-full h-full object-cover" />
+                                                                </div>
+                                                              ))}
+                                                              {(drawerData.rooms?.length || 0) > 2 && (
+                                                                <div 
+                                                                  className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-xs font-bold text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                                                  onClick={() => openFullGallery(drawerData)}
+                                                                >
+                                                                  +{(drawerData.rooms.length - 2)} More
+                                                                </div>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      )
+                          }
 
                             {activeTab === 'Reviews' && (
                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -819,29 +885,80 @@ const ExploreProperties = () => {
         </>
       )}
 
-      {/* VIDEO PLAYER MODAL */}
-      {videoModalOpen && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <button 
-            onClick={() => setVideoModalOpen(false)}
-            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:rotate-90 z-[5001]"
-          >
-            <X className="w-8 h-8" />
-          </button>
-          
-          <div className="w-full max-w-5xl aspect-video relative mx-4 shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-black">
-            <video 
-              src={videoToPlay} 
-              className="w-full h-full object-contain"
-              controls 
-              autoPlay
-              playsInline
-            />
+      {/* FULL MEDIA GALLERY MODAL */}
+      {galleryOpen && galleryItems.length > 0 && (
+        <div className="fixed inset-0 z-[5000] flex flex-col bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between text-white border-b border-white/10">
+            <div>
+              <h3 className="font-bold text-lg">{drawerData?.name || 'Property Gallery'}</h3>
+              <p className="text-xs text-white/60">{galleryIndex + 1} / {galleryItems.length} items</p>
+            </div>
+            <button 
+              onClick={() => setGalleryOpen(false)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
-          
-          {/* Legend/Info Overlay */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
-            Property Video Tour • 45s Max Duration
+
+          {/* Content */}
+          <div className="flex-1 relative group">
+            <Swiper
+              modules={[Navigation, Pagination, Keyboard, A11y]}
+              spaceBetween={0}
+              slidesPerView={1}
+              keyboard={{ enabled: true }}
+              onSlideChange={(swiper) => setGalleryIndex(swiper.activeIndex)}
+              initialSlide={galleryIndex}
+              className="w-full h-full"
+            >
+              {galleryItems.map((item, i) => (
+                <SwiperSlide key={i} className="h-full">
+                  <div className="w-full h-full flex items-center justify-center p-4">
+                    {item.type === 'video' ? (
+                      <div className="w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+                        <video 
+                          src={item.url} 
+                          className="w-full h-full object-contain"
+                          controls 
+                          autoPlay={i === galleryIndex}
+                          playsInline
+                        />
+                      </div>
+                    ) : (
+                      <img 
+                        src={item.url} 
+                        alt={`Gallery item ${i + 1}`} 
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                      />
+                    )}
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+
+          {/* Thumbnails/Indicator Strip */}
+          <div className="p-4 flex justify-center gap-2 overflow-x-auto no-scrollbar">
+            {galleryItems.map((item, i) => (
+              <div 
+                key={i}
+                className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${i === galleryIndex ? 'border-teal-500 scale-110 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                onClick={() => {
+                  const swiper = document.querySelector('.swiper')?.swiper;
+                  if (swiper) swiper.slideTo(i);
+                }}
+              >
+                {item.type === 'video' ? (
+                  <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white">
+                    <Play className="w-4 h-4 fill-current" />
+                  </div>
+                ) : (
+                  <img src={item.url} className="w-full h-full object-cover" />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -14,9 +14,17 @@ import {
   MessageCircle,
   Play,
   X,
+  Image as ImageIcon,
 } from 'lucide-react';
-import api from '../../utils/api'; 
+import api, { getImageUrl } from '../../utils/api'; 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Keyboard, A11y } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RoomDetailsModal from '../../components/Modals/RoomDetailsModal';
@@ -52,6 +60,49 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   // Video State
   const [videoModalOpen, setVideoModalOpen] = useState(false);
+
+  // Full Gallery State
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  const openFullGallery = (targetItemIndex = 0) => {
+    if (!property) return;
+    
+    const items = [];
+    
+    // 1. Add Video Tour if exists
+    if (property.video_url) {
+      items.push({ type: 'video', url: property.video_url });
+    }
+    
+    // 2. Add Property main images
+    if (Array.isArray(property.images)) {
+      property.images.forEach(img => {
+        items.push({ type: 'image', url: getImageUrl(img) });
+      });
+    }
+    
+    // 3. Add all unique room images
+    const roomImages = new Set();
+    (property.rooms || []).forEach(room => {
+      if (room.image) roomImages.add(getImageUrl(room.image));
+      if (Array.isArray(room.images)) {
+        room.images.forEach(img => roomImages.add(getImageUrl(img)));
+      }
+    });
+    
+    roomImages.forEach(url => {
+      // Avoid duplication
+      if (!items.find(it => it.url === url)) {
+        items.push({ type: 'image', url });
+      }
+    });
+    
+    setGalleryItems(items);
+    setGalleryIndex(targetItemIndex);
+    setGalleryOpen(true);
+  };
 
   // Reviews State
   const [reviews, setReviews] = useState({ reviews: [], summary: null });
@@ -507,18 +558,29 @@ export default function PropertyDetails({ propertyId, onBack }) {
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Toaster />
       {/* HEADER */}
-      <div className="relative w-full h-[350px] md:h-[450px]">
+      <div className="relative w-full h-[350px] md:h-[450px] group cursor-pointer" onClick={() => openFullGallery(0)}>
         <img
           src={property.images?.[0] || 'https://via.placeholder.com/1200x600?text=Property+Image'}
           alt={property.title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
+        {/* See all photos badge */}
+        <div className="absolute bottom-6 right-6 z-10 hidden md:block">
+          <button 
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-sm font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-all border border-white/30 shadow-2xl"
+            onClick={(e) => { e.stopPropagation(); openFullGallery(0); }}
+          >
+            <ImageIcon className="w-4 h-4" />
+            See all photos
+          </button>
+        </div>
+
         <div className="absolute inset-0 flex flex-col justify-between px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">
           <div className="mt-4 flex justify-between items-start">
             <button 
-              onClick={onBack} 
+              onClick={(e) => { e.stopPropagation(); onBack(); }} 
               className="z-[10] bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 text-gray-900 dark:text-white p-2.5 rounded-full transition-all shadow-lg border border-gray-200 dark:border-gray-700 group"
               aria-label="Go back"
             >
@@ -527,7 +589,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
             
             {/* Contact Landlord Button */}
             <button
-              onClick={handleContactLandlord}
+              onClick={(e) => { e.stopPropagation(); handleContactLandlord(); }}
               className="bg-white text-gray-900 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-gray-100 transition-colors"
             >
               <MessageCircle className="w-5 h-5 text-green-600" />
@@ -555,7 +617,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
               
               {property.video_url && (
                 <button 
-                  onClick={() => setVideoModalOpen(true)}
+                  onClick={(e) => { e.stopPropagation(); openFullGallery(0); }}
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-xl group self-start"
                 >
                   <div className="p-1.5 bg-white/20 rounded-full">
@@ -620,31 +682,86 @@ export default function PropertyDetails({ propertyId, onBack }) {
         />
       )}
 
-      {/* VIDEO PLAYER MODAL */}
-      {videoModalOpen && property.video_url && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <button 
-            onClick={() => setVideoModalOpen(false)}
-            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:rotate-90 z-[5001]"
-          >
-            <X className="w-8 h-8" />
-          </button>
-          
-          <div className="w-full max-w-5xl aspect-video relative mx-4 shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-black">
-            <video 
-              src={property.video_url} 
-              className="w-full h-full object-contain"
-              controls 
-              autoPlay
-              playsInline
-            />
+      {/* FULL MEDIA GALLERY MODAL */}
+      {galleryOpen && galleryItems.length > 0 && (
+        <div className="fixed inset-0 z-[5000] flex flex-col bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between text-white border-b border-white/10">
+            <div>
+              <h3 className="font-bold text-lg">{property?.title || 'Property Gallery'}</h3>
+              <p className="text-xs text-white/60">{galleryIndex + 1} / {galleryItems.length} items</p>
+            </div>
+            <button 
+              onClick={() => setGalleryOpen(false)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
-          
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
-            Property Video Tour • 45s Max Duration
+
+          {/* Content */}
+          <div className="flex-1 relative group">
+            <Swiper
+              modules={[Navigation, Pagination, Keyboard, A11y]}
+              spaceBetween={0}
+              slidesPerView={1}
+              keyboard={{ enabled: true }}
+              onSlideChange={(swiper) => setGalleryIndex(swiper.activeIndex)}
+              initialSlide={galleryIndex}
+              className="w-full h-full"
+            >
+              {galleryItems.map((item, i) => (
+                <SwiperSlide key={i} className="h-full">
+                  <div className="w-full h-full flex items-center justify-center p-4">
+                    {item.type === 'video' ? (
+                      <div className="w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+                        <video 
+                          src={item.url} 
+                          className="w-full h-full object-contain"
+                          controls 
+                          autoPlay={i === galleryIndex}
+                          playsInline
+                        />
+                      </div>
+                    ) : (
+                      <img 
+                        src={item.url} 
+                        alt={`Gallery item ${i + 1}`} 
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                      />
+                    )}
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+
+          {/* Thumbnails/Indicator Strip */}
+          <div className="p-4 flex justify-center gap-2 overflow-x-auto no-scrollbar">
+            {galleryItems.map((item, i) => (
+              <div 
+                key={i}
+                className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${i === galleryIndex ? 'border-teal-500 scale-110 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                onClick={() => {
+                  const swiper = document.querySelector('.swiper')?.swiper;
+                  if (swiper) swiper.slideTo(i);
+                }}
+              >
+                {item.type === 'video' ? (
+                  <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white">
+                    <Play className="w-4 h-4 fill-current" />
+                  </div>
+                ) : (
+                  <img src={item.url} className="w-full h-full object-cover" />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
+    </div>
+  );
+}
     </div>
   );
 }
