@@ -111,7 +111,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // Fetch reviews for property
   const fetchReviews = async (propId) => {
     try {
-      reviewsLoading(true);
+      setReviewsLoading(true);
       const res = await api.get(`/public/properties/${propId}/reviews`);
       setReviews(res.data);
     } catch (err) {

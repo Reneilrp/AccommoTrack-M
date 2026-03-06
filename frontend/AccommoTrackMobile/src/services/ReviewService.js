@@ -1,7 +1,18 @@
 import api from './api.js';
 import { API_BASE_URL as API_URL } from '../config/index.js';
 
-class ReviewService {
+  /**
+   * Get all reviews for a specific property (Public)
+   */
+  async getPropertyReviews(propertyId) {
+    try {
+      const response = await api.get(`/public/properties/${propertyId}/reviews`);
+      return { success: true, data: response.data.reviews || [], summary: response.data.summary || null };
+    } catch (error) {
+      console.error('Error fetching property reviews:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch reviews' };
+    }
+  }
 
   /**
    * Get all reviews for landlord's properties
