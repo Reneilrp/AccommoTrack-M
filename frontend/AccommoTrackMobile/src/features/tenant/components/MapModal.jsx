@@ -80,7 +80,7 @@ export default function MapModal({ visible, onClose, properties = [], userRole =
           if(true){ // Always add marker, even with fallback coords
             const marker = L.marker([markerLat, markerLng]).addTo(map);
             const title = p.title || p.name || '';
-            const addr = p.address || p.location || '';
+            const addr = p.full_address || p.street_address || p.address || p.location || '';
             const price = p.price ? ('<br><b>Price:</b> ' + p.price) : '';
             const popup = '<div><b>' + title + '</b><br>' + addr + price + '</div>';
             marker.bindPopup(popup);

@@ -17,7 +17,8 @@ import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import PropertyService, { getImageUrl } from '../../../../services/PropertyService.js';
+import PropertyService from '../../../../services/PropertyService.js';
+import { getImageUrl } from '../../../../utils/imageUtils.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
 
@@ -95,12 +96,8 @@ const mapImages = (images = []) => {
   if (!Array.isArray(images)) return [];
   return images
     .map((image, index) => {
-      if (!image) return null;
-      if (typeof image === 'string') {
-        return { id: `remote-${index}`, uri: getImageUrl(image) || image };
-      }
-      const uri = getImageUrl(image.image_url || image.url || image.path);
-      return uri ? { id: image.id || image.image_id || `remote-${index}`, uri } : null;
+      const uri = getImageUrl(image);
+      return uri ? { id: image?.id || `remote-${index}`, uri } : null;
     })
     .filter(Boolean);
 };

@@ -1,45 +1,8 @@
 import api from './api.js';
 import { API_BASE_URL, BASE_URL } from '../config/index.js';
+import { getImageUrl } from '../utils/imageUtils.js';
 
-const STORAGE_URL = `${BASE_URL}/storage`;
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
-
-const isFormData = (payload) => typeof FormData !== 'undefined' && payload instanceof FormData;
-
-const extractErrorMessage = (error) => {
-    const errors = error.response?.data?.errors;
-    if (errors && typeof errors === 'object') {
-        const joined = Object.values(errors)
-            .flat()
-            .map((msg) => (typeof msg === 'string' ? msg : ''))
-            .filter(Boolean)
-            .join(' ');
-        if (joined) {
-            return joined;
-        }
-    }
-
-    if (error.response?.data?.message) return error.response.data.message;
-    if (error.response?.data?.error) return error.response.data.error;
-    if (typeof error.response?.data === 'string') return error.response.data;
-    return error.message || 'Request failed';
-};
-
-/**
- * Property Service for handling all property-related API calls
- */
-export const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        return imagePath;
-    }
-
-    const cleanPath = imagePath.replace(/^\/+/, '');
-    if (cleanPath.startsWith('storage/')) {
-        return `${BASE_URL}/${cleanPath}`;
-    }
-    return `${STORAGE_URL}/${cleanPath}`;
-};
 
 const PropertyService = {
     /**
@@ -67,27 +30,14 @@ const PropertyService = {
             }
 
             const url = `/public/properties${params.toString() ? '?' + params.toString() : ''}`;
-            console.log('Fetching properties from relative path:', url);
-
             const response = await api.get(url);
-
-            // Debug: Log the actual response
-            console.log('Response status:', response.status);
-            console.log('Response data type:', typeof response.data);
-            console.log('Response data is array?', Array.isArray(response.data));
-            console.log('Response data:', JSON.stringify(response.data).substring(0, 200));
 
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || [],
                 error: null
             };
         } catch (error) {
-            console.error('Error fetching public properties:');
-            console.error('Error message:', error.message);
-            console.error('Error response:', error.response?.data);
-            console.error('Error status:', error.response?.status);
-
             return {
                 success: false,
                 data: [],
@@ -104,16 +54,14 @@ const PropertyService = {
      */
     async getPublicProperty(propertyId) {
         try {
-            console.log('Fetching property details:', propertyId);
             const response = await api.get(`/public/properties/${propertyId}`);
 
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
-            console.error('Error fetching property:', error);
             return {
                 success: false,
                 data: null,
@@ -266,7 +214,7 @@ const PropertyService = {
 
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || [],
                 error: null
             };
         } catch (error) {
@@ -289,7 +237,7 @@ const PropertyService = {
 
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -319,7 +267,7 @@ const PropertyService = {
 
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -361,7 +309,7 @@ const PropertyService = {
 
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -434,7 +382,7 @@ const PropertyService = {
             const response = await api.get(`/landlord/properties/${propertyId}/rooms`);
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || [],
                 error: null
             };
         } catch (error) {
@@ -456,7 +404,7 @@ const PropertyService = {
             const response = await api.get(`/landlord/properties/${propertyId}/rooms/stats`);
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -634,7 +582,7 @@ const PropertyService = {
             });
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || [],
                 error: null
             };
         } catch (error) {
@@ -658,7 +606,7 @@ const PropertyService = {
             });
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -682,7 +630,7 @@ const PropertyService = {
             });
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -728,7 +676,7 @@ const PropertyService = {
             );
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -750,7 +698,7 @@ const PropertyService = {
             const response = await api.delete(`/landlord/tenants/${tenantId}/unassign-room`);
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -774,7 +722,7 @@ const PropertyService = {
             });
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || [],
                 error: null
             };
         } catch (error) {
@@ -796,7 +744,7 @@ const PropertyService = {
             const response = await api.get(`/bookings/stats`);
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -820,7 +768,7 @@ const PropertyService = {
             });
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {
@@ -844,7 +792,7 @@ const PropertyService = {
             });
             return {
                 success: true,
-                data: response.data,
+                data: response.data?.data || response.data || null,
                 error: null
             };
         } catch (error) {

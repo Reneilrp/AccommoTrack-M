@@ -11,6 +11,7 @@ import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { showError } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/MessagesPage.js';
 import { API_BASE_URL, BASE_URL } from '../../../../config/index.js';
+import { getImageUrl } from '../../../../utils/imageUtils.js';
 
 export default function ChatScreen({ navigation, route }) {
     const { theme } = useTheme();
@@ -131,13 +132,6 @@ export default function ChatScreen({ navigation, route }) {
     const handleSendMessage = () => {
         if ((!messageText.trim() && !selectedImage) || !conv || sendMessageMutation.isPending) return;
         sendMessageMutation.mutate({ text: messageText.trim(), imageUri: selectedImage });
-    };
-
-    const getImageUrl = (imagePath) => {
-        if (!imagePath) return null;
-        if (imagePath.startsWith('http')) return imagePath;
-        const cleanPath = imagePath.replace(/^\/?(storage\/)?/, '');
-        return `${BASE_URL}/storage/${cleanPath}`;
     };
 
     const formatTime = (timestamp) => {

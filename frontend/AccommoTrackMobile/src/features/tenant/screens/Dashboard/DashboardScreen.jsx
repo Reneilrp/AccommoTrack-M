@@ -15,6 +15,7 @@ import tenantService from '../../../../services/TenantService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { DashboardStatSkeleton, PropertyCardSkeleton, BookingCardSkeleton } from '../../../../components/Skeletons/index.jsx';
 import { showError } from '../../../../utils/toast.js';
+import { getImageUrl, getAvatarUrl } from '../../../../utils/imageUtils.js';
 import Header from '../../components/Header.jsx';
 import { getStyles } from '../../../../styles/Tenant/DashboardScreen.js';
 import { BASE_URL } from '../../../../config/index.js';
@@ -83,64 +84,6 @@ const DashboardScreen = () => {
       day: 'numeric',
       year: 'numeric',
     });
-  };
-
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    // If an object is passed, try common string fields
-    if (typeof imagePath === 'object') {
-      const candidates = ['url', 'image_url', 'imageUrl', 'image', 'path', 'file', 'file_path'];
-      for (const k of candidates) {
-        const v = imagePath[k];
-        if (typeof v === 'string' && v.trim()) {
-          imagePath = v.trim();
-          break;
-        }
-      }
-      // Fallback: take first string value found in the object
-      if (typeof imagePath === 'object') {
-        for (const v of Object.values(imagePath)) {
-          if (typeof v === 'string' && v.trim()) {
-            imagePath = v.trim();
-            break;
-          }
-        }
-      }
-    }
-
-    if (typeof imagePath !== 'string') return null;
-    imagePath = imagePath.trim();
-    if (imagePath.startsWith('http')) return imagePath;
-
-    const base = BASE_URL;
-    // If already starts with /storage, just prefix base
-    if (imagePath.startsWith('/storage')) return `${base}${imagePath}`;
-    // If contains storage segment already, ensure no duplicate slashes
-    if (imagePath.includes('/storage/')) return `${base}/${imagePath.replace(/^\/+/, '')}`;
-    // Default: assume path is a filename stored under storage
-    return `${base}/storage/${imagePath.replace(/^\/+/, '')}`;
-  };
-
-  const getAvatarUrl = (nameOrObj, size = 48) => {
-    let nameStr = '';
-    if (!nameOrObj) {
-      nameStr = 'User';
-    } else if (typeof nameOrObj === 'object') {
-      if (typeof nameOrObj.name === 'string' && nameOrObj.name.trim()) nameStr = nameOrObj.name.trim();
-      else if (typeof nameOrObj.full === 'string' && nameOrObj.full.trim()) nameStr = nameOrObj.full.trim();
-      else if ((nameOrObj.first_name || nameOrObj.last_name) && (nameOrObj.first_name || nameOrObj.last_name)) {
-        nameStr = `${nameOrObj.first_name || ''} ${nameOrObj.last_name || ''}`.trim();
-      } else {
-        for (const v of Object.values(nameOrObj)) {
-          if (typeof v === 'string' && v.trim()) { nameStr = v.trim(); break; }
-        }
-      }
-    } else {
-      nameStr = String(nameOrObj).trim();
-    }
-
-    if (!nameStr) nameStr = 'User';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(nameStr)}&background=random&size=${encodeURIComponent(String(size))}`;
   };
 
   const loading = stayLoading || statsLoading;

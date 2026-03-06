@@ -17,6 +17,7 @@ import { getStyles } from '../../../../styles/Landlord/MaintenanceRequests.js';
 import MaintenanceService from '../../../../services/MaintenanceService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { BASE_URL } from '../../../../config/index.js';
+import { getImageUrl } from '../../../../utils/imageUtils.js';
 
 export default function MaintenanceRequests() {
   const navigation = useNavigation();
@@ -79,13 +80,6 @@ export default function MaintenanceRequests() {
       case 'low': return '#3B82F6'; // blue
       default: return '#6B7280';
     }
-  };
-
-  const getImageUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    const cleanPath = path.replace(/^\/?(storage\/)?/, '');
-    return `${BASE_URL}/storage/${cleanPath}`;
   };
 
   const renderItem = ({ item }) => (

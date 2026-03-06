@@ -478,9 +478,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
             icon={greenMarkerIcon}
           >
             <Popup className="font-sans">
-              <div className="text-center">
-                <strong className="block text-green-700 text-sm">{property.title}</strong>
-                <span className="text-xs text-gray-500">{property.city}</span>
+              <div className="text-center p-1">
+                <strong className="block text-green-700 text-sm mb-1">{property.title}</strong>
+                <p className="text-xs text-gray-600 leading-tight">
+                  {property.street_address}, {property.barangay}, {property.city}
+                </p>
               </div>
             </Popup>
           </Marker>
@@ -566,17 +568,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
-        {/* See all photos badge */}
-        <div className="absolute bottom-6 right-6 z-10 hidden md:block">
-          <button 
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-sm font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-all border border-white/30 shadow-2xl"
-            onClick={(e) => { e.stopPropagation(); openFullGallery(0); }}
-          >
-            <ImageIcon className="w-4 h-4" />
-            See all photos
-          </button>
-        </div>
-
         <div className="absolute inset-0 flex flex-col justify-between px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">
           <div className="mt-4 flex justify-between items-start">
             <button 
@@ -609,23 +600,30 @@ export default function PropertyDetails({ propertyId, onBack }) {
               )}
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold mb-2 tracking-tight">{property.title}</h1>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div className="flex items-center gap-2 text-white/90 text-sm md:text-base">
                 <MapPin className="w-5 h-5 text-green-400" />
                 <span>{property.street_address}, {property.barangay}, {property.city}</span>
               </div>
               
-              {property.video_url && (
+              <div className="flex items-center gap-3">
+                {property.video_url && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); openFullGallery(0); }}
+                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl font-bold transition-all border border-white/30 shadow-2xl group"
+                  >
+                    <Play className="w-4 h-4 fill-white" />
+                    Watch Video Tour
+                  </button>
+                )}
                 <button 
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all border border-white/30 shadow-2xl font-bold text-sm"
                   onClick={(e) => { e.stopPropagation(); openFullGallery(0); }}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-xl group self-start"
                 >
-                  <div className="p-1.5 bg-white/20 rounded-full">
-                    <Play className="w-5 h-5 fill-white" />
-                  </div>
-                  Watch Video Tour
+                  <ImageIcon className="w-4 h-4" />
+                  See all photos
                 </button>
-              )}
+              </div>
             </div>
           </div>
         </div>

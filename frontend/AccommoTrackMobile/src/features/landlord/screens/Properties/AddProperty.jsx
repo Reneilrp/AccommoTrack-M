@@ -22,6 +22,7 @@ import ProfileService from '../../../../services/ProfileService.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStyles } from '../../../../styles/Landlord/AddProperty.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { getImageUrl } from '../../../../utils/imageUtils.js';
 
 const { width } = Dimensions.get('window');
 

@@ -12,7 +12,7 @@ class MaintenanceService {
       const response = await api.get(`/landlord/maintenance-requests`, {
         params
       });
-      return { success: true, data: response.data.data || response.data };
+      return { success: true, data: response.data?.data || response.data || [] };
     } catch (error) {
       console.error('Error fetching maintenance requests:', error);
       return { success: false, error: error.response?.data?.message || 'Failed to fetch requests' };
@@ -30,7 +30,7 @@ class MaintenanceService {
         `/landlord/maintenance-requests/${id}/status`,
         { status },
       );
-      return { success: true, data: response.data };
+      return { success: true, data: response.data?.data || response.data || null };
     } catch (error) {
       console.error('Error updating status:', error);
       return { success: false, error: error.response?.data?.message || 'Failed to update status' };

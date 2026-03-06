@@ -24,6 +24,7 @@ import { getStyles } from '../../../../styles/Tenant/PropertyDetailsScreen.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { getImageUrl } from '../../../../utils/imageUtils.js';
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
@@ -463,15 +464,31 @@ export default function PropertyDetailsScreen({ route }) {
             </View>
           </View>
           
-          {/* Image */}
+          {/* Media Section */}
           <View style={styles.mediaContainer}>
-            {active && active.image && (
-              <Image
-                source={typeof active.image === 'string' ? { uri: active.image } : active.image}
-                style={styles.mainImage}
-                resizeMode="cover"
-              />
-            )}
+            <ScrollView 
+              horizontal 
+              pagingEnabled 
+              showsHorizontalScrollIndicator={false}
+              style={styles.imageCarousel}
+            >
+              {active && Array.isArray(active.images) && active.images.length > 0 ? (
+                active.images.map((img, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: getImageUrl(img) || 'https://via.placeholder.com/800x400' }}
+                    style={{ width: Dimensions.get('window').width - 32, height: 250, borderRadius: 12 }}
+                    resizeMode="cover"
+                  />
+                ))
+              ) : (
+                <Image
+                  source={{ uri: getImageUrl(active.image) || getImageUrl(active.cover_image) || 'https://via.placeholder.com/800x400' }}
+                  style={styles.mainImage}
+                  resizeMode="cover"
+                />
+              )}
+            </ScrollView>
             
             {(active && active.video_url) && (
               <TouchableOpacity 
@@ -703,7 +720,8 @@ export default function PropertyDetailsScreen({ route }) {
                       <Image
                         source={{
                           uri:
-                            room.images[0] ||
+                            getImageUrl(room.images?.[0]) ||
+                            getImageUrl(room.image) ||
                             'https://via.placeholder.com/120x120?text=Room',
                         }}
                         style={styles.roomImage}

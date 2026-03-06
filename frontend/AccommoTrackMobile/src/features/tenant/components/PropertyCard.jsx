@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
 import { API_BASE_URL, BASE_URL } from '../../../config/index.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import { getImageUrl } from '../../../utils/imageUtils.js';
 
 export default function PropertyCard({ accommodation, property, onPress }) {
   const { theme } = useTheme();
@@ -19,26 +20,8 @@ export default function PropertyCard({ accommodation, property, onPress }) {
     return null;
   }
 
-  // Standardized image handling from backend (string URL or object)
-  const getImageSource = () => {
-    if (!item.image) {
-      return { uri: 'https://via.placeholder.com/400x200?text=No+Image' };
-    }
-
-    if (typeof item.image === 'string') {
-      // If it's already a full URL, use it directly
-      if (item.image.startsWith('http://') || item.image.startsWith('https://')) {
-        return { uri: item.image };
-      }
-
-      // If it's a relative path, construct full URL
-      // Remove any leading 'storage/' if present since backend adds it
-      const cleanPath = item.image.replace(/^\/?(storage\/)?/, '');
-      return { uri: `${BASE_URL}/storage/${cleanPath}` };
-    }
-
-    return item.image;
-  };
+  // Image handling from backend
+  const imageUri = getImageUrl(item.image) || 'https://via.placeholder.com/400x200?text=No+Image';
 
   // Standardized available rooms from backend (available_rooms or availableRooms)
   const availableRooms = item.available_rooms || item.availableRooms || 0;
@@ -74,7 +57,7 @@ export default function PropertyCard({ accommodation, property, onPress }) {
       {/* Image Section */}
       <View style={styles.imageContainer}>
         <Image
-          source={getImageSource()}
+          source={{ uri: imageUri }}
           style={styles.image}
           resizeMode="cover"
           onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
