@@ -17,7 +17,7 @@ class LandlordDashboardService
         if ($assignedPropertyIds) $totalPropertiesQuery->whereIn('id', $assignedPropertyIds);
         $totalProperties = $totalPropertiesQuery->count();
 
-        $activePropertiesQuery = Property::where('landlord_id', $landlordId)->where('current_status', 'active');
+        $activePropertiesQuery = Property::where('landlord_id', $landlordId)->where('current_status', Property::STATUS_ACTIVE);
         if ($assignedPropertyIds) $activePropertiesQuery->whereIn('id', $assignedPropertyIds);
         $activeProperties = $activePropertiesQuery->count();
 

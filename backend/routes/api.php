@@ -2,37 +2,37 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Broadcast;
-use App\Http\Controllers\AdminController;
-use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\LandlordBookingController;
-use App\Http\Controllers\CaretakerController;
-use App\Http\Controllers\LandlordDashboardController;
-use App\Http\Controllers\GeocodeController;
-use App\Http\Controllers\MessageController;
-use App\Http\Controllers\PropertyController;
-use App\Http\Controllers\RoomController;
-use App\Http\Controllers\TenantBookingController;
-use App\Http\Controllers\TenantController;
-use App\Http\Controllers\TenantDashboardController;
-use App\Http\Controllers\TenantPaymentController;
-use App\Http\Controllers\TenantSettingsController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\PaymongoController;
-use App\Http\Controllers\PaymongoWebhookController;
-use App\Http\Controllers\LandlordVerificationController;
-use App\Http\Controllers\AddonController;
-use App\Http\Controllers\ReviewController;
-use App\Http\Controllers\MaintenanceRequestController;
-use App\Http\Controllers\InquiryController;
-use App\Http\Controllers\LandlordController;
-use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Landlord\AnalyticsController;
+use App\Http\Controllers\Common\AuthController;
+use App\Http\Controllers\Landlord\LandlordBookingController;
+use App\Http\Controllers\Landlord\CaretakerController;
+use App\Http\Controllers\Landlord\LandlordDashboardController;
+use App\Http\Controllers\Common\GeocodeController;
+use App\Http\Controllers\Common\MessageController;
+use App\Http\Controllers\Landlord\PropertyController;
+use App\Http\Controllers\Landlord\RoomController;
+use App\Http\Controllers\Tenant\TenantBookingController;
+use App\Http\Controllers\Landlord\TenantController;
+use App\Http\Controllers\Tenant\TenantDashboardController;
+use App\Http\Controllers\Tenant\TenantPaymentController;
+use App\Http\Controllers\Tenant\TenantSettingsController;
+use App\Http\Controllers\Common\InvoiceController;
+use App\Http\Controllers\Common\TransactionController;
+use App\Http\Controllers\Common\PaymongoController;
+use App\Http\Controllers\Common\PaymongoWebhookController;
+use App\Http\Controllers\Landlord\LandlordVerificationController;
+use App\Http\Controllers\Landlord\AddonController;
+use App\Http\Controllers\Common\ReviewController;
+use App\Http\Controllers\Common\MaintenanceRequestController;
+use App\Http\Controllers\Common\InquiryController;
+use App\Http\Controllers\Landlord\LandlordController;
+use App\Http\Controllers\Common\PaymentController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
-use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Common\ForgotPasswordController;
+use App\Http\Controllers\Common\NotificationController;
+use App\Http\Controllers\Common\ReportController;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -53,6 +53,11 @@ Route::get('/public/properties', [PropertyController::class, 'getAllProperties']
 Route::get('/public/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
 Route::get('/public/properties/{id}/reviews', [ReviewController::class, 'getPropertyReviews']);
 
+// --- Add aliases to match frontend Service calls that omit /public prefix ---
+Route::get('/properties', [PropertyController::class, 'getAllProperties']);
+Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+// ---------------------------------------------------------------------------
+
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
@@ -60,6 +65,12 @@ Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 Route::post('/landlord-verification', [LandlordVerificationController::class, 'store']);
 Route::get('/valid-id-types', [LandlordVerificationController::class, 'getValidIdTypes']);
+
+// --- Room Aliases for Mobile Frontend ---
+Route::put('/rooms/{id}', [RoomController::class, 'update']);
+Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
+Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
+// ----------------------------------------
 
 
 // ====================================
@@ -125,6 +136,15 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant: Reviews
         Route::post('/reviews', [ReviewController::class, 'store']);
         Route::get('/reviews', [ReviewController::class, 'getTenantReviews']);
+        
+        // --- Aliases for Mobile Frontend (using /tenant/reviews prefix) ---
+        Route::prefix('reviews')->group(function() {
+            Route::post('/', [ReviewController::class, 'store']);
+            Route::get('/', [ReviewController::class, 'getTenantReviews']);
+            Route::put('/{id}', [ReviewController::class, 'update']);
+            Route::delete('/{id}', [ReviewController::class, 'destroy']);
+        });
+        // ------------------------------------------------------------------
 
         // Tenant: Maintenance Requests
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'index']);

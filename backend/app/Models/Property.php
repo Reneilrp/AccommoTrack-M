@@ -91,6 +91,13 @@ class Property extends Model
 {
     use HasFactory;
 
+    // Status Constants
+    const STATUS_DRAFT = 'draft';
+    const STATUS_PENDING = 'pending';
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_MAINTENANCE = 'maintenance';
+
     protected $fillable = [
         'landlord_id',
 
@@ -330,7 +337,31 @@ class Property extends Model
      */
     public function isActive()
     {
-        return $this->current_status === 'active';
+        return $this->current_status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Check if property is pending
+     */
+    public function isPending()
+    {
+        return $this->current_status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Check if property is draft
+     */
+    public function isDraft()
+    {
+        return $this->current_status === self::STATUS_DRAFT;
+    }
+
+    /**
+     * Check if property is inactive
+     */
+    public function isInactive()
+    {
+        return $this->current_status === self::STATUS_INACTIVE;
     }
 
     /**
@@ -338,7 +369,7 @@ class Property extends Model
      */
     public function isPublished()
     {
-        return $this->is_published === true;
+        return (bool)$this->is_published === true;
     }
 
     /**
@@ -346,7 +377,7 @@ class Property extends Model
      */
     public function isAvailable()
     {
-        return $this->is_available === true && $this->available_rooms > 0;
+        return (bool)$this->is_available === true && $this->available_rooms > 0 && $this->isActive();
     }
 
     /**

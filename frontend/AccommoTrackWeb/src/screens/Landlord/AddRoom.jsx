@@ -7,6 +7,8 @@ import {
   HelpCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../utils/api';
+import { usePreferences } from '../../contexts/PreferencesContext';
 import PricingHelp from '../../components/Rooms/PricingHelp';
 
 export default function AddRoomModal({ isOpen, onClose, propertyId, onRoomAdded, propertyType, propertyAmenities = [], onAmenityAdded }) {

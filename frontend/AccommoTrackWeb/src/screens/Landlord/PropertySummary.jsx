@@ -2,11 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import { 
-  Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star 
+  Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star, Sparkles, X 
 } from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
+import AddonManagement from './AddonManagement';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
@@ -41,6 +42,7 @@ export default function PropertySummary() {
   const [error, setError] = useState(null);
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
+  const [showAddons, setShowAddons] = useState(false);
 
   const [images, setImages] = useState([]);
   const [idx, setIdx] = useState(0);
@@ -224,6 +226,13 @@ export default function PropertySummary() {
             {/* Right: Navigation Icons */}
             <div className="absolute right-0 flex items-center gap-2">
               <button
+                onClick={() => setShowAddons(!showAddons)}
+                className={`p-2 rounded-lg transition-colors ${showAddons ? 'bg-green-100 text-green-600 dark:bg-green-900/30' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                title="Add-ons / Services"
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+              <button
                 onClick={() => setShowActivityLogs(true)}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Activity logs"
@@ -262,8 +271,23 @@ export default function PropertySummary() {
           </div>
         </div>
       </header>
-      {/* Two-column layout: gallery left (50%), details right (50%) */}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {showAddons && (
+          <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add-ons & Extra Services</h2>
+              <button 
+                onClick={() => setShowAddons(false)}
+                className="text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1"
+              >
+                <X className="w-4 h-4" /> Close
+              </button>
+            </div>
+            <AddonManagement propertyId={id} />
+          </div>
+        )}
+
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
           <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Details & Information</h2>

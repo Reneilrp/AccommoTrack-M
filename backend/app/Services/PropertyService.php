@@ -20,11 +20,11 @@ class PropertyService
         return DB::transaction(function () use ($validated, $user) {
             $isVerified = $user->is_verified ?? false;
 
-            $currentStatus = 'draft';
+            $currentStatus = Property::STATUS_DRAFT;
             $isPublished = false;
 
             if ($isVerified) {
-                $currentStatus = ($validated['is_draft'] ?? false) ? 'draft' : ($validated['current_status'] ?? 'pending');
+                $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);
                 $isPublished = $validated['is_published'] ?? false;
             }
 
@@ -68,11 +68,11 @@ class PropertyService
             $isVerified = $user->is_verified ?? false;
 
             if (isset($validated['is_draft']) && $validated['is_draft']) {
-                $validated['current_status'] = 'draft';
+                $validated['current_status'] = Property::STATUS_DRAFT;
             }
 
             if (!$isVerified) {
-                $validated['current_status'] = 'draft';
+                $validated['current_status'] = Property::STATUS_DRAFT;
                 $validated['is_published'] = false;
             }
             

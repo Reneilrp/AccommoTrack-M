@@ -68,6 +68,10 @@ class PropertyResource extends JsonResource
                 'payment_methods_settings' => $this->landlord->payment_methods_settings,
             ]),
             'rooms' => RoomResource::collection($this->whenLoaded('rooms')),
+            'current_status' => $this->current_status,
+            'is_published' => (bool)$this->is_published,
+            'is_available' => (bool)$this->is_available,
+            'is_eligible' => (bool)$this->is_eligible,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

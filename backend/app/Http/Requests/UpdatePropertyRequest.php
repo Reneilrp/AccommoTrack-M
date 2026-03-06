@@ -38,7 +38,7 @@ class UpdatePropertyRequest extends FormRequest
             'nearby_landmarks' => 'nullable|string',
             'property_rules' => 'nullable|string',
             'total_rooms' => 'nullable|integer',
-            'current_status' => 'nullable|string',
+            'current_status' => 'nullable|in:pending,maintenance,draft',
             'is_draft' => 'sometimes|boolean',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',

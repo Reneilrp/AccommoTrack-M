@@ -28,7 +28,7 @@ class StorePropertyRequest extends FormRequest
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'property_type' => 'required|in:apartment,dormitory,boardingHouse,bedSpacer,others',
-            'current_status' => 'nullable|in:active,inactive,pending,maintenance,draft',
+            'current_status' => 'nullable|in:pending,draft',
             'is_draft' => 'sometimes|boolean',
             'street_address' => 'required|string',
             'city' => 'required|string',
