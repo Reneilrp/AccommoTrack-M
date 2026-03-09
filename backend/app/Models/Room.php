@@ -138,6 +138,14 @@ class Room extends Model
     }
 
     /**
+     * Relationship: Room has many bookings
+     */
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class, 'room_id');
+    }
+
+    /**
      * Get occupied count (actual number of tenants)
      */
     public function getOccupiedAttribute()

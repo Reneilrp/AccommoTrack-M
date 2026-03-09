@@ -1,8 +1,7 @@
-import api from './api.js';
-import { API_BASE_URL as API_URL } from '../config/index.js';
+import api from "./api.js";
+import { API_BASE_URL as API_URL } from "../config/index.js";
 
 class TenantService {
-
   /**
    * Get current stay details (active booking with room, property, landlord info)
    */
@@ -12,14 +11,14 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
       };
     } catch (error) {
-      console.error('Error fetching current stay:', error);
+      console.error("Error fetching current stay:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch current stay',
-        data: null
+        error: error.response?.data?.message || "Failed to fetch current stay",
+        data: null,
       };
     }
   }
@@ -33,20 +32,21 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
       };
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error("Error fetching dashboard stats:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch dashboard stats',
+        error:
+          error.response?.data?.message || "Failed to fetch dashboard stats",
         data: {
           payments: {
             monthlyDue: 0,
             totalPaid: 0,
-            nextDueDate: null
-          }
-        }
+            nextDueDate: null,
+          },
+        },
       };
     }
   }
@@ -60,13 +60,14 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
       };
     } catch (error) {
-      console.error('Error fetching booking history:', error);
+      console.error("Error fetching booking history:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch booking history'
+        error:
+          error.response?.data?.message || "Failed to fetch booking history",
       };
     }
   }
@@ -89,13 +90,13 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
       };
     } catch (error) {
-      console.error('Error requesting addon:', error);
+      console.error("Error requesting addon:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to request addon'
+        error: error.response?.data?.message || "Failed to request addon",
       };
     }
   }
@@ -109,13 +110,14 @@ class TenantService {
 
       return {
         success: true,
-        data: response.data.data || response.data
+        data: response.data.data || response.data,
       };
     } catch (error) {
-      console.error('Error canceling addon request:', error);
+      console.error("Error canceling addon request:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to cancel addon request'
+        error:
+          error.response?.data?.message || "Failed to cancel addon request",
       };
     }
   }
@@ -130,14 +132,15 @@ class TenantService {
       return {
         success: true,
         data: response.data.data || response.data,
-        status: response.status
+        status: response.status,
       };
     } catch (error) {
-      console.error('Error fetching available addons:', error);
+      console.error("Error fetching available addons:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch available addons',
-        status: error.response?.status
+        error:
+          error.response?.data?.message || "Failed to fetch available addons",
+        status: error.response?.status,
       };
     }
   }
@@ -152,14 +155,15 @@ class TenantService {
       return {
         success: true,
         data: response.data.data || response.data,
-        status: response.status
+        status: response.status,
       };
     } catch (error) {
-      console.error('Error fetching addon requests:', error);
+      console.error("Error fetching addon requests:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch addon requests',
-        status: error.response?.status
+        error:
+          error.response?.data?.message || "Failed to fetch addon requests",
+        status: error.response?.status,
       };
     }
   }
@@ -173,17 +177,24 @@ class TenantService {
     try {
       const headers = {};
       if (isForm) {
-        headers['Content-Type'] = 'multipart/form-data';
+        headers["Content-Type"] = "multipart/form-data";
       } else {
-        headers['Content-Type'] = 'application/json';
+        headers["Content-Type"] = "application/json";
       }
 
-      const response = await api.post(`/tenant/maintenance-requests`, payload, { headers });
+      const response = await api.post(`/tenant/maintenance-requests`, payload, {
+        headers,
+      });
 
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
-      console.error('Error submitting maintenance request:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to submit maintenance request' };
+      console.error("Error submitting maintenance request:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to submit maintenance request",
+      };
     }
   }
 
@@ -192,12 +203,19 @@ class TenantService {
    */
   async getMyMaintenanceRequests(page = 1) {
     try {
-      const response = await api.get(`/tenant/maintenance-requests?page=${page}`);
+      const response = await api.get(
+        `/tenant/maintenance-requests?page=${page}`,
+      );
 
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
-      console.error('Error fetching maintenance requests:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch maintenance requests' };
+      console.error("Error fetching maintenance requests:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch maintenance requests",
+      };
     }
   }
 
@@ -210,8 +228,11 @@ class TenantService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error submitting report:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to submit report' };
+      console.error("Error submitting report:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to submit report",
+      };
     }
   }
 
@@ -225,8 +246,11 @@ class TenantService {
 
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
-      console.error('Error submitting review:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to submit review' };
+      console.error("Error submitting review:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to submit review",
+      };
     }
   }
 
@@ -239,8 +263,11 @@ class TenantService {
 
       return { success: true, data: response.data || response.data.data || [] };
     } catch (error) {
-      console.error('Error fetching tenant reviews:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch reviews' };
+      console.error("Error fetching tenant reviews:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to fetch reviews",
+      };
     }
   }
 
@@ -253,8 +280,11 @@ class TenantService {
 
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
-      console.error('Error updating review:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to update review' };
+      console.error("Error updating review:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to update review",
+      };
     }
   }
 
@@ -267,8 +297,11 @@ class TenantService {
 
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
-      console.error('Error deleting review:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to delete review' };
+      console.error("Error deleting review:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to delete review",
+      };
     }
   }
 
@@ -279,8 +312,11 @@ class TenantService {
       const response = await api.get(`/landlord/tenants`, { params });
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error fetching tenants:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch tenants' };
+      console.error("Error fetching tenants:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to fetch tenants",
+      };
     }
   }
 
@@ -289,8 +325,12 @@ class TenantService {
       const response = await api.get(`/landlord/tenants/${tenantId}`);
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error fetching tenant details:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch tenant details' };
+      console.error("Error fetching tenant details:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to fetch tenant details",
+      };
     }
   }
 
@@ -299,18 +339,27 @@ class TenantService {
       const response = await api.post(`/landlord/tenants`, tenantData);
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error creating tenant:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to create tenant' };
+      console.error("Error creating tenant:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to create tenant",
+      };
     }
   }
 
   async updateTenant(tenantId, tenantData) {
     try {
-      const response = await api.put(`/landlord/tenants/${tenantId}`, tenantData);
+      const response = await api.put(
+        `/landlord/tenants/${tenantId}`,
+        tenantData,
+      );
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error updating tenant:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to update tenant' };
+      console.error("Error updating tenant:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to update tenant",
+      };
     }
   }
 
@@ -319,8 +368,11 @@ class TenantService {
       const response = await api.delete(`/landlord/tenants/${tenantId}`);
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error deleting tenant:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to delete tenant' };
+      console.error("Error deleting tenant:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to delete tenant",
+      };
     }
   }
 }

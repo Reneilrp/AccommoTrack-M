@@ -35,6 +35,7 @@ export default function AddonsScreen({ hideHeader = false }) {
   const [notes, setNotes] = useState({});
   const [submittingId, setSubmittingId] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
+  const [noBooking, setNoBooking] = useState(false);
 
   useEffect(() => {
     loadAddons();
@@ -54,7 +55,9 @@ export default function AddonsScreen({ hideHeader = false }) {
         const initial = {};
         (addonList || []).forEach(a => { initial[a.id] = 1; });
         setQtys(initial);
-      } else if (res.status !== 404) {
+      } else if (res.status === 404) {
+        setNoBooking(true);
+      } else {
         showError('Error', res.error || 'Failed to load available addons');
       }
 
@@ -123,6 +126,34 @@ export default function AddonsScreen({ hideHeader = false }) {
       <ActivityIndicator size="large" color={theme.colors.primary} />
     </View>
   );
+
+  if (noBooking) {
+    const noBookingContent = (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background, paddingHorizontal: 32 }]}>
+        <Ionicons name="calendar-outline" size={72} color={theme.colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: theme.colors.text, textAlign: 'center', marginTop: 16 }]}>
+          No Active Booking
+        </Text>
+        <Text style={[styles.emptySub, { color: theme.colors.textSecondary, textAlign: 'center', marginTop: 8 }]}>
+          You need an active booking to request add-ons. Book a room first and come back here to enhance your stay.
+        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Explore')}
+          style={[styles.requestActionBtn, { backgroundColor: theme.colors.primary, marginTop: 24, paddingHorizontal: 28 }]}
+        >
+          <Text style={styles.requestActionText}>Browse Properties</Text>
+        </TouchableOpacity>
+      </View>
+    );
+    if (hideHeader) return noBookingContent;
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <Header title="Add-ons & Services" onBack={() => navigation.goBack()} showProfile={false} />
+        {noBookingContent}
+      </View>
+    );
+  }
 
   const content = (
     <View style={{ flex: 1 }}>

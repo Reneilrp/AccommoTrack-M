@@ -15,14 +15,17 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,localhost:5173,127.0.0.1,127.0.0.1:8000,%s',
-        parse_url(env('APP_URL'), PHP_URL_HOST),
-
-        Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
-    ))),
+    // SPA cookie auth: list every origin that should receive a stateful session.
+    // Override via SANCTUM_STATEFUL_DOMAINS in .env for extra subdomains.
+    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', implode(',', array_filter([
+        'localhost',
+        'localhost:3000',
+        'localhost:5173',
+        '127.0.0.1',
+        '127.0.0.1:8000',
+        parse_url(env('APP_URL', 'http://localhost:8000'), PHP_URL_HOST),
+        'beta.' . parse_url(env('APP_URL', 'http://localhost:8000'), PHP_URL_HOST),
+    ])))),
 
     /*
     |--------------------------------------------------------------------------

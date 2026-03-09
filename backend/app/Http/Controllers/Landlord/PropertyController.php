@@ -45,10 +45,21 @@ class PropertyController extends Controller
     public function getPropertyDetails($id)
     {
         try {
+            $tenantId = Auth::id();
+            $roomEagerLoads = ['amenities', 'images'];
+            if ($tenantId) {
+                $roomEagerLoads['bookings'] = function ($bq) use ($tenantId) {
+                    $bq->where('tenant_id', $tenantId)
+                       ->whereIn('status', ['pending', 'confirmed'])
+                       ->select(['id', 'room_id', 'tenant_id', 'status', 'start_date', 'end_date']);
+                };
+            }
+
             $property = Property::where('is_published', true)
                 ->where('is_available', true)
                 ->with([
-                    'rooms' => function ($q) { $q->with('amenities', 'images'); },
+                    'amenities',
+                    'rooms' => function ($q) use ($roomEagerLoads) { $q->with($roomEagerLoads); },
                     'images', 'landlord:id,first_name,last_name,email,phone,payment_methods_settings',
                     'reviews' => function($q) { $q->where('is_published', true); }
                 ])

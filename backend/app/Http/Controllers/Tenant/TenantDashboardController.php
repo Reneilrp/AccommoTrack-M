@@ -20,7 +20,8 @@ class TenantDashboardController extends Controller
     public function getStats()
     {
         try {
-            $stats = $this->dashboardService->getStats(Auth::id());
+            $tenantId = Auth::id();
+            $stats = $this->dashboardService->getStats($tenantId);
             return response()->json($stats, 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch dashboard stats', 'error' => $e->getMessage()], 500);

@@ -1,63 +1,83 @@
-import axios from 'axios';
-import { getImageUrl } from './imageUtils';
+import axios from "axios";
+import { getImageUrl } from "./imageUtils";
 
 const BASE_URL = import.meta.env.VITE_APP_URL;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 
+// ---------------------------------------------------------------------------
+// Hybrid auth helper
+// ---------------------------------------------------------------------------
+// Returns true when the frontend origin matches the backend origin.
+// In production (same-origin), Sanctum's httpOnly session cookie is used.
+// In local dev (cross-origin, e.g. localhost:5173 → accommotrack.me),
+// we fall back to a Bearer token stored in sessionStorage (cleared on tab close).
+export const isSameOrigin = () => {
+  try {
+    return (
+      new URL(import.meta.env.VITE_APP_URL || "/").origin ===
+      window.location.origin
+    );
+  } catch {
+    return true; // assume same-origin on parse failure
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Axios instance with interceptors
+// ---------------------------------------------------------------------------
 const api = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Accept': 'application/json',
-    }
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    Accept: "application/json",
+  },
 });
 
-// Request interceptor to add the token
+// Request interceptor — same-origin: relies on Sanctum httpOnly session cookie.
+// Cross-origin (local dev): attaches Bearer token from sessionStorage if present.
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+  (config) => {
+    if (!isSameOrigin()) {
+      const token = sessionStorage.getItem("authToken");
+      if (token) config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+  },
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        const isBlocked =
-            error.response?.status === 403 &&
-            (error.response?.data?.status === 'blocked' ||
-             error.response?.data?.message?.toLowerCase().includes('blocked'));
+  (response) => response,
+  (error) => {
+    const isBlocked =
+      error.response?.status === 403 &&
+      (error.response?.data?.status === "blocked" ||
+        error.response?.data?.message?.toLowerCase().includes("blocked"));
 
-        if (isBlocked) {
-            try {
-                localStorage.removeItem('userData');
-                localStorage.removeItem('authToken');
-                // Navigation and toast are handled by the auth:blocked listener in App.jsx
-                window.dispatchEvent(new CustomEvent('auth:blocked'));
-            } catch (e) {
-                // ignore
-            }
-        } else if (error.response?.status === 401) {
-            try {
-                localStorage.removeItem('userData');
-                localStorage.removeItem('authToken');
-                window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-                window.location.href = '/login';
-            } catch (e) {
-                // ignore
-            }
-        }
-        return Promise.reject(error);
+    if (isBlocked) {
+      try {
+        localStorage.removeItem("userData");
+        sessionStorage.removeItem("authToken");
+        delete api.defaults.headers.common["Authorization"];
+        window.dispatchEvent(new CustomEvent("auth:blocked"));
+      } catch (e) {
+        // ignore
+      }
+    } else if (error.response?.status === 401) {
+      try {
+        localStorage.removeItem("userData");
+        sessionStorage.removeItem("authToken");
+        delete api.defaults.headers.common["Authorization"];
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+        window.location.href = "/login";
+      } catch (e) {
+        // ignore
+      }
     }
+    return Promise.reject(error);
+  },
 );
 
 // ============================================
@@ -69,11 +89,10 @@ api.interceptors.response.use(
  * @returns {Object} Headers object
  */
 export const getAuthHeaders = () => {
-
-    return {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    };
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
 };
 
 /**
@@ -82,8 +101,8 @@ export const getAuthHeaders = () => {
  * @returns {string} Full API URL
  */
 export const apiUrl = (endpoint) => {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    return `${API_BASE_URL}${cleanEndpoint}`;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${cleanEndpoint}`;
 };
 
 export { getImageUrl };
@@ -93,10 +112,19 @@ export default api;
 export const isCancel = axios.isCancel;
 
 export const ROOT_BASE_URL = BASE_URL;
+
+/**
+ * Initialize Sanctum SPA cookie authentication.
+ * Must be called once before the first login attempt.
+ * Sets the XSRF-TOKEN cookie (readable by JS) and the httpOnly laravel_session cookie.
+ */
+export async function initCsrfCookie() {
+  await rootApi.get("/sanctum/csrf-cookie");
+}
 export const rootApi = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Accept': 'application/json',
-    }
+  baseURL: BASE_URL,
+  withCredentials: true,
+  headers: {
+    Accept: "application/json",
+  },
 });

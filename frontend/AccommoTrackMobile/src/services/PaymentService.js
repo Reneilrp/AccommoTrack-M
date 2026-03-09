@@ -1,28 +1,29 @@
-import api from './api.js';
-import { API_BASE_URL as API_URL } from '../config/index.js';
+import api from "./api.js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE_URL as API_URL } from "../config/index.js";
 
 class PaymentService {
-
   /**
    * Get all payments for the authenticated tenant
    */
-  async getMyPayments(status = 'all') {
+  async getMyPayments(status = "all") {
     try {
-      const url = status !== 'all' 
-        ? `/tenant/payments?status=${status}`
-        : `/tenant/payments`;
+      const url =
+        status !== "all"
+          ? `/tenant/payments?status=${status}`
+          : `/tenant/payments`;
 
       const response = await api.get(url);
 
       return {
         success: true,
-        data: response.data
+        data: response.data,
       };
     } catch (error) {
-      console.error('Error fetching payments:', error);
+      console.error("Error fetching payments:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch payments'
+        error: error.response?.data?.message || "Failed to fetch payments",
       };
     }
   }
@@ -32,19 +33,17 @@ class PaymentService {
    */
   async getPaymentStats() {
     try {
-      const response = await api.get(
-        `/tenant/payments/stats`,
-      );
+      const response = await api.get(`/tenant/payments/stats`);
 
       return {
         success: true,
-        data: response.data
+        data: response.data,
       };
     } catch (error) {
-      console.error('Error fetching payment stats:', error);
+      console.error("Error fetching payment stats:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch payment stats'
+        error: error.response?.data?.message || "Failed to fetch payment stats",
       };
     }
   }
@@ -54,19 +53,18 @@ class PaymentService {
    */
   async getPaymentDetails(paymentId) {
     try {
-      const response = await api.get(
-        `/tenant/payments/${paymentId}`,
-      );
+      const response = await api.get(`/tenant/payments/${paymentId}`);
 
       return {
         success: true,
-        data: response.data
+        data: response.data,
       };
     } catch (error) {
-      console.error('Error fetching payment details:', error);
+      console.error("Error fetching payment details:", error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch payment details'
+        error:
+          error.response?.data?.message || "Failed to fetch payment details",
       };
     }
   }
@@ -74,7 +72,7 @@ class PaymentService {
   /**
    * Create a PayMongo source (redirect/QR) for an invoice
    */
-  async createPaymongoSource(invoiceId, method = 'gcash', returnUrl = null) {
+  async createPaymongoSource(invoiceId, method = "gcash", returnUrl = null) {
     try {
       const payload = { method };
       if (returnUrl) payload.return_url = returnUrl;
@@ -87,12 +85,16 @@ class PaymentService {
       return { success: true, data: response.data };
     } catch (error) {
       // Provide more diagnostic details so mobile UI can display the server response
-      console.error('Error creating paymongo source:', error.response?.data || error.message);
+      console.error(
+        "Error creating paymongo source:",
+        error.response?.data || error.message,
+      );
       const serverBody = error.response?.data;
-      let errMsg = 'Failed to create source';
+      let errMsg = "Failed to create source";
       if (serverBody) {
         // try to extract useful fields
-        errMsg = serverBody.message || serverBody.error || JSON.stringify(serverBody);
+        errMsg =
+          serverBody.message || serverBody.error || JSON.stringify(serverBody);
       } else if (error.message) {
         errMsg = error.message;
       }
@@ -112,8 +114,14 @@ class PaymentService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error creating paymongo payment:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data?.message || 'Failed to create payment' };
+      console.error(
+        "Error creating paymongo payment:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to create payment",
+      };
     }
   }
 
@@ -129,8 +137,15 @@ class PaymentService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error recording offline payment:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data?.message || 'Failed to record offline payment' };
+      console.error(
+        "Error recording offline payment:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to record offline payment",
+      };
     }
   }
 
@@ -143,8 +158,14 @@ class PaymentService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error fetching invoices:', error);
-      return { success: false, error: error.response?.data?.message || error.message || 'Failed to fetch invoices' };
+      console.error("Error fetching invoices:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch invoices",
+      };
     }
   }
 
@@ -157,8 +178,12 @@ class PaymentService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error fetching tenant invoices:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch tenant invoices' };
+      console.error("Error fetching tenant invoices:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to fetch tenant invoices",
+      };
     }
   }
 
@@ -169,7 +194,10 @@ class PaymentService {
    * reference   – optional reference string
    * notes       – optional notes
    */
-  async recordLandlordPayment(invoiceId, { amount_cents, method, reference = null, notes = null }) {
+  async recordLandlordPayment(
+    invoiceId,
+    { amount_cents, method, reference = null, notes = null },
+  ) {
     try {
       const response = await api.post(`/invoices/${invoiceId}/record`, {
         amount_cents,
@@ -180,8 +208,14 @@ class PaymentService {
       });
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error recording payment:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data?.message || 'Failed to record payment' };
+      console.error(
+        "Error recording payment:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to record payment",
+      };
     }
   }
 
@@ -190,12 +224,21 @@ class PaymentService {
    */
   async updateBookingPayment(bookingId, payload) {
     try {
-      const response = await api.patch(`/bookings/${bookingId}/payment`, payload);
+      const response = await api.patch(
+        `/bookings/${bookingId}/payment`,
+        payload,
+      );
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error updating booking payment:', error);
-      return { success: false, error: error.response?.data?.message || error.message || 'Failed to update payment' };
+      console.error("Error updating booking payment:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to update payment",
+      };
     }
   }
 
@@ -212,8 +255,15 @@ class PaymentService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error refreshing invoice status:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data?.message || 'Failed to refresh invoice status' };
+      console.error(
+        "Error refreshing invoice status:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to refresh invoice status",
+      };
     }
   }
 
@@ -223,13 +273,19 @@ class PaymentService {
    */
   async createPaymentLink(roomId, data = {}) {
     try {
-      const response = await api.post(`/tenant/rooms/${roomId}/payment-link`, data);
+      const response = await api.post(
+        `/tenant/rooms/${roomId}/payment-link`,
+        data,
+      );
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error creating payment link:', error.response?.data || error.message);
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Failed to create payment link' 
+      console.error(
+        "Error creating payment link:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to create payment link",
       };
     }
   }
@@ -240,17 +296,39 @@ class PaymentService {
    */
   async generateCashInvoice(roomId, data = {}) {
     try {
-      const response = await api.post(`/rooms/${roomId}/generate-cash-invoice`, data);
+      const response = await api.post(
+        `/rooms/${roomId}/generate-cash-invoice`,
+        data,
+      );
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error generating cash invoice:', error.response?.data || error.message);
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Failed to generate cash invoice' 
+      console.error(
+        "Error generating cash invoice:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to generate cash invoice",
       };
+    }
+  }
+
+  /**
+   * Get the stored auth token from AsyncStorage (used for raw fetch calls)
+   */
+  async getAuthToken() {
+    try {
+      const userJson = await AsyncStorage.getItem("user");
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        if (user?.token) return user.token;
+      }
+      return await AsyncStorage.getItem("token");
+    } catch {
+      return null;
     }
   }
 }
 
 export default new PaymentService();
-

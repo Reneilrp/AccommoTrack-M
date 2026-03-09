@@ -343,7 +343,7 @@ class AddonController extends Controller
                     'addons.name as addon_name',
                     'addons.price_type',
                     'addons.addon_type',
-                    'users.name as tenant_name',
+                    DB::raw("CONCAT(users.first_name, ' ', users.last_name) as tenant_name"),
                     'rooms.room_number'
                 ])
                 ->orderBy('booking_addons.approved_at', 'desc')

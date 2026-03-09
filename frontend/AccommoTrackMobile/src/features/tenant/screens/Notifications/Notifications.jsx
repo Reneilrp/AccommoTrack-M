@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,26 +7,46 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  StyleSheet
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadPrefsMobile, DEFAULT_PREFS } from '../../../../shared/notificationPrefs.js';
+  StyleSheet,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  loadPrefsMobile,
+  DEFAULT_PREFS,
+} from "../../../../shared/notificationPrefs.js";
 
-import BookingService from '../../../../services/BookingService.js';
-import PaymentService from '../../../../services/PaymentService.js';
-import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import BookingService from "../../../../services/BookingService.js";
+import PaymentService from "../../../../services/PaymentService.js";
+import api from "../../../../services/api.js";
+import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 
 const getNotificationTypeMap = (theme) => ({
-  booking: { icon: 'calendar', color: theme.colors.info, bg: theme.colors.infoLight },
-  payment: { icon: 'card-outline', color: theme.colors.success, bg: theme.colors.successLight },
-  message: { icon: 'chatbubble-outline', color: theme.colors.purple, bg: theme.colors.purpleLight },
-  default: { icon: 'notifications-outline', color: theme.colors.textTertiary, bg: theme.colors.backgroundTertiary },
+  booking: {
+    icon: "calendar",
+    color: theme.colors.info,
+    bg: theme.colors.infoLight,
+  },
+  payment: {
+    icon: "card-outline",
+    color: theme.colors.success,
+    bg: theme.colors.successLight,
+  },
+  message: {
+    icon: "chatbubble-outline",
+    color: theme.colors.purple,
+    bg: theme.colors.purpleLight,
+  },
+  default: {
+    icon: "notifications-outline",
+    color: theme.colors.textTertiary,
+    bg: theme.colors.backgroundTertiary,
+  },
 });
 
 const formatRelativeTime = (timestamp) => {
-  if (!timestamp) return '';
+  if (!timestamp) return "";
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
@@ -40,90 +60,162 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-const getStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
-  loadingText: { marginTop: 12, fontSize: 16, color: theme.colors.textSecondary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'space-between' },
-  backButton: { width: 80, alignItems: 'flex-start' },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: theme.colors.textInverse, textAlign: 'center' },
-  headerSide: { width: 80, alignItems: 'flex-end' },
-  markAllButton: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16 },
-  markAllText: { color: theme.colors.textInverse, fontSize: 12, fontWeight: '600' },
-  scrollView: { flex: 1 },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: theme.colors.text, marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
-  notificationItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  notificationUnread: { backgroundColor: theme.isDark ? theme.colors.brand900 : '#F0FDF4' },
-  iconContainer: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  notificationContent: { flex: 1, marginLeft: 12 },
-  notificationTitle: { fontSize: 15, fontWeight: '500', color: theme.colors.text },
-  unreadText: { fontWeight: '700', color: theme.colors.text },
-  notificationMessage: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
-  notificationTime: { fontSize: 12, color: theme.colors.textTertiary, marginTop: 4 },
-  unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
-  filterBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: theme.colors.backgroundSecondary,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonActive: {
-  },
-  segmentText: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  segmentTextActive: {
-    color: theme.colors.textInverse,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dateButton: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginRight: 8,
-  },
-  dateButtonText: {
-    fontSize: 13,
-    color: theme.colors.text,
-  },
-  clearButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: theme.colors.error,
-    borderRadius: 8,
-  },
-  clearButtonText: {
-    color: theme.colors.textInverse,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+const getStyles = (theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.colors.background,
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      justifyContent: "space-between",
+    },
+    backButton: { width: 80, alignItems: "flex-start" },
+    headerTitle: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.colors.textInverse,
+      textAlign: "center",
+    },
+    headerSide: { width: 80, alignItems: "flex-end" },
+    markAllButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      borderRadius: 16,
+    },
+    markAllText: {
+      color: theme.colors.textInverse,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    scrollView: { flex: 1 },
+    emptyState: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 80,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.colors.text,
+      marginTop: 16,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+    },
+    notificationItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    notificationUnread: {
+      backgroundColor: theme.isDark ? theme.colors.brand900 : "#F0FDF4",
+    },
+    iconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    notificationContent: { flex: 1, marginLeft: 12 },
+    notificationTitle: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: theme.colors.text,
+    },
+    unreadText: { fontWeight: "700", color: theme.colors.text },
+    notificationMessage: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    notificationTime: {
+      fontSize: 12,
+      color: theme.colors.textTertiary,
+      marginTop: 4,
+    },
+    unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
+    filterBar: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: theme.colors.backgroundSecondary,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    segmented: {
+      flexDirection: "row",
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      overflow: "hidden",
+      marginBottom: 10,
+    },
+    segmentButton: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    segmentButtonActive: {},
+    segmentText: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      fontWeight: "600",
+    },
+    segmentTextActive: {
+      color: theme.colors.textInverse,
+    },
+    dateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    dateButton: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginRight: 8,
+    },
+    dateButtonText: {
+      fontSize: 13,
+      color: theme.colors.text,
+    },
+    clearButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: theme.colors.error,
+      borderRadius: 8,
+    },
+    clearButtonText: {
+      color: theme.colors.textInverse,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+  });
 
 export default function TenantNotifications({ navigation }) {
   const { theme } = useTheme();
@@ -132,28 +224,45 @@ export default function TenantNotifications({ navigation }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterType, setFilterType] = useState('all'); // 'all' | 'bookings' | 'payments'
+  const [filterType, setFilterType] = useState("all"); // 'all' | 'bookings' | 'payments'
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const [bookingsRes, paymentsRes] = await Promise.all([
+      const [backendRes, bookingsRes, paymentsRes] = await Promise.all([
+        api.get("/notifications").catch(() => ({ data: [] })),
         BookingService.getMyBookings(),
         PaymentService.getMyPayments(),
       ]);
 
       const items = [];
 
+      // Real backend notifications (push events: booking approved, new message, etc.)
+      const backendNotifs = Array.isArray(backendRes.data)
+        ? backendRes.data
+        : [];
+      backendNotifs.forEach((n) => {
+        items.push({
+          id: `n-${n.id}`,
+          type: n.data?.type || "default",
+          title: n.data?.title || "Notification",
+          message: n.data?.message || "",
+          timestamp: n.created_at || new Date().toISOString(),
+          read: !!n.read_at,
+          raw: n,
+        });
+      });
+
       if (bookingsRes.success && Array.isArray(bookingsRes.data)) {
         bookingsRes.data.forEach((b) => {
           items.push({
             id: `b-${b.id}`,
-            type: 'booking',
+            type: "booking",
             title: `Booking ${b.reference || b.id}`,
             message: `Status: ${b.status}`,
             timestamp: b.updated_at || b.created_at || new Date().toISOString(),
-            read: b.status === 'confirmed' || b.status === 'cancelled',
+            read: b.status === "confirmed" || b.status === "cancelled",
             raw: b,
           });
         });
@@ -163,11 +272,11 @@ export default function TenantNotifications({ navigation }) {
         paymentsRes.data.forEach((p) => {
           items.push({
             id: `p-${p.id}`,
-            type: 'payment',
+            type: "payment",
             title: `Invoice ${p.invoice_reference || p.id}`,
             message: `Payment status: ${p.status}`,
             timestamp: p.updated_at || p.created_at || new Date().toISOString(),
-            read: p.status === 'paid',
+            read: p.status === "paid",
             raw: p,
           });
         });
@@ -178,7 +287,7 @@ export default function TenantNotifications({ navigation }) {
 
       setNotifications(items);
     } catch (err) {
-      console.warn('Error fetching tenant notifications', err);
+      console.warn("Error fetching tenant notifications", err);
     } finally {
       setLoading(false);
     }
@@ -187,13 +296,13 @@ export default function TenantNotifications({ navigation }) {
   // derive displayed notifications using filters and user preferences
   const displayedNotifications = notifications.filter((n) => {
     // type filter
-    if (filterType === 'bookings' && n.type !== 'booking') return false;
-    if (filterType === 'payments' && n.type !== 'payment') return false;
+    if (filterType === "bookings" && n.type !== "booking") return false;
+    if (filterType === "payments" && n.type !== "payment") return false;
 
     // Respect saved preferences: hide types user disabled
-    if (n.type === 'booking' && prefs.email_booking === false) return false;
-    if (n.type === 'payment' && prefs.email_payment === false) return false;
-    if (n.type === 'message' && prefs.push_messages === false) return false;
+    if (n.type === "booking" && prefs.email_booking === false) return false;
+    if (n.type === "payment" && prefs.email_payment === false) return false;
+    if (n.type === "message" && prefs.push_messages === false) return false;
 
     return true;
   });
@@ -209,7 +318,7 @@ export default function TenantNotifications({ navigation }) {
         const next = await loadPrefsMobile(AsyncStorage);
         setPrefs(next);
       } catch (e) {
-        console.warn('Load prefs error', e);
+        console.warn("Load prefs error", e);
       }
     })();
   }, []);
@@ -220,37 +329,75 @@ export default function TenantNotifications({ navigation }) {
     setRefreshing(false);
   };
 
-  const markAsRead = (id) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const markAsRead = async (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+    // Persist read state on the backend for real notifications
+    if (id.startsWith("n-")) {
+      const backendId = id.replace("n-", "");
+      await api.patch(`/notifications/${backendId}/read`).catch(() => {});
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+      <SafeAreaView
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={theme.colors.primary}
+        />
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading notifications...</Text>
+        <Text
+          style={[styles.loadingText, { color: theme.colors.textSecondary }]}
+        >
+          Loading notifications...
+        </Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={[ 'top' ]}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={["top"]}
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={theme.colors.primary}
+      />
 
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={theme.colors.textInverse}
+          />
         </TouchableOpacity>
-        
-        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>Notifications</Text>
-        
+
+        <Text style={[styles.headerTitle, { color: theme.colors.textInverse }]}>
+          Notifications
+        </Text>
+
         <View style={styles.headerSide}>
           {unreadCount > 0 ? (
-            <TouchableOpacity 
-              onPress={() => setNotifications((prev) => prev.map(n => ({...n, read: true})))} 
+            <TouchableOpacity
+              onPress={() =>
+                setNotifications((prev) =>
+                  prev.map((n) => ({ ...n, read: true })),
+                )
+              }
               style={styles.markAllButton}
             >
               <Text style={styles.markAllText}>Mark all</Text>
@@ -262,16 +409,84 @@ export default function TenantNotifications({ navigation }) {
       </View>
 
       {/* Filter bar: type + date range */}
-      <View style={[styles.filterBar, { backgroundColor: theme.colors.backgroundSecondary, borderBottomColor: theme.colors.border }]}>
-        <View style={[styles.segmented, { backgroundColor: theme.colors.surface }]}> 
-          <TouchableOpacity onPress={() => setFilterType('all')} style={[styles.segmentButton, filterType === 'all' && { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.segmentText, { color: filterType === 'all' ? theme.colors.textInverse : theme.colors.textSecondary }]}>All</Text>
+      <View
+        style={[
+          styles.filterBar,
+          {
+            backgroundColor: theme.colors.backgroundSecondary,
+            borderBottomColor: theme.colors.border,
+          },
+        ]}
+      >
+        <View
+          style={[styles.segmented, { backgroundColor: theme.colors.surface }]}
+        >
+          <TouchableOpacity
+            onPress={() => setFilterType("all")}
+            style={[
+              styles.segmentButton,
+              filterType === "all" && { backgroundColor: theme.colors.primary },
+            ]}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                {
+                  color:
+                    filterType === "all"
+                      ? theme.colors.textInverse
+                      : theme.colors.textSecondary,
+                },
+              ]}
+            >
+              All
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setFilterType('bookings')} style={[styles.segmentButton, filterType === 'bookings' && { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.segmentText, { color: filterType === 'bookings' ? theme.colors.textInverse : theme.colors.textSecondary }]}>Bookings</Text>
+          <TouchableOpacity
+            onPress={() => setFilterType("bookings")}
+            style={[
+              styles.segmentButton,
+              filterType === "bookings" && {
+                backgroundColor: theme.colors.primary,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                {
+                  color:
+                    filterType === "bookings"
+                      ? theme.colors.textInverse
+                      : theme.colors.textSecondary,
+                },
+              ]}
+            >
+              Bookings
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setFilterType('payments')} style={[styles.segmentButton, filterType === 'payments' && { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.segmentText, { color: filterType === 'payments' ? theme.colors.textInverse : theme.colors.textSecondary }]}>Payments</Text>
+          <TouchableOpacity
+            onPress={() => setFilterType("payments")}
+            style={[
+              styles.segmentButton,
+              filterType === "payments" && {
+                backgroundColor: theme.colors.primary,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                {
+                  color:
+                    filterType === "payments"
+                      ? theme.colors.textInverse
+                      : theme.colors.textSecondary,
+                },
+              ]}
+            >
+              Payments
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -280,34 +495,106 @@ export default function TenantNotifications({ navigation }) {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
         }
       >
         {displayedNotifications.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={64} color={theme.colors.textTertiary} />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No notifications</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>You're all caught up!</Text>
+            <Ionicons
+              name="notifications-off-outline"
+              size={64}
+              color={theme.colors.textTertiary}
+            />
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+              No notifications
+            </Text>
+            <Text
+              style={[
+                styles.emptySubtitle,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
+              You're all caught up!
+            </Text>
           </View>
         ) : (
           displayedNotifications.map((notification) => {
-            const typeConfig = notificationTypeMap[notification.type] || notificationTypeMap.default;
+            const typeConfig =
+              notificationTypeMap[notification.type] ||
+              notificationTypeMap.default;
             return (
               <TouchableOpacity
                 key={notification.id}
-                style={[styles.notificationItem, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }, !notification.read && { backgroundColor: theme.isDark ? theme.colors.brand900 : theme.colors.successLight }]}
+                style={[
+                  styles.notificationItem,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderBottomColor: theme.colors.border,
+                  },
+                  !notification.read && {
+                    backgroundColor: theme.isDark
+                      ? theme.colors.brand900
+                      : theme.colors.successLight,
+                  },
+                ]}
                 onPress={() => markAsRead(notification.id)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.iconContainer, { backgroundColor: typeConfig.bg }]}>
-                  <Ionicons name={typeConfig.icon} size={22} color={typeConfig.color} />
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: typeConfig.bg },
+                  ]}
+                >
+                  <Ionicons
+                    name={typeConfig.icon}
+                    size={22}
+                    color={typeConfig.color}
+                  />
                 </View>
                 <View style={styles.notificationContent}>
-                  <Text style={[styles.notificationTitle, { color: theme.colors.text }, !notification.read && { fontWeight: '700', color: theme.colors.text }]}>{notification.title}</Text>
-                  <Text style={[styles.notificationMessage, { color: theme.colors.textSecondary }]}>{notification.message}</Text>
-                  <Text style={[styles.notificationTime, { color: theme.colors.textTertiary }]}>{formatRelativeTime(notification.timestamp)}</Text>
+                  <Text
+                    style={[
+                      styles.notificationTitle,
+                      { color: theme.colors.text },
+                      !notification.read && {
+                        fontWeight: "700",
+                        color: theme.colors.text,
+                      },
+                    ]}
+                  >
+                    {notification.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.notificationMessage,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    {notification.message}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.notificationTime,
+                      { color: theme.colors.textTertiary },
+                    ]}
+                  >
+                    {formatRelativeTime(notification.timestamp)}
+                  </Text>
                 </View>
-                {!notification.read && <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />}
+                {!notification.read && (
+                  <View
+                    style={[
+                      styles.unreadDot,
+                      { backgroundColor: theme.colors.primary },
+                    ]}
+                  />
+                )}
               </TouchableOpacity>
             );
           })

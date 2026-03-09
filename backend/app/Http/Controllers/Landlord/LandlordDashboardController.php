@@ -53,7 +53,6 @@ class LandlordDashboardController extends Controller
                 $context['is_caretaker'],
                 $propertyId
             );
-            
             // Transformation logic remains in the controller
             $formattedActivities = $activities->map(function ($item) {
                 if ($item instanceof \App\Models\Booking) {
@@ -83,9 +82,10 @@ class LandlordDashboardController extends Controller
             $data = $this->dashboardService->getUpcomingPayments($context['landlord_id'], $assignedPropertyIds, $context['is_caretaker']);
 
             $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
-                $daysLeft = now()->diffInDays($booking->end_date, false);
+                $daysLeft = now()->diffInDays($booking->end_date, false);  
                 return [
-                    'id' => $booking->id, 'tenantName' => ($booking->tenant->first_name ?? 'Tenant') . ' ' . ($booking->tenant->last_name ?? ''),
+                    'id' => $booking->id, 
+                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant') . ' ' . ($booking->tenant->last_name ?? ''),
                     'propertyTitle' => $booking->property->title ?? 'Property', 'roomNumber' => $booking->room->room_number ?? 'N/A',
                     'endDate' => $booking->end_date->format('Y-m-d'), 'daysLeft' => (int) $daysLeft,
                     'urgency' => $daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low')
@@ -94,7 +94,8 @@ class LandlordDashboardController extends Controller
 
             $unpaidBookings = collect($data['unpaidBookings'])->map(function ($booking) {
                 return [
-                    'id' => $booking->id, 'tenantName' => ($booking->tenant->first_name ?? 'Tenant') . ' ' . ($booking->tenant->last_name ?? ''),
+                    'id' => $booking->id, 
+                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant') . ' ' . ($booking->tenant->last_name ?? ''),
                     'propertyTitle' => $booking->property->title ?? 'Property', 'roomNumber' => $booking->room->room_number ?? 'N/A',
                     'dueDate' => $booking->start_date->format('Y-m-d'), 'amount' => (float) $booking->total_amount,
                     'paymentStatus' => $booking->payment_status, 'type' => 'payment'

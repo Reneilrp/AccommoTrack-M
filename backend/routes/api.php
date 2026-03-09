@@ -68,8 +68,8 @@ Route::post('/landlord-verification', [LandlordVerificationController::class, 's
 Route::get('/valid-id-types', [LandlordVerificationController::class, 'getValidIdTypes']);
 
 // --- Room Aliases for Mobile Frontend ---
-Route::put('/rooms/{id}', [RoomController::class, 'update']);
-Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
+Route::put('/rooms/{id}', [RoomController::class, 'update'])->middleware('auth:sanctum');
+Route::delete('/rooms/{id}', [RoomController::class, 'destroy'])->middleware('auth:sanctum');
 Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
 // ----------------------------------------
 

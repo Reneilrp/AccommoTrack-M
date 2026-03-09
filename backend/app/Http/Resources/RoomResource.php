@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class RoomResource extends JsonResource
 {
@@ -36,6 +37,10 @@ class RoomResource extends JsonResource
                 'last_name' => $this->property->landlord->last_name,
                 'payment_methods_settings' => $this->property->landlord->payment_methods_settings,
             ] : null),
+            'reserved_by_me' => $this->whenLoaded('bookings', fn() => $this->bookings->isNotEmpty(), false),
+            'reservation' => $this->whenLoaded('bookings', fn() => $this->bookings->first()
+                ? $this->bookings->first()->only(['id', 'status', 'start_date', 'end_date'])
+                : null, null),
         ];
     }
 

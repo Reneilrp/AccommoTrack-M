@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Addon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Invoice;
 
 class TenantDashboardService
 {
@@ -16,18 +17,43 @@ class TenantDashboardService
         $confirmedBookings = Booking::where('tenant_id', $tenantId)->where('status', 'confirmed')->count();
         $pendingBookings = Booking::where('tenant_id', $tenantId)->where('status', 'pending')->count();
         
-        $monthlyDueCents = \App\Models\Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->whereMonth('due_date', now()->month)->whereYear('due_date', now()->year)->sum('amount_cents');
-        $totalDueCents = \App\Models\Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->sum('amount_cents');
-        $totalPaidCents = \App\Models\Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->sum('amount_cents');
+        // $bookingStats = Booking::where('tenant_id', $tenantId)
+        //     ->whereIn('status', ['pending', 'confirmed'])
+        //     ->selectRaw("status, count(*) as count")
+        //     ->groupBy('status')
+        //     ->pluck('count', 'status');
+
+        // $pendingBookings = $bookingStats['pending'] ?? 0;
+        // $confirmedBookings = $this->getBookingConfirmed($bookingStats) ? $bookingStats['confirmed'] ?? 0 : 0;
+        // $activeBookings = $pendingBookings + $confirmedBookings;
+
+        $monthlyDueCents = Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->whereMonth('due_date', now()->month)->whereYear('due_date', now()->year)->sum('amount_cents');
+        $totalDueCents = Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->sum('amount_cents');
+        $totalPaidCents = Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->sum('amount_cents');
         
         $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
 
+        $bookings = [
+            'active' => $activeBookings, 
+            'confirmed' => $confirmedBookings, 
+            'pending' => $pendingBookings
+        ];
+        $payments = [
+            'monthlyDue' => (float)($monthlyDueCents/100), 
+            'totalDue' => (float)($totalDueCents/100), 
+            'totalPaid' => (float)($totalPaidCents/100)
+        ];
+        $notifications = [
+            'unread' => $unreadNotifications
+        ];
+
         return [
-            'bookings' => ['active' => $activeBookings, 'confirmed' => $confirmedBookings, 'pending' => $pendingBookings],
-            'payments' => ['monthlyDue' => (float)($monthlyDueCents/100), 'totalDue' => (float)($totalDueCents/100), 'totalPaid' => (float)($totalPaidCents/100)],
-            'notifications' => ['unread' => $unreadNotifications]
+            compact('bookings', 'payments', 'notifications')
         ];
     }
+    // private function getBookingConfirmed($bookings){
+    //     return  $bookings['status'] === 'confirmed';
+    // }
 
     public function getRecentActivities(int $tenantId)
     {
