@@ -1049,7 +1049,40 @@ export default function AddRoomModal({
               Room Amenities
             </h3>
 
-            <div className="mb-4">
+            {localAmenities.length > 0 ? (
+              <>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Property Amenities:
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {localAmenities.map((amenity) => (
+                    <button
+                      key={amenity}
+                      type="button"
+                      onClick={() => toggleAmenity(amenity)}
+                      className={`px-4 py-3 rounded-lg border-2 text-left text-sm transition-all ${
+                        formData.amenities.includes(amenity)
+                          ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500"
+                      }`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  No amenities in property yet
+                </p>
+                <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
+                  Add amenities below to get started
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Add New Amenity
               </label>
@@ -1082,39 +1115,6 @@ export default function AddRoomModal({
                 property
               </p>
             </div>
-
-            {localAmenities.length > 0 ? (
-              <>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Property Amenities:
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  {localAmenities.map((amenity) => (
-                    <button
-                      key={amenity}
-                      type="button"
-                      onClick={() => toggleAmenity(amenity)}
-                      className={`px-4 py-3 rounded-lg border-2 text-left text-sm transition-all ${
-                        formData.amenities.includes(amenity)
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                          : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500"
-                      }`}
-                    >
-                      {amenity}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  No amenities in property yet
-                </p>
-                <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
-                  Add amenities above to get started
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Images */}

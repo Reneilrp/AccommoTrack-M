@@ -94,7 +94,8 @@ class Booking extends Model
         'payment_method',
         'notes',
         'cancelled_at',
-        'cancellation_reason'
+        'cancellation_reason',
+        'confirmed_at'
     ];
 
     protected $casts = [
@@ -103,6 +104,7 @@ class Booking extends Model
         'monthly_rent' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'cancelled_at' => 'datetime',
+        'confirmed_at' => 'datetime',
         'guest_name' => 'string'
     ];
 

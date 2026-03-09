@@ -526,7 +526,7 @@ class Room extends Model
         $monthly = (float) $this->monthly_rate;
         $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
         $policy = $this->billing_policy ?? 'monthly';
-        $daysInMonth = 30; // Hardcoded to 30
+        $daysInMonth = 30;
 
         $months = intdiv($days, $daysInMonth);
         $remaining = $days % $daysInMonth;
@@ -548,17 +548,22 @@ class Room extends Model
                 $total += $daysCharge;
             }
             $method = 'monthly_with_daily';
-        } else { // monthly (calculate leftover)
+        } else { // monthly (fixed 30-day block logic)
+            // If there's any remainder, it's treated as a full month for the 'monthly' policy
+            $totalMonths = ($remaining > 0) ? $months + 1 : $months;
+            $monthCharge = $totalMonths * $monthly;
+            $daysCharge = 0.0;
             $total = $monthCharge;
-            if ($remaining > 0) {
-                // For plain monthly policy, we calculate strictly by base days if not exact month
-                $daysCharge = ($monthly * $remaining) / $daysInMonth;
-                $total += $daysCharge;
-            }
-            $method = 'monthly';
+            $method = 'monthly_fixed';
         }
 
-        $total = round($total, 2);
+        // Final rounding to 2 decimal places to ensure consistent currency representation
+        $total = round((float)number_format($total, 2, '.', ''), 2);
+
+        if ($method === 'monthly_fixed') {
+            $months = ($remaining > 0) ? $months + 1 : $months;
+            $remaining = 0; // In fixed monthly, we don't show remaining days as separate charge
+        }
 
         return [
             'total' => $total,
@@ -574,12 +579,7 @@ class Room extends Model
 
     /**
      * Calculate price for a booking period using actual calendar months.
-     * This treats full calendar-month segments as whole months (no prorate)
-     * and charges any remaining days according to the room's billing policy.
-     *
-     * @param Carbon|string $startDate
-     * @param Carbon|string $endDate
-     * @return array
+     * Fixed to ensure 30 days = exactly 1 month price.
      */
     public function calculatePriceForPeriod($startDate, $endDate)
     {
@@ -591,7 +591,6 @@ class Room extends Model
         $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
         $policy = $this->billing_policy ?? 'monthly';
 
-        // If billing is strictly daily, use daily rate
         if ($policy === 'daily') {
             $ratePerDay = $daily ?? ($monthly / 30);
             $total = round($days * $ratePerDay, 2);
@@ -601,26 +600,29 @@ class Room extends Model
                     'months' => 0,
                     'remaining_days' => $days,
                     'month_charge' => 0.00,
-                    'days_charge' => round($days * $ratePerDay, 2),
+                    'days_charge' => $total,
                 ],
                 'method' => 'daily',
             ];
         }
 
-        // For monthly-based billing (no prorate): count units as 30-day chunks and round up
-        $units = (int) ceil($days / 30);
-        $monthCharge = $units * $monthly;
-        $total = round($monthCharge, 2);
+        // Fix for the 3999.98 issue: use intdiv for whole months
+        $months = intdiv($days, 30);
+        $remaining = $days % 30;
+        
+        // If there's any remainder, it's a partial month (ceil behavior but safer)
+        $totalMonths = ($remaining > 0) ? $months + 1 : $months;
+        $total = round($totalMonths * $monthly, 2);
 
         return [
             'total' => $total,
             'breakdown' => [
-                'months' => $units,
-                'remaining_days' => $days % 30,
-                'month_charge' => round($monthCharge, 2),
+                'months' => $totalMonths,
+                'remaining_days' => $remaining,
+                'month_charge' => $total,
                 'days_charge' => 0.00,
             ],
-            'method' => 'monthly_30day',
+            'method' => 'monthly_30day_fixed',
         ];
     }
 

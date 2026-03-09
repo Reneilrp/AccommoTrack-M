@@ -101,13 +101,29 @@ class TenantDashboardController extends Controller
                 'booking' => [
                     'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
                     'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date->format('Y-m-d'),
+                    'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date->format('Y-m-d'),
                     'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
+                    'total_months' => $booking->total_months, 'monthly_rent' => (float) $booking->monthly_rent,
                     'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
+                    'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
                     'hasReview' => (bool) $booking->review, 'daysRemaining' => now()->diffInDays($booking->end_date),
                     'monthsRemaining' => now()->diffInMonths($booking->end_date)
                 ],
-                'room' => ['id' => $booking->room->id, 'roomNumber' => $booking->room->room_number, 'roomType' => $booking->room->room_type ?? null, 'floor' => $booking->room->floor_level ?? null, 'images' => $booking->room->images ?? []],
-                'property' => ['id' => $booking->property->id, 'title' => $booking->property->title, 'address' => $booking->property->full_address, 'image' => $booking->property->image_url],
+                'room' => [
+                    'id' => $booking->room->id, 
+                    'roomNumber' => $booking->room->room_number,
+                    'room_number' => $booking->room->room_number,
+                    'roomType' => $booking->room->room_type ?? null,
+                    'room_type' => $booking->room->room_type ?? null,
+                    'floor' => $booking->room->floor_level ?? null, 'images' => $booking->room->images ?? []
+                ],
+                'property' => [
+                    'id' => $booking->property->id, 
+                    'title' => $booking->property->title, 
+                    'address' => $booking->property->full_address,
+                    'full_address' => $booking->property->full_address,
+                    'image' => $booking->property->image_url
+                ],
                 'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email, 'phone' => $booking->landlord->phone_number ?? null],
                 'addons' => [
                     'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->values(),
@@ -133,6 +149,58 @@ class TenantDashboardController extends Controller
             $formattedBookings = $pastBookings->getCollection()->map(function ($booking) {
                 $totalPaid = $booking->payments->where('status', 'completed')->sum('amount');
                 $addonTotal = $booking->addons->sum(fn ($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
+                
+                // Build a timeline of activities
+                $activityLog = collect();
+                
+                // 1. Booking Requested (Created)
+                $activityLog->push([
+                    'type' => 'event',
+                    'action' => 'Booking Requested',
+                    'timestamp' => $booking->created_at,
+                    'description' => 'You submitted a booking request for ' . $booking->property->title,
+                    'status' => 'pending'
+                ]);
+
+                // 2. Booking Confirmed
+                if ($booking->confirmed_at) {
+                    $activityLog->push([
+                        'type' => 'event',
+                        'action' => 'Booking Confirmed',
+                        'timestamp' => $booking->confirmed_at,
+                        'description' => 'Landlord confirmed your stay.',
+                        'status' => 'confirmed'
+                    ]);
+                }
+
+                // 3. Successful Payments (from invoices -> transactions)
+                $booking->invoices->each(function($invoice) use (&$activityLog) {
+                    $invoice->transactions->where('status', 'succeeded')->each(function($tx) use (&$activityLog, $invoice) {
+                        $activityLog->push([
+                            'type' => 'payment',
+                            'action' => 'Payment Successful',
+                            'timestamp' => $tx->created_at,
+                            'description' => 'Paid ₱' . number_format($tx->amount_cents / 100, 2) . ' via ' . ucfirst($tx->method) . ' for ' . ($invoice->description ?: 'Accommodation Fee'),
+                            'status' => 'paid',
+                            'amount' => (float)($tx->amount_cents / 100)
+                        ]);
+                    });
+                });
+
+                // 4. Booking Cancelled
+                if ($booking->status === 'cancelled' && $booking->cancelled_at) {
+                    $activityLog->push([
+                        'type' => 'event',
+                        'action' => 'Booking Cancelled',
+                        'timestamp' => $booking->cancelled_at,
+                        'description' => 'Booking was cancelled. Reason: ' . ($booking->cancellation_reason ?: 'No reason provided'),
+                        'status' => 'cancelled'
+                    ]);
+                }
+
+                // Sort activity by timestamp
+                $sortedActivity = $activityLog->sortBy('timestamp')->values();
+
                 return [
                     'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
                     'property' => ['id' => $booking->property->id, 'title' => $booking->property->title, 'image' => $booking->property->image_url],
@@ -140,6 +208,8 @@ class TenantDashboardController extends Controller
                     'landlord' => ['name' => $booking->landlord->name],
                     'period' => ['startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date->format('Y-m-d'), 'totalMonths' => $booking->total_months],
                     'status' => $booking->status,
+                    'confirmedAt' => $booking->confirmed_at,
+                    'activityLog' => $sortedActivity,
                     'financials' => ['monthlyRent' => (float) $booking->monthly_rent, 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
                     'addons' => $booking->addons->map(fn($a) => ['name' => $a->name, 'price' => (float) $a->pivot->price_at_booking, 'priceType' => $a->price_type]),
                     'cancelledAt' => $booking->cancelled_at, 'cancellationReason' => $booking->cancellation_reason,

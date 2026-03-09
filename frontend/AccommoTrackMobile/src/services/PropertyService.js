@@ -1,6 +1,7 @@
 import api from "./api.js";
 import { API_BASE_URL, BASE_URL } from "../config/index.js";
 import { getImageUrl } from "../utils/imageUtils.js";
+import { extractErrorMessage } from "../utils/error.js";
 
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
 

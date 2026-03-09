@@ -73,39 +73,15 @@ const ChatArea = ({
           </div>
         ) : (
           messages.map((msg, idx) => {
-            const getSenderId = (m) => {
-              if (!m) return null;
-              return (
-                m.sender_id || m.senderId || m.user_id || m.userId || m.from_id ||
-                (m.sender && (m.sender.id || m.sender.user_id)) ||
-                (m.user && (m.user.id || m.user_id)) ||
-                null
-              );
-            };
-
-            const senderId = getSenderId(msg);
-            const actualSenderId = msg.actual_sender_id || msg.actual_sender?.id;
-            
-            const isCurrentUserCaretaker = normalizedRole === 'caretaker';
-            const senderRole = msg.sender?.role;
-            const isFromLandlordSide = senderRole === 'landlord' || msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
-            
-            const isMine = isCurrentUserCaretaker
-              ? isFromLandlordSide  
-              : String(senderId) === String(currentUserId);  
+            // Using standardized fields from MessageResource
+            const isMine = msg.is_mine;
+            const actualSenderId = msg.actual_sender_id;
+            const isFromLandlordSide = msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
             
             const isCaretakerMessage = msg.sender_role === 'caretaker';
             const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);
             
-            const getTimestamp = (m) => {
-              if (!m) return null;
-              return (
-                m.created_at || m.createdAt || m.sent_at || m.sentAt || m.timestamp || m.time || m.date || m.updated_at || m.updatedAt || null
-              );
-            };
-
-            let ts = getTimestamp(msg);
-            if (!ts) ts = msg.last_message_at || msg.lastMessageAt || new Date().toISOString();
+            const ts = msg.created_at || new Date().toISOString();
 
             return (
               <div
@@ -131,10 +107,10 @@ const ChatArea = ({
                     {msg.image_url && (
                       <div className="mb-2 max-w-full">
                         <img 
-                          src={getImageUrl(msg.image_url)} 
+                          src={msg.image_url} 
                           alt="Attachment" 
                           className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(getImageUrl(msg.image_url), '_blank')}
+                          onClick={() => window.open(msg.image_url, '_blank')}
                         />
                       </div>
                     )}

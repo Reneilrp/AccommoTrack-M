@@ -91,6 +91,7 @@ export default function DashboardPage({ user }) {
     switch (type) {
       case 'booking': return <Calendar className="w-5 h-5" />;
       case 'room': return <Home className="w-5 h-5" />;
+      case 'property': return <Building2 className="w-5 h-5" />;
       case 'payment': return <LucidePhilippinePeso className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
@@ -102,6 +103,7 @@ export default function DashboardPage({ user }) {
       case 'blue': return 'bg-blue-100 text-blue-600';
       case 'yellow': return 'bg-yellow-100 text-yellow-600';
       case 'red': return 'bg-red-100 text-red-600';
+      case 'gray': return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-600';
     }
   };

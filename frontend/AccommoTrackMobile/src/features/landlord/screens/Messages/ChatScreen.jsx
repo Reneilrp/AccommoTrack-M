@@ -233,14 +233,22 @@ export default function ChatScreen({ navigation, route }) {
                         </View>
                     ) : (
                         messages.map((msg) => {
-                            const isMine = String(msg.sender_id) === String(currentUserId);
+                            const isMine = msg.is_mine;
+                            const isCaretakerMessage = msg.sender_role === 'caretaker';
+                            const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';
+
                             return (
                                 <View key={msg.id} style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                                     <View style={[styles.messageContent, isMine ? styles.myMessageContent : styles.theirMessageContent]}>
+                                        {isCaretakerMessage && msg.actual_sender && (
+                                            <Text style={{ fontSize: 10, color: theme.colors.textSecondary, marginBottom: 2, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
+                                                via {actualSenderName}
+                                            </Text>
+                                        )}
                                         <View style={[styles.messageBubble, isMine ? styles.myMessageBubble : styles.theirMessageBubble]}>
                                             {msg.image_url && (
                                                 <Image 
-                                                    source={{ uri: getImageUrl(msg.image_url) }} 
+                                                    source={{ uri: msg.image_url }} 
                                                     style={{ width: 200, height: 200, borderRadius: 8, marginBottom: msg.message ? 8 : 0 }} 
                                                     resizeMode="cover" 
                                                 />

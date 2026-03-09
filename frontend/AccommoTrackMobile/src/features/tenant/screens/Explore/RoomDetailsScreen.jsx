@@ -133,6 +133,45 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     payment_method: 'cash',
   });
 
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [isPricingLoading, setIsPricingLoading] = useState(false);
+  const [pricingBreakdown, setPricingBreakdown] = useState(null);
+
+  // Fetch price from backend instead of local calculation
+  useEffect(() => {
+    const fetchPrice = async () => {
+      if (!bookingData.start_date || !bookingData.end_date) {
+        setTotalPrice(0);
+        return;
+      }
+
+      setIsPricingLoading(true);
+      try {
+        const startStr = bookingData.start_date.toISOString().split('T')[0];
+        const endStr = bookingData.end_date.toISOString().split('T')[0];
+        
+        // Ensure end date is actually after start date
+        if (new Date(endStr) <= new Date(startStr)) {
+          setTotalPrice(0);
+          return;
+        }
+
+        const res = await PropertyService.getRoomPricing(activeRoom.id, startStr, endStr);
+        if (res.success) {
+          setTotalPrice(res.data.total);
+          setPricingBreakdown(res.data.breakdown);
+        }
+      } catch (err) {
+        console.error('Pricing calculation failed', err);
+      } finally {
+        setIsPricingLoading(false);
+      }
+    };
+
+    const timer = setTimeout(fetchPrice, 300); // Debounce
+    return () => clearTimeout(timer);
+  }, [bookingData.start_date, bookingData.end_date, activeRoom.id]);
+
   // Get allowed methods from landlord settings, default to cash only if not set
   const allowedMethods = activeRoom?.landlord?.payment_methods_settings?.allowed || ['cash'];
   const gcashDetails = activeRoom?.landlord?.payment_methods_settings?.details?.gcash_info;
@@ -193,56 +232,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     start.setHours(0, 0, 0, 0);
     const end = getEndOfCurrentMonth();
     return dt >= start && dt <= end;
-  };
-
-  // Calculate duration between dates
-  const calculateDuration = () => {
-    if (!bookingData.start_date || !bookingData.end_date) return null;
-
-    const start = new Date(bookingData.start_date);
-    const end = new Date(bookingData.end_date);
-
-    if (end <= start) return null;
-
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const months = Math.floor(diffDays / 30); // full 30-day months
-    const extraDays = diffDays % 30;
-
-    return { days: diffDays, months, extraDays };
-  };
-
-  // Calculate total cost
-  const calculateTotal = () => {
-    const duration = calculateDuration();
-    if (!duration) return 0;
-    // Normalize billing policy keys to be robust against underscores/spaces/casing
-    const billing = String(activeRoom.billing_policy || 'monthly')
-      .toLowerCase()
-      .trim()
-      .replace(/[\s-]+/g, '_');
-    const monthly = Number(activeRoom.monthly_rate) || 0;
-    const daily = Number(activeRoom.daily_rate) || Math.round(monthly / 30) || 0;
-
-    // Conservative fallback: if policy is monthly but a daily rate exists and there are extra days,
-    // treat as monthly_with_daily to avoid over-charging by rounding up full months.
-    let effectiveBilling = billing;
-    if (effectiveBilling === 'monthly' && daily > 0 && duration.extraDays > 0) {
-      effectiveBilling = 'monthly_with_daily';
-    }
-
-    if (effectiveBilling === 'monthly_with_daily' || effectiveBilling === 'monthly+daily' || effectiveBilling === 'monthly_and_daily') {
-      // charge full months + remaining days at daily rate
-      return (duration.months * monthly) + (duration.extraDays * daily);
-    }
-
-    if (effectiveBilling === 'daily') {
-      return duration.days * daily;
-    }
-
-    // default: monthly billing (round up to nearest month)
-    const monthsCeil = Math.ceil(duration.days / 30);
-    return monthsCeil * monthly;
   };
 
   // Handle start date change - auto-fill checkout to 30 days later
@@ -557,42 +546,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     }
   };
 
-  const duration = calculateDuration();
-  const total = calculateTotal();
-
-  // Prepare readable duration and breakdown lines for the summary
-  let durationLabel = '';
-  let breakdownLine = '';
-  if (duration) {
-    // Normalize billing policy keys to be robust against underscores/spaces/casing
-    const billing = String(activeRoom.billing_policy || 'monthly')
-      .toLowerCase()
-      .trim()
-      .replace(/[\s-]+/g, '_');
-    const monthly = Number(activeRoom.monthly_rate) || 0;
-    const daily = Number(activeRoom.daily_rate) || Math.round(monthly / 30) || 0;
-
-    // Apply the same conservative fallback used in calculation
-    let effectiveBilling = billing;
-    if (effectiveBilling === 'monthly' && daily > 0 && duration.extraDays > 0) {
-      effectiveBilling = 'monthly_with_daily';
-    }
-
-    // debug strings removed in production
-
-    if (effectiveBilling === 'monthly_with_daily' || effectiveBilling === 'monthly+daily' || effectiveBilling === 'monthly_and_daily') {
-      durationLabel = `${duration.days} days (${duration.months} ${duration.months === 1 ? 'month' : 'months'}${duration.extraDays > 0 ? ` + ${duration.extraDays} ${duration.extraDays === 1 ? 'day' : 'days'}` : ''})`;
-      breakdownLine = `₱${monthly.toLocaleString()}/month × ${duration.months} ${duration.months === 1 ? 'month' : 'months'}${duration.extraDays > 0 ? ` + ₱${daily.toLocaleString()}/day × ${duration.extraDays} ${duration.extraDays === 1 ? 'day' : 'days'}` : ''}`;
-    } else if (effectiveBilling === 'daily') {
-      durationLabel = `${duration.days} days`;
-      breakdownLine = `₱${daily.toLocaleString()}/day × ${duration.days} ${duration.days === 1 ? 'day' : 'days'}`;
-    } else {
-      const monthsCeil = Math.ceil(duration.days / 30);
-      durationLabel = `${duration.days} days (${monthsCeil} ${monthsCeil === 1 ? 'month' : 'months'})`;
-      breakdownLine = `₱${monthly.toLocaleString()}/month × ${monthsCeil} ${monthsCeil === 1 ? 'month' : 'months'}`;
-    }
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
@@ -867,23 +820,27 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </View>
 
             {/* Duration & Cost Summary */}
-            {duration && (
+            {bookingData.end_date && (
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Duration</Text>
                   <Text style={styles.summaryValue}>
-                    {durationLabel}
+                    {pricingBreakdown 
+                      ? `${pricingBreakdown.months} month(s) ${pricingBreakdown.remaining_days > 0 ? `+ ${pricingBreakdown.remaining_days} day(s)` : ''}`
+                      : 'Calculating...'}
                   </Text>
                 </View>
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
-                  <Text style={styles.summaryValueBold}>₱{total.toLocaleString()}</Text>
+                  <Text style={styles.summaryValueBold}>
+                    {isPricingLoading ? '...' : `₱${totalPrice.toLocaleString()}`}
+                  </Text>
                 </View>
-                <Text style={styles.summaryNote}>
-                  {breakdownLine}
-                </Text>
-
-                {/* debug badge removed */}
+                {pricingBreakdown && (
+                  <Text style={styles.summaryNote}>
+                    {pricingBreakdown.months > 0 && `₱${(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × ${pricingBreakdown.months}`}
+                  </Text>
+                )}
               </View>
             )}
 

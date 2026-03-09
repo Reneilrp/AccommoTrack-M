@@ -53,16 +53,49 @@ class LandlordDashboardController extends Controller
                 $context['is_caretaker'],
                 $propertyId
             );
-            // Transformation logic remains in the controller
+            // Transformation logic standardized for Mobile activity maps
             $formattedActivities = $activities->map(function ($item) {
                 if ($item instanceof \App\Models\Booking) {
                     return [
-                        'id' => $item->id, 'property_id' => $item->property->id, 'type' => 'booking',
-                        'action' => 'New booking request', 'description' => ($item->tenant->first_name ?? 'Someone') . ' ' . ($item->tenant->last_name ?? '') . ' requested to book ' . ($item->property->title ?? 'a property') . ' - Room ' . ($item->room->room_number ?? 'N/A'),
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'calendar', 'color' => $item->status === 'pending' ? 'yellow' : ($item->status === 'confirmed' ? 'green' : 'gray')
+                        'id' => $item->id, 'type' => 'booking',
+                        'action' => 'New booking request',
+                        'description' => ($item->tenant->first_name ?? 'Someone') . ' requested ' . ($item->property->title ?? 'Property') . ' - Room ' . ($item->room->room_number ?? 'N/A'),
+                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'calendar', 'color' => $item->status === 'pending' ? 'yellow' : 'green'
                     ];
                 }
-                // Add other instanceof checks for Room, Property, Invoice, etc.
+                if ($item instanceof \App\Models\Room) {
+                    $isNew = $item->created_at->diffInMinutes($item->updated_at) < 5;
+                    return [
+                        'id' => $item->id, 'type' => 'room',
+                        'action' => $isNew ? 'New Room Added' : 'Room Status Updated',
+                        'description' => "Room {$item->room_number} in {$item->property->title} is now " . ucfirst($item->status),
+                        'status' => $item->status, 'timestamp' => $item->updated_at, 'icon' => 'bed', 'color' => $item->status === 'occupied' ? 'blue' : ($item->status === 'available' ? 'green' : 'yellow')
+                    ];
+                }
+                if ($item instanceof \App\Models\Property) {
+                    return [
+                        'id' => $item->id, 'type' => 'property',
+                        'action' => 'Property Updated',
+                        'description' => "Details for property '{$item->title}' were recently updated.",
+                        'status' => 'active', 'timestamp' => $item->updated_at, 'icon' => 'business', 'color' => 'blue'
+                    ];
+                }
+                if ($item instanceof \App\Models\Invoice) {
+                    return [
+                        'id' => $item->id, 'type' => 'payment',
+                        'action' => 'New Invoice Generated',
+                        'description' => "Invoice #{$item->reference} created for room {$item->room_id}",
+                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'gray'
+                    ];
+                }
+                if ($item instanceof \App\Models\PaymentTransaction) {
+                    return [
+                        'id' => $item->id, 'type' => 'payment',
+                        'action' => 'Payment Received',
+                        'description' => "Received ₱" . number_format($item->amount_cents/100, 2) . " via " . ucfirst($item->method),
+                        'status' => 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'green'
+                    ];
+                }
                 return (array) $item;
             });
             

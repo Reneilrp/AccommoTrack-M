@@ -313,6 +313,12 @@ export default function MyBookings() {
     const hasActiveStay = stayData?.hasActiveStay;
     const financials = stayData?.financials || { monthlyRent: 0, monthlyAddons: 0, monthlyTotal: 0, invoices: [] };
 
+    // Flatten all transactions from all invoices into a single sorted list
+    const invoices = Array.isArray(financials.invoices) ? financials.invoices : [];
+    const allTransactions = invoices
+      .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ ...tx, invoiceRef: inv.id })))
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
     return (
       <ScrollView style={styles.financialsContainer} showsVerticalScrollIndicator={false}>
          {!hasActiveStay && (
@@ -345,6 +351,34 @@ export default function MyBookings() {
             <Text style={[styles.summaryValue, { fontSize: 28, color: theme.colors.primary }]}>{formatCurrency(financials.monthlyTotal)}</Text>
          </View>
 
+         {/* Transactions */}
+         <View style={[styles.sectionCard, { marginTop: 16, opacity: hasActiveStay ? 1 : 0.7 }]}>
+            <View style={styles.sectionHeader}>
+               <Ionicons name="refresh-circle-outline" size={20} color={hasActiveStay ? theme.colors.primary : theme.colors.textTertiary} />
+               <Text style={[styles.sectionTitle, !hasActiveStay && { color: theme.colors.textTertiary }]}>Recent Transactions</Text>
+            </View>
+            {hasActiveStay && allTransactions.length > 0 ? (
+              <View style={{ paddingVertical: 8 }}>
+                {allTransactions.map((tx, idx) => (
+                  <View key={`tx-${tx.id || idx}`} style={[styles.tableRow, { borderBottomWidth: idx === allTransactions.length - 1 ? 0 : 1, borderBottomColor: theme.colors.border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>{formatDate(tx.created_at)}</Text>
+                      <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textTransform: 'capitalize' }}>{tx.method?.replace('paymongo_', '').replace('_', ' ') || 'Payment'}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.primary }}>{formatCurrency(tx.amount_cents / 100)}</Text>
+                      <Text style={{ fontSize: 10, color: tx.status === 'succeeded' ? '#16a34a' : '#F59E0B', fontWeight: 'bold', textTransform: 'uppercase' }}>{tx.status}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 12, italic: true }}>No payment transactions recorded.</Text>
+              </View>
+            )}
+         </View>
+
          {/* Invoices (Always shown structure) */}
          <View style={[styles.sectionCard, { marginTop: 16, opacity: hasActiveStay ? 1 : 0.7 }]}>
             <View style={styles.sectionHeader}>
@@ -360,7 +394,7 @@ export default function MyBookings() {
               financials.invoices.map((inv, idx) => (
                 <View key={`inv-${idx}`} style={styles.tableRow}>
                    <Text style={[styles.tableCell, styles.invoiceDueDateCell]}>{inv.dueDate || inv.issuedAt}</Text>
-                   <Text style={[styles.tableCell, styles.tableCellBold, styles.invoiceAmountCell]}>{formatCurrency(inv.amount)}</Text>
+                   <Text style={[styles.tableCell, styles.tableCellBold, styles.invoiceAmountCell]}>{formatCurrency(inv.amount_cents ? inv.amount_cents / 100 : inv.amount)}</Text>
                    <View style={styles.invoiceStatusCell}>
                       <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(inv.status)}15`, alignSelf: 'flex-start' }]}>
                         <Text style={[styles.statusText, { color: getStatusColor(inv.status), fontSize: 10 }]}>{inv.status}</Text>
@@ -398,6 +432,26 @@ export default function MyBookings() {
       );
     }
 
+    const formatDateTime = (dateString) => {
+      if (!dateString) return '';
+      return new Date(dateString).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
+    const getTimelineColor = (status) => {
+      switch(status) {
+        case 'pending': return '#F59E0B';
+        case 'confirmed': return theme.colors.primary;
+        case 'paid': return '#3B82F6';
+        case 'cancelled': return '#EF4444';
+        default: return '#9CA3AF';
+      }
+    };
+
     return (
       <View style={styles.content}>
         {historyData.map((booking) => (
@@ -406,23 +460,51 @@ export default function MyBookings() {
             style={[styles.bookingCard, styles.historyItemCard]}
             onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.property?.id })}
           >
-            <View style={{ flexDirection: 'row', padding: 12, gap: 12 }}>
-               <Image source={getImageUrl(booking.property?.image)} style={styles.historyItemImage} />
-               <View style={styles.historyItemContent}>
-                  <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>{booking.property?.title || 'Past Stay'}</Text>
-                  <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
-                    {formatDate(booking.period?.startDate)} - {formatDate(booking.period?.endDate)}
-                  </Text>
-                  <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.status)}15` }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(booking.status), fontSize: 10 }]}>{booking.status}</Text>
-                  </View>
-               </View>
-               <View style={styles.historyItemRight}>
-                  <Text style={{ fontSize: 11, color: theme.colors.textTertiary, textTransform: 'uppercase', fontWeight: 'bold' }}>Total Paid</Text>
-                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: theme.colors.primary, marginTop: 2 }}>
-                    {formatCurrency(booking.financials?.totalPaid || booking.amount)}
-                  </Text>
-               </View>
+            <View style={{ padding: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                 <Image source={getImageUrl(booking.property?.image)} style={styles.historyItemImage} />
+                 <View style={styles.historyItemContent}>
+                    <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>{booking.property?.title || 'Past Stay'}</Text>
+                    <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
+                      {formatDate(booking.period?.startDate)} - {formatDate(booking.period?.endDate)}
+                    </Text>
+                    <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.status)}15` }]}>
+                      <Text style={[styles.statusText, { color: getStatusColor(booking.status), fontSize: 10 }]}>{booking.status}</Text>
+                    </View>
+                 </View>
+                 <View style={styles.historyItemRight}>
+                    <Text style={{ fontSize: 11, color: theme.colors.textTertiary, textTransform: 'uppercase', fontWeight: 'bold' }}>Total Paid</Text>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: theme.colors.primary, marginTop: 2 }}>
+                      {formatCurrency(booking.financials?.totalPaid || booking.amount)}
+                    </Text>
+                 </View>
+              </View>
+
+              {/* Activity Timeline */}
+              <View style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 12 }}>
+                <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.textTertiary, textTransform: 'uppercase', marginBottom: 12 }}>Activity Timeline</Text>
+                <View style={{ paddingLeft: 8 }}>
+                  {(booking.activityLog || []).map((activity, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', marginBottom: 12, position: 'relative' }}>
+                      {/* Vertical line connector */}
+                      {idx < (booking.activityLog.length - 1) && (
+                        <View style={{ position: 'absolute', left: 4, top: 12, bottom: -12, width: 1, backgroundColor: theme.colors.border }} />
+                      )}
+                      
+                      {/* Timeline dot */}
+                      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: getTimelineColor(activity.status), marginTop: 4, marginRight: 12, zIndex: 1, borderWeight: 2, borderColor: theme.colors.backgroundSecondary }} />
+                      
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>{activity.action}</Text>
+                          <Text style={{ fontSize: 10, color: theme.colors.textTertiary }}>{formatDateTime(activity.timestamp)}</Text>
+                        </View>
+                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{activity.description}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
           </TouchableOpacity>
         ))}

@@ -268,7 +268,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 <div className="text-xs text-green-600 dark:text-green-500/70 space-y-1">
                   <p>Stay Duration: {pricingPreview.days} days</p>
                   <p>Billing Policy: {pricingPreview.policy?.replace('_', ' ')}</p>
-                  <p className="italic">{pricingPreview.breakdown?.months > 0 && `${pricingPreview.breakdown.months} month(s)`} {pricingPreview.breakdown?.extra_days > 0 && `+ ${pricingPreview.breakdown.extra_days} day(s)`}</p>
+                  <p className="italic">{pricingPreview.breakdown?.months > 0 && `${pricingPreview.breakdown.months} month(s)`} {pricingPreview.breakdown?.remaining_days > 0 && `+ ${pricingPreview.breakdown.remaining_days} day(s)`}</p>
                 </div>
               )}
             </div>

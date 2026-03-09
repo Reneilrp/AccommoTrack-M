@@ -17,10 +17,10 @@ import {
 } from "lucide-react";
 import api, { getImageUrl } from "../../utils/api";
 import { Skeleton } from "../../components/Shared/Skeleton";
-import { authService } from "../../services/authServices";
+import { authService } from "../../services/authService";
 import RoomDetailsModal from "../../components/Modals/RoomDetailsModal";
 import bookingService from "../../services/bookingService";
-import { propertyService } from "../../services/propertyServices";
+import { propertyService } from "../../services/propertyService";
 import { useUIState } from "../../contexts/UIStateContext";
 import { mapRoom, mapProperty } from "../../utils/propertyHelpers";
 import Footer from "../../components/Shared/Footer";

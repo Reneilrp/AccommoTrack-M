@@ -8,6 +8,8 @@ use App\Events\MessageSent;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Http\Resources\ConversationResource;
+use App\Http\Resources\MessageResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -18,46 +20,30 @@ class MessageController extends Controller
 
     // Get all conversations for current user
     public function getConversations(Request $request)
-{
-    $context = $this->resolveMessageContext($request);
-    $ownerId = $context['owner_id'];
+    {
+        $context = $this->resolveMessageContext($request);
+        $ownerId = $context['owner_id'];
 
-    $conversations = Conversation::where(function ($q) use ($ownerId) {
-            $q->where('user_one_id', $ownerId)
-              ->orWhere('user_two_id', $ownerId);
-        })
-        ->with(['userOne:id,first_name,last_name,role,profile_image', 'userTwo:id,first_name,last_name,role,profile_image', 'property', 'lastMessage'])
-        ->withCount(['messages as unread_count' => function ($q) use ($ownerId) {
-            $q->where('receiver_id', $ownerId)
-              ->where('is_read', false);
-        }])
-        ->orderBy('last_message_at', 'desc')
-        ->get()
-        ->map(function ($conv) use ($ownerId) {
-            $otherUser = $conv->user_one_id === $ownerId ? $conv->userTwo : $conv->userOne;
-            return [
-                'id' => $conv->id,
-                'other_user' => $otherUser,
-                'property' => $conv->property ? [
-                    'id' => $conv->property->id,
-                    'title' => $conv->property->title,
-                    'image_url' => $conv->property->image_url,
-                ] : null,
-                'last_message' => $conv->lastMessage,
-                'unread_count' => $conv->unread_count,
-                'last_message_at' => $conv->last_message_at,
-            ];
-        })
-        ->values(); // Add this to ensure it's a proper array
-    return response()->json($conversations);
-}
+        $conversations = Conversation::where(function ($q) use ($ownerId) {
+                $q->where('user_one_id', $ownerId)
+                  ->orWhere('user_two_id', $ownerId);
+            })
+            ->with(['userOne', 'userTwo', 'property', 'lastMessage'])
+            ->withCount(['messages as unread_count' => function ($q) use ($ownerId) {
+                $q->where('receiver_id', $ownerId)
+                  ->where('is_read', false);
+            }])
+            ->orderBy('last_message_at', 'desc')
+            ->get();
+
+        return response()->json(ConversationResource::collection($conversations));
+    }
 
     // Get messages for a conversation
     public function getMessages(Request $request, $conversationId)
     {
         $context = $this->resolveMessageContext($request);
         $ownerId = $context['owner_id'];
-        $viewerId = $context['viewer_id'];
 
         $conversation = Conversation::where('id', $conversationId)
             ->where(function ($q) use ($ownerId) {
@@ -66,7 +52,7 @@ class MessageController extends Controller
             })
             ->firstOrFail();
 
-        // Mark messages as read for the landlord account (caretakers act on their behalf)
+        // Mark messages as read
         Message::where('conversation_id', $conversationId)
             ->where('receiver_id', $ownerId)
             ->where('is_read', false)
@@ -76,11 +62,11 @@ class MessageController extends Controller
             ]);
 
         $messages = Message::where('conversation_id', $conversationId)
-            ->with('sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name')
+            ->with(['sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name'])
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return response()->json($messages);
+        return response()->json(MessageResource::collection($messages));
     }
 
     // Send a message
@@ -88,15 +74,13 @@ class MessageController extends Controller
     {
         $user = $request->user();
         $actorUserId = Auth::id();
-        $actualSenderId = Auth::id();  // The person actually sending
-        $senderRole = $user->role;     // 'landlord', 'caretaker', or 'tenant'
+        $actualSenderId = Auth::id();
+        $senderRole = $user->role;
 
         if ($user?->isCaretaker()) {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_messages');
             $actorUserId = $context['landlord_id'];
-            // actualSenderId stays as the caretaker's ID
-            // senderRole stays as 'caretaker'
         }
 
         $request->validate([
@@ -134,7 +118,6 @@ class MessageController extends Controller
         } else {
             $recipientId = $request->recipient_id;
             
-            // Check if conversation exists
             $conversation = Conversation::where(function ($q) use ($userId, $recipientId) {
                     $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
                 })
@@ -155,7 +138,7 @@ class MessageController extends Controller
             }
         }
 
-        // Create message with actual sender info
+        // Create message
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'sender_id' => $userId,
@@ -169,17 +152,16 @@ class MessageController extends Controller
 
         $conversation->update(['last_message_at' => now()]);
 
-        $message->load('sender:id,first_name,last_name', 'actualSender:id,first_name,last_name');
+        $message->load(['sender', 'actualSender']);
 
-        // Broadcast the message gracefully
+        // Broadcast the message
         try {
             broadcast(new MessageSent($message))->toOthers();
         } catch (\Exception $e) {
             \Log::error('Broadcasting failed: ' . $e->getMessage());
-            // We continue because the message was already saved to DB
         }
 
-        return response()->json($message);
+        return response()->json(new MessageResource($message));
     }
 
     // Start or get existing conversation
@@ -221,20 +203,9 @@ class MessageController extends Controller
             ]);
         }
 
-        $conversation->load(['userOne:id,first_name,last_name,role,profile_image', 'userTwo:id,first_name,last_name,role,profile_image', 'property']);
+        $conversation->load(['userOne', 'userTwo', 'property', 'lastMessage']);
         
-        return response()->json([
-            'id' => $conversation->id,
-            'other_user' => $conversation->getOtherUser($userId),
-            'property' => $conversation->property ? [
-                'id' => $conversation->property->id,
-                'title' => $conversation->property->title,
-                'image_url' => $conversation->property->image_url,
-            ] : null,
-            'last_message' => $conversation->lastMessage,
-            'unread_count' => 0,
-            'last_message_at' => $conversation->last_message_at,
-        ]);
+        return response()->json(new ConversationResource($conversation));
     }
 
     // Get unread message count

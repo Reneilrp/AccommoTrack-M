@@ -39,6 +39,8 @@ export default function RoomDetailsModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
   const [duration, setDuration] = useState(null);
+  const [pricingBreakdown, setPricingPreview] = useState(null);
+  const [loadingPricing, setLoadingPricing] = useState(false);
   const [agreedToRules, setAgreedToRules] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
   const [autoNavTimer, setAutoNavTimer] = useState(null);
@@ -53,10 +55,40 @@ export default function RoomDetailsModal({
     setEndDate(defaultEnd.toISOString().split("T")[0]);
   }, []);
 
-  // Calculate price whenever dates change
+  // Fetch pricing whenever dates change
   useEffect(() => {
-    calculateTotal();
-  }, [startDate, endDate]);
+    const fetchPricing = async () => {
+      if (!startDate || !endDate || new Date(endDate) <= new Date(startDate)) {
+        setTotalPrice(0);
+        setDuration(null);
+        return;
+      }
+
+      setLoadingPricing(true);
+      try {
+        const res = await api.get(`/rooms/${room.id}/pricing`, {
+          params: { start: startDate, end: endDate }
+        });
+        
+        setTotalPrice(res.data.total);
+        setPricingPreview(res.data.breakdown);
+        setDuration({
+          days: res.data.days,
+          months: res.data.breakdown?.months || 0,
+          extraDays: res.data.breakdown?.remaining_days || 0
+        });
+      } catch (err) {
+        console.error('Pricing calculation failed', err);
+        // Fallback to 0 or error state
+        setTotalPrice(0);
+      } finally {
+        setLoadingPricing(false);
+      }
+    };
+
+    const timer = setTimeout(fetchPricing, 300); // Debounce
+    return () => clearTimeout(timer);
+  }, [startDate, endDate, room.id]);
 
   const getEndOfCurrentMonth = (fromDate = new Date()) => {
     const year = fromDate.getFullYear();
@@ -585,7 +617,11 @@ export default function RoomDetailsModal({
                       <div className="flex justify-between text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
                         <span>Total Estimated Cost:</span>
                         <span className="font-bold text-xl text-green-600 dark:text-green-400">
-                          ₱{totalPrice.toLocaleString()}
+                          {loadingPricing ? (
+                            <span className="animate-pulse opacity-50">Calculating...</span>
+                          ) : (
+                            `₱${totalPrice.toLocaleString()}`
+                          )}
                         </span>
                       </div>
                     </div>

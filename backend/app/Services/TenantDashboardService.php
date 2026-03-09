@@ -113,11 +113,10 @@ class TenantDashboardService
         return Booking::where('tenant_id', $tenantId)
             ->where(function ($query) {
                 $query->where('end_date', '<', now())
-                      ->orWhere('status', 'cancelled')
-                      ->orWhere('status', 'completed');
+                      ->orWhereIn('status', ['pending', 'confirmed', 'cancelled', 'completed', 'partial-completed']);
             })
-            ->with(['room', 'property', 'landlord', 'addons' => fn($q) => $q->wherePivotIn('status', ['active', 'completed']), 'payments', 'invoices', 'review'])
-            ->orderBy('end_date', 'desc')
+            ->with(['room', 'property', 'landlord', 'addons' => fn($q) => $q->wherePivotIn('status', ['active', 'completed']), 'payments', 'invoices.transactions', 'review'])
+            ->orderBy('created_at', 'desc')
             ->paginate(10);
     }
     

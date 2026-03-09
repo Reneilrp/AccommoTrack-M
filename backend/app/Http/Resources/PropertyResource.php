@@ -54,6 +54,8 @@ class PropertyResource extends JsonResource
             ),
             'minPrice' => $minPrice,
             'maxPrice' => $maxPrice,
+            'lowest_price' => $minPrice,
+            'price' => $minPrice,
             'priceRange' => $minPrice && $maxPrice
                 ? ($minPrice == $maxPrice ? '₱' . number_format($minPrice, 0) : '₱' . number_format($minPrice, 0) . ' - ₱' . number_format($maxPrice, 0))
                 : 'Price on request',

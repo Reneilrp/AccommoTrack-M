@@ -159,19 +159,25 @@ class BookingService
             throw new \Exception('Room is fully occupied and cannot accommodate more tenants');
         }
 
+        $booking->confirmed_at = now();
+
         // Assign tenant to room only if we have a tenant_id
         if ($booking->tenant_id) {
             $booking->room->assignTenant($booking->tenant_id, $booking->start_date);
 
-            // Create or update tenant profile
-            $booking->tenant->tenantProfile()->updateOrCreate(
-                ['user_id' => $booking->tenant_id],
-                [
-                    'move_in_date' => $booking->start_date,
-                    'status' => 'active',
-                    'booking_id' => $booking->id
-                ]
-            );
+            // Create or update tenant profile - check if tenant exists first to avoid 500
+            if ($booking->tenant) {
+                $booking->tenant->tenantProfile()->updateOrCreate(
+                    ['user_id' => $booking->tenant_id],
+                    [
+                        'move_in_date' => $booking->start_date,
+                        'status' => 'active',
+                        'booking_id' => $booking->id
+                    ]
+                );
+            } else {
+                Log::warning('Booking confirmed but tenant user record not found', ['tenant_id' => $booking->tenant_id, 'booking_id' => $booking->id]);
+            }
         }
 
         // Auto-generate initial invoice if it doesn't exist

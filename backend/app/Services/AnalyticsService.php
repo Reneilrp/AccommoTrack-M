@@ -192,7 +192,7 @@ class AnalyticsService
                 DB::raw($grouping),
                 DB::raw('SUM(total_amount) as revenue')
             )
-            ->groupBy('period')
+            ->groupBy(DB::raw(preg_replace('/ as period$/', '', $grouping)))
             ->orderBy('period')
             ->get()
             ->pluck('revenue', 'period')
@@ -389,7 +389,7 @@ class AnalyticsService
             )
             ->first();
 
-        $total = $stats->total ?? 0;
+        $total = (int) ($stats->total ?? 0);
         $paid = (int) ($stats->paid ?? 0);
         $unpaid = (int) ($stats->unpaid ?? 0);
         $partial = (int) ($stats->partial ?? 0);
@@ -426,16 +426,16 @@ class AnalyticsService
             )
             ->first();
 
-        $total = $stats->total ?? 0;
+        $total = (int) ($stats->total ?? 0);
 
         return [
             'total' => $total,
-            'pending' => $stats->pending ?? 0,
-            'confirmed' => $stats->confirmed ?? 0,
-            'completed' => $stats->completed ?? 0,
-            'cancelled' => $stats->cancelled ?? 0,
+            'pending' => (int) ($stats->pending ?? 0),
+            'confirmed' => (int) ($stats->confirmed ?? 0),
+            'completed' => (int) ($stats->completed ?? 0),
+            'cancelled' => (int) ($stats->cancelled ?? 0),
             'conversion_rate' => $total > 0
-                ? round((($stats->confirmed ?? 0) + ($stats->completed ?? 0)) / $total * 100, 1)
+                ? round(((($stats->confirmed ?? 0) + ($stats->completed ?? 0)) / $total) * 100, 1)
                 : 0,
         ];
     }

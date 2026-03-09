@@ -17,7 +17,7 @@ import * as Sharing from 'expo-sharing';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Landlord/Analytics.js';
-import analyticsService from '../../../../services/analyticsService.js';
+import analyticsService from '../../../../services/AnalyticsService.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

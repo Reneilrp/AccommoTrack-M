@@ -88,14 +88,14 @@ const TenantDashboard = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-300 dark:border-gray-700">
               <div className="relative h-48">
                 <img 
-                  src={getImageUrl(stayData.property?.images?.[0]) || getImageUrl(stayData.property?.image_url) || 'https://via.placeholder.com/800x400'} 
+                  src={stayData.property?.image || getImageUrl(stayData.property?.image_url) || 'https://via.placeholder.com/800x400'} 
                   alt="Property" 
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
                   <div className="p-6 text-white w-full">
                     <h2 className="text-2xl font-bold tracking-tight">{stayData.property?.title}</h2>
-                    <p className="text-sm text-white/90 font-medium">{stayData.property?.address}</p>
+                    <p className="text-sm text-white/90 font-medium">{stayData.property?.address || stayData.property?.full_address}</p>
                   </div>
                 </div>
               </div>
@@ -105,27 +105,27 @@ const TenantDashboard = () => {
                   <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-xl border border-green-200 dark:border-green-800 shadow-md">
                     <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Current Room</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {stayData.room?.room_number}
+                      {stayData.room?.roomNumber || stayData.room?.room_number}
                     </p>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 capitalize">{stayData.room?.type}</p>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 capitalize">{stayData.room?.roomType || stayData.room?.type}</p>
                   </div>
 
                   <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-md">
                     <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Days Stayed</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {calculateDaysStayed(stayData.booking?.start_date)}
+                      {calculateDaysStayed(stayData.booking?.startDate || stayData.booking?.start_date)}
                     </p>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">
-                      Since {new Date(stayData.booking?.start_date).toLocaleDateString()}
+                      Since {new Date(stayData.booking?.startDate || stayData.booking?.start_date).toLocaleDateString()}
                     </p>
                   </div>
 
                   <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-xl border border-purple-200 dark:border-purple-800 shadow-md">
                     <p className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Monthly Rent</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {formatCurrency(stayData.booking?.monthly_rent)}
+                      {formatCurrency(stayData.booking?.monthlyRent || stayData.booking?.monthly_rent)}
                     </p>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Due on {stayData.booking?.due_day}th of month</p>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Due Monthly</p>
                   </div>
                 </div>
 

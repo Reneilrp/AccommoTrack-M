@@ -172,4 +172,41 @@ class RoomController extends Controller
             return response()->json(['message' => 'Room not found'], 404);
         }
     }
+
+    /**
+     * Get payment options for a specific room (based on property settings)
+     */
+    public function getPaymentOptions(Request $request, $id)
+    {
+        try {
+            $room = Room::with('property.landlord')->findOrFail($id);
+            $property = $room->property;
+            $landlord = $property->landlord;
+
+            // Default methods
+            $methods = ['cash'];
+            
+            // Check if property has specific accepted payments
+            if (!empty($property->accepted_payments)) {
+                $methods = $property->accepted_payments;
+            }
+
+            // PayMongo readiness check
+            $isPaymongoReady = false;
+            if ($landlord && $landlord->paymongo_child_id && $landlord->paymongo_verification_status === 'verified') {
+                $isPaymongoReady = true;
+            }
+
+            return response()->json([
+                'methods' => $methods,
+                'is_paymongo_ready' => $isPaymongoReady,
+                'property_id' => $property->id,
+                'landlord_id' => $landlord->id
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Room not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch payment options', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

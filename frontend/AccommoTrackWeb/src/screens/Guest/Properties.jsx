@@ -3,7 +3,7 @@ import PropertyCarousel from '../Tenant/PropertyCarousel';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield, ArrowRight } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
-import { propertyService } from '../../services/propertyServices';
+import { propertyService } from '../../services/propertyService';
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 

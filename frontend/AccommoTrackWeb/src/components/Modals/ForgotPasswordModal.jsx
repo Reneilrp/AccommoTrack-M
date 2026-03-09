@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Mail, Key, Lock, ArrowRight, CheckCircle, Loader2, ChevronLeft } from 'lucide-react';
-import { authService } from '../../services/authServices';
+import { authService } from '../../services/authService';
 import toast from 'react-hot-toast';
 
 export default function ForgotPasswordModal({ isOpen, onClose }) {

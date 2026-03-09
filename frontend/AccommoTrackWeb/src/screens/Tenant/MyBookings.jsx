@@ -599,89 +599,136 @@ const FinancialsTab = ({ data }) => {
 const HistoryTab = ({ data, onLoadMore, onReview, onReport }) => {
   const { bookings, pagination } = data;
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   if (!bookings || bookings.length === 0) {
     return (
       <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <Clock className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200">No History Yet</h3>
-        <p className="text-gray-500 dark:text-gray-400">Your past bookings will appear here.</p>
+        <p className="text-gray-500 dark:text-gray-400">Your past and pending bookings will appear here.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {bookings.map((booking) => (
-        <div key={booking.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-600">
-                {getImageUrl(booking.property.image) ? (
-                  <img
-                    src={getImageUrl(booking.property.image)}
-                    alt={booking.property.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <ImagePlaceholder className="w-full h-full" />
-                )}
+        <div key={booking.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+          <div className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-600">
+                  {getImageUrl(booking.property.image) ? (
+                    <img
+                      src={getImageUrl(booking.property.image)}
+                      alt={booking.property.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImagePlaceholder className="w-full h-full" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property.title}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Room {booking.room.roomNumber}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{booking.period.startDate} - {booking.period.endDate}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property.title}</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Room {booking.room.roomNumber}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">{booking.period.startDate} - {booking.period.endDate}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Paid</p>
-                <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{booking.financials.totalPaid.toLocaleString()}</p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={booking.status} />
-                <div className="flex items-center gap-3">
-                  {booking.status === 'completed' && !booking.has_review && (
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Paid</p>
+                  <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{booking.financials.totalPaid.toLocaleString()}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <StatusBadge status={booking.status} />
+                  <div className="flex items-center gap-3">
+                    {booking.status === 'completed' && !booking.review && (
+                      <button 
+                        onClick={() => onReview(booking)}
+                        className="flex items-center gap-1 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"
+                      >
+                        <Star className="w-3 h-3 fill-current" />
+                        Review
+                      </button>
+                    )}
+                    {booking.review && (
+                      <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic flex items-center gap-1">
+                        <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                        {booking.review.rating}/5 Reviewed
+                      </span>
+                    )}
                     <button 
-                      onClick={() => onReview(booking)}
-                      className="flex items-center gap-1 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"
+                      onClick={() => onReport(booking.property)}
+                      className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
                     >
-                      <Star className="w-3 h-3 fill-current" />
-                      Review
+                      <ShieldAlert className="w-3 h-3" />
+                      Report
                     </button>
-                  )}
-                  {booking.has_review && (
-                    <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic">Reviewed</span>
-                  )}
-                  <button 
-                    onClick={() => onReport(booking.property)}
-                    className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
-                  >
-                    <ShieldAlert className="w-3 h-3" />
-                    Report
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          {Array.isArray(booking.addons) && booking.addons.length > 0 && (
+
+            {/* Activity Timeline */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Add-ons used:</p>
-              <div className="flex flex-wrap gap-2">
-                {booking.addons.map((addon, idx) => (
-                  <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded border border-gray-200 dark:border-gray-600">
-                    {addon.name} ({addon.price_type === 'monthly' ? '₱' + parseFloat(addon.price || 0).toLocaleString() + '/mo' : '₱' + parseFloat(addon.price || 0).toLocaleString()})
-                  </span>
-                ))}
+              <h5 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">Activity Timeline</h5>
+              <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 dark:before:bg-gray-700">
+                {Array.isArray(booking.activityLog) && booking.activityLog.length > 0 ? (
+                  booking.activityLog.map((activity, idx) => (
+                    <div key={idx} className="relative">
+                      {/* Timeline dot */}
+                      <div className={`absolute -left-[22px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
+                        activity.status === 'pending' ? 'bg-amber-400' :
+                        activity.status === 'confirmed' ? 'bg-green-500' :
+                        activity.status === 'paid' ? 'bg-blue-500' :
+                        activity.status === 'cancelled' ? 'bg-red-500' : 'bg-gray-400'
+                      }`} />
+                      
+                      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{activity.action}</p>
+                        <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase">
+                          {formatDateTime(activity.timestamp)}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{activity.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-400 italic">No activity details available.</p>
+                )}
               </div>
             </div>
-          )}
+
+            {Array.isArray(booking.addons) && booking.addons.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Add-ons utilized:</p>
+                <div className="flex flex-wrap gap-2">
+                  {booking.addons.map((addon, idx) => (
+                    <span key={idx} className="text-[10px] font-bold bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 px-2 py-1 rounded border border-gray-200 dark:border-gray-600 uppercase">
+                      {addon.name} ({addon.priceType === 'monthly' ? '₱' + addon.price.toLocaleString() + '/mo' : '₱' + addon.price.toLocaleString()})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       ))}
 
       {pagination && pagination.currentPage < pagination.lastPage && (
         <button
           onClick={onLoadMore}
-          className="w-full py-3 text-green-600 dark:text-green-400 font-medium hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+          className="w-full py-3 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 rounded-xl transition-all border border-green-100 dark:border-green-900/30"
         >
           Load More
         </button>
