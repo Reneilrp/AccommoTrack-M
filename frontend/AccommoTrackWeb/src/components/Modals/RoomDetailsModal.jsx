@@ -27,6 +27,8 @@ export default function RoomDetailsModal({
   onBookingSuccess,
   bookingService,
 }) {
+  if (!room) return null;
+
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [startDate, setStartDate] = useState(

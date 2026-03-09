@@ -4,10 +4,10 @@
     "slug": "AccommoTrack",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Logo.png",
+    "icon": "./assets/Logo-Square.png",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/Logo.png",
+      "image": "./assets/Logo-Square.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -17,11 +17,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Logo.png",
+        "foregroundImage": "./assets/Logo-Square.png",
         "backgroundColor": "#ffffff"
       },
       "splash": {
-        "image": "./assets/Logo.png",
+        "image": "./assets/Logo-Square.png",
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },
@@ -30,7 +30,7 @@
       "package": "com.techweave.AccommoTrack"
     },
     "web": {
-      "favicon": "./assets/Logo.png"
+      "favicon": "./assets/Logo-Square.png"
     },
     "extra": {
       "eas": {

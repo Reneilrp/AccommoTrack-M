@@ -233,10 +233,15 @@ export default function PropertyDetailsScreen({ route }) {
   // Parse property rules (could be JSON string or array)
   const getPropertyRules = () => {
     const src = detailedAccommodation || accommodation;
-    if (!src || !src.propertyRules) return [];
-    if (Array.isArray(src.propertyRules)) return src.propertyRules;
+    if (!src) return [];
+    
+    // Check both potential field names
+    const rulesSource = src.property_rules || src.propertyRules;
+    if (!rulesSource) return [];
+    
+    if (Array.isArray(rulesSource)) return rulesSource;
     try {
-      const parsed = JSON.parse(src.propertyRules);
+      const parsed = JSON.parse(rulesSource);
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
@@ -246,16 +251,16 @@ export default function PropertyDetailsScreen({ route }) {
   // Build full address
   const getFullAddress = () => {
     const src = detailedAccommodation || accommodation;
+    if (!src) return "Address not available";
     const parts = [];
-    if (!src) return 'Address not available';
     if (src.street_address) parts.push(src.street_address);
     if (src.barangay) parts.push(src.barangay);
     if (src.city) parts.push(src.city);
     if (src.province) parts.push(src.province);
     if (src.postal_code) parts.push(src.postal_code);
 
-    if (parts.length > 0) return parts.join(', ');
-    return src.address || src.location || 'Address not available';
+    if (parts.length > 0) return parts.join(", ");
+    return src.address || src.location || src.full_address || "Address not available";
   };
 
   // Open maps app
