@@ -1024,17 +1024,23 @@ const ExploreProperties = () => {
 
                                 <div>
                                   <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
-                                    House Rules
+                                    Room Rules
                                   </h4>
                                   <ul className="space-y-2 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
-                                    {/* Use property_rules from backend */}
                                     {(() => {
-                                      const rules =
-                                        drawerData.property_rules ||
-                                        drawerData.rules ||
-                                        [];
-                                      if (rules.length > 0) {
-                                        return rules.map((rule, idx) => (
+                                      // Collect unique rules from all rooms
+                                      const allRules = new Set();
+                                      (drawerData.rooms || []).forEach(
+                                        (room) => {
+                                          (room.rules || []).forEach((r) =>
+                                            allRules.add(r),
+                                          );
+                                        },
+                                      );
+                                      const rulesList = Array.from(allRules);
+
+                                      if (rulesList.length > 0) {
+                                        return rulesList.map((rule, idx) => (
                                           <li
                                             key={idx}
                                             className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 py-1 border-b border-gray-50 dark:border-gray-700 last:border-0"
@@ -1046,7 +1052,7 @@ const ExploreProperties = () => {
                                       }
                                       return (
                                         <li className="text-xs text-gray-400 dark:text-gray-500">
-                                          No house rules specified
+                                          No room rules specified
                                         </li>
                                       );
                                     })()}

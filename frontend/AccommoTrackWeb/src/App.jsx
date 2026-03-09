@@ -52,7 +52,6 @@ function App() {
       setUser(null);
       localStorage.removeItem("userData");
       localStorage.removeItem("authToken");
-      sessionStorage.removeItem("authToken");
       delete api.defaults.headers.common["Authorization"];
       navigate("/login", { replace: true });
     };
@@ -69,7 +68,6 @@ function App() {
       localStorage.removeItem("userData");
       localStorage.removeItem("lastLoginAt");
       localStorage.removeItem("authToken");
-      sessionStorage.removeItem("authToken");
       delete api.defaults.headers.common["Authorization"];
       toast.error("Your account has been blocked. Please contact support.", {
         duration: 6000,
@@ -85,7 +83,6 @@ function App() {
     localStorage.removeItem("userData");
     localStorage.removeItem("lastLoginAt");
     localStorage.removeItem("authToken");
-    sessionStorage.removeItem("authToken");
     delete api.defaults.headers.common["Authorization"];
   };
 

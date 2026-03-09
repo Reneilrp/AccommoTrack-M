@@ -13,6 +13,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  X,
   Plus,
   Phone,
   Mail,
@@ -199,7 +200,7 @@ const MyBookings = () => {
       {/* Addon Request Modal */}
       {showAddonModal && currentStay?.hasActiveStay && (
         <AddonModal
-          availableAddons={currentStay.addons.available}
+          availableAddons={currentStay?.addons?.available || []}
           onClose={() => setShowAddonModal(false)}
           onRequest={handleRequestAddon}
           requestingId={requestingAddon}
@@ -282,7 +283,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
     );
   }
 
-  const { booking, room, property, landlord, addons } = data;
+  const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -488,7 +489,7 @@ const FinancialsTab = ({ data }) => {
   const { financials } = data;
   
   // Flatten all transactions from all invoices into a single sorted list
-  const invoices = Array.isArray(financials.invoices) ? financials.invoices : [];
+  const invoices = Array.isArray(financials?.invoices) ? financials.invoices : [];
   const allTransactions = invoices
     .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ ...tx, invoiceRef: inv.id })))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -499,15 +500,15 @@ const FinancialsTab = ({ data }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Rent</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{financials.monthlyRent.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{financials?.monthlyRent?.toLocaleString() || 0}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Add-ons</p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{financials.monthlyAddons.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{financials?.monthlyAddons?.toLocaleString() || 0}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Due/mo</p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{financials.monthlyTotal.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{financials?.monthlyTotal?.toLocaleString() || 0}</p>
         </div>
       </div>
 
@@ -595,7 +596,7 @@ const FinancialsTab = ({ data }) => {
 };
 
 // ==================== History Tab ====================
-const HistoryTab = ({ data, onLoadMore, onReview }) => {
+const HistoryTab = ({ data, onLoadMore, onReview, onReport }) => {
   const { bookings, pagination } = data;
 
   if (!bookings || bookings.length === 0) {

@@ -1,4 +1,4 @@
-import api, { isSameOrigin } from "../utils/api";
+import api from "../utils/api";
 
 export const authService = {
   async register(name, email, password, password_confirmation) {
@@ -11,8 +11,8 @@ export const authService = {
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }
-    if (response.data.token && !isSameOrigin()) {
-      sessionStorage.setItem("authToken", response.data.token);
+    if (response.data.token) {
+      localStorage.setItem("authToken", response.data.token);
       api.defaults.headers.common["Authorization"] =
         `Bearer ${response.data.token}`;
     }
@@ -27,8 +27,8 @@ export const authService = {
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }
-    if (response.data.token && !isSameOrigin()) {
-      sessionStorage.setItem("authToken", response.data.token);
+    if (response.data.token) {
+      localStorage.setItem("authToken", response.data.token);
       api.defaults.headers.common["Authorization"] =
         `Bearer ${response.data.token}`;
     }
@@ -40,7 +40,7 @@ export const authService = {
       await api.post("/logout");
     } finally {
       localStorage.removeItem("userData");
-      sessionStorage.removeItem("authToken");
+      localStorage.removeItem("authToken");
       delete api.defaults.headers.common["Authorization"];
     }
   },

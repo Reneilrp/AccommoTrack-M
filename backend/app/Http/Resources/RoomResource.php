@@ -21,12 +21,13 @@ class RoomResource extends JsonResource
             'floor' => $this->floor,
             'room_type' => $this->room_type,
             'type_label' => $this->getRoomTypeLabel($this->room_type),
-            'monthly_rate' => (float) $this->monthly_rate,
-            'daily_rate' => isset($this->daily_rate) ? (float) $this->daily_rate : null,
+            'monthly_rate' => (string) $this->monthly_rate,
+            'daily_rate' => isset($this->daily_rate) ? (string) $this->daily_rate : null,
             'billing_policy' => $this->billing_policy ?? 'monthly',
             'capacity' => $this->capacity,
             'status' => $this->status,
             'description' => $this->description,
+            'rules' => $this->rules ?? [],
             'amenities' => $this->whenLoaded('amenities', fn() => $this->amenities->pluck('name')->toArray(), []),
             'images' => $this->whenLoaded('images', fn() => $this->images->pluck('image_url')->map(function ($url) {
                 return str_starts_with($url, 'http') ? $url : asset('storage/' . ltrim($url, '/'));

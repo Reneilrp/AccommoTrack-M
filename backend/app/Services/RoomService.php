@@ -42,6 +42,7 @@ class RoomService
                 'pricing_model' => $pricingModel,
                 'status' => $validatedData['status'] ?? 'available',
                 'description' => $validatedData['description'] ?? null,
+                'rules' => $validatedData['rules'] ?? [],
             ]);
 
             $this->syncAmenities($room, $validatedData['amenities'] ?? []);

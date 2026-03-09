@@ -76,7 +76,7 @@ export default function AddRoomModal({
     );
   }, [propertyAmenities]);
 
-  // Load property-level rules when modal opens
+  // Load property-level rules and amenities when modal opens
   useEffect(() => {
     if (!isOpen || !propertyId) return;
     let mounted = true;
@@ -85,7 +85,11 @@ export default function AddRoomModal({
         const res = await api.get(`/properties/${propertyId}`);
         const p = res.data || {};
         const rules = p.rules || p.property_rules || p.rules_list || [];
-        if (mounted) setPropertyRules(Array.isArray(rules) ? rules : []);
+        const amenities = p.amenities_list || p.amenities || [];
+        if (mounted) {
+          setPropertyRules(Array.isArray(rules) ? rules : []);
+          setLocalAmenities(Array.isArray(amenities) ? amenities : []);
+        }
       } catch (err) {
         // ignore
       }

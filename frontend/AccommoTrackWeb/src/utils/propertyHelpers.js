@@ -26,9 +26,9 @@ export const mapRoom = (room) => {
     image: getImageUrl(room.images && room.images.length > 0 ? room.images[0] : null) || 'https://via.placeholder.com/400x200?text=No+Image',
     images: (room.images || []).map(img => getImageUrl(img)),
     // keep `price` for older consumers, but expose canonical fields expected by modal
-    price: room.monthly_rate || room.price || 0,
-    monthly_rate: room.monthly_rate ?? room.monthlyRate ?? room.price ?? 0,
-    daily_rate: room.daily_rate ?? room.dailyRate ?? Math.round((room.monthly_rate || room.price || 0) / 30),
+    price: Number(room.monthly_rate || room.price || 0),
+    monthly_rate: Number(room.monthly_rate ?? room.monthlyRate ?? room.price ?? 0),
+    daily_rate: Number(room.daily_rate ?? room.dailyRate ?? Math.round((room.monthly_rate || room.price || 0) / 30)),
     billing_policy: room.billing_policy || room.billingPolicy || 'monthly',
     status,
     reserved_by_me: room.reserved_by_me || false,

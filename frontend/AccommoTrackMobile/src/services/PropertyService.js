@@ -167,7 +167,12 @@ const PropertyService = {
         ? property.amenities_list.map((a) => a.name || a)
         : this.extractPropertyAmenities(property.rooms),
       propertyRules: propertyRules,
-      rooms: property.rooms || [],
+      rooms: (property.rooms || []).map(room => ({
+        ...room,
+        rules: room.rules || [], // Map rules from backend
+        monthly_rate: room.monthly_rate, // keep as string/original for precision
+        daily_rate: room.daily_rate,
+      })),
       latitude: property.latitude ? parseFloat(property.latitude) : null,
       longitude: property.longitude ? parseFloat(property.longitude) : null,
       nearby_landmarks: property.nearby_landmarks,

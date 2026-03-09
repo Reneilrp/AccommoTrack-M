@@ -526,7 +526,11 @@ export default function RoomManagement() {
         onRoomAdded={handleRoomAdded}
         onAmenityAdded={handleAmenityAdded}
         propertyType={properties.find(p => p.id === selectedPropertyId)?.property_type}
-        propertyAmenities={properties.find(p => p.id === selectedPropertyId)?.amenities || properties.find(p => p.id === selectedPropertyId)?.property_rules?.amenities || []}
+        propertyAmenities={
+          properties.find((p) => p.id === selectedPropertyId)?.amenities_list ||
+          properties.find((p) => p.id === selectedPropertyId)?.amenities ||
+          []
+        }
       />
 
       {/* Edit Room Modal */}

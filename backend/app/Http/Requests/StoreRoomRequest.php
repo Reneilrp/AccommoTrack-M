@@ -43,6 +43,8 @@ class StoreRoomRequest extends FormRequest
             'pricing_model' => 'sometimes|in:full_room,per_bed',
             'status' => 'sometimes|in:available,occupied,maintenance',
             'description' => 'nullable|string',
+            'rules' => 'nullable|array',
+            'rules.*' => 'string',
             'amenities' => 'nullable|array',
             'amenities.*' => 'string',
             'images' => 'nullable|array|max:10',

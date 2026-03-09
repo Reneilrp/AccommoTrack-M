@@ -774,24 +774,39 @@ export default function PropertyDetailsScreen({ route }) {
             </View>
           )}
 
-          {/* Property Rules */}
-          {getPropertyRules().length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Property Rules</Text>
-              {getPropertyRules().map((rule, index) => (
-                <View key={index} style={styles.ruleItem}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={16}
-                    color={theme.colors.primary}
-                  />
-                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>
-                    {rule}
-                  </Text>
+          {/* Room Rules */}
+          {(() => {
+            const allRoomRules = new Set();
+            rooms.forEach((r) => {
+              if (Array.isArray(r.rules)) {
+                r.rules.forEach((rule) => allRoomRules.add(rule));
+              }
+            });
+            const rulesArray = Array.from(allRoomRules);
+
+            if (rulesArray.length > 0) {
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Room Rules</Text>
+                  {rulesArray.map((rule, index) => (
+                    <View key={index} style={styles.ruleItem}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        style={[styles.ruleText, { color: theme.colors.text }]}
+                      >
+                        {rule}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-          )}
+              );
+            }
+            return null;
+          })()}
 
           {/* Contact Landlord Button */}
           <TouchableOpacity

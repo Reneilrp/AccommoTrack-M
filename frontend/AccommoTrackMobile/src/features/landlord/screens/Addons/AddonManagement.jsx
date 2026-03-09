@@ -189,10 +189,10 @@ export default function AddonManagement({ route, navigation }) {
       name: addon.name,
       description: addon.description || '',
       price: addon.price.toString(),
-      price_type: addon.priceType,
-      addon_type: addon.addonType,
+      price_type: addon.price_type,
+      addon_type: addon.addon_type,
       stock: addon.stock?.toString() || '',
-      is_active: addon.isActive
+      is_active: addon.is_active
     });
     setShowModal(true);
   };
@@ -211,11 +211,11 @@ export default function AddonManagement({ route, navigation }) {
     return (
       <View>
         {addons.map((addon) => (
-          <View key={addon.id} style={[styles.addonCard, !addon.isActive && styles.inactiveAddonCard]}>
+          <View key={addon.id} style={[styles.addonCard, !addon.is_active && styles.inactiveAddonCard]}>
             <View style={styles.addonHeader}>
               <View style={styles.addonNameContainer}>
                 <Text style={styles.addonName}>{addon.name}</Text>
-                {!addon.isActive && (
+                {!addon.is_active && (
                   <View style={styles.inactiveBadge}>
                     <Text style={styles.inactiveBadgeText}>Inactive</Text>
                   </View>
@@ -238,14 +238,14 @@ export default function AddonManagement({ route, navigation }) {
             </View>
 
             <View style={styles.badgeRow}>
-              <View style={[styles.typeBadge, addon.priceType === 'monthly' ? styles.monthlyBadge : styles.oneTimeBadge]}>
-                <Text style={addon.priceType === 'monthly' ? styles.monthlyBadgeText : styles.oneTimeBadgeText}>
-                  {addon.priceTypeLabel}
+              <View style={[styles.typeBadge, addon.price_type === 'monthly' ? styles.monthlyBadge : styles.oneTimeBadge]}>
+                <Text style={addon.price_type === 'monthly' ? styles.monthlyBadgeText : styles.oneTimeBadgeText}>
+                  {addon.price_type_label}
                 </Text>
               </View>
-              <View style={[styles.typeBadge, addon.addonType === 'rental' ? styles.rentalBadge : styles.feeBadge]}>
-                <Text style={addon.addonType === 'rental' ? styles.rentalBadgeText : styles.feeBadgeText}>
-                  {addon.addonTypeLabel}
+              <View style={[styles.typeBadge, addon.addon_type === 'rental' ? styles.rentalBadge : styles.feeBadge]}>
+                <Text style={addon.addon_type === 'rental' ? styles.rentalBadgeText : styles.feeBadgeText}>
+                  {addon.addon_type_label}
                 </Text>
               </View>
             </View>
@@ -254,7 +254,7 @@ export default function AddonManagement({ route, navigation }) {
             
             <Text style={styles.addonPrice}>
               ₱{parseFloat(addon.price).toLocaleString()}
-              {addon.priceType === 'monthly' && <Text style={styles.priceUnit}>/month</Text>}
+              {addon.price_type === 'monthly' && <Text style={styles.priceUnit}>/month</Text>}
             </Text>
             
             {addon.stock !== null && (

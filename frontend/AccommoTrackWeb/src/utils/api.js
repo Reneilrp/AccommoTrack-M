@@ -9,9 +9,7 @@ const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
 // Hybrid auth helper
 // ---------------------------------------------------------------------------
 // Returns true when the frontend origin matches the backend origin.
-// In production (same-origin), Sanctum's httpOnly session cookie is used.
-// In local dev (cross-origin, e.g. localhost:5173 → accommotrack.me),
-// we fall back to a Bearer token stored in sessionStorage (cleared on tab close).
+// Kept for potential future use; auth is now Bearer token via localStorage in all cases.
 export const isSameOrigin = () => {
   try {
     return (
@@ -58,7 +56,6 @@ api.interceptors.response.use(
       try {
         localStorage.removeItem("userData");
         localStorage.removeItem("authToken");
-        sessionStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:blocked"));
       } catch (e) {
@@ -68,7 +65,6 @@ api.interceptors.response.use(
       try {
         localStorage.removeItem("userData");
         localStorage.removeItem("authToken");
-        sessionStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
       } catch (e) {

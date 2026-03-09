@@ -38,6 +38,8 @@ class UpdateRoomRequest extends FormRequest
             'status' => 'sometimes|in:available,occupied,maintenance',
             'current_tenant_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
+            'rules' => 'nullable|array',
+            'rules.*' => 'string',
             'amenities' => 'nullable|array',
             'amenities.*' => 'string',
             'images' => 'nullable|array',

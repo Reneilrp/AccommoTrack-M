@@ -82,7 +82,8 @@ class Room extends Model
         'pricing_model',
         'status',
         'current_tenant_id',
-        'description'
+        'description',
+        'rules'
     ];
 
     protected $casts = [
@@ -92,7 +93,8 @@ class Room extends Model
         'daily_rate' => 'decimal:2',
         'min_stay_days' => 'integer',
         'capacity' => 'integer',
-        'current_tenant_id' => 'integer'
+        'current_tenant_id' => 'integer',
+        'rules' => 'array'
     ];
 
     /**
