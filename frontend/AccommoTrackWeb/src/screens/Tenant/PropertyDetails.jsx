@@ -389,8 +389,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
                             Flr {room.floor}
                           </span>
                         )}
-                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm capitalize">
-                          {room.billing_policy || "Monthly"} Billing
+                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
+                          {(room.billing_policy || "Monthly")
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())}{" "}
+                          Billing
                         </span>
                       </div>
                     </div>

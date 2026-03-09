@@ -309,7 +309,12 @@ export default function RoomDetailsModal({
                       )}
                       <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
                         <DollarSign className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <span>{room.billing_policy || "Monthly"} Billing</span>
+                        <span>
+                          {(room.billing_policy || "Monthly")
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())}{" "}
+                          Billing
+                        </span>
                       </div>
                     </div>
 
