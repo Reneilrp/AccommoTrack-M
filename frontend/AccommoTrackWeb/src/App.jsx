@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import api, { isSameOrigin } from "./utils/api";
+import api from "./utils/api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import WebNavigator from "./Navigation/WebNavigator.jsx";
 import LandingPage from "./screens/Guest/LandingPage.jsx";
@@ -27,13 +27,11 @@ function App() {
         localStorage.removeItem("userData");
       }
     }
-    // Cross-origin dev: restore Bearer token from sessionStorage so API requests
-    // made before the first login call are still authenticated.
-    if (!isSameOrigin()) {
-      const token = sessionStorage.getItem("authToken");
-      if (token) {
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      }
+    // Restore Bearer token from localStorage so authenticated API requests
+    // work immediately on page reload.
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
     setIsLoading(false);
   }, []);
@@ -48,11 +46,12 @@ function App() {
         10,
       );
       const now = Date.now();
-      // If login happened within the last 3s, ignore this event (race)
-      if (now - lastLogin < 3000) return;
+      // If login happened within the last 5s, ignore this event (race)
+      if (now - lastLogin < 5000) return;
 
       setUser(null);
       localStorage.removeItem("userData");
+      localStorage.removeItem("authToken");
       sessionStorage.removeItem("authToken");
       delete api.defaults.headers.common["Authorization"];
       navigate("/login", { replace: true });
@@ -69,6 +68,7 @@ function App() {
       setUser(null);
       localStorage.removeItem("userData");
       localStorage.removeItem("lastLoginAt");
+      localStorage.removeItem("authToken");
       sessionStorage.removeItem("authToken");
       delete api.defaults.headers.common["Authorization"];
       toast.error("Your account has been blocked. Please contact support.", {
@@ -84,6 +84,7 @@ function App() {
     setUser(null);
     localStorage.removeItem("userData");
     localStorage.removeItem("lastLoginAt");
+    localStorage.removeItem("authToken");
     sessionStorage.removeItem("authToken");
     delete api.defaults.headers.common["Authorization"];
   };

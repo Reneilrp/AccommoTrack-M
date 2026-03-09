@@ -34,14 +34,12 @@ const api = axios.create({
   },
 });
 
-// Request interceptor — same-origin: relies on Sanctum httpOnly session cookie.
-// Cross-origin (local dev): attaches Bearer token from sessionStorage if present.
+// Request interceptor — always attach Bearer token if available.
+// Token is stored in localStorage for persistence across page reloads.
 api.interceptors.request.use(
   (config) => {
-    if (!isSameOrigin()) {
-      const token = sessionStorage.getItem("authToken");
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-    }
+    const token = localStorage.getItem("authToken");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error),
@@ -59,6 +57,7 @@ api.interceptors.response.use(
     if (isBlocked) {
       try {
         localStorage.removeItem("userData");
+        localStorage.removeItem("authToken");
         sessionStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:blocked"));
@@ -68,10 +67,10 @@ api.interceptors.response.use(
     } else if (error.response?.status === 401) {
       try {
         localStorage.removeItem("userData");
+        localStorage.removeItem("authToken");
         sessionStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-        window.location.href = "/login";
       } catch (e) {
         // ignore
       }

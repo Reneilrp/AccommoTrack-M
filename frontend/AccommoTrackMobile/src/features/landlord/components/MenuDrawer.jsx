@@ -1,24 +1,75 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../contexts/ThemeContext.jsx';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Image,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../../contexts/ThemeContext.jsx";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getImageUrl } from "../../../utils/imageUtils.js";
 
 const menuItems = [
-  { id: 1, title: 'My Properties', icon: 'business-outline', color: '#16a34a', screen: 'MyProperties' },
-  { id: 2, title: 'Room Management', icon: 'bed-outline', color: '#8B5CF6', screen: 'RoomManagement' },
-  { id: 3, title: 'Tenants', icon: 'people-outline', color: '#2196F3', screen: 'Tenants' },
-  { id: 4, title: 'Bookings', icon: 'calendar-outline', color: '#FF9800', screen: 'Bookings' },
-  { id: 5, title: 'Analytics', icon: 'bar-chart-outline', color: '#9C27B0', screen: 'Analytics' },
+  {
+    id: 1,
+    title: "My Properties",
+    icon: "business-outline",
+    color: "#16a34a",
+    screen: "MyProperties",
+  },
+  {
+    id: 2,
+    title: "Room Management",
+    icon: "bed-outline",
+    color: "#8B5CF6",
+    screen: "RoomManagement",
+  },
+  {
+    id: 3,
+    title: "Tenants",
+    icon: "people-outline",
+    color: "#2196F3",
+    screen: "Tenants",
+  },
+  {
+    id: 4,
+    title: "Bookings",
+    icon: "calendar-outline",
+    color: "#FF9800",
+    screen: "Bookings",
+  },
+  {
+    id: 5,
+    title: "Analytics",
+    icon: "bar-chart-outline",
+    color: "#9C27B0",
+    screen: "Analytics",
+  },
 ];
 
-const logoutItem = { id: 99, title: 'Logout', icon: 'log-out-outline', color: '#EF4444', action: 'logout' };
+const logoutItem = {
+  id: 99,
+  title: "Logout",
+  icon: "log-out-outline",
+  color: "#EF4444",
+  action: "logout",
+};
 
-export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout }) {
+export default function MenuDrawer({
+  visible,
+  onClose,
+  onMenuItemPress,
+  onLogout,
+}) {
   const { theme } = useTheme();
-  const [userName, setUserName] = useState('User');
-  const [userEmail, setUserEmail] = useState('');
-  const [userRole, setUserRole] = useState('landlord');
+  const [userName, setUserName] = useState("User");
+  const [userEmail, setUserEmail] = useState("");
+  const [userRole, setUserRole] = useState("landlord");
+  const [userProfileImage, setUserProfileImage] = useState(null);
 
   useEffect(() => {
     if (visible) {
@@ -28,24 +79,26 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
 
   const loadUserData = async () => {
     try {
-      const userString = await AsyncStorage.getItem('user');
+      const userString = await AsyncStorage.getItem("user");
       if (userString) {
         const user = JSON.parse(userString);
-        const fullName = user.first_name && user.last_name
-          ? `${user.first_name} ${user.last_name}`
-          : user.first_name || user.name || 'User';
+        const fullName =
+          user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.first_name || user.name || "User";
         setUserName(fullName);
-        setUserEmail(user.email || '');
-        setUserRole(user.role || 'landlord');
+        setUserEmail(user.email || "");
+        setUserRole(user.role || "landlord");
+        setUserProfileImage(getImageUrl(user.profile_image) || null);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error("Error loading user data:", error);
     }
   };
 
   const handleItemPress = (item) => {
     onClose();
-    if (item.action === 'logout') {
+    if (item.action === "logout") {
       onLogout?.();
     } else if (item.screen) {
       onMenuItemPress?.(item.screen);
@@ -69,13 +122,40 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
           <View style={styles.menuHeader}>
             <View style={styles.menuUserInfo}>
               <View style={styles.menuAvatar}>
-                <Ionicons name="person" size={32} color={theme.colors.primary} />
+                {userProfileImage ? (
+                  <Image
+                    source={{ uri: userProfileImage }}
+                    style={{ width: "100%", height: "100%", borderRadius: 999 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={32}
+                    color={theme.colors.primary}
+                  />
+                )}
               </View>
               <View style={styles.userTextContainer}>
                 <Text style={styles.menuUserName}>{userName}</Text>
                 <Text style={styles.menuUserEmail}>{userEmail}</Text>
-                <View style={[styles.roleBadge, { backgroundColor: userRole === 'caretaker' ? '#DBEAFE' : '#DCFCE7' }]}>
-                  <Text style={[styles.roleText, { color: userRole === 'caretaker' ? '#1D4ED8' : '#166534' }]}>
+                <View
+                  style={[
+                    styles.roleBadge,
+                    {
+                      backgroundColor:
+                        userRole === "caretaker" ? "#DBEAFE" : "#DCFCE7",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.roleText,
+                      {
+                        color: userRole === "caretaker" ? "#1D4ED8" : "#166534",
+                      },
+                    ]}
+                  >
                     {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                   </Text>
                 </View>
@@ -87,17 +167,22 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
           </View>
 
           {/* Menu Items */}
-          <ScrollView style={styles.menuItems} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.menuItems}
+            showsVerticalScrollIndicator={false}
+          >
             {filteredMenuItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}
                 onPress={() => handleItemPress(item)}
               >
-                <Ionicons name={item.icon} size={24} color={item.id === 1 ? theme.colors.primary : item.color} />
-                <Text style={styles.menuItemText}>
-                  {item.title}
-                </Text>
+                <Ionicons
+                  name={item.icon}
+                  size={24}
+                  color={item.id === 1 ? theme.colors.primary : item.color}
+                />
+                <Text style={styles.menuItemText}>{item.title}</Text>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             ))}
@@ -108,7 +193,11 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
             style={styles.logoutItem}
             onPress={() => handleItemPress(logoutItem)}
           >
-            <Ionicons name={logoutItem.icon} size={24} color={logoutItem.color} />
+            <Ionicons
+              name={logoutItem.icon}
+              size={24}
+              color={logoutItem.color}
+            />
             <Text style={styles.logoutText}>{logoutItem.title}</Text>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
@@ -131,46 +220,46 @@ export default function MenuDrawer({ visible, onClose, onMenuItemPress, onLogout
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    flexDirection: "row",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   menuBackdrop: {
     flex: 1,
   },
   menuDrawer: {
-    width: '80%',
+    width: "80%",
     maxWidth: 320,
-    backgroundColor: '#FFFFFF',
-    height: '100%',
-    shadowColor: '#000',
+    backgroundColor: "#FFFFFF",
+    height: "100%",
+    shadowColor: "#000",
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
   },
   menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: "#F0FDF4",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   menuUserInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   menuAvatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
   },
   userTextContainer: {
     marginLeft: 12,
@@ -178,16 +267,16 @@ const styles = StyleSheet.create({
   },
   menuUserName: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
   },
   menuUserEmail: {
     fontSize: 13,
-    color: '#6B7280',
+    color: "#6B7280",
     marginTop: 2,
   },
   roleBadge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -195,8 +284,8 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   closeButton: {
     padding: 4,
@@ -206,45 +295,45 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: "#F3F4F6",
   },
   logoutItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FEF2F2',
+    borderTopColor: "#E5E7EB",
+    backgroundColor: "#FEF2F2",
   },
   menuItemText: {
     flex: 1,
     marginLeft: 16,
     fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
+    fontWeight: "500",
+    color: "#374151",
   },
   logoutText: {
     flex: 1,
     marginLeft: 16,
     fontSize: 16,
-    fontWeight: '500',
-    color: '#EF4444',
+    fontWeight: "500",
+    color: "#EF4444",
   },
   menuFooter: {
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    alignItems: 'center',
+    borderTopColor: "#E5E7EB",
+    alignItems: "center",
   },
   footerText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
 });

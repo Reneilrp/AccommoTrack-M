@@ -19,12 +19,7 @@ import {
   X,
 } from "lucide-react";
 import Logo from "../../assets/Logo.png";
-import api, {
-  isCancel,
-  rootApi,
-  initCsrfCookie,
-  isSameOrigin,
-} from "../../utils/api";
+import api, { isCancel, rootApi, initCsrfCookie } from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
 import toast, { Toaster } from "react-hot-toast";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -578,16 +573,13 @@ function AuthScreen({ onLogin = () => {} }) {
 
       const data = result.data;
 
-      // Same-origin: the browser stores the httpOnly laravel_session cookie automatically.
-      // Cross-origin (local dev): store Bearer token in sessionStorage (cleared on tab close).
+      // Always store Bearer token in localStorage for persistence across page reloads.
+      // The backend always issues a token; we use it regardless of origin.
       if (data && data.token) {
         try {
+          localStorage.setItem("authToken", data.token);
           localStorage.setItem("lastLoginAt", Date.now().toString());
-          if (!isSameOrigin()) {
-            sessionStorage.setItem("authToken", data.token);
-            api.defaults.headers.common["Authorization"] =
-              `Bearer ${data.token}`;
-          }
+          api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
         } catch (e) {
           // ignore
         }

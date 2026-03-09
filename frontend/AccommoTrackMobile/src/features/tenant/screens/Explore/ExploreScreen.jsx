@@ -1,27 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, FlatList, StatusBar, TouchableOpacity, Text, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
-import { getStyles } from '../../../../styles/Tenant/HomePage.js';
-import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  ScrollView,
+  FlatList,
+  StatusBar,
+  TouchableOpacity,
+  Text,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
+import { getStyles } from "../../../../styles/Tenant/HomePage.js";
+import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 
-import MenuDrawer from '../../components/MenuDrawer.jsx';
-import SearchBar from '../../components/SearchBar.jsx';
-import PropertyCard from '../../components/PropertyCard.jsx';
-import { PropertyCardSkeleton } from '../../../../components/Skeletons/index.jsx';
-import Header from '../../components/Header.jsx';
+import MenuDrawer from "../../components/MenuDrawer.jsx";
+import SearchBar from "../../components/SearchBar.jsx";
+import PropertyCard from "../../components/PropertyCard.jsx";
+import { PropertyCardSkeleton } from "../../../../components/Skeletons/index.jsx";
+import Header from "../../components/Header.jsx";
 
-import PropertyService from '../../../../services/PropertyService.js';
-import { navigate as rootNavigate } from '../../../../navigation/RootNavigation.js';
+import PropertyService from "../../../../services/PropertyService.js";
+import { navigate as rootNavigate } from "../../../../navigation/RootNavigation.js";
 
-export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequired }) {
+export default function TenantHomePage({
+  onLogout,
+  isGuest = false,
+  onAuthRequired,
+}) {
   const navigation = useNavigation();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('featured');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("featured");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('All');
-  const [activeNavTab, setActiveNavTab] = useState('Explore');
+  const [selectedFilter, setSelectedFilter] = useState("All");
+  const [activeNavTab, setActiveNavTab] = useState("Explore");
 
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -34,11 +48,11 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
   // Filter options matching your screenshot and backend types
   const filterOptions = [
-    { label: 'All', value: 'All' },
-    { label: 'Dormitory', value: 'dormitory' },
-    { label: 'Apartment', value: 'apartment' },
-    { label: 'Boarding House', value: 'boardingHouse' },
-    { label: 'Bed Spacer', value: 'bedSpacer' },
+    { label: "All", value: "All" },
+    { label: "Dormitory", value: "dormitory" },
+    { label: "Apartment", value: "apartment" },
+    { label: "Boarding House", value: "boardingHouse" },
+    { label: "Bed Spacer", value: "bedSpacer" },
   ];
 
   useEffect(() => {
@@ -55,26 +69,26 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
       setError(null);
 
       const filters = {};
-      if (selectedFilter !== 'All') {
+      if (selectedFilter !== "All") {
         filters.type = selectedFilter;
       }
 
       const result = await PropertyService.getPublicProperties(filters);
 
       if (result.success) {
-        const transformedProperties = result.data.map(property =>
-          PropertyService.transformPropertyToAccommodation(property)
+        const transformedProperties = result.data.map((property) =>
+          PropertyService.transformPropertyToAccommodation(property),
         );
 
         setProperties(transformedProperties);
       } else {
-        setError(result.error || 'Failed to load properties');
-        Alert.alert('Error', 'Failed to load properties. Please try again.');
+        setError(result.error || "Failed to load properties");
+        Alert.alert("Error", "Failed to load properties. Please try again.");
       }
     } catch (err) {
-      console.error('Error loading properties:', err);
+      console.error("Error loading properties:", err);
       setError(err.message);
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert("Error", "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -89,63 +103,75 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   const filterProperties = () => {
     let filtered = [...properties];
 
-    if (selectedFilter !== 'All') {
-      filtered = filtered.filter(prop => {
-        const propType = (prop.type || '').toLowerCase().replace(/\s+/g, '');
+    if (selectedFilter !== "All") {
+      filtered = filtered.filter((prop) => {
+        const propType = (prop.type || "").toLowerCase().replace(/\s+/g, "");
         const filterType = selectedFilter.toLowerCase();
 
         // Special case: BedSpacer filter
-        if (filterType === 'bedspacer') {
-          const hasBedSpacer = prop.has_bedspacer_room === true || 
-                               prop.has_bedspacer_room === 'true' || 
-                               prop.has_bedspacer_room === 1;
-          return hasBedSpacer || 
-                 propType === 'bedspacer' || 
-                 propType.includes('bed') || 
-                 propType.includes('spacer');
+        if (filterType === "bedspacer") {
+          const hasBedSpacer =
+            prop.has_bedspacer_room === true ||
+            prop.has_bedspacer_room === "true" ||
+            prop.has_bedspacer_room === 1;
+          return (
+            hasBedSpacer ||
+            propType === "bedspacer" ||
+            propType.includes("bed") ||
+            propType.includes("spacer")
+          );
         }
 
         const typeMap = {
-          'boardinghouse': ['boarding', 'house', 'boardinghouse'],
-          'dormitory': ['dorm', 'dormitory'],
-          'apartment': ['apartment', 'apt']
+          boardinghouse: ["boarding", "house", "boardinghouse"],
+          dormitory: ["dorm", "dormitory"],
+          apartment: ["apartment", "apt"],
         };
 
-        return propType === filterType ||
+        return (
+          propType === filterType ||
           propType.includes(filterType) ||
-          (typeMap[filterType] && typeMap[filterType].some(t => propType.includes(t)));
+          (typeMap[filterType] &&
+            typeMap[filterType].some((t) => propType.includes(t)))
+        );
       });
     }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(property => {
-        const matchesName = property.name?.toLowerCase().includes(query) ||
+      filtered = filtered.filter((property) => {
+        const matchesName =
+          property.name?.toLowerCase().includes(query) ||
           property.title?.toLowerCase().includes(query);
-        const matchesLocation = property.location?.toLowerCase().includes(query) ||
+        const matchesLocation =
+          property.location?.toLowerCase().includes(query) ||
           property.address?.toLowerCase().includes(query) ||
           property.city?.toLowerCase().includes(query) ||
           property.barangay?.toLowerCase().includes(query);
-        const matchesAmenities = property.amenities?.some(amenity =>
-          amenity.toLowerCase().includes(query)
+        const matchesAmenities = property.amenities?.some((amenity) =>
+          amenity.toLowerCase().includes(query),
         );
         const matchesType = property.type?.toLowerCase().includes(query);
 
-        return matchesName || matchesLocation || matchesAmenities || matchesType;
+        return (
+          matchesName || matchesLocation || matchesAmenities || matchesType
+        );
       });
     }
 
     switch (activeTab) {
-      case 'rating':
+      case "rating":
         filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
-      case 'amenities':
-        filtered.sort((a, b) => (b.amenities?.length || 0) - (a.amenities?.length || 0));
+      case "amenities":
+        filtered.sort(
+          (a, b) => (b.amenities?.length || 0) - (a.amenities?.length || 0),
+        );
         break;
-      case 'price':
+      case "price":
         filtered.sort((a, b) => (a.minPrice || 0) - (b.minPrice || 0));
         break;
-      case 'featured':
+      case "featured":
       default:
         break;
     }
@@ -159,8 +185,8 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   };
 
   const handleClearFilter = () => {
-    setSelectedFilter('All');
-    setSearchQuery('');
+    setSelectedFilter("All");
+    setSearchQuery("");
     loadProperties();
   };
 
@@ -173,14 +199,14 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
 
     if (isGuest) {
       const protectedItems = [
-        'Dashboard', 
-        'My Bookings', 
-        'Payments', 
-        'Notifications',
-        'My Maintenance Requests',
-        'My Addon Requests'
+        "Dashboard",
+        "My Bookings",
+        "Payments",
+        "Notifications",
+        "My Maintenance Requests",
+        "My Addon Requests",
       ];
-      
+
       if (protectedItems.includes(itemTitle)) {
         if (onAuthRequired) {
           onAuthRequired();
@@ -190,90 +216,89 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
     }
 
     switch (itemTitle) {
-      case 'Dashboard':
-        rootNavigate('Dashboard');
+      case "Dashboard":
+        rootNavigate("Dashboard");
         break;
-      case 'Notifications':
-        rootNavigate('Notifications');
+      case "Notifications":
+        rootNavigate("Notifications");
         break;
-      case 'My Bookings':
-        rootNavigate('MyBookings');
+      case "My Bookings":
+        rootNavigate("MyBookings");
         break;
-      case 'Payments':
-        rootNavigate('Payments');
+      case "Payments":
+        rootNavigate("Payments");
         break;
-      case 'Settings':
-        rootNavigate('Settings');
+      case "Settings":
+        rootNavigate("Settings");
         break;
-      case 'Help & Support':
-        rootNavigate('HelpSupport');
+      case "Help & Support":
+        rootNavigate("HelpSupport");
         break;
-      case 'My Maintenance Requests':
-        rootNavigate('MyMaintenanceRequests');
+      case "My Maintenance Requests":
+        rootNavigate("MyMaintenanceRequests");
         break;
-      case 'My Addon Requests':
-        rootNavigate('Addons');
+      case "My Addon Requests":
+        rootNavigate("Addons");
         break;
-      case 'Logout':
+      case "Logout":
         if (isGuest) {
           if (onAuthRequired) {
             onAuthRequired();
           }
         } else {
-          Alert.alert(
-            'Logout',
-            'Are you sure you want to log out?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Logout',
-                style: 'destructive',
-                onPress: async () => {
-                  try {
-                    await AsyncStorage.removeItem('token');
-                    await AsyncStorage.removeItem('user');
-                    if (onLogout) {
-                      onLogout();
-                    }
-                  } catch (error) {
-                    console.error('Logout error:', error);
+          Alert.alert("Logout", "Are you sure you want to log out?", [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Logout",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await AsyncStorage.removeItem("token");
+                  await AsyncStorage.removeItem("user");
+                  if (onLogout) {
+                    onLogout();
                   }
+                } catch (error) {
+                  console.error("Logout error:", error);
                 }
-              }
-            ]
-          );
+              },
+            },
+          ]);
         }
         break;
       default:
-        console.log('Menu item pressed:', itemTitle);
+        console.log("Menu item pressed:", itemTitle);
     }
   };
 
   const handleAccommodationPress = (accommodation) => {
-    navigation.navigate('AccommodationDetails', { accommodation, hideLayout: true });
+    navigation.navigate("AccommodationDetails", {
+      accommodation,
+      hideLayout: true,
+    });
   };
 
   const handleLikePress = async (id) => {
     if (isGuest) {
       Alert.alert(
-        'Sign In Required',
-        'You need to sign in to save favorites.',
+        "Sign In Required",
+        "You need to sign in to save favorites.",
         [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Sign In', 
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Sign In",
             onPress: () => {
               if (onAuthRequired) {
                 onAuthRequired();
               }
-            }
-          }
-        ]
+            },
+          },
+        ],
       );
       return;
     }
-    
-    console.log('Like pressed for:', id);
+
+    console.log("Like pressed for:", id);
   };
 
   const handleProfilePress = () => {
@@ -282,13 +307,15 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
         onAuthRequired();
       }
     } else {
-      navigation.navigate('Profile');
+      navigation.navigate("Profile");
     }
   };
 
   if (loading && properties.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
         <StatusBar barStyle="light-content" />
         <SearchBar
           searchQuery={searchQuery}
@@ -297,7 +324,7 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
           selectedFilter={selectedFilter}
           onClearFilter={handleClearFilter}
           properties={properties}
-          userRole={isGuest ? 'guest' : 'authenticated'}
+          userRole={isGuest ? "guest" : "authenticated"}
           onSelectProperty={() => {}}
         />
 
@@ -312,14 +339,17 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
               key={filter.value}
               style={[
                 styles.filterButton,
-                selectedFilter === filter.value && { backgroundColor: theme.colors.primary },
+                selectedFilter === filter.value && {
+                  backgroundColor: theme.colors.primary,
+                },
               ]}
               onPress={() => handleFilterSelect(filter.value)}
             >
               <Text
                 style={[
                   styles.filterButtonText,
-                  selectedFilter === filter.value && styles.filterButtonTextActive,
+                  selectedFilter === filter.value &&
+                    styles.filterButtonTextActive,
                 ]}
               >
                 {filter.label}
@@ -345,89 +375,81 @@ export default function TenantHomePage({ onLogout, isGuest = false, onAuthRequir
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <SearchBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSearchPress={handleSearch}
-          properties={properties}
-          userRole={isGuest ? 'guest' : 'authenticated'}
-          onSelectProperty={handleAccommodationPress}
-        />
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <SearchBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSearchPress={handleSearch}
+        properties={properties}
+        userRole={isGuest ? "guest" : "authenticated"}
+        onSelectProperty={handleAccommodationPress}
+      />
 
-        {isGuest && (
-          <TouchableOpacity
-            style={styles.guestBanner}
-            onPress={() => onAuthRequired && onAuthRequired()}
-          >
-            <View style={styles.guestBannerContent}>
-              <Text style={styles.guestBannerText}>
-                👋 Browse properties as a guest or{' '}
-                <Text style={styles.guestBannerLink}>Sign In</Text>
-                {' '}to book
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={loadProperties} style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
+      {isGuest && (
+        <TouchableOpacity
+          style={styles.guestBanner}
+          onPress={() => onAuthRequired && onAuthRequired()}
+        >
+          <View style={styles.guestBannerContent}>
+            <Text style={styles.guestBannerText}>
+              👋 Browse properties as a guest or{" "}
+              <Text style={styles.guestBannerLink}>Sign In</Text> to book
+            </Text>
           </View>
-        )}
+        </TouchableOpacity>
+      )}
 
-        <FlatList
-          data={filteredProperties}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <PropertyCard
-              accommodation={item}
-              onPress={handleAccommodationPress}
-              onLikePress={handleLikePress}
-            />
-          )}
-          contentContainerStyle={styles.contentContainerPadding}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          ListEmptyComponent={!loading ? (
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={loadProperties} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <FlatList
+        data={filteredProperties}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => (
+          <PropertyCard
+            accommodation={item}
+            onPress={handleAccommodationPress}
+            onLikePress={handleLikePress}
+          />
+        )}
+        contentContainerStyle={styles.contentContainerPadding}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        ListEmptyComponent={
+          !loading ? (
             <View style={styles.noResultsContainer}>
               <Text style={styles.noResultsText}>
                 {searchQuery.trim()
                   ? `No properties found for "${searchQuery}"`
-                  : 'No properties available at the moment'
-                }
+                  : "No properties available at the moment"}
               </Text>
               {searchQuery.trim() && (
-                <TouchableOpacity onPress={handleClearFilter} style={styles.clearButton}>
+                <TouchableOpacity
+                  onPress={handleClearFilter}
+                  style={styles.clearButton}
+                >
                   <Text style={styles.clearButtonText}>Clear Search</Text>
                 </TouchableOpacity>
               )}
             </View>
-          ) : null}
-        />
+          ) : null
+        }
+      />
 
-        {filteredProperties.length > 0 && filteredProperties.length >= 10 && (
-          <View style={styles.loadMoreContainer}>
-            <TouchableOpacity
-              style={styles.loadMoreButton}
-              onPress={() => {
-                Alert.alert('Coming Soon', 'Pagination will be implemented soon!');
-              }}
-            >
-              <Text style={styles.loadMoreText}>Load More</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <MenuDrawer
-          visible={menuModalVisible}
-          onClose={() => setMenuModalVisible(false)}
-          onMenuItemPress={handleMenuItemPress}
-          isGuest={isGuest}
-        />
+      <MenuDrawer
+        visible={menuModalVisible}
+        onClose={() => setMenuModalVisible(false)}
+        onMenuItemPress={handleMenuItemPress}
+        isGuest={isGuest}
+      />
     </View>
   );
 }

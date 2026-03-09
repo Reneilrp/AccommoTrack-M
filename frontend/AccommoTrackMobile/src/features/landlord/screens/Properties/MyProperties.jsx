@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,29 +9,30 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import PropertyService, { getImageUrl } from '../../../../services/PropertyService.js';
-import { getStyles } from '../../../../styles/Landlord/MyProperties.js';
-import MapModal from '../../../tenant/components/MapModal.jsx';
-import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import PropertyService from "../../../../services/PropertyService.js";
+import { getImageUrl } from "../../../../utils/imageUtils.js";
+import { getStyles } from "../../../../styles/Landlord/MyProperties.js";
+import MapModal from "../../../tenant/components/MapModal.jsx";
+import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 
 const STATUS_TABS = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'inactive', label: 'Inactive' },
-  { key: 'pending', label: 'Pending' }
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "inactive", label: "Inactive" },
+  { key: "pending", label: "Pending" },
 ];
 
 const STATUS_COLORS = {
-  active: { bg: '#DCFCE7', fg: '#166534' },
-  inactive: { bg: '#E5E7EB', fg: '#374151' },
-  pending: { bg: '#FEF3C7', fg: '#92400E' },
-  maintenance: { bg: '#DBEAFE', fg: '#1D4ED8' },
-  default: { bg: '#E5E7EB', fg: '#6B7280' }
+  active: { bg: "#DCFCE7", fg: "#166534" },
+  inactive: { bg: "#E5E7EB", fg: "#374151" },
+  pending: { bg: "#FEF3C7", fg: "#92400E" },
+  maintenance: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  default: { bg: "#E5E7EB", fg: "#6B7280" },
 };
 
 const emptyMetrics = { active: 0, inactive: 0, pending: 0, totalRooms: 0 };
@@ -42,9 +43,9 @@ export default function MyPropertiesScreen({ navigation }) {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [mapOpen, setMapOpen] = useState(false);
 
   const fetchProperties = useCallback(async () => {
@@ -52,14 +53,14 @@ export default function MyPropertiesScreen({ navigation }) {
       const res = await PropertyService.getMyProperties();
       if (res.success) {
         setProperties(Array.isArray(res.data) ? res.data : []);
-        setError('');
+        setError("");
       } else {
         setProperties([]);
-        setError(res.error || 'Unable to fetch properties');
+        setError(res.error || "Unable to fetch properties");
       }
     } catch (err) {
       setProperties([]);
-      setError(err.message || 'Unable to fetch properties');
+      setError(err.message || "Unable to fetch properties");
     }
   }, []);
 
@@ -76,7 +77,7 @@ export default function MyPropertiesScreen({ navigation }) {
       return () => {
         isActive = false;
       };
-    }, [fetchProperties])
+    }, [fetchProperties]),
   );
 
   const handleRefresh = useCallback(async () => {
@@ -90,112 +91,150 @@ export default function MyPropertiesScreen({ navigation }) {
 
     return properties.reduce(
       (acc, property) => {
-        const status = (property.current_status || 'pending').toLowerCase();
+        const status = (property.current_status || "pending").toLowerCase();
         if (acc[status] !== undefined) {
           acc[status] += 1;
         }
         acc.totalRooms += Number(property.total_rooms || 0);
         return acc;
       },
-      { ...emptyMetrics }
+      { ...emptyMetrics },
     );
   }, [properties]);
 
   const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
-      const status = (property.current_status || 'pending').toLowerCase();
-      const matchesStatus = statusFilter === 'all' || status === statusFilter;
-      const haystack = `${property.title || ''} ${property.street_address || ''} ${property.city || ''}`.toLowerCase();
+      const status = (property.current_status || "pending").toLowerCase();
+      const matchesStatus = statusFilter === "all" || status === statusFilter;
+      const haystack =
+        `${property.title || ""} ${property.street_address || ""} ${property.city || ""}`.toLowerCase();
       const matchesSearch = haystack.includes(searchQuery.toLowerCase());
       return matchesStatus && matchesSearch;
     });
   }, [properties, statusFilter, searchQuery]);
 
   const formatAddress = (property) => {
-    const parts = [property.street_address, property.barangay, property.city, property.province].filter(Boolean);
-    return parts.join(', ');
+    const parts = [
+      property.street_address,
+      property.barangay,
+      property.city,
+      property.province,
+    ].filter(Boolean);
+    return parts.join(", ");
   };
 
   const getCoverImage = (property) => {
     if (Array.isArray(property.images) && property.images.length > 0) {
       const first = property.images[0];
-      const path = typeof first === 'string'
-        ? first
-        : first?.image_url || first?.url || first?.path;
+      const path =
+        typeof first === "string"
+          ? first
+          : first?.image_url || first?.url || first?.path;
       return getImageUrl(path);
     }
     return null;
   };
 
   const renderProperty = ({ item }) => {
-    const statusKey = (item.current_status || 'pending').toLowerCase();
+    const statusKey = (item.current_status || "pending").toLowerCase();
     const palette = STATUS_COLORS[statusKey] || STATUS_COLORS.default;
     const cover = getCoverImage(item);
     const totalRooms = Number(item.total_rooms || 0);
     const availableRooms = Number(item.available_rooms || 0);
     const occupiedRooms = Math.max(totalRooms - availableRooms, 0);
-    const occupancyRate = totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+    const occupancyRate = totalRooms
+      ? Math.round((occupiedRooms / totalRooms) * 100)
+      : 0;
 
     return (
       <View style={{ paddingHorizontal: 16 }}>
         <TouchableOpacity
           style={styles.propertyCard}
-          onPress={() => navigation.navigate('DormProfile', { propertyId: item.id })}
+          onPress={() =>
+            navigation.navigate("DormProfile", { propertyId: item.id })
+          }
         >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.title || 'Untitled property'}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: palette.bg }]}> 
-            <Text style={[styles.statusText, { color: palette.fg }]}>{statusKey}</Text>
-          </View>
-        </View>
-
-        <View style={styles.cardBody}>
-          <View style={styles.imageColumn}>
-            <View style={styles.propertyImage}>
-              {cover ? (
-                <Image source={{ uri: cover }} style={styles.propertyImageMedia} />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Ionicons name="image-outline" size={26} color="#9CA3AF" />
-                </View>
-              )}
-            </View>
-            <View style={styles.propertyTypeContainer}>
-              <Text style={styles.propertyTypeText}>{PropertyService.formatPropertyType(item.property_type)}</Text>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {item.title || "Untitled property"}
+            </Text>
+            <View style={[styles.statusBadge, { backgroundColor: palette.bg }]}>
+              <Text style={[styles.statusText, { color: palette.fg }]}>
+                {statusKey}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.cardDetails}>
-            <Text style={styles.addressText}>{formatAddress(item) || 'Location not set'}</Text>
-            
-            <View style={styles.metricsGrid}>
-              <View style={styles.metricsGridRow}>
-                <View style={styles.metricItem}>
-                  <Ionicons name="bed-outline" size={16} color={theme.colors.primary} />
-                  <Text style={styles.metricLabel}>{totalRooms} rooms</Text>
-                </View>
-                <View style={styles.metricItem}>
-                  <Ionicons name="log-in-outline" size={16} color="#F97316" />
-                  <Text style={styles.metricLabel}>{availableRooms} available</Text>
-                </View>
+          <View style={styles.cardBody}>
+            <View style={styles.imageColumn}>
+              <View style={styles.propertyImage}>
+                {cover ? (
+                  <Image
+                    source={{ uri: cover }}
+                    style={styles.propertyImageMedia}
+                  />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="image-outline" size={26} color="#9CA3AF" />
+                  </View>
+                )}
               </View>
-              <View style={styles.metricsGridRow}>
-                <View style={styles.metricItem}>
-                  <Ionicons name="people-outline" size={16} color="#2563EB" />
-                  <Text style={styles.metricLabel}>{occupiedRooms} tenants</Text>
-                </View>
-                <View style={styles.metricItem}>
-                  <Ionicons name="speedometer-outline" size={16} color="#7C3AED" />
-                  <Text style={styles.metricLabel}>{occupancyRate}% occupied</Text>
-                </View>
+              <View style={styles.propertyTypeContainer}>
+                <Text style={styles.propertyTypeText}>
+                  {PropertyService.formatPropertyType(item.property_type)}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${occupancyRate}%` }]} />
+            <View style={styles.cardDetails}>
+              <Text style={styles.addressText}>
+                {formatAddress(item) || "Location not set"}
+              </Text>
+
+              <View style={styles.metricsGrid}>
+                <View style={styles.metricsGridRow}>
+                  <View style={styles.metricItem}>
+                    <Ionicons
+                      name="bed-outline"
+                      size={16}
+                      color={theme.colors.primary}
+                    />
+                    <Text style={styles.metricLabel}>{totalRooms} rooms</Text>
+                  </View>
+                  <View style={styles.metricItem}>
+                    <Ionicons name="log-in-outline" size={16} color="#F97316" />
+                    <Text style={styles.metricLabel}>
+                      {availableRooms} available
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.metricsGridRow}>
+                  <View style={styles.metricItem}>
+                    <Ionicons name="people-outline" size={16} color="#2563EB" />
+                    <Text style={styles.metricLabel}>
+                      {occupiedRooms} tenants
+                    </Text>
+                  </View>
+                  <View style={styles.metricItem}>
+                    <Ionicons
+                      name="speedometer-outline"
+                      size={16}
+                      color="#7C3AED"
+                    />
+                    <Text style={styles.metricLabel}>
+                      {occupancyRate}% occupied
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.progressBar}>
+                <View
+                  style={[styles.progressFill, { width: `${occupancyRate}%` }]}
+                />
+              </View>
             </View>
           </View>
-        </View>
         </TouchableOpacity>
       </View>
     );
@@ -213,7 +252,11 @@ export default function MyPropertiesScreen({ navigation }) {
         </View>
       ) : null}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.statsScroll}
+      >
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Active Listings</Text>
           <Text style={styles.statValueGreen}>{stats.active}</Text>
@@ -242,11 +285,15 @@ export default function MyPropertiesScreen({ navigation }) {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-            <TouchableOpacity 
+          <TouchableOpacity
             style={styles.mapButton}
             onPress={() => setMapOpen(true)}
           >
-            <Ionicons name="map-outline" size={20} color={theme.colors.primary} />
+            <Ionicons
+              name="map-outline"
+              size={20}
+              color={theme.colors.primary}
+            />
           </TouchableOpacity>
         </View>
         <View style={styles.filtersRow}>
@@ -255,10 +302,20 @@ export default function MyPropertiesScreen({ navigation }) {
             return (
               <TouchableOpacity
                 key={tab.key}
-                style={[styles.filterChip, active ? styles.filterActive : styles.filterInactive]}
+                style={[
+                  styles.filterChip,
+                  active ? styles.filterActive : styles.filterInactive,
+                ]}
                 onPress={() => setStatusFilter(tab.key)}
               >
-                <Text style={[styles.filterLabel, { color: active ? '#166534' : '#1F2937' }]}>{tab.label}</Text>
+                <Text
+                  style={[
+                    styles.filterLabel,
+                    { color: active ? "#166534" : "#1F2937" },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -270,7 +327,10 @@ export default function MyPropertiesScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={theme.colors.primary}
+        />
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Loading properties...</Text>
       </SafeAreaView>
@@ -278,14 +338,23 @@ export default function MyPropertiesScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={theme.colors.primary}
+      />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Properties</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('AddProperty')}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("AddProperty")}
+        >
           <Ionicons name="add" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -301,7 +370,9 @@ export default function MyPropertiesScreen({ navigation }) {
             <View style={styles.emptyState}>
               <Ionicons name="business-outline" size={40} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No properties found</Text>
-              <Text style={styles.emptySubtitle}>Tap the + button to add your first listing</Text>
+              <Text style={styles.emptySubtitle}>
+                Tap the + button to add your first listing
+              </Text>
             </View>
           </View>
         }
@@ -315,22 +386,24 @@ export default function MyPropertiesScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       />
-      
-      <MapModal 
-        visible={mapOpen} 
-        onClose={() => setMapOpen(false)} 
-        properties={properties.map(p => ({
+
+      <MapModal
+        visible={mapOpen}
+        onClose={() => setMapOpen(false)}
+        properties={properties.map((p) => ({
           ...p,
           image: getCoverImage(p),
-          address: formatAddress(p)
-        }))} 
+          address: formatAddress(p),
+        }))}
         userRole="landlord"
         onSelectProperty={(data) => {
-          if (data.action === 'open_property' && data.property) {
+          if (data.action === "open_property" && data.property) {
             setMapOpen(false);
-            navigation.navigate('DormProfile', { propertyId: data.property.id });
+            navigation.navigate("DormProfile", {
+              propertyId: data.property.id,
+            });
           }
-        }} 
+        }}
       />
     </SafeAreaView>
   );

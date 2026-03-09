@@ -44,13 +44,8 @@ const createEcho = () => {
     authEndpoint,
   });
 
-  // Auth headers: same-origin uses the XSRF-TOKEN cookie (SPA cookie auth).
-  // Cross-origin dev fallback: use Bearer token from sessionStorage.
-  const devToken = sessionStorage.getItem("authToken");
-  const csrfToken = (() => {
-    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : "";
-  })();
+  // Auth headers: always use Bearer token from localStorage (same approach as axios).
+  const token = localStorage.getItem("authToken");
 
   const echo = new Echo({
     broadcaster: "reverb",
@@ -61,9 +56,9 @@ const createEcho = () => {
     disableStats: true,
     authEndpoint: authEndpoint,
     auth: {
-      headers: devToken
-        ? { Authorization: `Bearer ${devToken}`, Accept: "application/json" }
-        : { "X-XSRF-TOKEN": csrfToken, Accept: "application/json" },
+      headers: token
+        ? { Authorization: `Bearer ${token}`, Accept: "application/json" }
+        : { Accept: "application/json" },
     },
   });
 

@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { 
-  View, 
-  ScrollView, 
-  Text, 
-  TouchableOpacity, 
-  Image, 
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Image,
   StatusBar,
   ActivityIndicator,
   Alert,
@@ -13,18 +13,18 @@ import {
   RefreshControl,
   Modal,
   Dimensions,
-} from 'react-native';
-import { WebView } from 'react-native-webview';
-import { Video, ResizeMode } from 'expo-av';
+} from "react-native";
+import { WebView } from "react-native-webview";
+import { VideoView, useVideoPlayer } from "expo-video";
 
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getStyles } from '../../../../styles/Tenant/PropertyDetailsScreen.js';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
-import PropertyService from '../../../../services/PropertyService.js';
-import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { getImageUrl } from '../../../../utils/imageUtils.js';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { getStyles } from "../../../../styles/Tenant/PropertyDetailsScreen.js";
+import homeStyles from "../../../../styles/Tenant/HomePage.js";
+import PropertyService from "../../../../services/PropertyService.js";
+import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import { getImageUrl } from "../../../../utils/imageUtils.js";
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
@@ -35,20 +35,37 @@ export default function PropertyDetailsScreen({ route }) {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
+
+  const videoUrl = detailedAccommodation?.video_url || accommodation?.video_url;
+  const videoPlayer = useVideoPlayer(
+    videoUrl ? { uri: videoUrl } : null,
+    (player) => {
+      player.loop = true;
+      player.volume = 1.0;
+    },
+  );
+  useEffect(() => {
+    if (!videoPlayer) return;
+    if (videoVisible) {
+      videoPlayer.play();
+    } else {
+      videoPlayer.pause();
+    }
+  }, [videoVisible, videoPlayer]);
 
   useFocusEffect(
     useCallback(() => {
       loadRooms();
-    }, [accommodation?.id])
+    }, [accommodation?.id]),
   );
 
   // Hide bottom tab bar for this details screen (if parent is a tab navigator)
   useEffect(() => {
     const parent = navigation.getParent?.();
     try {
-      parent?.setOptions?.({ tabBarStyle: { display: 'none' } });
+      parent?.setOptions?.({ tabBarStyle: { display: "none" } });
     } catch (e) {
       // ignore if parent doesn't support tabBarStyle
     }
@@ -70,17 +87,17 @@ export default function PropertyDetailsScreen({ route }) {
       setRoomsLoading(true);
       const result = await PropertyService.getPublicProperty(accommodation.id);
 
-      console.log('Raw API response:', result); // DEBUG
+      console.log("Raw API response:", result); // DEBUG
 
       if (result.success && result.data) {
         // Store the raw API data with ALL landlord fields
         const rawData = result.data;
-        
-        console.log('Landlord data from API:', {
+
+        console.log("Landlord data from API:", {
           landlord_id: rawData.landlord_id,
           user_id: rawData.user_id,
           landlord_name: rawData.landlord_name,
-          landlord: rawData.landlord
+          landlord: rawData.landlord,
         }); // DEBUG
 
         // Build detailed accommodation with ALL possible landlord fields
@@ -99,25 +116,25 @@ export default function PropertyDetailsScreen({ route }) {
           availableRooms: rawData.available_rooms,
           available_rooms: rawData.available_rooms,
           priceRange: rawData.price_range,
-          amenities: rawData.amenities || []
+          amenities: rawData.amenities || [],
         };
 
-        console.log('Detailed accommodation object:', detailed); // DEBUG
+        console.log("Detailed accommodation object:", detailed); // DEBUG
         setDetailedAccommodation(detailed);
 
         const standardizedRooms = (rawData.rooms || []).map((room) => ({
           ...room,
           images: room.images || [],
           monthly_rate: parseFloat(room.monthly_rate) || 0,
-          status: room.status || 'unknown',
+          status: room.status || "unknown",
         }));
         setRooms(standardizedRooms);
       } else {
-        throw new Error(result.error || 'No rooms found for this property.');
+        throw new Error(result.error || "No rooms found for this property.");
       }
     } catch (error) {
-      console.error('Failed to load rooms:', error);
-      Alert.alert('Error', 'Unable to load rooms for this property right now.');
+      console.error("Failed to load rooms:", error);
+      Alert.alert("Error", "Unable to load rooms for this property right now.");
       setRooms([]);
     } finally {
       setRoomsLoading(false);
@@ -129,24 +146,24 @@ export default function PropertyDetailsScreen({ route }) {
     try {
       await loadRooms();
     } catch (err) {
-      console.error('Refresh failed:', err);
+      console.error("Refresh failed:", err);
     } finally {
       setRefreshing(false);
     }
   };
 
   const filteredRooms = rooms.filter((room) => {
-    if (selectedFilter === 'all') return true;
+    if (selectedFilter === "all") return true;
     return room.status === selectedFilter;
   });
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'available':
+      case "available":
         return theme.colors.success;
-      case 'occupied':
+      case "occupied":
         return theme.colors.error;
-      case 'maintenance':
+      case "maintenance":
         return theme.colors.warning;
       default:
         return theme.colors.textTertiary;
@@ -155,27 +172,27 @@ export default function PropertyDetailsScreen({ route }) {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'available':
-        return 'checkmark-circle';
-      case 'occupied':
-        return 'people';
-      case 'maintenance':
-        return 'construct';
+      case "available":
+        return "checkmark-circle";
+      case "occupied":
+        return "people";
+      case "maintenance":
+        return "construct";
       default:
-        return 'help-circle';
+        return "help-circle";
     }
   };
 
   const capitalizeStatus = (status) => {
-    return (status || '').replace(/^\w/, (c) => c.toUpperCase()) || 'Unknown';
+    return (status || "").replace(/^\w/, (c) => c.toUpperCase()) || "Unknown";
   };
 
   const handleRoomPress = (room) => {
     // Use detailedAccommodation first (has freshest API data), fallback to accommodation
     const sourceProperty = detailedAccommodation || accommodation;
-    
-    console.log('Source property for room press:', sourceProperty); // DEBUG
-    
+
+    console.log("Source property for room press:", sourceProperty); // DEBUG
+
     // Build comprehensive property data with ALL landlord fields
     const propertyData = {
       // Basic property info
@@ -183,48 +200,56 @@ export default function PropertyDetailsScreen({ route }) {
       name: sourceProperty.name || sourceProperty.title,
       title: sourceProperty.title || sourceProperty.name,
       type: sourceProperty.type || sourceProperty.property_type,
-      
+
       // Address fields
       street_address: sourceProperty.street_address,
       city: sourceProperty.city,
       province: sourceProperty.province,
       barangay: sourceProperty.barangay,
       postal_code: sourceProperty.postal_code,
-      
+
       // Location
       latitude: sourceProperty.latitude,
       longitude: sourceProperty.longitude,
-      
+
       // ALL possible landlord field variations
-      landlord_id: sourceProperty.landlord_id || sourceProperty.user_id || sourceProperty.landlord?.id,
-      user_id: sourceProperty.user_id || sourceProperty.landlord_id || sourceProperty.landlord?.id,
-      landlord_name: sourceProperty.landlord_name || 
-                     sourceProperty.owner_name || 
-                     (sourceProperty.landlord ? 
-                       `${sourceProperty.landlord.first_name || ''} ${sourceProperty.landlord.last_name || ''}`.trim() 
-                       : 'Landlord'),
+      landlord_id:
+        sourceProperty.landlord_id ||
+        sourceProperty.user_id ||
+        sourceProperty.landlord?.id,
+      user_id:
+        sourceProperty.user_id ||
+        sourceProperty.landlord_id ||
+        sourceProperty.landlord?.id,
+      landlord_name:
+        sourceProperty.landlord_name ||
+        sourceProperty.owner_name ||
+        (sourceProperty.landlord
+          ? `${sourceProperty.landlord.first_name || ""} ${sourceProperty.landlord.last_name || ""}`.trim()
+          : "Landlord"),
       owner_name: sourceProperty.owner_name || sourceProperty.landlord_name,
-      
+
       // Full landlord object
       landlord: sourceProperty.landlord || null,
-      
+
       // Other property data
       description: sourceProperty.description,
       amenities: sourceProperty.amenities,
-      property_rules: sourceProperty.property_rules || sourceProperty.propertyRules,
+      property_rules:
+        sourceProperty.property_rules || sourceProperty.propertyRules,
       nearby_landmarks: sourceProperty.nearby_landmarks,
     };
-    
-    console.log('Property data being passed to RoomDetails:', {
+
+    console.log("Property data being passed to RoomDetails:", {
       id: propertyData.id,
       landlord_id: propertyData.landlord_id,
       user_id: propertyData.user_id,
       landlord_name: propertyData.landlord_name,
-      landlord: propertyData.landlord
+      landlord: propertyData.landlord,
     }); // DEBUG
-    
-    navigation.navigate('RoomDetails', { 
-      room, 
+
+    navigation.navigate("RoomDetails", {
+      room,
       property: propertyData,
       hideLayout: true,
     });
@@ -234,11 +259,11 @@ export default function PropertyDetailsScreen({ route }) {
   const getPropertyRules = () => {
     const src = detailedAccommodation || accommodation;
     if (!src) return [];
-    
+
     // Check both potential field names
     const rulesSource = src.property_rules || src.propertyRules;
     if (!rulesSource) return [];
-    
+
     if (Array.isArray(rulesSource)) return rulesSource;
     try {
       const parsed = JSON.parse(rulesSource);
@@ -260,7 +285,9 @@ export default function PropertyDetailsScreen({ route }) {
     if (src.postal_code) parts.push(src.postal_code);
 
     if (parts.length > 0) return parts.join(", ");
-    return src.address || src.location || src.full_address || "Address not available";
+    return (
+      src.address || src.location || src.full_address || "Address not available"
+    );
   };
 
   // Open maps app
@@ -268,18 +295,23 @@ export default function PropertyDetailsScreen({ route }) {
     const src = detailedAccommodation || accommodation;
     const { latitude, longitude } = src || {};
     if (!latitude || !longitude) {
-      Alert.alert('Location Not Available', 'Map coordinates are not set for this property.');
+      Alert.alert(
+        "Location Not Available",
+        "Map coordinates are not set for this property.",
+      );
       return;
     }
 
     const url = Platform.select({
       ios: `maps://app?daddr=${latitude},${longitude}`,
-      android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent((src && (src.name || src.title)) || '')})`,
+      android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent((src && (src.name || src.title)) || "")})`,
     });
 
     Linking.openURL(url).catch(() => {
       // Fallback to web maps
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`);
+      Linking.openURL(
+        `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+      );
     });
   };
 
@@ -292,53 +324,52 @@ export default function PropertyDetailsScreen({ route }) {
 
     try {
       const src = detailedAccommodation || accommodation;
-      
-      console.log('=== CONTACT LANDLORD FROM PROPERTY DEBUG ===');
-      console.log('Full property object:', JSON.stringify(src, null, 2));
-      
-      const landlordId = src.landlord_id ||
-        src.user_id ||
-        src.landlord?.id ||
-        src.owner?.id;
 
-      const landlordName = src.landlord_name ||
+      console.log("=== CONTACT LANDLORD FROM PROPERTY DEBUG ===");
+      console.log("Full property object:", JSON.stringify(src, null, 2));
+
+      const landlordId =
+        src.landlord_id || src.user_id || src.landlord?.id || src.owner?.id;
+
+      const landlordName =
+        src.landlord_name ||
         src.owner_name ||
-        (src.landlord ?
-          `${src.landlord.first_name || ''} ${src.landlord.last_name || ''}`.trim()
+        (src.landlord
+          ? `${src.landlord.first_name || ""} ${src.landlord.last_name || ""}`.trim()
           : null) ||
-        (src.owner ?
-          `${src.owner.first_name || ''} ${src.owner.last_name || ''}`.trim()
+        (src.owner
+          ? `${src.owner.first_name || ""} ${src.owner.last_name || ""}`.trim()
           : null) ||
-        'Landlord';
+        "Landlord";
 
-      console.log('Extracted landlord info:', { landlordId, landlordName });
+      console.log("Extracted landlord info:", { landlordId, landlordName });
 
       if (!landlordId) {
         Alert.alert(
-          'Error',
-          'Landlord information not available. Please try refreshing the property details.',
+          "Error",
+          "Landlord information not available. Please try refreshing the property details.",
           [
             {
-              text: 'Refresh',
-              onPress: () => onRefresh()
+              text: "Refresh",
+              onPress: () => onRefresh(),
             },
             {
-              text: 'Cancel',
-              style: 'cancel'
-            }
-          ]
+              text: "Cancel",
+              style: "cancel",
+            },
+          ],
         );
         return;
       }
 
-      console.log('Navigating to Messages with:', {
+      console.log("Navigating to Messages with:", {
         landlordId,
         landlordName,
         propertyId: src.id,
-        propertyTitle: src.name || src.title
+        propertyTitle: src.name || src.title,
       });
 
-      navigation.navigate('Messages', {
+      navigation.navigate("Messages", {
         startConversation: true,
         recipient: {
           id: landlordId,
@@ -347,11 +378,14 @@ export default function PropertyDetailsScreen({ route }) {
         property: {
           id: src.id,
           title: src.name || src.title,
-        }
+        },
       });
     } catch (error) {
-      console.error('Error navigating to messages:', error);
-      Alert.alert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
+      console.error("Error navigating to messages:", error);
+      Alert.alert(
+        "Error",
+        `Failed to open messages: ${error.message}\n\nPlease try again.`,
+      );
     }
   };
 
@@ -359,12 +393,15 @@ export default function PropertyDetailsScreen({ route }) {
   const getLeafletHTML = () => {
     const src = detailedAccommodation || accommodation;
     const { latitude, longitude } = src || {};
-    const propertyName = ((src && (src.name || src.title)) || 'Property Location')
-      .replace(/\\/g, '\\\\')
+    const propertyName = (
+      (src && (src.name || src.title)) ||
+      "Property Location"
+    )
+      .replace(/\\/g, "\\\\")
       .replace(/'/g, "\\'")
       .replace(/\"/g, '\\"')
-      .replace(/\n/g, ' ')
-      .replace(/\r/g, '');
+      .replace(/\n/g, " ")
+      .replace(/\r/g, "");
 
     if (!latitude || !longitude) return null;
 
@@ -415,39 +452,43 @@ export default function PropertyDetailsScreen({ route }) {
   const active = detailedAccommodation || accommodation;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ 
-        height: 56, 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        paddingHorizontal: 12, 
-        backgroundColor: theme.colors.primary, 
-        borderBottomWidth: 0.5, 
-        borderBottomColor: 'rgba(0,0,0,0.1)' 
-      }}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={{ 
-            padding: 10, 
+      <View
+        style={{
+          height: 56,
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 12,
+          backgroundColor: theme.colors.primary,
+          borderBottomWidth: 0.5,
+          borderBottomColor: "rgba(0,0,0,0.1)",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{
+            padding: 10,
             marginRight: 10,
-            justifyContent: 'center',
-            alignItems: 'center'
+            justifyContent: "center",
+            alignItems: "center",
           }}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={26} color="#ffffff" />
         </TouchableOpacity>
 
-        <Text style={{ 
-          flex: 1, 
-          textAlign: 'center', 
-          fontSize: 18, 
-          fontWeight: '700', 
-          color: '#ffffff',
-          marginRight: 46 // Offset for the back button to center title
-        }}>
+        <Text
+          style={{
+            flex: 1,
+            textAlign: "center",
+            fontSize: 18,
+            fontWeight: "700",
+            color: "#ffffff",
+            marginRight: 46, // Offset for the back button to center title
+          }}
+        >
           Property Details
         </Text>
       </View>
@@ -455,7 +496,12 @@ export default function PropertyDetailsScreen({ route }) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
         }
         nestedScrollEnabled={true}
       >
@@ -465,39 +511,58 @@ export default function PropertyDetailsScreen({ route }) {
           <View style={styles.titleRow}>
             <Text style={styles.title}>{active.name || active.title}</Text>
             <View style={styles.typeBadge}>
-              <Text style={styles.typeText}>{(active.type || 'property').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
+              <Text style={styles.typeText}>
+                {(active.type || "property")
+                  .replace(/_/g, " ")
+                  .replace(/\b\w/g, (c) => c.toUpperCase())}
+              </Text>
             </View>
           </View>
-          
+
           {/* Media Section */}
           <View style={styles.mediaContainer}>
-            <ScrollView 
-              horizontal 
-              pagingEnabled 
+            <ScrollView
+              horizontal
+              pagingEnabled
               showsHorizontalScrollIndicator={false}
               style={styles.imageCarousel}
             >
-              {active && Array.isArray(active.images) && active.images.length > 0 ? (
+              {active &&
+              Array.isArray(active.images) &&
+              active.images.length > 0 ? (
                 active.images.map((img, idx) => (
                   <Image
                     key={idx}
-                    source={{ uri: getImageUrl(img) || 'https://via.placeholder.com/800x400' }}
-                    style={{ width: Dimensions.get('window').width - 32, height: 250, borderRadius: 12 }}
+                    source={{
+                      uri:
+                        getImageUrl(img) ||
+                        "https://via.placeholder.com/800x400",
+                    }}
+                    style={{
+                      width: Dimensions.get("window").width - 32,
+                      height: 250,
+                      borderRadius: 12,
+                    }}
                     resizeMode="cover"
                   />
                 ))
               ) : (
                 <Image
-                  source={{ uri: getImageUrl(active.image) || getImageUrl(active.cover_image) || 'https://via.placeholder.com/800x400' }}
+                  source={{
+                    uri:
+                      getImageUrl(active.image) ||
+                      getImageUrl(active.cover_image) ||
+                      "https://via.placeholder.com/800x400",
+                  }}
                   style={styles.mainImage}
                   resizeMode="cover"
                 />
               )}
             </ScrollView>
-            
-            {(active && active.video_url) && (
-              <TouchableOpacity 
-                style={styles.videoOverlay} 
+
+            {active && active.video_url && (
+              <TouchableOpacity
+                style={styles.videoOverlay}
                 onPress={() => setVideoVisible(true)}
                 activeOpacity={0.8}
               >
@@ -517,23 +582,18 @@ export default function PropertyDetailsScreen({ route }) {
             onRequestClose={() => setVideoVisible(false)}
           >
             <View style={styles.videoModalContainer}>
-              <TouchableOpacity 
-                style={styles.closeVideo} 
+              <TouchableOpacity
+                style={styles.closeVideo}
                 onPress={() => setVideoVisible(false)}
               >
                 <Ionicons name="close" size={30} color="#FFFFFF" />
               </TouchableOpacity>
-              
+
               <View style={styles.videoWrapper}>
-                <Video
-                  source={{ uri: active.video_url }}
-                  rate={1.0}
-                  volume={1.0}
-                  isMuted={false}
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay={videoVisible}
-                  isLooping
-                  useNativeControls
+                <VideoView
+                  player={videoPlayer}
+                  nativeControls
+                  contentFit="contain"
                   style={styles.videoPlayer}
                 />
               </View>
@@ -544,9 +604,17 @@ export default function PropertyDetailsScreen({ route }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address</Text>
             <View style={styles.addressContainer}>
-              <Ionicons name="location" size={20} color={theme.colors.primary} />
+              <Ionicons
+                name="location"
+                size={20}
+                color={theme.colors.primary}
+              />
               <View style={styles.addressTextContainer}>
-                <Text style={[styles.addressText, { color: theme.colors.text }]}>{getFullAddress()}</Text>
+                <Text
+                  style={[styles.addressText, { color: theme.colors.text }]}
+                >
+                  {getFullAddress()}
+                </Text>
                 {active && active.nearby_landmarks && (
                   <Text style={styles.landmarksText}>
                     <Text style={styles.landmarksLabel}>Nearby: </Text>
@@ -568,22 +636,57 @@ export default function PropertyDetailsScreen({ route }) {
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Ionicons name="bed-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>{(active && (active.availableRooms || active.available_rooms)) || 0}</Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Available Rooms</Text>
+              <Ionicons
+                name="bed-outline"
+                size={24}
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
+                {(active &&
+                  (active.availableRooms || active.available_rooms)) ||
+                  0}
+              </Text>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Available Rooms
+              </Text>
             </View>
             <View style={styles.statItem}>
-              <Ionicons name="pricetag-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>{active && active.priceRange}</Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Price Range</Text>
+              <Ionicons
+                name="pricetag-outline"
+                size={24}
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
+                {active && active.priceRange}
+              </Text>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Price Range
+              </Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="star" size={24} color="#F59E0B" />
               <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {active && active.rating ? active.rating : '-'}
+                {active && active.rating ? active.rating : "-"}
               </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                {active && active.reviews_count ? `${active.reviews_count} Reviews` : 'No Reviews'}
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                {active && active.reviews_count
+                  ? `${active.reviews_count} Reviews`
+                  : "No Reviews"}
               </Text>
             </View>
           </View>
@@ -594,8 +697,14 @@ export default function PropertyDetailsScreen({ route }) {
               <Text style={styles.sectionTitle}>Amenities</Text>
               {active.amenities.map((amenity, index) => (
                 <View key={index} style={styles.ruleItem}>
-                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
-                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>{amenity}</Text>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>
+                    {amenity}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -606,15 +715,29 @@ export default function PropertyDetailsScreen({ route }) {
             <View style={styles.section}>
               <View style={styles.mapHeader}>
                 <Text style={styles.sectionTitle}>Location</Text>
-                <TouchableOpacity onPress={openMaps} style={styles.openMapsButton}>
-                  <Ionicons name="open-outline" size={16} color={theme.colors.primary} />
-                  <Text style={[styles.openMapsText, { color: theme.colors.primary }]}>Open in Maps</Text>
+                <TouchableOpacity
+                  onPress={openMaps}
+                  style={styles.openMapsButton}
+                >
+                  <Ionicons
+                    name="open-outline"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.openMapsText,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    Open in Maps
+                  </Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.mapContainer}>
-                  {getLeafletHTML() ? (
+                {getLeafletHTML() ? (
                   <WebView
-                    originWhitelist={['*']}
+                    originWhitelist={["*"]}
                     source={{ html: getLeafletHTML() }}
                     style={styles.mapWebView}
                     javaScriptEnabled={true}
@@ -624,15 +747,27 @@ export default function PropertyDetailsScreen({ route }) {
                     nestedScrollEnabled={true}
                     renderLoading={() => (
                       <View style={styles.mapLoadingContainer}>
-                        <ActivityIndicator size="large" color={theme.colors.primary} />
-                        <Text style={[styles.mapLoadingText, { color: theme.colors.text }]}>Loading map...</Text>
+                        <ActivityIndicator
+                          size="large"
+                          color={theme.colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.mapLoadingText,
+                            { color: theme.colors.text },
+                          ]}
+                        >
+                          Loading map...
+                        </Text>
                       </View>
                     )}
                   />
                 ) : (
                   <View style={styles.mapPlaceholder}>
                     <Ionicons name="map-outline" size={48} color="#d1d5db" />
-                    <Text style={styles.mapPlaceholderText}>Map not available</Text>
+                    <Text style={styles.mapPlaceholderText}>
+                      Map not available
+                    </Text>
                   </View>
                 )}
               </View>
@@ -645,17 +780,40 @@ export default function PropertyDetailsScreen({ route }) {
               <Text style={styles.sectionTitle}>Property Rules</Text>
               {getPropertyRules().map((rule, index) => (
                 <View key={index} style={styles.ruleItem}>
-                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
-                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>{rule}</Text>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={[styles.ruleText, { color: theme.colors.text }]}>
+                    {rule}
+                  </Text>
                 </View>
               ))}
             </View>
           )}
 
           {/* Contact Landlord Button */}
-          <TouchableOpacity style={[styles.contactButton, { backgroundColor: theme.colors.primary }]} onPress={handleContactLandlord}>
-            <Ionicons name="chatbubble-outline" size={18} color={theme.colors.textInverse} />
-            <Text style={[styles.contactButtonText, { color: theme.colors.textInverse }]}>Contact Landlord</Text>
+          <TouchableOpacity
+            style={[
+              styles.contactButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={handleContactLandlord}
+          >
+            <Ionicons
+              name="chatbubble-outline"
+              size={18}
+              color={theme.colors.textInverse}
+            />
+            <Text
+              style={[
+                styles.contactButtonText,
+                { color: theme.colors.textInverse },
+              ]}
+            >
+              Contact Landlord
+            </Text>
           </TouchableOpacity>
 
           {/* Report Maintenance removed from Property Details - only available via MyBookings */}
@@ -675,10 +833,10 @@ export default function PropertyDetailsScreen({ route }) {
               style={styles.filterScroll}
             >
               {[
-                { key: 'all', label: 'All' },
-                { key: 'available', label: 'Available' },
-                { key: 'occupied', label: 'Occupied' },
-                { key: 'maintenance', label: 'Maintenance' }
+                { key: "all", label: "All" },
+                { key: "available", label: "Available" },
+                { key: "occupied", label: "Occupied" },
+                { key: "maintenance", label: "Maintenance" },
               ].map((filter) => (
                 <TouchableOpacity
                   key={filter.key}
@@ -691,7 +849,8 @@ export default function PropertyDetailsScreen({ route }) {
                   <Text
                     style={[
                       styles.filterChipText,
-                      selectedFilter === filter.key && styles.filterChipTextActive,
+                      selectedFilter === filter.key &&
+                        styles.filterChipTextActive,
                     ]}
                   >
                     {filter.label}
@@ -703,13 +862,33 @@ export default function PropertyDetailsScreen({ route }) {
             {roomsLoading ? (
               <View style={styles.roomsLoadingContainer}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={[styles.roomsLoadingText, { color: theme.colors.textSecondary }]}>Loading rooms...</Text>
+                <Text
+                  style={[
+                    styles.roomsLoadingText,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Loading rooms...
+                </Text>
               </View>
             ) : filteredRooms.length === 0 ? (
               <View style={styles.emptyRoomsContainer}>
-                <Ionicons name="bed-outline" size={48} color={theme.colors.textTertiary} />
-                <Text style={[styles.emptyRoomsTitle, { color: theme.colors.text }]}>No rooms found</Text>
-                <Text style={[styles.emptyRoomsSubtitle, { color: theme.colors.textSecondary }]}>
+                <Ionicons
+                  name="bed-outline"
+                  size={48}
+                  color={theme.colors.textTertiary}
+                />
+                <Text
+                  style={[styles.emptyRoomsTitle, { color: theme.colors.text }]}
+                >
+                  No rooms found
+                </Text>
+                <Text
+                  style={[
+                    styles.emptyRoomsSubtitle,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
                   Try refreshing or adjusting your filter.
                 </Text>
               </View>
@@ -727,7 +906,7 @@ export default function PropertyDetailsScreen({ route }) {
                           uri:
                             getImageUrl(room.images?.[0]) ||
                             getImageUrl(room.image) ||
-                            'https://via.placeholder.com/120x120?text=Room',
+                            "https://via.placeholder.com/120x120?text=Room",
                         }}
                         style={styles.roomImage}
                         resizeMode="cover"
@@ -750,7 +929,10 @@ export default function PropertyDetailsScreen({ route }) {
                         <View
                           style={[
                             styles.statusBadge,
-                            { backgroundColor: getStatusColor(room.status) + '20' },
+                            {
+                              backgroundColor:
+                                getStatusColor(room.status) + "20",
+                            },
                           ]}
                         >
                           <Ionicons
@@ -781,7 +963,11 @@ export default function PropertyDetailsScreen({ route }) {
                           </Text>
                         </View>
                         <View style={styles.roomDetailItem}>
-                          <Ionicons name="layers-outline" size={16} color="#6b7280" />
+                          <Ionicons
+                            name="layers-outline"
+                            size={16}
+                            color="#6b7280"
+                          />
                           <Text style={styles.roomDetailText} numberOfLines={1}>
                             {room.floor_label || `Floor ${room.floor}`}
                           </Text>
@@ -791,7 +977,11 @@ export default function PropertyDetailsScreen({ route }) {
                       {/* Fourth Row: Capacity and View Details */}
                       <View style={styles.roomDetailsRow}>
                         <View style={styles.roomDetailItem}>
-                          <Ionicons name="people-outline" size={16} color="#6b7280" />
+                          <Ionicons
+                            name="people-outline"
+                            size={16}
+                            color="#6b7280"
+                          />
                           <Text style={styles.roomDetailText} numberOfLines={1}>
                             Capacity: {room.capacity}
                           </Text>
@@ -800,10 +990,20 @@ export default function PropertyDetailsScreen({ route }) {
                           style={styles.viewDetailsButton}
                           onPress={() => handleRoomPress(room)}
                         >
-                          <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.viewDetailsText,
+                              { color: theme.colors.primary },
+                            ]}
+                            numberOfLines={1}
+                          >
                             View Details
                           </Text>
-                          <Ionicons name="arrow-forward" size={14} color={theme.colors.primary} />
+                          <Ionicons
+                            name="arrow-forward"
+                            size={14}
+                            color={theme.colors.primary}
+                          />
                         </TouchableOpacity>
                       </View>
                     </View>
