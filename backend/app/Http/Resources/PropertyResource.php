@@ -46,8 +46,12 @@ class PropertyResource extends JsonResource
             'longitude' => $this->longitude,
             'nearby_landmarks' => $this->nearby_landmarks,
             'property_rules' => $this->property_rules ?? [],
-            'total_rooms' => $this->whenLoaded('rooms', fn() => $this->rooms->count()),
-            'available_rooms' => $availableRooms->count(),
+            'total_rooms' => $this->rooms_count ?? $this->whenLoaded('rooms', fn() => $this->rooms->count()),
+            'available_rooms' => $this->available_rooms_count ?? (
+                $this->relationLoaded('rooms') 
+                ? $this->rooms->where('status', 'available')->count() 
+                : 0
+            ),
             'minPrice' => $minPrice,
             'maxPrice' => $maxPrice,
             'priceRange' => $minPrice && $maxPrice

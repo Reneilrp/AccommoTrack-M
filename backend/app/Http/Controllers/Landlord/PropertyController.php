@@ -88,8 +88,8 @@ class PropertyController extends Controller
         } else {
             $properties = Property::where('landlord_id', $user->id);
         }
-        $data = $properties->withCount(['rooms', 'rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
-            ->with(['images', 'amenities', 'credentials'])
+        $data = $properties->withCount(['rooms', 'rooms as available_rooms_count' => fn($q) => $q->where('status', 'available')])
+            ->with(['images', 'amenities', 'credentials', 'rooms'])
             ->orderBy('created_at', 'desc')
             ->get();
             
