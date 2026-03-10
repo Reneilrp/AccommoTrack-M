@@ -40,7 +40,7 @@ class BookingService
 
             $startDate = Carbon::parse($data['start_date']);
             $endDate = Carbon::parse($data['end_date']);
-            $days = $startDate->diffInDays($endDate) + 1;
+            $days = $startDate->diffInDays($endDate);
 
             // Enforce minimum stay if configured
             $minStay = $room->min_stay_days ?? null;

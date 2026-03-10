@@ -586,7 +586,7 @@ class Room extends Model
         $start = $startDate instanceof Carbon ? $startDate->copy() : Carbon::parse($startDate);
         $end = $endDate instanceof Carbon ? $endDate->copy() : Carbon::parse($endDate);
 
-        $days = max(1, $start->diffInDays($end) + 1);
+        $days = max(1, $start->diffInDays($end));
         $monthly = (float) $this->monthly_rate;
         $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
         $policy = $this->billing_policy ?? 'monthly';

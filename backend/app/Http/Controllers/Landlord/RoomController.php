@@ -159,7 +159,7 @@ class RoomController extends Controller
             if ($request->has('days')) {
                 $days = (int) $request->query('days');
             } elseif ($request->has('start') && $request->has('end')) {
-                $days = Carbon::parse($request->query('start'))->diffInDays(Carbon::parse($request->query('end'))) + 1;
+                $days = Carbon::parse($request->query('start'))->diffInDays(Carbon::parse($request->query('end')));
             }
 
             if (!$days || $days < 1) {
