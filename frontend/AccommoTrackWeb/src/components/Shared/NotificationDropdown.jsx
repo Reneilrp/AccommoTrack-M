@@ -33,10 +33,13 @@ const NotificationDropdown = () => {
       const userData = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
       const role = (userData.role || '').toLowerCase();
       const isLandlordOrCaretaker = role === 'landlord' || role === 'caretaker';
+      const isTenant = role === 'tenant';
 
       const [notifRes, activitiesRes] = await Promise.allSettled([
         api.get('/notifications'),
-        isLandlordOrCaretaker ? api.get('/landlord/dashboard/recent-activities') : Promise.resolve({ data: [] }),
+        isLandlordOrCaretaker 
+          ? api.get('/landlord/dashboard/recent-activities') 
+          : (isTenant ? api.get('/tenant/dashboard/activities') : Promise.resolve({ data: [] })),
       ]);
 
       // DB notifications
