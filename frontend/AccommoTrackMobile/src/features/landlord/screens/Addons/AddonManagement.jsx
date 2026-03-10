@@ -203,7 +203,7 @@ export default function AddonManagement({ route, navigation }) {
         <View style={styles.emptyState}>
           <Ionicons name="sparkles-outline" size={64} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No add-ons yet</Text>
-          <Text style={styles.emptySubtitle}>Create add-ons to offer extra services or rentals to your tenants.</Text>
+          <Text style={styles.emptySubtitle}>Create add-ons to offer extra usage fees or rentals to your tenants.</Text>
         </View>
       );
     }
@@ -272,7 +272,7 @@ export default function AddonManagement({ route, navigation }) {
         <View style={styles.emptyState}>
           <Ionicons name="notifications-outline" size={64} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No pending requests</Text>
-          <Text style={styles.emptySubtitle}>Requests from tenants for services or rentals will appear here.</Text>
+          <Text style={styles.emptySubtitle}>Requests from tenants for usage fees or rentals will appear here.</Text>
         </View>
       );
     }
@@ -403,14 +403,14 @@ export default function AddonManagement({ route, navigation }) {
 
       <View style={styles.headerSubtitle}>
         <Text style={styles.subtitleText}>
-          {propertyTitle || 'Manage services'} • Extra services and rentals
+          {propertyTitle || 'Manage usage fees'} • Extra usage fees and rentals
         </Text>
         <TouchableOpacity 
           style={styles.addServiceButton}
           onPress={() => { resetForm(); setShowModal(true); }}
         >
           <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-          <Text style={styles.addServiceButtonText}>Add New Service</Text>
+          <Text style={styles.addServiceButtonText}>Add New Usage Fee</Text>
         </TouchableOpacity>
       </View>
 

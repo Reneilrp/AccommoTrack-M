@@ -187,7 +187,7 @@ const AddonManagement = ({ propertyId }) => {
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex justify-between items-center mb-6">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Manage extra services and rentals for tenants
+            Manage extra usage fees and rentals for tenants
           </p>
           <button
             onClick={() => {
@@ -197,7 +197,7 @@ const AddonManagement = ({ propertyId }) => {
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-500/20"
           >
             <Plus className="w-5 h-5" />
-            Add New Service
+            Add New Usage Fee
           </button>
         </div>
 
@@ -271,7 +271,7 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
         <Sparkles className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
         <p className="font-medium">No add-ons created yet.</p>
         <p className="text-sm">
-          Create add-ons to offer extra services to your tenants.
+          Create add-ons to offer extra usage fees to your tenants.
         </p>
       </div>
     );

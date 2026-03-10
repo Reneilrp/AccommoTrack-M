@@ -169,7 +169,7 @@ export default function AddonsScreen({ hideHeader = false }) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
-        <Header title="Add-ons & Services" onBack={() => navigation.goBack()} showProfile={false} />
+        <Header title="Add-ons & Usage Fees" onBack={() => navigation.goBack()} showProfile={false} />
         {noBookingContent}
       </View>
     );
@@ -241,7 +241,7 @@ export default function AddonsScreen({ hideHeader = false }) {
                                         onPress={() => setCustomData({...customData, addon_type: customData.addon_type === 'rental' ? 'fee' : 'rental'})}
                                         style={[styles.pickerBtn, customData.addon_type === 'rental' && styles.pickerBtnActive]}
                                     >
-                                        <Text style={styles.pickerBtnText}>{customData.addon_type === 'rental' ? 'Rental' : 'Service'}</Text>
+                                        <Text style={styles.pickerBtnText}>{customData.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}</Text>
                                         <Ionicons name="swap-horizontal" size={16} color={theme.colors.primary} />
                                     </TouchableOpacity>
                                 </View>
@@ -348,7 +348,7 @@ export default function AddonsScreen({ hideHeader = false }) {
             <View style={styles.emptyState}>
                 <Ionicons name="cube-outline" size={64} color={theme.colors.textTertiary} />
                 <Text style={[styles.emptyTitle, { color: theme.colors.textSecondary, textAlign: 'center' }]}>No Add-ons available for this property</Text>
-                <Text style={[styles.emptySub, { color: theme.colors.textTertiary, textAlign: 'center' }]}>Check back later or contact your landlord for available services.</Text>
+                <Text style={[styles.emptySub, { color: theme.colors.textTertiary, textAlign: 'center' }]}>Check back later or contact your landlord for available usage fees.</Text>
             </View>
         )}
       />
@@ -362,7 +362,7 @@ export default function AddonsScreen({ hideHeader = false }) {
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
       
       <Header 
-        title="Add-ons & Services"
+        title="Add-ons & Usage Fees"
         onBack={() => navigation.goBack()}
         showProfile={false}
       />

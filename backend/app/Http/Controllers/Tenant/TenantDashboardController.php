@@ -119,8 +119,8 @@ class TenantDashboardController extends Controller
                         'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
                         'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
                         'hasReview' => (bool) $booking->review, 
-                        'daysRemaining' => now()->diffInDays($booking->end_date, false) < 0 ? 0 : now()->diffInDays($booking->end_date),
-                        'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : abs(now()->diffInDays($booking->start_date, false)),
+                        'daysRemaining' => now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)),
+                        'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : (int) floor(abs(now()->diffInDays($booking->start_date, false))),
                         'monthsRemaining' => now()->diffInMonths($booking->end_date)
                     ],
                     'room' => [

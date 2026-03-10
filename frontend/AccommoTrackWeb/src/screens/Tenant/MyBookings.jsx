@@ -1061,7 +1061,7 @@ const AddonItem = ({ addon, status, onCancel }) => (
       <div>
         <p className="font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
         <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
-          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-1 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Service Fee'}
+          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-1 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
         </p>
       </div>
     </div>
@@ -1207,7 +1207,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                   >
                     <option value="rental">Rental (Item)</option>
-                    <option value="fee">Service Fee</option>
+                    <option value="fee">Usage Fee</option>
                   </select>
                 </div>
                 <div>
