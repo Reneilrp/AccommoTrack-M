@@ -313,8 +313,8 @@ class Room extends Model
      */
     public function assignTenant($tenantId, $moveInDate = null)
     {
-        // Check if room has available slots
-        if ($this->available_slots <= 0) {
+        // Check if room has physical space for more active tenants
+        if ($this->tenants()->count() >= $this->capacity) {
             throw new \Exception('Room is fully occupied');
         }
         
