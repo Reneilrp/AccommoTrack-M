@@ -8,7 +8,8 @@ import {
   LucidePhilippinePeso,
   TrendingUp,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 import {
   BarChart,
@@ -64,13 +65,14 @@ export default function Analytics({ user }) {
     }
   };
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = async (isManualRefresh = false) => {
     try {
-      if (!cachedData) setLoading(true);
+      if (!cachedData || isManualRefresh) setLoading(true);
       setError(null);
 
       const params = new URLSearchParams({
         time_range: timeRange,
+        _t: Date.now().toString(), // Force fresh data from server
         ...(selectedProperty !== 'all' && { property_id: selectedProperty })
       });
 
@@ -89,6 +91,10 @@ export default function Analytics({ user }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = () => {
+    loadAnalytics(true);
   };
 
   useEffect(() => {
@@ -217,6 +223,15 @@ export default function Analytics({ user }) {
           >
             <Download className="w-5 h-5 text-green-600" />
           </button>
+
+          <button 
+            onClick={handleRefresh} 
+            disabled={loading} 
+            className="flex items-center justify-center gap-2 p-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50 lg:hidden"
+            title="Refresh Data"
+          >
+            <RotateCcw className={`w-5 h-5 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
         
         <div className="flex items-center justify-between gap-4">
@@ -232,15 +247,27 @@ export default function Analytics({ user }) {
             ))}
           </div>
 
-          <button 
-            onClick={downloadAnalyticsCSV} 
-            disabled={loading || !analytics} 
-            className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
-            title="Download CSV Report"
-          >
-            <Download className="w-4 h-4 text-green-600" />
-            <span>Export CSV</span>
-          </button>
+          <div className="hidden lg:flex items-center gap-2">
+            <button 
+              onClick={handleRefresh} 
+              disabled={loading} 
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
+              title="Refresh Data"
+            >
+              <RotateCcw className={`w-4 h-4 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+
+            <button 
+              onClick={downloadAnalyticsCSV} 
+              disabled={loading || !analytics} 
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-all disabled:opacity-50"
+              title="Download CSV Report"
+            >
+              <Download className="w-4 h-4 text-green-600" />
+              <span>Export CSV</span>
+            </button>
+          </div>
         </div>
       </div>
 

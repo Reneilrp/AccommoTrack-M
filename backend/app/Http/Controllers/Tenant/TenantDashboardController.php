@@ -112,6 +112,8 @@ class TenantDashboardController extends Controller
                         'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date->format('Y-m-d'),
                         'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $booking->monthly_rent,
                         'total_months' => $booking->total_months, 'monthly_rent' => (float) $booking->monthly_rent,
+                        'billing_policy' => $booking->room->billing_policy ?? 'monthly',
+                        'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                         'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
                         'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
                         'hasReview' => (bool) $booking->review, 'daysRemaining' => now()->diffInDays($booking->end_date),
@@ -141,6 +143,8 @@ class TenantDashboardController extends Controller
                     ],
                     'financials' => [
                         'monthlyRent' => (float) $booking->monthly_rent, 'monthlyAddons' => (float) $monthlyAddonTotal,
+                        'billing_policy' => $booking->room->billing_policy ?? 'monthly',
+                        'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                         'monthlyTotal' => (float) ($booking->monthly_rent + $monthlyAddonTotal),
                         'invoices' => $booking->invoices->map(function($invoice) {
                             return [
@@ -240,6 +244,8 @@ class TenantDashboardController extends Controller
                     'landlord' => ['name' => $booking->landlord->name],
                     'period' => ['startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date->format('Y-m-d'), 'totalMonths' => $booking->total_months],
                     'status' => $booking->status,
+                    'billing_policy' => $booking->room?->billing_policy ?? 'monthly',
+                    'unit_price' => (float) ($booking->room?->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                     'confirmedAt' => $booking->confirmed_at,
                     'activityLog' => $sortedActivity,
                     'financials' => ['monthlyRent' => (float) $booking->monthly_rent, 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],

@@ -24,7 +24,12 @@ import {
   Star,
   ShieldAlert,
   ArrowRight,
-  Wrench
+  Wrench,
+  ChevronDown,
+  DoorOpen,
+  Banknote,
+  CalendarDays,
+  CreditCard
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 
@@ -38,6 +43,7 @@ const MyBookings = () => {
 
   const [activeStays, setActiveStays] = useState(cachedData?.activeStays || []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
+  const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
   const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
@@ -285,6 +291,8 @@ const MyBookings = () => {
 // ==================== Current Stay Tab ====================
 const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
+  const hasPending = pendingBookings && pendingBookings.length > 0;
+  const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -294,12 +302,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         day: 'numeric',
         year: 'numeric',
       });
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
 
-  if (!hasStays) {
+  if (!hasStays && !hasPending) {
     if (upcomingBooking) {
       return (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
@@ -334,50 +342,6 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       );
     }
 
-    if (pendingBookings && pendingBookings.length > 0) {
-      const pb = pendingBookings[0];
-      const startDate = pb?.start_date ? new Date(pb.start_date) : null;
-      const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
-      return (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
-          <Clock className="w-16 h-16 text-amber-500 mx-auto mb-4 animate-pulse" />
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-8">We've received your request! The landlord is currently reviewing it.</p>
-          
-          <div className="max-w-md mx-auto bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-8">
-            <div className="flex items-center gap-4">
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm">
-                <Home className="w-6 h-6 text-amber-600" />
-              </div>
-              <div className="text-left flex-1">
-                <p className="font-bold text-lg leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
-                <p className="text-sm opacity-80 font-medium">
-                  {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="mt-6 pt-6 border-t border-amber-200/50 dark:border-amber-800/30 flex justify-between items-center">
-              <div className="text-left">
-                <p className="text-[10px] font-bold uppercase opacity-60">Est. Monthly</p>
-                <p className="text-lg font-bold">₱{pb.monthly_rent?.toLocaleString()}</p>
-              </div>
-              <button 
-                onClick={() => onCancelBooking(pb.id)}
-                disabled={isCancelling === pb.id}
-                className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2 rounded-xl text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2"
-              >
-                {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
-                Cancel Request
-              </button>
-            </div>
-          </div>
-          
-          <p className="text-xs text-gray-400 font-medium">You'll be notified as soon as there's an update.</p>
-        </div>
-      );
-    }
-
     return (
       <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -395,251 +359,346 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     );
   }
 
-  const data = stays[selectedIndex] || stays[0];
-
-  const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
-
   return (
     <div className="space-y-6">
-      {/* Adaptive Stay Selector */}
-      <StaySelector 
-        stays={stays} 
-        selectedIndex={selectedIndex} 
-        onSelect={onSelectStay} 
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Column */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Room Details Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
-            <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-              {getImageUrl(property.image) ? (
-                <img
-                  src={getImageUrl(property.image)}
-                  alt={property.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <ImagePlaceholder className="w-full h-full" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{property.title}</h2>
-                  <p className="text-white/90 text-sm flex items-center mt-1 font-medium">
-                    <MapPin className="w-4 h-4 mr-1.5" />
-                    {property.address}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <button 
-                    onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20"
-                  >
-                    <Wrench className="w-4 h-4" />
-                    Maintenance
-                  </button>
-                  {!booking.hasReview && (
-                    <button 
-                      onClick={() => onReview({ ...booking, property })}
-                      className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/30"
-                    >
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      Review
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => onReport(property)}
-                    className="bg-red-500/20 backdrop-blur-md hover:bg-red-500/40 text-red-100 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-red-500/30"
-                  >
-                    <ShieldAlert className="w-4 h-4" />
-                    Report
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard label="Room" value={room.roomNumber} icon="🚪" />
-                <StatCard label="Monthly Rent" value={`₱${booking.monthlyRent.toLocaleString()}`} icon="💰" />
-                <StatCard
-                  label="Days Left"
-                  value={
-                    booking?.daysRemaining == null
-                      ? '-'
-                      : Math.max(0, Math.ceil(Number(booking.daysRemaining)))
-                  }
-                  icon="📅"
-                />
-                <StatCard 
-                  label="Status" 
-                  value={booking.paymentStatus} 
-                  icon={booking.paymentStatus === 'paid' ? '✅' : '⏳'} 
-                />
-              </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-between">
-                  <span><span className="font-bold dark:text-gray-300">Lease:</span> {booking.startDate} to {booking.endDate}</span>
-                  <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{booking.totalMonths} Months</span>
-                </p>
-              </div>
-            </div>
+      {/* Tab Header Row */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* View Toggle */}
+        {hasStays && hasPending ? (
+          <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-1 rounded-xl w-full max-w-sm border border-gray-300 dark:border-gray-700 shadow-inner">
+            {/* Sliding Indicator */}
+            <div 
+              className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-out ${
+                viewMode === 'active' ? 'bg-green-600 shadow-green-500/20' : 'bg-amber-600 shadow-amber-500/20'
+              }`}
+              style={{ transform: viewMode === 'active' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
+            />
+            
+            <button 
+              onClick={() => setViewMode('active')}
+              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${
+                viewMode === 'active' 
+                  ? 'text-white' 
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Active Stays ({stays.length})
+            </button>
+            <button 
+              onClick={() => setViewMode('pending')}
+              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${
+                viewMode === 'pending' 
+                  ? 'text-white' 
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Pending ({pendingBookings.length})
+            </button>
           </div>
+        ) : <div />}
 
-          {/* Add-ons Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
-              <button
-                onClick={onRequestAddon}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-500/20 active:scale-95"
-              >
-                <Plus className="w-4 h-4" />
-                Request
-              </button>
-            </div>
-
-            {/* Active Add-ons */}
-            {Array.isArray(addons.active) && addons.active.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
-                <div className="space-y-3">
-                  {addons.active.map((addon) => (
-                    <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Pending Requests */}
-            {Array.isArray(addons.pending) && addons.pending.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Awaiting Approval</h4>
-                <div className="space-y-3">
-                  {addons.pending.map((addon) => (
-                    <AddonItem 
-                      key={addon.pivot?.id || addon.id} 
-                      addon={addon} 
-                      status="pending"
-                      onCancel={() => onCancelAddon(addon.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(!Array.isArray(addons.active) || addons.active.length === 0) && (!Array.isArray(addons.pending) || addons.pending.length === 0) && (
-              <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
-                <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
-                <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
-              </div>
-            )}
-
-            {addons.monthlyTotal > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Monthly Add-on Fees:</span>
-                <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Landlord Contact Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
-                  {landlord?.name?.charAt(0).toUpperCase() || '?'}
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
-                </div>
-            </div>
-            <div className="space-y-3">
-              {landlord?.email && (
-                <a href={`mailto:${landlord.email}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                  <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  {landlord.email}
-                </a>
-              )}
-              {landlord?.phone && (
-                <a href={`tel:${landlord.phone}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                  <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                    <Phone className="w-4 h-4" />
-                  </div>
-                  {landlord.phone}
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Summary */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Room Rent</span>
-                <span className="font-bold text-gray-900 dark:text-white">₱{booking.monthlyRent.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Monthly Add-ons</span>
-                <span className="font-bold text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
-              </div>
-              <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
-                <span className="font-bold text-gray-900 dark:text-white">Monthly Total</span>
-                <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                  ₱{(booking.monthlyRent + addons.monthlyTotal).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Adaptive Stay Selector */}
+        {viewMode === 'active' && hasStays && (
+          <StaySelector 
+            stays={stays} 
+            selectedIndex={selectedIndex} 
+            onSelect={onSelectStay} 
+          />
+        )}
       </div>
+
+      {/* PENDING VIEW */}
+      {viewMode === 'pending' && hasPending && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {pendingBookings.map(pb => {
+            const startDate = pb?.start_date ? new Date(pb.start_date) : null;
+            const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+            
+            return (
+              <div key={pb.id} className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+                <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">The landlord is reviewing your request.</p>
+                
+                                                    <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-5 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
+                                                      <div className="flex items-center gap-3">
+                                                        <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-sm">
+                                                          <Home className="w-5 h-5 text-amber-600" />
+                                                        </div>
+                                                        <div className="text-left flex-1">
+                                                          <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
+                                                          <p className="text-xs opacity-80 font-medium mt-0.5">
+                                                            {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
+                                                          </p>
+                                                        </div>
+                                                      </div>
+                                                      
+                                                      <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-800/30 flex justify-between items-center">
+                                                        <div className="text-left">
+                                                          <p className="text-[10px] font-bold uppercase opacity-60">
+                                                            {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
+                                                          </p>
+                                                          <p className="text-base font-bold">₱{(pb?.unit_price || pb?.monthly_rent || 0).toLocaleString()}</p>
+                                                        </div>
+                                                        <button 
+                                                          onClick={() => onCancelBooking(pb.id)}
+                                                          disabled={isCancelling === pb.id}
+                                                          className="bg-white dark:bg-gray-800 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-1.5"
+                                                        >
+                                                          {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                                                          Cancel Request
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}        </div>
+      )}
+
+      {/* ACTIVE STAY VIEW */}
+      {viewMode === 'active' && hasStays && (
+        <div className="space-y-6">
+          {(() => {
+            const data = stays[selectedIndex] || stays[0];
+            const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Column */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Room Details Card */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+                    <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
+                      {getImageUrl(property.image) ? (
+                        <img
+                          src={getImageUrl(property.image)}
+                          alt={property.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImagePlaceholder className="w-full h-full" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
+                        <div>
+                          <h2 className="text-2xl font-bold text-white">{property.title}</h2>
+                          <p className="text-white/90 text-sm flex items-center mt-1 font-medium">
+                            <MapPin className="w-4 h-4 mr-1.5" />
+                            {property.address}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button 
+                            onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20"
+                          >
+                            <Wrench className="w-4 h-4" />
+                            Maintenance
+                          </button>
+                          {!booking.hasReview && (
+                            <button 
+                              onClick={() => onReview({ ...booking, property })}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-green-500/20"
+                            >
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              Review
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => onReport(property)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-red-500/20"
+                          >
+                            <ShieldAlert className="w-4 h-4" />
+                            Report
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <StatCard label="Room" value={room.roomNumber} icon={DoorOpen} />
+                        <StatCard 
+                          label={booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'} 
+                          value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`} 
+                          icon={Banknote} 
+                        />
+                        <StatCard
+                          label="Days Left"
+                          value={
+                            booking?.daysRemaining == null
+                              ? '-'
+                              : Math.max(0, Math.ceil(Number(booking.daysRemaining)))
+                          }
+                          icon={CalendarDays}
+                        />
+                        <StatCard 
+                          label="Status" 
+                          value={booking.paymentStatus} 
+                          icon={CreditCard} 
+                        />
+                      </div>
+                      <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                          <span><span className="font-bold dark:text-gray-300">Lease:</span> {booking.startDate} to {booking.endDate}</span>
+                          <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{booking.totalMonths} Months</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Add-ons Section */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
+                      <button
+                        onClick={onRequestAddon}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-500/20 active:scale-95"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Request
+                      </button>
+                    </div>
+
+                    {/* Active Add-ons */}
+                    {Array.isArray(addons.active) && addons.active.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
+                        <div className="space-y-3">
+                          {addons.active.map((addon) => (
+                            <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pending Requests */}
+                    {Array.isArray(addons.pending) && addons.pending.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Awaiting Approval</h4>
+                        <div className="space-y-3">
+                          {addons.pending.map((addon) => (
+                            <AddonItem 
+                              key={addon.pivot?.id || addon.id} 
+                              addon={addon} 
+                              status="pending"
+                              onCancel={() => onCancelAddon(addon.id)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(!Array.isArray(addons.active) || addons.active.length === 0) && (!Array.isArray(addons.pending) || addons.pending.length === 0) && (
+                      <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
+                        <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+                        <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
+                      </div>
+                    )}
+
+                    {addons.monthlyTotal > 0 && (
+                      <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
+                          {booking.billing_policy === 'daily' ? 'Daily Add-on Fees' : 'Monthly Add-on Fees'}
+                        </span>
+                        <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sidebar */}
+                <div className="space-y-6">
+                  {/* Landlord Contact Card */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
+                          {landlord?.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                      {landlord?.email && (
+                        <a href={`mailto:${landlord.email}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                          <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          {landlord.email}
+                        </a>
+                      )}
+                      {landlord?.phone && (
+                        <a href={`tel:${landlord.phone}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                          <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <Phone className="w-4 h-4" />
+                          </div>
+                          {landlord.phone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Summary */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Room Rent'}
+                        </span>
+                        <span className="font-bold text-gray-900 dark:text-white">
+                          ₱{(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {booking.billing_policy === 'daily' ? 'Daily Add-ons' : 'Monthly Add-ons'}
+                        </span>
+                        <span className="font-bold text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
+                        <span className="font-bold text-gray-900 dark:text-white">
+                          {booking.billing_policy === 'daily' ? 'Daily Total' : 'Monthly Total'}
+                        </span>
+                        <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                          ₱{((booking.unit_price || booking.monthlyRent || 0) + addons.monthlyTotal).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 };
 
 // ==================== Stay Selector Component ====================
-const StaySelector = ({ stays, selectedIndex, onSelect }) => {
+const StaySelector = ({ stays, selectedIndex, onSelect, className = "" }) => {
   const isMulti = stays.length > 1;
 
-  return (
-    <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-      <div className="flex items-center gap-3">
-        <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border border-green-200 dark:border-green-800">
-          Active Stays ({stays.length})
-        </div>
-        {isMulti && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            Select a stay to view details
-          </p>
-        )}
-      </div>
+  if (!isMulti) return null;
 
-      {isMulti && (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
-          {stays.map((stay, idx) => (
-            <button
-              key={stay.booking.id}
-              onClick={() => onSelect(idx)}
-              className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all whitespace-nowrap ${
-                selectedIndex === idx
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'
-              }`}
-            >
-              <div className={`w-2 h-2 rounded-full ${selectedIndex === idx ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
-              <span className="text-sm font-bold">{stay.property.title}</span>
-              <span className="text-xs opacity-60">Room {stay.room.roomNumber}</span>
-            </button>
-          ))}
-        </div>
-      )}
+  return (
+    <div className={`relative w-full md:w-auto md:min-w-[280px] ${className}`}>
+      <select
+        value={selectedIndex}
+        onChange={(e) => onSelect(parseInt(e.target.value))}
+        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-green-500 transition-all appearance-none cursor-pointer pr-10 shadow-sm"
+      >
+        {stays.map((stay, idx) => (
+          <option key={stay.booking.id} value={idx}>
+            {stay.property.title} ({stay.room.roomNumber})
+          </option>
+        ))}
+      </select>
+      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
+        <ChevronDown className="w-5 h-5" />
+      </div>
     </div>
   );
 };
@@ -701,15 +760,23 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Rent</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">₱{financials?.monthlyRent?.toLocaleString() || 0}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+            {financials?.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
+          </p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            ₱{(financials?.unit_price || financials?.monthlyRent || 0).toLocaleString()}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Add-ons</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+            {financials?.billing_policy === 'daily' ? 'Daily Add-ons' : 'Monthly Add-ons'}
+          </p>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{financials?.monthlyAddons?.toLocaleString() || 0}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Due/mo</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+            {financials?.billing_policy === 'daily' ? 'Total Due/day' : 'Total Due/mo'}
+          </p>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{financials?.monthlyTotal?.toLocaleString() || 0}</p>
         </div>
       </div>
@@ -918,9 +985,11 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport, onCancelBooking, isC
 };
 
 // ==================== Helper Components ====================
-const StatCard = ({ label, value, icon }) => (
+const StatCard = ({ label, value, icon: Icon }) => (
   <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md transition-all">
-    <div className="text-2xl mb-2">{icon}</div>
+    <div className="flex justify-center mb-2">
+      <Icon className="w-6 h-6 text-green-600 dark:text-green-400" />
+    </div>
     <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mt-1 tracking-wider">{label}</p>
   </div>
@@ -1126,7 +1195,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => {
                   placeholder="Tell the owner more about your request..."
                   value={customData.note}
                   onChange={e => setCustomData({...customData, note: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-24 resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-24 resize-none"
                 />
               </div>
 
@@ -1134,7 +1203,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => {
                 <button 
                   type="button"
                   onClick={() => setShowCustomForm(false)}
-                  className="flex-1 py-3 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 py-3 border border-gray-300 dark:border-gray-700 rounded-xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Back
                 </button>

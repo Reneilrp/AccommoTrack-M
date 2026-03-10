@@ -40,6 +40,8 @@ class BookingResource extends JsonResource
             'total_amount' => (float) $this->total_amount,
             'monthlyRent' => (float) $this->monthly_rent,
             'monthly_rent' => (float) $this->monthly_rent,
+            'unit_price' => (float) ($this->room?->billing_policy === 'daily' ? ($this->room->daily_rate ?? ($this->monthly_rent / 30)) : $this->monthly_rent),
+            'billing_policy' => $this->room?->billing_policy ?? 'monthly',
             'status' => $this->status,
             'paymentStatus' => $this->payment_status,
             'payment_status' => $this->payment_status,
@@ -59,6 +61,7 @@ class BookingResource extends JsonResource
                 'name' => $this->property->title,
                 'full_address' => $this->property->full_address,
                 'address' => $this->property->full_address,
+                'image' => $this->property->image_url,
             ]),
             'tenant' => $this->whenLoaded('tenant', fn() => [
                 'id' => $this->tenant->id,
@@ -80,7 +83,9 @@ class BookingResource extends JsonResource
                 'room_type' => $this->room->room_type,
                 'floor' => $this->room->floor,
                 'status' => $this->room->status,
+                'billing_policy' => $this->room->billing_policy ?? 'monthly',
                 'monthly_rate' => (float) $this->room->monthly_rate,
+                'daily_rate' => (float) $this->room->daily_rate,
                 'currentTenant' => $this->room->currentTenant ? [
                     'id' => $this->room->currentTenant->id,
                     'first_name' => $this->room->currentTenant->first_name,
@@ -91,6 +96,9 @@ class BookingResource extends JsonResource
                 'id' => $this->landlord->id,
                 'first_name' => $this->landlord->first_name,
                 'last_name' => $this->landlord->last_name,
+                'name' => $this->landlord->first_name . ' ' . $this->landlord->last_name,
+                'email' => $this->landlord->email,
+                'phone' => $this->landlord->phone,
             ]),
         ];
     }

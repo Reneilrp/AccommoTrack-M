@@ -5,6 +5,7 @@ import { Loader2, Search, Calendar, Receipt, X, RotateCcw } from "lucide-react";
 import toast from "react-hot-toast";
 import PriceRow from "../../components/Shared/PriceRow";
 import { useUIState } from "../../contexts/UIStateContext";
+import { cacheManager } from "../../utils/cache";
 
 export default function Payments() {
   const { uiState, updateData } = useUIState();
@@ -19,6 +20,7 @@ export default function Payments() {
   const navigate = useNavigate();
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [refundConfirmTx, setRefundConfirmTx] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isRefunding, setIsRefunding] = useState(null);
   const [recordData, setRecordData] = useState({
@@ -44,6 +46,25 @@ export default function Payments() {
       });
     }
   }, [selectedInvoice]);
+
+  const getInvoiceStatus = useCallback((inv) => {
+    const booking = inv.booking_id ? bookingsMap[inv.booking_id] : inv.booking;
+    const bookingPayStatus = (booking?.payment_status || "").toLowerCase();
+    const invStatus = (inv.status || "").toLowerCase();
+
+    if (bookingPayStatus === "refunded") return "refunded";
+    if (bookingPayStatus === "cancelled") return "cancelled";
+    if (invStatus) return invStatus;
+    if (bookingPayStatus) return bookingPayStatus;
+    return "unpaid";
+  }, [bookingsMap]);
+
+  const invalidateAnalyticsCache = useCallback(() => {
+    // Clear both global state and persistent local cache for analytics
+    updateData("landlord_analytics", null);
+    cacheManager.remove("landlord_analytics");
+    console.log("Analytics cache invalidated due to payment action");
+  }, [updateData]);
 
   const loadInvoices = async () => {
     try {
@@ -108,6 +129,7 @@ export default function Payments() {
 
       toast.success("Payment recorded successfully");
       setShowInvoiceModal(false);
+      invalidateAnalyticsCache();
       await loadInvoices();
     } catch (e) {
       console.error("Failed to record payment", e);
@@ -118,12 +140,7 @@ export default function Payments() {
   };
 
   const handleRefundTransaction = async (tx) => {
-    if (
-      !window.confirm(
-        `Refund ₱${(tx.amount_cents / 100).toLocaleString()} for this transaction? This cannot be undone.`,
-      )
-    )
-      return;
+    if (!tx) return;
     setIsRefunding(tx.id);
     try {
       await api.post(`/transactions/${tx.id}/refund`, {
@@ -132,10 +149,14 @@ export default function Payments() {
       if (selectedInvoice.booking_id) {
         await updateBookingPayment(selectedInvoice.booking_id, "refunded");
       }
-      toast.success("Transaction refunded successfully");
+      toast.success(
+        `Refund of ₱${(tx.amount_cents / 100).toLocaleString()} processed successfully`,
+      );
       setShowInvoiceModal(false);
+      invalidateAnalyticsCache();
       await loadInvoices();
     } catch (e) {
+      console.error("Failed to process refund", e);
       toast.error(e.response?.data?.message || "Failed to process refund");
     } finally {
       setIsRefunding(null);
@@ -208,6 +229,7 @@ export default function Payments() {
         payment_status: paymentStatus,
       });
       // Refresh invoices and list
+      invalidateAnalyticsCache();
       await loadInvoices();
       toast.success("Payment status updated");
     } catch (e) {
@@ -259,22 +281,8 @@ export default function Payments() {
       ""
     ).toLowerCase();
 
-    // Derive canonical payment status:
-    // booking.payment_status wins for refunded/cancelled (set by landlord actions);
-    // otherwise fall back to invoice status, then booking payment status, then 'unpaid'
-    const bookingPayStatus = (
-      bookingsMap[inv.booking_id]?.payment_status ||
-      inv.booking?.payment_status ||
-      ""
-    ).toLowerCase();
-    const invStatus = (inv.status || "").toLowerCase();
-    const statusNormalized = (() => {
-      if (bookingPayStatus === "refunded") return "refunded";
-      if (bookingPayStatus === "cancelled") return "cancelled";
-      if (invStatus) return invStatus;
-      if (bookingPayStatus) return bookingPayStatus;
-      return "unpaid";
-    })();
+    // Derive canonical payment status using helper
+    const statusNormalized = getInvoiceStatus(inv);
 
     // Apply payment filter first — specific filters bypass the booking-status exclusion
     if (paymentFilter !== "all" && statusNormalized !== paymentFilter)
@@ -385,19 +393,7 @@ export default function Payments() {
           0,
         ) || 0;
     const balance = Math.max(0, price - paidAmount);
-    const rowBookingPayStatus = (
-      bookingFromMap?.payment_status ||
-      inv.booking?.payment_status ||
-      ""
-    ).toLowerCase();
-    const rowInvStatus = (inv.status || "").toLowerCase();
-    const status = (() => {
-      if (rowBookingPayStatus === "refunded") return "refunded";
-      if (rowBookingPayStatus === "cancelled") return "cancelled";
-      if (rowInvStatus) return rowInvStatus;
-      if (rowBookingPayStatus) return rowBookingPayStatus;
-      return "unpaid";
-    })();
+    const status = getInvoiceStatus(inv);
 
     // Determine display values, but show a Loading placeholder when booking is referenced but not yet fetched
     const tenantDisplay =
@@ -457,7 +453,7 @@ export default function Payments() {
               }}
               className="text-green-600 hover:text-green-800 font-bold uppercase text-xs tracking-wider"
             >
-              Manage
+              {status === "paid" ? "Details" : "Manage"}
             </button>
           ) : (
             <span className="text-xs text-gray-500">—</span>
@@ -770,143 +766,152 @@ export default function Payments() {
                   );
                 })()}
 
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">
-                    Record Payment
-                  </h4>
+                {!["paid", "refunded", "cancelled"].includes(
+                  getInvoiceStatus(selectedInvoice),
+                ) && (
+                  <>
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">
+                        Record Payment
+                      </h4>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                        Amount (₱)
-                      </label>
-                      <input
-                        type="number"
-                        value={recordData.amount}
-                        onChange={(e) =>
-                          setRecordData({
-                            ...recordData,
-                            amount: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                        Method
-                      </label>
-                      <select
-                        value={recordData.method}
-                        onChange={(e) =>
-                          setRecordData({
-                            ...recordData,
-                            method: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="gcash">GCash</option>
-                        <option value="check">Check</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                            Amount (₱)
+                          </label>
+                          <input
+                            type="number"
+                            value={recordData.amount}
+                            onChange={(e) =>
+                              setRecordData({
+                                ...recordData,
+                                amount: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                            Method
+                          </label>
+                          <select
+                            value={recordData.method}
+                            onChange={(e) =>
+                              setRecordData({
+                                ...recordData,
+                                method: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          >
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="gcash">GCash</option>
+                            <option value="check">Check</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                      Reference (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={recordData.reference}
-                      onChange={(e) =>
-                        setRecordData({
-                          ...recordData,
-                          reference: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Transaction reference..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                      Notes (Optional)
-                    </label>
-                    <textarea
-                      value={recordData.notes}
-                      onChange={(e) =>
-                        setRecordData({ ...recordData, notes: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
-                      placeholder="Add any internal notes..."
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleRecordOffline}
-                    disabled={isRecording}
-                    className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isRecording ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Recording...
-                      </>
-                    ) : (
-                      "Record Payment"
-                    )}
-                  </button>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                  <p className="text-xs text-gray-400 mb-2 font-bold uppercase">
-                    Quick Status Update
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      {
-                        id: "unpaid",
-                        label: "Unpaid",
-                        color:
-                          "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
-                      },
-                      {
-                        id: "partial",
-                        label: "Partial",
-                        color:
-                          "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
-                      },
-                      {
-                        id: "paid",
-                        label: "Paid",
-                        color:
-                          "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
-                      },
-                    ].map((status) => (
-                      <button
-                        key={status.id}
-                        onClick={async () => {
-                          if (selectedInvoice.booking_id) {
-                            await updateBookingPayment(
-                              selectedInvoice.booking_id,
-                              status.id,
-                            );
-                            setShowInvoiceModal(false);
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                          Reference (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={recordData.reference}
+                          onChange={(e) =>
+                            setRecordData({
+                              ...recordData,
+                              reference: e.target.value,
+                            })
                           }
-                        }}
-                        className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
+                          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          placeholder="Transaction reference..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                          Notes (Optional)
+                        </label>
+                        <textarea
+                          value={recordData.notes}
+                          onChange={(e) =>
+                            setRecordData({
+                              ...recordData,
+                              notes: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
+                          placeholder="Add any internal notes..."
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleRecordOffline}
+                        disabled={isRecording}
+                        className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       >
-                        {status.label}
+                        {isRecording ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Recording...
+                          </>
+                        ) : (
+                          "Record Payment"
+                        )}
                       </button>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                      <p className="text-xs text-gray-400 mb-2 font-bold uppercase">
+                        Quick Status Update
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          {
+                            id: "unpaid",
+                            label: "Unpaid",
+                            color:
+                              "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+                          },
+                          {
+                            id: "partial",
+                            label: "Partial",
+                            color:
+                              "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
+                          },
+                          {
+                            id: "paid",
+                            label: "Paid",
+                            color:
+                              "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+                          },
+                        ].map((status) => (
+                          <button
+                            key={status.id}
+                            onClick={async () => {
+                              if (selectedInvoice.booking_id) {
+                                await updateBookingPayment(
+                                  selectedInvoice.booking_id,
+                                  status.id,
+                                );
+                                setShowInvoiceModal(false);
+                              }
+                            }}
+                            className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
+                          >
+                            {status.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Existing Transactions with Refund buttons */}
                 {Array.isArray(selectedInvoice.transactions) &&
@@ -952,7 +957,7 @@ export default function Payments() {
                                   </span>
                                 ) : (
                                   <button
-                                    onClick={() => handleRefundTransaction(tx)}
+                                    onClick={() => setRefundConfirmTx(tx)}
                                     disabled={isRefunding === tx.id}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
                                   >
@@ -972,11 +977,7 @@ export default function Payments() {
                   )}
 
                 {/* Mark Fully Paid & Completed — only shown when payment status is partial */}
-                {(
-                  selectedInvoice?.status ||
-                  selectedInvoice?.booking?.payment_status ||
-                  ""
-                ).toLowerCase() === "partial" && (
+                {getInvoiceStatus(selectedInvoice) === "partial" && (
                   <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-900/30 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-3">
                     <p className="text-[10px] text-yellow-700 dark:text-yellow-400 font-bold uppercase mb-2">
                       Partial Payment — Action Required
@@ -1014,6 +1015,58 @@ export default function Payments() {
                   className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Refund Confirmation Modal */}
+        {refundConfirmTx && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-700">
+              <div className="flex flex-col items-center text-center space-y-3">
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-full text-red-600 dark:text-red-400">
+                  <RotateCcw className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Confirm Refund
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    Are you sure you want to refund{" "}
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      ₱
+                      {(
+                        refundConfirmTx.amount_cents / 100
+                      ).toLocaleString()}
+                    </span>
+                    ? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRefundConfirmTx(null)}
+                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const txToRefund = refundConfirmTx;
+                    setRefundConfirmTx(null);
+                    await handleRefundTransaction(txToRefund);
+                  }}
+                  disabled={isRefunding === refundConfirmTx.id}
+                  className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
+                >
+                  {isRefunding === refundConfirmTx.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Yes, Refund"
+                  )}
                 </button>
               </div>
             </div>
