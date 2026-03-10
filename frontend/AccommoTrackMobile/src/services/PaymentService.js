@@ -72,10 +72,11 @@ class PaymentService {
   /**
    * Create a PayMongo source (redirect/QR) for an invoice
    */
-  async createPaymongoSource(invoiceId, method = "gcash", returnUrl = null) {
+  async createPaymongoSource(invoiceId, method = "gcash", returnUrl = null, amount = null) {
     try {
       const payload = { method };
       if (returnUrl) payload.return_url = returnUrl;
+      if (amount) payload.amount = amount;
 
       const response = await api.post(
         `/tenant/invoices/${invoiceId}/paymongo-source`,

@@ -376,12 +376,14 @@ export default function Payments() {
         ? Number(inv.amount)
         : 0;
     const paidAmount =
-      inv.transactions?.reduce(
-        (sum, tx) =>
-          sum +
-          (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)),
-        0,
-      ) || 0;
+      inv.transactions
+        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+        .reduce(
+          (sum, tx) =>
+            sum +
+            (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)),
+          0,
+        ) || 0;
     const balance = Math.max(0, price - paidAmount);
     const rowBookingPayStatus = (
       bookingFromMap?.payment_status ||
@@ -715,14 +717,16 @@ export default function Payments() {
                     ? selectedInvoice.amount_cents / 100
                     : Number(selectedInvoice.amount || 0);
                   const selPaid =
-                    selectedInvoice.transactions?.reduce(
-                      (sum, tx) =>
-                        sum +
-                        (tx.amount_cents
-                          ? tx.amount_cents / 100
-                          : Number(tx.amount || 0)),
-                      0,
-                    ) || 0;
+                    selectedInvoice.transactions
+                      ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+                      .reduce(
+                        (sum, tx) =>
+                          sum +
+                          (tx.amount_cents
+                            ? tx.amount_cents / 100
+                            : Number(tx.amount || 0)),
+                        0,
+                      ) || 0;
                   const selRemaining = Math.max(0, selTotal - selPaid);
                   return (
                     <>

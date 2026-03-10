@@ -124,7 +124,8 @@ class PaymongoController extends Controller
     {
         $validated = $request->validate([
             'method' => 'required|string',
-            'return_url' => 'nullable|url'
+            'return_url' => 'nullable|url',
+            'amount' => 'nullable|numeric|min:1'
         ]);
 
         $invoice = Invoice::findOrFail($invoiceId);
@@ -136,9 +137,32 @@ class PaymongoController extends Controller
         $method = $validated['method'];
         $returnUrl = $validated['return_url'] ?? config('app.url') . '/payments/return';
 
-        $amount = $invoice->total_cents ?? $invoice->amount_cents;
-        if (!$amount) {
+        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+        if (!$invoiceTotalCents) {
             return response()->json(['message' => 'Invoice has no amount set'], 422);
+        }
+
+        // Calculate actual paid amount from succeeded transactions
+        $paidAmountCents = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid'])
+            ->sum('amount_cents');
+            
+        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+
+        if ($remainingBalanceCents <= 0) {
+            return response()->json(['message' => 'This invoice is already fully paid.'], 422);
+        }
+
+        if (isset($validated['amount'])) {
+            $requestedAmountCents = (int) round($validated['amount'] * 100);
+            if ($requestedAmountCents > $remainingBalanceCents) {
+                return response()->json([
+                    'message' => 'Payment amount cannot exceed the remaining balance of ₱' . number_format($remainingBalanceCents / 100, 2)
+                ], 422);
+            }
+            $amountToPayCents = $requestedAmountCents;
+        } else {
+            $amountToPayCents = $remainingBalanceCents;
         }
 
         DB::beginTransaction();
@@ -146,7 +170,7 @@ class PaymongoController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $invoice->tenant_id,
-                'amount_cents' => $amount,
+                'amount_cents' => $amountToPayCents,
                 'currency' => $invoice->currency ?? 'PHP',
                 'status' => 'pending',
                 'method' => 'paymongo_' . $method,
@@ -170,7 +194,7 @@ class PaymongoController extends Controller
             $payload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => intval($amount),
+                        'amount' => intval($amountToPayCents),
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                         'type' => $method,
                         'redirect' => [

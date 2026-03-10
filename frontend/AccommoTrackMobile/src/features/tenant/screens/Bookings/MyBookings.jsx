@@ -316,8 +316,13 @@ export default function MyBookings() {
     // Flatten all transactions from all invoices into a single sorted list
     const invoices = Array.isArray(financials.invoices) ? financials.invoices : [];
     const allTransactions = invoices
-      .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ ...tx, invoiceRef: inv.id })))
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ 
+        ...tx, 
+        date: tx.date || tx.created_at,
+        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
+        invoiceRef: inv.id 
+      })))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return (
       <ScrollView style={styles.financialsContainer} showsVerticalScrollIndicator={false}>
@@ -331,7 +336,7 @@ export default function MyBookings() {
                 <Text style={styles.financialsNoticeText}>
                   Financial records and invoices will be available once you have an active stay.
                 </Text>
-              </View>
+              </div>
             </View>
          )}
 
@@ -362,11 +367,11 @@ export default function MyBookings() {
                 {allTransactions.map((tx, idx) => (
                   <View key={`tx-${tx.id || idx}`} style={[styles.tableRow, { borderBottomWidth: idx === allTransactions.length - 1 ? 0 : 1, borderBottomColor: theme.colors.border }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>{formatDate(tx.created_at)}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>{formatDate(tx.date)}</Text>
                       <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textTransform: 'capitalize' }}>{tx.method?.replace('paymongo_', '').replace('_', ' ') || 'Payment'}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.primary }}>{formatCurrency(tx.amount_cents / 100)}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.primary }}>{formatCurrency(tx.amount)}</Text>
                       <Text style={{ fontSize: 10, color: tx.status === 'succeeded' ? '#16a34a' : '#F59E0B', fontWeight: 'bold', textTransform: 'uppercase' }}>{tx.status}</Text>
                     </View>
                   </View>

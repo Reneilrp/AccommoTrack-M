@@ -12,6 +12,8 @@ export default function InvoiceCheckout() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [remainingBalance, setRemainingBalance] = useState(0);
 
   useEffect(() => {
     loadInvoice();
@@ -21,7 +23,18 @@ export default function InvoiceCheckout() {
     try {
       setLoading(true);
       const res = await api.get(`/tenant/payments/${id}`);
-      setInvoice(res.data);
+      const invData = res.data;
+      setInvoice(invData);
+      
+      const totalAmount = invData.amount_cents ? invData.amount_cents / 100 : Number(invData.amount || 0);
+      const paidAmount = invData.transactions
+        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+        .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
+        
+      const balance = Math.max(0, totalAmount - paidAmount);
+      setRemainingBalance(balance);
+      setPaymentAmount(balance.toString());
+      
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load invoice details');
     } finally {
@@ -30,10 +43,19 @@ export default function InvoiceCheckout() {
   };
 
   const handlePayMongoSource = async (method) => {
+    const amountToPay = Number(paymentAmount);
+    if (isNaN(amountToPay) || amountToPay <= 0) {
+      return toast.error('Please enter a valid amount');
+    }
+    if (amountToPay > remainingBalance) {
+      return toast.error(`Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
+    }
+
     setProcessing(true);
     try {
       const res = await api.post(`/tenant/invoices/${id}/paymongo-source`, {
         method: method,
+        amount: amountToPay,
         return_url: window.location.origin + '/payments?payment_refresh=true'
       });
       
@@ -74,7 +96,7 @@ export default function InvoiceCheckout() {
     );
   }
 
-  const amount = invoice.amount_cents ? invoice.amount_cents / 100 : invoice.amount;
+  const isFullyPaid = remainingBalance <= 0;
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -99,23 +121,60 @@ export default function InvoiceCheckout() {
               <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-1 uppercase">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
             </div>
             <div className="text-left md:text-right bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md md:shadow-none md:border-none md:bg-transparent">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Amount Due</p>
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Remaining Balance</p>
               <p className="text-4xl font-bold text-green-600 dark:text-green-400">
-                <PriceRow amount={amount} />
+                <PriceRow amount={remainingBalance} />
               </p>
             </div>
           </div>
         </div>
 
         <div className="p-8 md:p-10">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400">
-              <CreditCard className="w-5 h-5" />
+          {isFullyPaid ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-10 h-10 text-green-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Invoice Fully Paid</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">This invoice has no remaining balance.</p>
+              <button 
+                onClick={() => navigate('/payments')} 
+                className="py-3 px-8 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm inline-block"
+              >
+                View History
+              </button>
             </div>
-            Select Payment Method
-          </h3>
-          
-          <div className="grid grid-cols-1 gap-4">
+          ) : (
+            <>
+              <div className="mb-8">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                  Amount to Pay (₱)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-bold text-lg">₱</span>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    max={remainingBalance}
+                    min={1}
+                    className="w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                    placeholder="Enter amount to pay"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                  You can pay the full remaining balance of ₱{remainingBalance.toLocaleString()} or enter a partial amount.
+                </p>
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                Select Payment Method
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-4">
             {/* GCash */}
             <button
               onClick={() => handlePayMongoSource('gcash')}
