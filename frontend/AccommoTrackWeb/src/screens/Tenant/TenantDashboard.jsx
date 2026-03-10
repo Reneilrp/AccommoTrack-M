@@ -16,6 +16,7 @@ const TenantDashboard = () => {
   const [loading, setLoading] = useState(!cachedData);
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
+  const [selectedStayIndex, setSelectedStayIndex] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
@@ -45,6 +46,7 @@ const TenantDashboard = () => {
   };
 
   const calculateDaysStayed = (startDate) => {
+    if (!startDate) return 0;
     const start = new Date(startDate);
     const today = new Date();
     const diffTime = Math.abs(today - start);
@@ -78,81 +80,134 @@ const TenantDashboard = () => {
     );
   }
 
+  const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
+  const currentStay = hasActiveStays ? (stayData.stays[selectedStayIndex] || stayData.stays[0]) : null;
+
   return (
     <div className="space-y-6 font-sans">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Section */}
         <div className="lg:col-span-2 space-y-6">
-          {stayData?.hasActiveStay ? (
-            /* Active Stay Card */
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-300 dark:border-gray-700">
-              <div className="relative h-48">
-                <img 
-                  src={stayData.property?.image || getImageUrl(stayData.property?.image_url) || 'https://via.placeholder.com/800x400'} 
-                  alt="Property" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
-                  <div className="p-6 text-white w-full">
-                    <h2 className="text-2xl font-bold tracking-tight">{stayData.property?.title}</h2>
-                    <p className="text-sm text-white/90 font-medium">{stayData.property?.address || stayData.property?.full_address}</p>
-                  </div>
+          {hasActiveStays ? (
+            /* Active Stay Hub */
+            <div className="space-y-6">
+               {/* Stay Selector for Multi-stay */}
+               {stayData.stays.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                  {stayData.stays.map((stay, idx) => (
+                    <button
+                      key={stay.booking.id}
+                      onClick={() => setSelectedStayIndex(idx)}
+                      className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all whitespace-nowrap shadow-sm ${
+                        selectedStayIndex === idx
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full ${selectedStayIndex === idx ? 'bg-white' : 'bg-green-500'}`} />
+                      <span className="text-sm font-bold">{stay.property?.title}</span>
+                    </button>
+                  ))}
                 </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-xl border border-green-200 dark:border-green-800 shadow-md">
-                    <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Current Room</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {stayData.room?.roomNumber || stayData.room?.room_number}
-                    </p>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 capitalize">{stayData.room?.roomType || stayData.room?.type}</p>
-                  </div>
+               )}
 
-                  <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-md">
-                    <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Days Stayed</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {calculateDaysStayed(stayData.booking?.startDate || stayData.booking?.start_date)}
-                    </p>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">
-                      Since {new Date(stayData.booking?.startDate || stayData.booking?.start_date).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-xl border border-purple-200 dark:border-purple-800 shadow-md">
-                    <p className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Monthly Rent</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {formatCurrency(stayData.booking?.monthlyRent || stayData.booking?.monthly_rent)}
-                    </p>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Due Monthly</p>
-                  </div>
-                </div>
-
-                {/* Landlord Info */}
-                <div className="flex items-center gap-4 pt-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 -mx-6 -mb-6 p-6">
-                  <img
-                    src={getImageUrl(stayData.landlord?.profile_image) || `https://ui-avatars.com/api/?name=${stayData.landlord?.name}&background=random`}
-                    alt={stayData.landlord?.name}
-                    className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-600 shadow-sm object-cover"
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-300 dark:border-gray-700">
+                <div className="relative h-48">
+                  <img 
+                    src={currentStay.property?.image || getImageUrl(currentStay.property?.image_url) || 'https://via.placeholder.com/800x400'} 
+                    alt="Property" 
+                    className="w-full h-full object-cover"
                   />
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property Manager</p>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">{stayData.landlord?.name}</p>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                    <div className="p-6 text-white w-full">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <h2 className="text-2xl font-bold tracking-tight">{currentStay.property?.title}</h2>
+                          <p className="text-sm text-white/90 font-medium">{currentStay.property?.address || currentStay.property?.full_address}</p>
+                        </div>
+                        <button 
+                          onClick={() => navigate(`/property/${currentStay.property?.id}`)}
+                          className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/30"
+                        >
+                          Details
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => navigate('/messages', { 
-                      state: { 
-                        startConversation: { 
-                          recipient_id: stayData.landlord?.id, 
-                          property_id: stayData.property?.id 
+                </div>
+                
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-xl border border-green-200 dark:border-green-800 shadow-md">
+                      <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Current Room</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                        {currentStay.room?.roomNumber || currentStay.room?.room_number}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 capitalize">{currentStay.room?.roomType || currentStay.room?.type}</p>
+                    </div>
+
+                    <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-md">
+                      <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Days Stayed</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                        {calculateDaysStayed(currentStay.booking?.startDate || currentStay.booking?.start_date)}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">
+                        Since {new Date(currentStay.booking?.startDate || currentStay.booking?.start_date).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-xl border border-purple-200 dark:border-purple-800 shadow-md">
+                      <p className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Monthly Rent</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                        {formatCurrency(currentStay.booking?.monthlyRent || currentStay.booking?.monthly_rent)}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Due Monthly</p>
+                    </div>
+                  </div>
+
+                  {/* Contextual Action Area */}
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <button 
+                      onClick={() => navigate('/maintenance', { state: { propertyId: currentStay.property?.id } })}
+                      className="flex items-center justify-center gap-2 py-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-600"
+                    >
+                      <Wrench className="w-4 h-4" />
+                      Report Maintenance
+                    </button>
+                    <button 
+                      onClick={() => navigate('/bookings', { state: { stayIndex: selectedStayIndex } })}
+                      className="flex items-center justify-center gap-2 py-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-600"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      View Full Schedule
+                    </button>
+                  </div>
+
+                  {/* Landlord Info */}
+                  <div className="flex items-center gap-4 pt-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 -mx-6 -mb-6 p-6">
+                    <img
+                      src={getImageUrl(currentStay.landlord?.profile_image) || `https://ui-avatars.com/api/?name=${currentStay.landlord?.name}&background=random`}
+                      alt={currentStay.landlord?.name}
+                      className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-600 shadow-sm object-cover"
+                    />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property Manager</p>
+                      <p className="text-base font-bold text-gray-900 dark:text-white">{currentStay.landlord?.name}</p>
+                    </div>
+                    <button
+                      onClick={() => navigate('/messages', { 
+                        state: { 
+                          startConversation: { 
+                            recipient_id: currentStay.landlord?.id, 
+                            property_id: currentStay.property?.id 
+                          } 
                         } 
-                      } 
-                    })}
-                    className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                  >
-                    Send Message
-                  </button>
+                      })}
+                      className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                    >
+                      Send Message
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -199,69 +254,67 @@ const TenantDashboard = () => {
 
         {/* Sidebar Section */}
         <div className="space-y-6">
-          {/* Top Stats Cards - Mobile/Small Layout (Only shown when NO active stay to fill the gap) */}
-          {!stayData?.hasActiveStay && (
-            <div className="grid grid-cols-1 gap-4">
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Current Room</p>
-                <p className="text-xl font-bold text-gray-400 dark:text-gray-600 italic">None</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Days Stayed</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">0</p>
-              </div>
+          {/* Summary Stats Card */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 tracking-tight">Stay Summary</h3>
+            <div className="grid grid-cols-2 gap-4">
+               <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Active Rooms</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{stayData?.stays?.length || 0}</p>
+               </div>
+               <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Upcoming</p>
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{stayData?.upcomingBooking ? '1' : '0'}</p>
+               </div>
             </div>
-          )}
+          </div>
 
           {/* Payment Overview */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 tracking-tight">Payment Overview</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-700">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Pending Due</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Outstanding Due</span>
                 <span className={`text-base font-bold ${stats?.payments?.monthlyDue > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>
                   {formatCurrency(stats?.payments?.monthlyDue || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-700">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Paid</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Life-time Paid</span>
                 <span className="text-base font-bold text-green-600 dark:text-green-400">{formatCurrency(stats?.payments?.totalPaid || 0)}</span>
               </div>
               <button 
                 onClick={() => navigate('/payments')}
                 className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-md shadow-green-600/10 text-sm"
               >
-                View Payments
+                Go to Billing
               </button>
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions (Global) */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 tracking-tight">Quick Actions</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 tracking-tight">Platform Shortcuts</h3>
             <div className="space-y-2">
-              {stayData?.hasActiveStay && (
-                <button 
-                  onClick={() => navigate(`/property/${stayData.property?.id}`)}
-                  className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
-                >
-                  <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Property Details</span>
-                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
-                </button>
-              )}
               <button 
                 onClick={() => navigate('/bookings')}
                 className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
               >
-                <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Booking History</span>
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+                <div className="flex items-center gap-3">
+                   <Calendar className="w-4 h-4 text-gray-400 group-hover:text-green-500" />
+                   <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Manage All Bookings</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
               </button>
               <button 
-                onClick={() => navigate('/maintenance')}
+                onClick={() => navigate('/profile')}
                 className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
               >
-                <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Maintenance</span>
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+                <div className="flex items-center gap-3">
+                   <Home className="w-4 h-4 text-gray-400 group-hover:text-green-500" />
+                   <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Profile Settings</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
               </button>
             </div>
           </div>
