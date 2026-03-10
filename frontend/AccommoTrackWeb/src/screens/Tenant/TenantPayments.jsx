@@ -6,7 +6,7 @@ import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
 import { CircleDollarSign, ClipboardCheck, Calendar } from 'lucide-react';
 
-export default function TenantWallet() {
+export default function TenantPayments() {
   const { uiState, updateScreenState, updateData } = useUIState();
   const { statusFilter, timeRange, searchQuery } = uiState.wallet || {
     searchQuery: "",

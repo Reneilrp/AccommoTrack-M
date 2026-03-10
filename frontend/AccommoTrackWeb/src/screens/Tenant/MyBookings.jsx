@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { tenantService } from '../../services/tenantService';
 import { getImageUrl } from '../../utils/api';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
@@ -21,11 +22,13 @@ import {
   Sparkles,
   RefreshCw,
   Star,
-  ShieldAlert
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 
 const MyBookings = () => {
+  const navigate = useNavigate();
   const { uiState, updateScreenState, updateData } = useUIState();
   const activeTab = uiState.bookings?.activeTab || 'current';
   
@@ -184,7 +187,7 @@ const MyBookings = () => {
             />
           )}
           {activeTab === 'financials' && (
-            <FinancialsTab data={currentStay} />
+            <FinancialsTab data={currentStay} navigate={navigate} />
           )}
           {activeTab === 'history' && (
             <HistoryTab 
@@ -475,7 +478,7 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
 };
 
 // ==================== Financials Tab ====================
-const FinancialsTab = ({ data }) => {
+const FinancialsTab = ({ data, navigate }) => {
   if (!data?.hasActiveStay) {
     return (
       <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
@@ -494,8 +497,25 @@ const FinancialsTab = ({ data }) => {
     .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ ...tx, invoiceRef: inv.id })))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const recentTransactions = allTransactions.slice(0, 3);
+
   return (
     <div className="space-y-6">
+      {/* Action Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-green-600 rounded-xl p-6 text-white shadow-lg shadow-green-600/20">
+        <div>
+          <h3 className="text-xl font-bold">Billing & Payments</h3>
+          <p className="text-green-100 text-sm mt-1">Manage your invoices, view full history and make payments.</p>
+        </div>
+        <button 
+          onClick={() => navigate('/payments')}
+          className="bg-white text-green-700 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-green-50 transition-all shadow-md active:scale-95 whitespace-nowrap"
+        >
+          View Full History
+          <ArrowRight className="w-5 h-5" />
+        </button>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
@@ -512,31 +532,35 @@ const FinancialsTab = ({ data }) => {
         </div>
       </div>
 
-      {/* Transaction History */}
+      {/* Recent Activity */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
         <div className="p-6 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <RefreshCw className="w-5 h-5 text-green-500" />
-            Recent Transactions
+            Recent Activity
           </h3>
+          <button 
+            onClick={() => navigate('/payments')}
+            className="text-sm font-bold text-green-600 dark:text-green-400 hover:underline"
+          >
+            See all
+          </button>
         </div>
-        {allTransactions.length > 0 ? (
+        {recentTransactions.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
                   <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
                   <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Method</th>
                   <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
-                {allTransactions.map((tx) => (
+                {recentTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{tx.date}</td>
-                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{tx.amount.toLocaleString()}</td>
-                    <td className="py-4 px-6 text-sm font-bold text-gray-500 dark:text-gray-500 capitalize">{tx.method.replace('paymongo_', '').replace('_', ' ')}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
                         tx.status === 'succeeded' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
@@ -550,45 +574,7 @@ const FinancialsTab = ({ data }) => {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No payment transactions recorded yet.</p>
-        )}
-      </div>
-
-      {/* Invoice History */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-green-500" />
-            Invoice History
-          </h3>
-        </div>
-        {Array.isArray(financials.invoices) && financials.invoices.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Due Date</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Description</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
-                {financials.invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{invoice.dueDate || invoice.issuedAt}</td>
-                    <td className="py-4 px-6 text-sm font-bold text-gray-500 dark:text-gray-500">{invoice.description || 'Accommodation Fee'}</td>
-                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{invoice.amount.toLocaleString()}</td>
-                    <td className="py-4 px-6">
-                      <StatusBadge status={invoice.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No invoices generated yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No recent transactions.</p>
         )}
       </div>
     </div>
@@ -628,10 +614,10 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport }) => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-600">
-                  {getImageUrl(booking.property.image) ? (
+                  {getImageUrl(booking.property?.image) ? (
                     <img
                       src={getImageUrl(booking.property.image)}
-                      alt={booking.property.title}
+                      alt={booking.property?.title}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -639,15 +625,15 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport }) => {
                   )}
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property.title}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Room {booking.room.roomNumber}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">{booking.period.startDate} - {booking.period.endDate}</p>
+                  <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property?.title || 'Property'}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Room {booking.room?.roomNumber || 'N/A'}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{booking.period?.startDate} - {booking.period?.endDate}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Paid</p>
-                  <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{booking.financials.totalPaid.toLocaleString()}</p>
+                  <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{(booking.financials?.totalPaid || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <StatusBadge status={booking.status} />
@@ -777,16 +763,16 @@ const AddonItem = ({ addon, status, onCancel }) => (
         <Sparkles className="w-5 h-5" />
       </div>
       <div>
-        <p className="font-bold text-gray-900 dark:text-white leading-tight">{addon.name}</p>
+        <p className="font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
         <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
-          {addon.price_type_label} <span className="mx-1 opacity-30">•</span> {addon.addon_type === 'rental' ? 'Rental' : 'Service Fee'}
+          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-1 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Service Fee'}
         </p>
       </div>
     </div>
     <div className="flex items-center gap-3">
       <span className="font-bold text-gray-900 dark:text-white">
-        ₱{parseFloat(addon.price || 0).toLocaleString()}
-        {addon.price_type === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
+        ₱{parseFloat(addon?.price || 0).toLocaleString()}
+        {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
       </span>
       {status === 'pending' && onCancel && (
         <button

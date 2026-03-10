@@ -228,7 +228,7 @@ const TenantDashboard = () => {
                 <span className="text-base font-bold text-green-600 dark:text-green-400">{formatCurrency(stats?.payments?.totalPaid || 0)}</span>
               </div>
               <button 
-                onClick={() => navigate('/wallet')}
+                onClick={() => navigate('/payments')}
                 className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-md shadow-green-600/10 text-sm"
               >
                 View Payments

@@ -26,7 +26,7 @@ import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
 
 const { width } = Dimensions.get('window');
 
-export default function WalletScreen() {
+export default function PaymentsScreen() {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const navigation = useNavigation();

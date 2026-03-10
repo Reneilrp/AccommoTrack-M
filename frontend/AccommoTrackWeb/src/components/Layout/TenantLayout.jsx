@@ -41,8 +41,8 @@ export default function TenantLayout({ user, onLogout, children }) {
       icon: <Calendar className="w-5 h-5" />
     },
     {
-      path: '/wallet',
-      label: 'Payments',
+      path: '/payments',
+      label: 'Billing & Payments',
       icon: <Wallet className="w-5 h-5" />
     },
     {

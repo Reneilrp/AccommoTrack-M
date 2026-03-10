@@ -11,7 +11,7 @@ import ProfilePage from '../screens/Profile/ProfilePage.jsx';
 import UpdatePassword from '../screens/Profile/UpdatePassword.jsx';
 import NotificationPreferences from '../screens/Settings/NotificationPreferences.jsx';
 import MyBookings from '../screens/Bookings/MyBookings.jsx';
-import WalletScreen from '../screens/Payments/WalletScreen.jsx';
+import PaymentsScreen from '../screens/Payments/PaymentsScreen.jsx';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
 import Notifications from '../screens/Notifications/Notifications.jsx';
 import TenantMenuModal from '../screens/Explore/TenantMenuModal.jsx';
@@ -128,7 +128,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
                 <MyBookings {...props} />
               )}
             </MainStack.Screen>
-            <MainStack.Screen name="Payments" component={WalletScreen} options={{ animation: 'none' }} />
+            <MainStack.Screen name="Payments" component={PaymentsScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />
