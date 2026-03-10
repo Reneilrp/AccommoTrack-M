@@ -165,24 +165,6 @@ const TenantDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Contextual Action Area */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <button 
-                      onClick={() => navigate('/maintenance', { state: { propertyId: currentStay.property?.id } })}
-                      className="flex items-center justify-center gap-2 py-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-600"
-                    >
-                      <Wrench className="w-4 h-4" />
-                      Report Maintenance
-                    </button>
-                    <button 
-                      onClick={() => navigate('/bookings', { state: { stayIndex: selectedStayIndex } })}
-                      className="flex items-center justify-center gap-2 py-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-600"
-                    >
-                      <Calendar className="w-4 h-4" />
-                      View Full Schedule
-                    </button>
-                  </div>
-
                   {/* Landlord Info */}
                   <div className="flex items-center gap-4 pt-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 -mx-6 -mb-6 p-6">
                     <img
@@ -288,33 +270,6 @@ const TenantDashboard = () => {
                 className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-md shadow-green-600/10 text-sm"
               >
                 Go to Billing
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Actions (Global) */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 tracking-tight">Platform Shortcuts</h3>
-            <div className="space-y-2">
-              <button 
-                onClick={() => navigate('/bookings')}
-                className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
-              >
-                <div className="flex items-center gap-3">
-                   <Calendar className="w-4 h-4 text-gray-400 group-hover:text-green-500" />
-                   <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Manage All Bookings</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </button>
-              <button 
-                onClick={() => navigate('/profile')}
-                className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
-              >
-                <div className="flex items-center gap-3">
-                   <Home className="w-4 h-4 text-gray-400 group-hover:text-green-500" />
-                   <span className="text-sm text-gray-700 dark:text-gray-200 font-bold group-hover:text-green-600 transition-colors">Profile Settings</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
               </button>
             </div>
           </div>

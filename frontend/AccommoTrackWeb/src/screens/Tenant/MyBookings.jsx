@@ -23,7 +23,8 @@ import {
   RefreshCw,
   Star,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Wrench
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 
@@ -431,6 +432,13 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20"
+                  >
+                    <Wrench className="w-4 h-4" />
+                    Maintenance
+                  </button>
                   {!booking.hasReview && (
                     <button 
                       onClick={() => onReview({ ...booking, property })}

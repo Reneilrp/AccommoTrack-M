@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { maintenanceService } from '../../services/maintenanceService';
 import { tenantService } from '../../services/tenantService';
 import { 
@@ -11,11 +12,15 @@ import {
   Camera, 
   Loader2,
   ChevronRight,
-  MessageSquare
+  MessageSquare,
+  Home
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function TenantMaintenance() {
+  const location = useLocation();
+  const preselectedPropertyId = location.state?.propertyId;
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stayData, setStayData] = useState(null);
@@ -23,6 +28,7 @@ export default function TenantMaintenance() {
   const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
+    booking_id: '',
     title: '',
     description: '',
     priority: 'medium',
@@ -42,6 +48,25 @@ export default function TenantMaintenance() {
       ]);
       setRequests(requestsRes.data.data || []);
       setStayData(stayRes);
+
+      // Handle pre-selection
+      if (stayRes?.stays?.length > 0) {
+        let initialBookingId = '';
+        if (preselectedPropertyId) {
+          const matchingStay = stayRes.stays.find(s => String(s.property?.id) === String(preselectedPropertyId));
+          if (matchingStay) initialBookingId = matchingStay.booking?.id;
+        }
+        
+        // Default to first stay if no match found but modal is opened
+        if (!initialBookingId && stayRes.stays.length === 1) {
+          initialBookingId = stayRes.stays[0].booking?.id;
+        }
+
+        setFormData(prev => ({ ...prev, booking_id: initialBookingId }));
+        
+        // Auto-open modal if coming from property context
+        if (preselectedPropertyId) setShowModal(true);
+      }
     } catch (err) {
       console.error('Failed to fetch maintenance data', err);
       toast.error('Failed to load maintenance records');
@@ -72,13 +97,18 @@ export default function TenantMaintenance() {
       return;
     }
 
+    if (!formData.booking_id) {
+      toast.error('Please select a property/room');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const data = new FormData();
       data.append('title', formData.title);
       data.append('description', formData.description);
       data.append('priority', formData.priority);
-      data.append('booking_id', stayData.booking.id);
+      data.append('booking_id', formData.booking_id);
       
       formData.images.forEach((img) => {
         data.append('images[]', img);
@@ -87,7 +117,15 @@ export default function TenantMaintenance() {
       await maintenanceService.createRequest(data);
       toast.success('Maintenance request submitted');
       setShowModal(false);
-      setFormData({ title: '', description: '', priority: 'medium', images: [] });
+      
+      // Reset form but keep the last booking_id or default logic
+      setFormData({ 
+        booking_id: stayData.stays?.length === 1 ? stayData.stays[0].booking.id : '', 
+        title: '', 
+        description: '', 
+        priority: 'medium', 
+        images: [] 
+      });
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit request');
@@ -103,6 +141,8 @@ export default function TenantMaintenance() {
       </div>
     );
   }
+
+  const hasMultipleStays = stayData?.stays?.length > 1;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -150,12 +190,21 @@ export default function TenantMaintenance() {
                   {req.status === 'completed' ? <CheckCircle2 className="w-6 h-6" /> : <Clock className="w-6 h-6" />}
                 </div>
                 <div className="flex-1">
-                  <div className="flex justify-between items-start mb-1">
+                  <div className="flex justify-between items-start mb-0.5">
                     <h4 className="font-bold text-gray-900 dark:text-white">{req.title}</h4>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${maintenanceService.getPriorityColor(req.priority)}`}>
                       {req.priority}
                     </span>
                   </div>
+                  
+                  {/* Property & Room context */}
+                  <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-bold mb-2">
+                    <Home className="w-3 h-3" />
+                    <span>{req.property?.title}</span>
+                    <span className="opacity-40">•</span>
+                    <span>Room {req.booking?.room?.room_number}</span>
+                  </div>
+
                   <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{req.description}</p>
                   <div className="flex items-center gap-4 text-xs text-gray-400">
                     <span>Submitted {new Date(req.created_at).toLocaleDateString()}</span>
@@ -184,6 +233,40 @@ export default function TenantMaintenance() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Property/Room Selection if multi-stay */}
+              {hasMultipleStays ? (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Target Property / Room *</label>
+                  <select
+                    required
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white font-bold"
+                    value={formData.booking_id}
+                    onChange={e => setFormData({...formData, booking_id: e.target.value})}
+                  >
+                    <option value="">Select a room...</option>
+                    {stayData.stays.map(stay => (
+                      <option key={stay.booking.id} value={stay.booking.id}>
+                        {stay.property?.title} — Room {stay.room?.roomNumber}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                stayData?.stays?.[0] && (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center gap-3">
+                     <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-sm">
+                        <Home className="w-5 h-5 text-green-600" />
+                     </div>
+                     <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Request for</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">
+                          {stayData.stays[0].property?.title} — Room {stayData.stays[0].room?.roomNumber}
+                        </p>
+                     </div>
+                  </div>
+                )
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Problem Title</label>
                 <input
