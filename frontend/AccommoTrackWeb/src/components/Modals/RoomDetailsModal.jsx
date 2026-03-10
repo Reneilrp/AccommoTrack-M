@@ -260,6 +260,20 @@ export default function RoomDetailsModal({
     };
   }, [autoNavTimer]);
 
+  const getRoomTypeLabel = (room) => {
+    if (room.type_label) return room.type_label;
+    
+    const typeMap = {
+      'single': 'Single Room',
+      'double': 'Double Room',
+      'quad': 'Quad Room',
+      'bedSpacer': 'Bed Spacer',
+      'bedspacer': 'Bed Spacer'
+    };
+
+    return typeMap[room.room_type] || (room.room_type ? room.room_type.charAt(0).toUpperCase() + room.room_type.slice(1) : 'Room');
+  };
+
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -322,11 +336,7 @@ export default function RoomDetailsModal({
                         Room {room.room_number}
                       </h3>
                       <p className="text-blue-600 dark:text-blue-400 font-medium text-lg capitalize">
-                        {(
-                          room.type_label ||
-                          room.room_type ||
-                          "Standard"
-                        ).replace(/_/g, " ")}
+                        {getRoomTypeLabel(room)}
                       </p>
                     </div>
 

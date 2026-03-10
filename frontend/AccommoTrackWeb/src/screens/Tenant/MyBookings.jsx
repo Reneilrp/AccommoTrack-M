@@ -35,8 +35,10 @@ const MyBookings = () => {
   // Use cached data for instant mount
   const cachedData = uiState.data?.bookings;
 
-  const [currentStay, setCurrentStay] = useState(cachedData?.currentStay || null);
+  const [activeStays, setActiveStays] = useState(cachedData?.activeStays || []);
+  const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
+  const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
   
   // Only show initial loader if we have NO cached data at all
@@ -44,6 +46,7 @@ const MyBookings = () => {
   const [error, setError] = useState(null);
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [requestingAddon, setRequestingAddon] = useState(null);
+  const [cancellingBooking, setCancellingBooking] = useState(null);
   
   // Review Modal State
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -59,14 +62,18 @@ const MyBookings = () => {
 
   const fetchData = async () => {
     // Only set loading true if we don't have data for the current tab already
-    const hasDataForTab = (activeTab === 'history' ? (history?.bookings?.length > 0) : currentStay !== null);
+    const hasDataForTab = (activeTab === 'history' ? (history?.bookings?.length > 0) : (activeStays?.length > 0 || pendingBookings?.length > 0 || upcomingBooking));
     if (!hasDataForTab) setLoading(true);
     
     setError(null);
     try {
       if (activeTab === 'current' || activeTab === 'financials') {
-        const data = await tenantService.getCurrentStay();
-        setCurrentStay(data);
+        const response = await tenantService.getCurrentStay();
+        const stays = response?.stays || [];
+        const upcoming = response?.upcomingBooking || null;
+        
+        setActiveStays(stays);
+        setUpcomingBooking(upcoming);
         
         // Also fetch tenant bookings to detect pending bookings
         let pending = [];
@@ -80,7 +87,12 @@ const MyBookings = () => {
         }
 
         // Update cache
-        updateData('bookings', { ...cachedData, currentStay: data, pendingBookings: pending });
+        updateData('bookings', { 
+          ...cachedData, 
+          activeStays: stays, 
+          pendingBookings: pending,
+          upcomingBooking: upcoming 
+        });
 
       } else if (activeTab === 'history') {
         const data = await tenantService.getHistory();
@@ -95,6 +107,22 @@ const MyBookings = () => {
       console.error('MyBookings fetchData error:', err?.response?.data || err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
+    
+    setCancellingBooking(bookingId);
+    try {
+      await tenantService.cancelBooking(bookingId, 'Tenant cancelled the booking');
+      toast.success('Booking cancelled successfully');
+      fetchData();
+    } catch (err) {
+      console.error('Failed to cancel booking:', err);
+      toast.error(err.response?.data?.message || 'Failed to cancel booking');
+    } finally {
+      setCancellingBooking(null);
     }
   };
 
@@ -178,16 +206,27 @@ const MyBookings = () => {
         <>
           {activeTab === 'current' && (
             <CurrentStayTab 
-              data={currentStay}
+              stays={activeStays}
+              selectedIndex={selectedStayIndex}
+              onSelectStay={setSelectedStayIndex}
               pendingBookings={pendingBookings}
+              upcomingBooking={upcomingBooking}
               onRequestAddon={() => setShowAddonModal(true)}
               onCancelAddon={handleCancelAddonRequest}
+              onCancelBooking={handleCancelBooking}
+              isCancelling={cancellingBooking}
               onReview={handleReview}
               onReport={handleReport}
+              navigate={navigate}
             />
           )}
           {activeTab === 'financials' && (
-            <FinancialsTab data={currentStay} navigate={navigate} />
+            <FinancialsTab 
+              stays={activeStays} 
+              selectedIndex={selectedStayIndex}
+              onSelectStay={setSelectedStayIndex}
+              navigate={navigate} 
+            />
           )}
           {activeTab === 'history' && (
             <HistoryTab 
@@ -195,15 +234,17 @@ const MyBookings = () => {
               onLoadMore={() => {}} 
               onReview={handleReview}
               onReport={handleReport}
+              onCancelBooking={handleCancelBooking}
+              isCancelling={cancellingBooking}
             />
           )}
         </>
       )}
 
       {/* Addon Request Modal */}
-      {showAddonModal && currentStay?.hasActiveStay && (
+      {showAddonModal && activeStays[selectedStayIndex] && (
         <AddonModal
-          availableAddons={currentStay?.addons?.available || []}
+          availableAddons={activeStays[selectedStayIndex]?.addons?.available || []}
           onClose={() => setShowAddonModal(false)}
           onRequest={handleRequestAddon}
           requestingId={requestingAddon}
@@ -241,234 +282,312 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAddon, onReview, onReport }) => {
-  if (!data?.hasActiveStay) {
-    // If there are pending bookings, show them here so tenant sees their pending request
-    if (pendingBookings && pendingBookings.length > 0) {
-      const pb = pendingBookings[0];
-      const startDate = pb?.start_date ? new Date(pb.start_date) : null;
-      const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, isCancelling, onReview, onReport, navigate }) => {
+  const hasStays = stays && stays.length > 0;
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  if (!hasStays) {
+    if (upcomingBooking) {
       return (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
-          <Home className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">You don't have an active booking at the moment.</p>
-          <div className="inline-block bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-6 py-4 rounded-xl border border-amber-100 dark:border-amber-900/30">
-            <div className="flex items-center gap-3">
-              <Calendar className="w-6 h-6" />
+          <Calendar className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Confirmed Upcoming Stay</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">Your stay at <span className="font-bold text-gray-700 dark:text-gray-200">{upcomingBooking.property}</span> is confirmed.</p>
+          
+          <div className="inline-block bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-8 py-6 rounded-2xl border border-green-100 dark:border-green-800/50 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm">
+                <Calendar className="w-6 h-6 text-green-600" />
+              </div>
               <div className="text-left">
-                <p className="font-bold">Pending: {pb?.property?.title || pb?.property || 'Property'}</p>
-                <p className="text-sm opacity-80">{daysUntil !== null ? `Starts in ${daysUntil} days` : 'Awaiting approval'}</p>
+                <p className="text-xs font-bold text-green-600/70 uppercase tracking-wider">Starts In</p>
+                <p className="text-2xl font-black">{upcomingBooking.daysUntil} {upcomingBooking.daysUntil === 1 ? 'Day' : 'Days'}</p>
+                <p className="text-sm opacity-80 mt-1 font-medium">{formatDate(upcomingBooking.startDate)} • Room {upcomingBooking.room}</p>
               </div>
             </div>
+          </div>
+          
+          <div className="mt-8">
+            <button 
+              onClick={() => onCancelBooking(upcomingBooking.id)}
+              disabled={isCancelling === upcomingBooking.id}
+              className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-2 mx-auto transition-colors disabled:opacity-50"
+            >
+              {isCancelling === upcomingBooking.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+              Cancel Booking
+            </button>
           </div>
         </div>
       );
     }
 
-    return (
-      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
-        <Home className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Explore our properties to find your next home.</p>
-        {data?.upcomingBooking && (
-          <div className="inline-block bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-6 py-4 rounded-xl border border-green-100 dark:border-green-900/30">
-            <div className="flex items-center gap-3">
-              <Calendar className="w-6 h-6" />
-              <div className="text-left">
-                <p className="font-bold">Upcoming: {data.upcomingBooking.property}</p>
-                <p className="text-sm opacity-80">Starts in {data.upcomingBooking.daysUntil} days</p>
+    if (pendingBookings && pendingBookings.length > 0) {
+      const pb = pendingBookings[0];
+      const startDate = pb?.start_date ? new Date(pb.start_date) : null;
+      const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+      return (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+          <Clock className="w-16 h-16 text-amber-500 mx-auto mb-4 animate-pulse" />
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-8">We've received your request! The landlord is currently reviewing it.</p>
+          
+          <div className="max-w-md mx-auto bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-8">
+            <div className="flex items-center gap-4">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm">
+                <Home className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-lg leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
+                <p className="text-sm opacity-80 font-medium">
+                  {daysUntil !== null ? `Tentative start: ${formatDate(pb.start_date)}` : 'Awaiting approval'}
+                </p>
               </div>
             </div>
+            
+            <div className="mt-6 pt-6 border-t border-amber-200/50 dark:border-amber-800/30 flex justify-between items-center">
+              <div className="text-left">
+                <p className="text-[10px] font-bold uppercase opacity-60">Est. Monthly</p>
+                <p className="text-lg font-bold">₱{pb.monthly_rent?.toLocaleString()}</p>
+              </div>
+              <button 
+                onClick={() => onCancelBooking(pb.id)}
+                disabled={isCancelling === pb.id}
+                className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2 rounded-xl text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2"
+              >
+                {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                Cancel Request
+              </button>
+            </div>
           </div>
-        )}
+          
+          <p className="text-xs text-gray-400 font-medium">You'll be notified as soon as there's an update.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Home className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+        </div>
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto">You don't have an active or pending booking at the moment. Ready to find your next home?</p>
+        <button 
+          onClick={() => navigate('/explore')}
+          className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 active:scale-95"
+        >
+          Explore Properties
+        </button>
       </div>
     );
   }
 
+  const data = stays[selectedIndex] || stays[0];
+
   const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Main Column */}
-      <div className="lg:col-span-2 space-y-6">
-        {/* Room Details Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-            {getImageUrl(property.image) ? (
-              <img
-                src={getImageUrl(property.image)}
-                alt={property.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <ImagePlaceholder className="w-full h-full" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{property.title}</h2>
-                <p className="text-white/90 text-sm flex items-center mt-1 font-medium">
-                  <MapPin className="w-4 h-4 mr-1.5" />
-                  {property.address}
+    <div className="space-y-6">
+      {/* Adaptive Stay Selector */}
+      <StaySelector 
+        stays={stays} 
+        selectedIndex={selectedIndex} 
+        onSelect={onSelectStay} 
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Room Details Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
+              {getImageUrl(property.image) ? (
+                <img
+                  src={getImageUrl(property.image)}
+                  alt={property.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <ImagePlaceholder className="w-full h-full" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{property.title}</h2>
+                  <p className="text-white/90 text-sm flex items-center mt-1 font-medium">
+                    <MapPin className="w-4 h-4 mr-1.5" />
+                    {property.address}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {!booking.hasReview && (
+                    <button 
+                      onClick={() => onReview({ ...booking, property })}
+                      className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/30"
+                    >
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      Review
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => onReport(property)}
+                    className="bg-red-500/20 backdrop-blur-md hover:bg-red-500/40 text-red-100 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-red-500/30"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    Report
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard label="Room" value={room.roomNumber} icon="🚪" />
+                <StatCard label="Monthly Rent" value={`₱${booking.monthlyRent.toLocaleString()}`} icon="💰" />
+                <StatCard
+                  label="Days Left"
+                  value={
+                    booking?.daysRemaining == null
+                      ? '-'
+                      : Math.max(0, Math.ceil(Number(booking.daysRemaining)))
+                  }
+                  icon="📅"
+                />
+                <StatCard 
+                  label="Status" 
+                  value={booking.paymentStatus} 
+                  icon={booking.paymentStatus === 'paid' ? '✅' : '⏳'} 
+                />
+              </div>
+              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                  <span><span className="font-bold dark:text-gray-300">Lease:</span> {booking.startDate} to {booking.endDate}</span>
+                  <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{booking.totalMonths} Months</span>
                 </p>
               </div>
-              <div className="flex flex-col gap-2">
-                {!booking.hasReview && (
-                  <button 
-                    onClick={() => onReview({ ...booking, property })}
-                    className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/30"
-                  >
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    Review
-                  </button>
-                )}
-                <button 
-                  onClick={() => onReport(property)}
-                  className="bg-red-500/20 backdrop-blur-md hover:bg-red-500/40 text-red-100 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-red-500/30"
-                >
-                  <ShieldAlert className="w-4 h-4" />
-                  Report
-                </button>
-              </div>
             </div>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="Room" value={room.roomNumber} icon="🚪" />
-              <StatCard label="Monthly Rent" value={`₱${booking.monthlyRent.toLocaleString()}`} icon="💰" />
-              <StatCard
-                label="Days Left"
-                value={
-                  booking?.daysRemaining == null
-                    ? '-'
-                    : Math.max(0, Math.ceil(Number(booking.daysRemaining)))
-                }
-                icon="📅"
-              />
-              <StatCard 
-                label="Status" 
-                value={booking.paymentStatus} 
-                icon={booking.paymentStatus === 'paid' ? '✅' : '⏳'} 
-              />
-            </div>
-            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-between">
-                <span><span className="font-bold dark:text-gray-300">Lease:</span> {booking.startDate} to {booking.endDate}</span>
-                <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{booking.totalMonths} Months</span>
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* Add-ons Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
-            <button
-              onClick={onRequestAddon}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-500/20 active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              Request
-            </button>
-          </div>
-
-          {/* Active Add-ons */}
-          {Array.isArray(addons.active) && addons.active.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
-              <div className="space-y-3">
-                {addons.active.map((addon) => (
-                  <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
-                ))}
-              </div>
+          {/* Add-ons Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
+              <button
+                onClick={onRequestAddon}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-500/20 active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                Request
+              </button>
             </div>
-          )}
 
-          {/* Pending Requests */}
-          {Array.isArray(addons.pending) && addons.pending.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Awaiting Approval</h4>
-              <div className="space-y-3">
-                {addons.pending.map((addon) => (
-                  <AddonItem 
-                    key={addon.pivot?.id || addon.id} 
-                    addon={addon} 
-                    status="pending"
-                    onCancel={() => onCancelAddon(addon.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {(!Array.isArray(addons.active) || addons.active.length === 0) && (!Array.isArray(addons.pending) || addons.pending.length === 0) && (
-            <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
-              <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
-              <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
-            </div>
-          )}
-
-          {addons.monthlyTotal > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Monthly Add-on Fees:</span>
-              <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Sidebar */}
-      <div className="space-y-6">
-        {/* Landlord Contact Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
-                {landlord?.name?.charAt(0).toUpperCase() || '?'}
-              </div>
-              <div>
-                <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
-              </div>
-          </div>
-          <div className="space-y-3">
-            {landlord?.email && (
-              <a href={`mailto:${landlord.email}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Mail className="w-4 h-4" />
+            {/* Active Add-ons */}
+            {Array.isArray(addons.active) && addons.active.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
+                <div className="space-y-3">
+                  {addons.active.map((addon) => (
+                    <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
+                  ))}
                 </div>
-                {landlord.email}
-              </a>
+              </div>
             )}
-            {landlord?.phone && (
-              <a href={`tel:${landlord.phone}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Phone className="w-4 h-4" />
+
+            {/* Pending Requests */}
+            {Array.isArray(addons.pending) && addons.pending.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Awaiting Approval</h4>
+                <div className="space-y-3">
+                  {addons.pending.map((addon) => (
+                    <AddonItem 
+                      key={addon.pivot?.id || addon.id} 
+                      addon={addon} 
+                      status="pending"
+                      onCancel={() => onCancelAddon(addon.id)}
+                    />
+                  ))}
                 </div>
-                {landlord.phone}
-              </a>
+              </div>
+            )}
+
+            {(!Array.isArray(addons.active) || addons.active.length === 0) && (!Array.isArray(addons.pending) || addons.pending.length === 0) && (
+              <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
+                <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+                <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
+              </div>
+            )}
+
+            {addons.monthlyTotal > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Monthly Add-on Fees:</span>
+                <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Quick Summary */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Room Rent</span>
-              <span className="font-bold text-gray-900 dark:text-white">₱{booking.monthlyRent.toLocaleString()}</span>
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Landlord Contact Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
+                  {landlord?.name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 dark:text-white leading-tight">{landlord?.name || 'Owner'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
+                </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Monthly Add-ons</span>
-              <span className="font-bold text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
+            <div className="space-y-3">
+              {landlord?.email && (
+                <a href={`mailto:${landlord.email}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                  <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  {landlord.email}
+                </a>
+              )}
+              {landlord?.phone && (
+                <a href={`tel:${landlord.phone}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                  <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  {landlord.phone}
+                </a>
+              )}
             </div>
-            <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
-              <span className="font-bold text-gray-900 dark:text-white">Monthly Total</span>
-              <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                ₱{(booking.monthlyRent + addons.monthlyTotal).toLocaleString()}
-              </span>
+          </div>
+
+          {/* Quick Summary */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Room Rent</span>
+                <span className="font-bold text-gray-900 dark:text-white">₱{booking.monthlyRent.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Monthly Add-ons</span>
+                <span className="font-bold text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
+                <span className="font-bold text-gray-900 dark:text-white">Monthly Total</span>
+                <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                  ₱{(booking.monthlyRent + addons.monthlyTotal).toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -477,9 +596,51 @@ const CurrentStayTab = ({ data, pendingBookings = [], onRequestAddon, onCancelAd
   );
 };
 
+// ==================== Stay Selector Component ====================
+const StaySelector = ({ stays, selectedIndex, onSelect }) => {
+  const isMulti = stays.length > 1;
+
+  return (
+    <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+      <div className="flex items-center gap-3">
+        <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border border-green-200 dark:border-green-800">
+          Active Stays ({stays.length})
+        </div>
+        {isMulti && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            Select a stay to view details
+          </p>
+        )}
+      </div>
+
+      {isMulti && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
+          {stays.map((stay, idx) => (
+            <button
+              key={stay.booking.id}
+              onClick={() => onSelect(idx)}
+              className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all whitespace-nowrap ${
+                selectedIndex === idx
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 shadow-sm'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full ${selectedIndex === idx ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
+              <span className="text-sm font-bold">{stay.property.title}</span>
+              <span className="text-xs opacity-60">Room {stay.room.roomNumber}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ==================== Financials Tab ====================
-const FinancialsTab = ({ data, navigate }) => {
-  if (!data?.hasActiveStay) {
+const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }) => {
+  const hasStays = stays && stays.length > 0;
+
+  if (!hasStays) {
     return (
       <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <DollarSign className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
@@ -489,6 +650,7 @@ const FinancialsTab = ({ data, navigate }) => {
     );
   }
 
+  const data = stays[selectedIndex] || stays[0];
   const { financials } = data;
   
   // Flatten all transactions from all invoices into a single sorted list
@@ -506,6 +668,13 @@ const FinancialsTab = ({ data, navigate }) => {
 
   return (
     <div className="space-y-6">
+      {/* Adaptive Stay Selector */}
+      <StaySelector 
+        stays={stays} 
+        selectedIndex={selectedIndex} 
+        onSelect={onSelectStay} 
+      />
+
       {/* Action Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-green-600 rounded-xl p-6 text-white shadow-lg shadow-green-600/20">
         <div>
@@ -587,7 +756,7 @@ const FinancialsTab = ({ data, navigate }) => {
 };
 
 // ==================== History Tab ====================
-const HistoryTab = ({ data, onLoadMore, onReview, onReport }) => {
+const HistoryTab = ({ data, onLoadMore, onReview, onReport, onCancelBooking, isCancelling }) => {
   const { bookings, pagination } = data;
 
   const formatDateTime = (dateString) => {
@@ -652,19 +821,31 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport }) => {
                         Review
                       </button>
                     )}
+                    {booking.status === 'pending' && (
+                      <button 
+                        onClick={() => onCancelBooking(booking.id)}
+                        disabled={isCancelling === booking.id}
+                        className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2 disabled:opacity-50"
+                      >
+                        {isCancelling === booking.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                        Cancel
+                      </button>
+                    )}
                     {booking.review && (
                       <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic flex items-center gap-1">
                         <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
                         {booking.review.rating}/5 Reviewed
                       </span>
                     )}
-                    <button 
-                      onClick={() => onReport(booking.property)}
-                      className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
-                    >
-                      <ShieldAlert className="w-3 h-3" />
-                      Report
-                    </button>
+                    {booking.status !== 'pending' && (
+                      <button 
+                        onClick={() => onReport(booking.property)}
+                        className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
+                      >
+                        <ShieldAlert className="w-3 h-3" />
+                        Report
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

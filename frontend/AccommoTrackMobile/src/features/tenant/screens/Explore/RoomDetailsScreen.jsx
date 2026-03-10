@@ -825,20 +825,22 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Duration</Text>
                   <Text style={styles.summaryValue}>
-                    {pricingBreakdown 
-                      ? `${pricingBreakdown.months} month(s) ${pricingBreakdown.remaining_days > 0 ? `+ ${pricingBreakdown.remaining_days} day(s)` : ''}`
-                      : 'Calculating...'}
+                    {isPricingLoading ? 'Calculating...' : (
+                      pricingBreakdown 
+                        ? `${pricingBreakdown.months || 0} month(s) ${pricingBreakdown.remaining_days > 0 ? `+ ${pricingBreakdown.remaining_days} day(s)` : ''}`
+                        : 'Select dates'
+                    )}
                   </Text>
                 </View>
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
                   <Text style={styles.summaryValueBold}>
-                    {isPricingLoading ? '...' : `₱${totalPrice.toLocaleString()}`}
+                    {isPricingLoading ? '...' : `₱${(Number(totalPrice) || 0).toLocaleString()}`}
                   </Text>
                 </View>
-                {pricingBreakdown && (
+                {pricingBreakdown && pricingBreakdown.months > 0 && (
                   <Text style={styles.summaryNote}>
-                    {pricingBreakdown.months > 0 && `₱${(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × ${pricingBreakdown.months}`}
+                    ₱${(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × ${pricingBreakdown.months}
                   </Text>
                 )}
               </View>
@@ -859,9 +861,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, (!duration || isSubmitting) && styles.submitButtonDisabled]}
+              style={[styles.submitButton, (!bookingData.end_date || isSubmitting) && styles.submitButtonDisabled]}
               onPress={handleSubmitBooking}
-              disabled={!duration || isSubmitting}
+              disabled={!bookingData.end_date || isSubmitting}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" />

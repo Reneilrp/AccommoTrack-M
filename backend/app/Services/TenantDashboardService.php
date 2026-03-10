@@ -83,10 +83,10 @@ class TenantDashboardService
         return ['upcomingCheckouts' => $upcomingCheckouts, 'unpaidBookings' => $unpaidBookings];
     }
 
-    public function getCurrentStay(int $tenantId): ?Booking
+    public function getActiveStays(int $tenantId)
     {
         return Booking::where('tenant_id', $tenantId)
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
             ->with([
@@ -95,13 +95,23 @@ class TenantDashboardService
                 'payments' => fn ($q) => $q->orderBy('payment_date', 'desc'),
                 'invoices' => fn ($q) => $q->orderBy('due_date', 'desc')->with('transactions'),
             ])
-            ->first();
+            ->get();
+    }
+
+    public function getCurrentStay(int $tenantId): ?Booking
+    {
+        return $this->getActiveBooking($tenantId, [
+            'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
+            'addons' => fn ($q) => $q->wherePivotIn('status', ['approved', 'active', 'pending']),
+            'payments' => fn ($q) => $q->orderBy('payment_date', 'desc'),
+            'invoices' => fn ($q) => $q->orderBy('due_date', 'desc')->with('transactions'),
+        ]);
     }
     
     public function getUpcomingBooking(int $tenantId): ?Booking
     {
         return Booking::where('tenant_id', $tenantId)
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->where('start_date', '>', now())
             ->with(['room', 'property.landlord', 'landlord'])
             ->orderBy('start_date', 'asc')
@@ -112,8 +122,10 @@ class TenantDashboardService
     {
         return Booking::where('tenant_id', $tenantId)
             ->where(function ($query) {
+                // Bookings that are strictly in the past
                 $query->where('end_date', '<', now())
-                      ->orWhereIn('status', ['pending', 'confirmed', 'cancelled', 'completed', 'partial-completed']);
+                      // OR bookings that were cancelled or rejected (even if they would have been active now)
+                      ->orWhereIn('status', ['cancelled', 'rejected']);
             })
             ->with(['room', 'property', 'landlord', 'addons' => fn($q) => $q->wherePivotIn('status', ['active', 'completed']), 'payments', 'invoices.transactions', 'review'])
             ->orderBy('created_at', 'desc')
@@ -202,7 +214,7 @@ class TenantDashboardService
     private function getActiveBooking(int $tenantId, array $relations = []): ?Booking
     {
         return Booking::where('tenant_id', $tenantId)
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
             ->with($relations)

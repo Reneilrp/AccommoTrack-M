@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
-import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, ShieldCheck, CircleDollarSign } from 'lucide-react'; 
+import { Search, MapPin, ArrowRight, FileText, MousePointer, UserPlus, CheckCircle, ShieldCheck, CircleDollarSign, Smartphone, Download, X } from 'lucide-react'; 
 import { useUIState } from '../../contexts/UIStateContext';
 
 const HomePage = ({ onGetStarted }) => {
@@ -10,6 +10,13 @@ const HomePage = ({ onGetStarted }) => {
   const { updateScreenState } = useUIState();
   const [modalImages, setModalImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showAppPromo, setShowAppPromo] = useState(false);
+
+  useEffect(() => {
+    // Show app promo after 2 seconds
+    const promoTimer = setTimeout(() => setShowAppPromo(true), 2000);
+    return () => clearTimeout(promoTimer);
+  }, []);
 
   useEffect(() => {
     // Optimized AOS for better performance and faster reveal
@@ -77,6 +84,14 @@ const HomePage = ({ onGetStarted }) => {
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2);
             background: rgba(255, 255, 255, 0.01);
           }
+        }
+
+        @keyframes float-gentle {
+          0%, 100% { transform: translateY(0) translateX(-50%); }
+          50% { transform: translateY(-8px) translateX(-50%); }
+        }
+        .animate-float-gentle {
+          animation: float-gentle 3s infinite ease-in-out;
         }
       `}</style>
 
@@ -150,10 +165,46 @@ const HomePage = ({ onGetStarted }) => {
             <p className="text-sm md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-8 md:mb-12 leading-relaxed">
               Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-md mx-auto">
-              <button onClick={onGetStarted} className="flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg shadow-green-600/20 transition-all duration-200 hover:scale-105 hover:bg-green-700 hover:shadow-green-600/30">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-lg mx-auto relative">
+              <button 
+                onClick={onGetStarted} 
+                className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 hover:bg-green-700 transition-all duration-300"
+              >
                 Browse Properties <Search className="w-4 h-4 md:w-5 md:h-5" />
               </button>
+
+              <div className="flex-1 relative">
+                {showAppPromo && (
+                  <div className="absolute top-[calc(100%+1.25rem)] md:top-auto md:bottom-[calc(100%+1.25rem)] left-1/2 z-20 animate-float-gentle pointer-events-auto">
+                    <div className="bg-blue-600 text-white text-[10px] md:text-xs font-bold py-2.5 px-4 rounded-2xl shadow-2xl relative whitespace-nowrap flex items-center gap-3 border border-blue-400/50 backdrop-blur-sm">
+                      <div className="flex flex-col items-start leading-tight">
+                        <span className="text-blue-100 font-medium">New Feature!</span>
+                        <span>AccommoTrack Mobile is here 📱</span>
+                      </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setShowAppPromo(false); }}
+                        className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                        aria-label="Close promo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      
+                      {/* Speech Bubble Arrow - Dynamic position */}
+                      <div className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-600 rotate-45 
+                        -top-1.5 border-l border-t border-blue-400/50
+                        md:top-auto md:-bottom-1.5 md:border-l-0 md:border-t-0 md:border-r md:border-b">
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <button 
+                  onClick={() => window.open('https://expo.dev/accounts/pheinz/projects/AccommoTrack/builds/901262c3-0c95-4fb5-abcb-d574b8134507', '_blank')} 
+                  className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                >
+                  Download App 
+                  <Smartphone className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </div>
             </div>
           </div>
           
@@ -179,7 +230,7 @@ const HomePage = ({ onGetStarted }) => {
           <div className="max-w-7xl mx-auto w-full flex flex-col">
             <div className="text-center mb-12 flex-none">
               <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
-                Why Live & Study Here?
+                Why use AccommoTrack?
               </h2>
               <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
                 We provide the tools you need to find a safe, affordable, and convenient place to stay while you focus on your studies.
@@ -307,130 +358,6 @@ const HomePage = ({ onGetStarted }) => {
               </div>
            </div>
         </section>
-
-
-        {/* --- SECTION 4: HOW IT WORKS --- */}
-        {false && ( <section id="how-it-works" className="snap-section min-h-screen w-full flex flex-col items-center pt-32 px-6 bg-gray-50">
-          <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
-            <div className="text-center mb-16 flex-none">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-                How it Works
-              </h2>
-              <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-                Getting started is easy. Follow these simple steps to find your perfect home.
-              </p>
-            </div>
-
-            <div className="flex-1 pb-20 overflow-x-auto">
-               <div className="flex flex-col md:flex-row gap-6 min-w-full md:min-w-0">
-                  {/* Step 1 */}
-                  <div className="flex-1 min-w-[200px] flex flex-col items-center text-center group cursor-pointer" onClick={() => openModal([
-                    "https://placehold.co/400x500/e2e8f0/94a3b8?text=Browse+Map",
-                    "https://placehold.co/400x500/e2e8f0/94a3b8?text=Browse+List",
-                    "https://placehold.co/400x500/e2e8f0/94a3b8?text=Filters"
-                  ])}>
-                      <div className="w-full aspect-[4/5] bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden relative group-hover:shadow-md group-hover:ring-4 group-hover:ring-green-50 transition-all">
-                        {/* PASTE SCREENSHOT HERE: Browse/Search Screen */}
-                         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-300">
-                             <Search className="w-12 h-12" />
-                             <span className="sr-only">Screenshot Placeholder</span>
-                         </div>
-                         <img src="https://placehold.co/400x500/e2e8f0/94a3b8?text=Browse+Map" alt="Step 1: Browse" className="w-full h-full object-cover opacity-50 transition-transform duration-500 group-hover:scale-110" />
-                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <span className="bg-white/90 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-sm">View 3 Photos</span>
-                         </div>
-                      </div>
-                      <div className="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mb-3">1</div>
-                      <h3 className="font-bold text-lg mb-2">Browse Properties</h3>
-                      <p className="text-gray-500 text-sm">Search via map or list view to find options near you.</p>
-                  </div>
-
-                  {/* Step 2 */}
-                  <div className="flex-1 min-w-[200px] flex flex-col items-center text-center group cursor-pointer" onClick={() => openModal([
-                    "https://placehold.co/400x500/e2e8f0/94a3b8?text=Property+Details",
-                    "https://placehold.co/400x500/e2e8f0/94a3b8?text=Amenities",
-                    "https://placehold.co/400x500/e2e8f0/94a3b8?text=Reviews"
-                  ])}>
-                      <div className="w-full aspect-[4/5] bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden relative group-hover:shadow-md group-hover:ring-4 group-hover:ring-green-50 transition-all">
-                        {/* PASTE SCREENSHOT HERE: Room Details/Rules Screen */}
-                         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-300">
-                             <FileText className="w-12 h-12" />
-                         </div>
-                         <img src="https://placehold.co/400x500/e2e8f0/94a3b8?text=Property+Details" alt="Step 2: Check info" className="w-full h-full object-cover opacity-50 transition-transform duration-500 group-hover:scale-110" />
-                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <span className="bg-white/90 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-sm">View 3 Photos</span>
-                         </div>
-                      </div>
-                      <div className="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mb-3">2</div>
-                      <h3 className="font-bold text-lg mb-2">Check Details</h3>
-                      <p className="text-gray-500 text-sm">Read house rules, amenities, and verify reviews.</p>
-                  </div>
-
-                  {/* Step 3 */}
-                   <div className="flex-1 min-w-[200px] flex flex-col items-center text-center group cursor-pointer" onClick={() => openModal([
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Select+Unit",
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=View+Room+Photos"
-                   ])}>
-                      <div className="w-full aspect-[4/5] bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden relative group-hover:shadow-md group-hover:ring-4 group-hover:ring-green-50 transition-all">
-                        {/* PASTE SCREENSHOT HERE: Selecting a Room */}
-                         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-300">
-                             <MousePointer className="w-12 h-12" />
-                         </div>
-                         <img src="https://placehold.co/400x500/e2e8f0/94a3b8?text=Select+Unit" alt="Step 3: Select Room" className="w-full h-full object-cover opacity-50 transition-transform duration-500 group-hover:scale-110" />
-                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <span className="bg-white/90 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-sm">View 2 Photos</span>
-                         </div>
-                      </div>
-                      <div className="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mb-3">3</div>
-                      <h3 className="font-bold text-lg mb-2">Select Unit</h3>
-                      <p className="text-gray-500 text-sm">Choose the specific room or bed that fits your budget.</p>
-                  </div>
-
-                  {/* Step 4 */}
-                   <div className="flex-1 min-w-[200px] flex flex-col items-center text-center group cursor-pointer" onClick={() => openModal([
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Register+Form",
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Upload+ID",
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Submit"
-                   ])}>
-                      <div className="w-full aspect-[4/5] bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden relative group-hover:shadow-md group-hover:ring-4 group-hover:ring-green-50 transition-all">
-                        {/* PASTE SCREENSHOT HERE: Registration Screen */}
-                         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-300">
-                             <UserPlus className="w-12 h-12" />
-                         </div>
-                         <img src="https://placehold.co/400x500/e2e8f0/94a3b8?text=Register+Form" alt="Step 4: Register" className="w-full h-full object-cover opacity-50 transition-transform duration-500 group-hover:scale-110" />
-                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <span className="bg-white/90 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-sm">View 3 Photos</span>
-                         </div>
-                      </div>
-                      <div className="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mb-3">4</div>
-                      <h3 className="font-bold text-lg mb-2">Register</h3>
-                      <p className="text-gray-500 text-sm">Create your account to secure your booking.</p>
-                  </div>
-
-                   {/* Step 5 */}
-                   <div className="flex-1 min-w-[200px] flex flex-col items-center text-center group cursor-pointer" onClick={() => openModal([
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Booking+Summary",
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Payment",
-                     "https://placehold.co/400x500/e2e8f0/94a3b8?text=Confirmed"
-                   ])}>
-                      <div className="w-full aspect-[4/5] bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden relative group-hover:shadow-md group-hover:ring-4 group-hover:ring-green-50 transition-all">
-                        {/* PASTE SCREENSHOT HERE: Booking Confirmation */}
-                         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-300">
-                             <CheckCircle className="w-12 h-12" />
-                         </div>
-                         <img src="https://placehold.co/400x500/e2e8f0/94a3b8?text=Booking+Summary" alt="Step 5: Book" className="w-full h-full object-cover opacity-50 transition-transform duration-500 group-hover:scale-110" />
-                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <span className="bg-white/90 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-sm">View 3 Photos</span>
-                         </div>
-                      </div>
-                      <div className="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mb-3">5</div>
-                      <h3 className="font-bold text-lg mb-2">Book & Move In</h3>
-                      <p className="text-gray-500 text-sm">Pay the reservation fee and get moved in!</p>
-                  </div>
-               </div>
-            </div>
-          </div>
-        </section> )}
       </main>
     </>
   );

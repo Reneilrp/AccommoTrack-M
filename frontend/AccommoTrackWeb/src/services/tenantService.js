@@ -119,6 +119,21 @@ export const tenantService = {
     },
 
     /**
+     * Cancel a booking
+     */
+    async cancelBooking(bookingId, reason = '') {
+        try {
+            const response = await api.patch(`/tenant/bookings/${bookingId}/cancel`, {
+                cancellation_reason: reason
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error cancelling booking:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Update Tenant Profile
      * @param {FormData} formData 
      */

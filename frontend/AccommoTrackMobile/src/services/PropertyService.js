@@ -948,6 +948,32 @@ const PropertyService = {
     }
   },
 
+  /**
+   * Get dynamic pricing calculation for a room (no auth required)
+   * Matches: GET /api/rooms/{roomId}/pricing?start_date={start}&end_date={end}
+   * @param {number} roomId - Room ID
+   * @param {string} startDate - YYYY-MM-DD
+   * @param {string} endDate - YYYY-MM-DD
+   */
+  async getRoomPricing(roomId, startDate, endDate) {
+    try {
+      const response = await api.get(`/rooms/${roomId}/pricing`, {
+        params: { start_date: startDate, end_date: endDate },
+      });
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error("Pricing calculation failed:", error);
+      return {
+        success: false,
+        data: { total: 0, breakdown: null },
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
   getImageUrl,
 };
 

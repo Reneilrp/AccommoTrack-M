@@ -336,7 +336,7 @@ export default function MyBookings() {
                 <Text style={styles.financialsNoticeText}>
                   Financial records and invoices will be available once you have an active stay.
                 </Text>
-              </div>
+              </View>
             </View>
          )}
 

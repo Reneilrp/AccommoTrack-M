@@ -139,6 +139,9 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.2,
   },
+  rulesList: {
+    gap: 4,
+  },
   description: {
     fontSize: 15,
     color: theme.colors.textSecondary,
@@ -275,6 +278,12 @@ amenityText: {
   },
   inputContainer: {
     marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
