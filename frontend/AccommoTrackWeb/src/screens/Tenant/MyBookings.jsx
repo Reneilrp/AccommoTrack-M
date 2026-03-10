@@ -494,7 +494,12 @@ const FinancialsTab = ({ data, navigate }) => {
   // Flatten all transactions from all invoices into a single sorted list
   const invoices = Array.isArray(financials?.invoices) ? financials.invoices : [];
   const allTransactions = invoices
-    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ ...tx, invoiceRef: inv.id })))
+    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ 
+      ...tx, 
+      date: tx.date || tx.created_at,
+      amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
+      invoiceRef: inv.id 
+    })))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const recentTransactions = allTransactions.slice(0, 3);

@@ -134,7 +134,25 @@ class TenantDashboardController extends Controller
                 'financials' => [
                     'monthlyRent' => (float) $booking->monthly_rent, 'monthlyAddons' => (float) $monthlyAddonTotal,
                     'monthlyTotal' => (float) ($booking->monthly_rent + $monthlyAddonTotal),
-                    'invoices' => $booking->invoices
+                    'invoices' => $booking->invoices->map(function($invoice) {
+                        return [
+                            'id' => $invoice->id,
+                            'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
+                            'status' => $invoice->status,
+                            'description' => $invoice->description,
+                            'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
+                            'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : null,
+                            'transactions' => $invoice->transactions->map(function($tx) {
+                                return [
+                                    'id' => $tx->id,
+                                    'amount' => (float) $tx->amount_cents / 100,
+                                    'status' => $tx->status,
+                                    'method' => $tx->method,
+                                    'date' => $tx->created_at->format('M d, Y H:i')
+                                ];
+                            })
+                        ];
+                    })
                 ]
             ], 200);
         } catch (\Exception $e) {

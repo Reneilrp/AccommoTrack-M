@@ -34,7 +34,7 @@ export default function InvoiceCheckout() {
     try {
       const res = await api.post(`/tenant/invoices/${id}/paymongo-source`, {
         method: method,
-        return_url: window.location.origin + '/wallet?payment_refresh=true'
+        return_url: window.location.origin + '/payments?payment_refresh=true'
       });
       
       const { source } = res.data;
@@ -65,10 +65,10 @@ export default function InvoiceCheckout() {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Checkout Error</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">{error || 'Invoice details not found'}</p>
         <button 
-          onClick={() => navigate('/wallet')} 
+          onClick={() => navigate('/payments')} 
           className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm"
         >
-          Return to Wallet
+          Return to Billing
         </button>
       </div>
     );
@@ -79,11 +79,11 @@ export default function InvoiceCheckout() {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       <button 
-        onClick={() => navigate('/wallet')}
+        onClick={() => navigate('/payments')}
         className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 transition-colors font-bold text-sm uppercase tracking-wider"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Wallet
+        Back to Billing
       </button>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-700 overflow-hidden">
@@ -136,26 +136,6 @@ export default function InvoiceCheckout() {
               </div>
             </button>
 
-            {/* Maya */}
-            <button
-              onClick={() => handlePayMongoSource('paymaya')}
-              disabled={processing}
-              className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
-            >
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform">
-                  <Wallet className="w-7 h-7" />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Maya</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pay securely with Maya account</p>
-                </div>
-              </div>
-              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-green-500 flex items-center justify-center transition-colors">
-                <div className="w-3 h-3 bg-green-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-            </button>
-
             {/* GrabPay */}
             <button
               onClick={() => handlePayMongoSource('grab_pay')}
@@ -171,7 +151,7 @@ export default function InvoiceCheckout() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Direct payment using GrabPay credits</p>
                 </div>
               </div>
-              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-green-600 flex items-center justify-center transition-colors">
+              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-blue-500 flex items-center justify-center transition-colors">
                 <div className="w-3 h-3 bg-green-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
             </button>

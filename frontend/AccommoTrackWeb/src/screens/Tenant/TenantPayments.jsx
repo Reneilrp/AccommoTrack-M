@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
 import api from '../../utils/api';
 import { SkeletonWallet } from '../../components/Shared/Skeleton';
@@ -7,6 +8,7 @@ import toast from 'react-hot-toast';
 import { CircleDollarSign, ClipboardCheck, Calendar } from 'lucide-react';
 
 export default function TenantPayments() {
+  const navigate = useNavigate();
   const { uiState, updateScreenState, updateData } = useUIState();
   const { statusFilter, timeRange, searchQuery } = uiState.wallet || {
     searchQuery: "",
@@ -32,7 +34,6 @@ export default function TenantPayments() {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('payment_refresh') === 'true') {
         // Find any pending/unpaid invoices and trigger a background refresh
-        // This is a safety for when webhooks are slow/missing
         toast.loading('Updating payment status...', { id: 'refreshing' });
         const listRes = await paymentService.getPayments('all');
         if (listRes.success && Array.isArray(listRes.data)) {
@@ -40,6 +41,8 @@ export default function TenantPayments() {
           await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
           toast.success('Payment statuses updated', { id: 'refreshing' });
         }
+        // Remove the parameter to stop the loop
+        navigate('/payments', { replace: true });
       }
 
       const [paymentsRes, statsRes] = await Promise.all([
