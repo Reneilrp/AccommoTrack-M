@@ -301,7 +301,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   if (!hasStays) {
     if (upcomingBooking) {
       return (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
           <Calendar className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Confirmed Upcoming Stay</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">Your stay at <span className="font-bold text-gray-700 dark:text-gray-200">{upcomingBooking.property}</span> is confirmed.</p>
@@ -338,7 +338,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       const startDate = pb?.start_date ? new Date(pb.start_date) : null;
       const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
       return (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
           <Clock className="w-16 h-16 text-amber-500 mx-auto mb-4 animate-pulse" />
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-8">We've received your request! The landlord is currently reviewing it.</p>
@@ -378,7 +378,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     }
 
     return (
-      <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
           <Home className="w-10 h-10 text-gray-300 dark:text-gray-600" />
         </div>
@@ -642,7 +642,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
 
   if (!hasStays) {
     return (
-      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <DollarSign className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
         <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">No Active Booking</h3>
         <p className="text-gray-500 dark:text-gray-400">Financial details will appear when you have an active stay.</p>
@@ -772,7 +772,7 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport, onCancelBooking, isC
 
   if (!bookings || bookings.length === 0) {
     return (
-      <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <Clock className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200">No History Yet</h3>
         <p className="text-gray-500 dark:text-gray-400">Your past and pending bookings will appear here.</p>
