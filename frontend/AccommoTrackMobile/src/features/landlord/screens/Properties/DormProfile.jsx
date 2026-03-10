@@ -10,12 +10,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Dimensions
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
@@ -62,7 +64,9 @@ const buildEmptyForm = () => ({
   customAmenities: [],
   rules: [],
   images: [],
+  credentials: [],
   acceptedPayments: ['cash'],
+  primaryImageId: null,
 });
 
 const parseList = (value) => {
@@ -97,9 +101,19 @@ const mapImages = (images = []) => {
   return images
     .map((image, index) => {
       const uri = getImageUrl(image);
-      return uri ? { id: image?.id || `remote-${index}`, uri } : null;
+      if (!uri) return null;
+      
+      return {
+        id: image?.id || `remote-${index}`,
+        uri,
+        is_primary: Boolean(image?.is_primary),
+        display_order: image?.display_order ?? index,
+        // Keep original object to access backend IDs easily
+        raw: image
+      };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => a.display_order - b.display_order);
 };
 
 const normalizeProperty = (data) => {
@@ -107,6 +121,9 @@ const normalizeProperty = (data) => {
   const customAmenities = parseList(data?.customAmenities || data?.additional_amenities);
   const rules = parseList(data?.property_rules);
   const images = mapImages(data?.images);
+  
+  // Find primary image ID
+  const primaryImg = images.find(img => img.is_primary);
 
   return {
     id: data?.id ?? null,
@@ -131,10 +148,12 @@ const normalizeProperty = (data) => {
     customAmenities,
     rules,
     images,
+    credentials: data?.credentials || [],
     videoUrl: data?.video_url || null,
     acceptedPayments: Array.isArray(data?.accepted_payments)
       ? data.accepted_payments
       : ['cash'],
+    primaryImageId: primaryImg?.raw?.id || null,
   };
 };
 
@@ -153,6 +172,11 @@ export default function DormProfileScreen({ route, navigation }) {
   const [customAmenity, setCustomAmenity] = useState('');
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  
+  // Staged deletions
+  const [deletedImageIds, setDeletedImageIds] = useState([]);
+  const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
+  
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [password, setPassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -335,9 +359,44 @@ export default function DormProfileScreen({ route, navigation }) {
     setSelectedImages((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  const removeExistingImage = (index) => {
+    setForm((prev) => {
+      const removed = prev.images[index];
+      if (removed?.raw?.id) {
+        setDeletedImageIds((ids) => [...ids, removed.raw.id]);
+      }
+      return {
+        ...prev,
+        images: prev.images.filter((_, idx) => idx !== index)
+      };
+    });
+  };
+
+  const setPrimaryImage = (index, isNew = false) => {
+    if (isNew) {
+      // Currently, setting a newly uploaded image as primary before saving 
+      // is complex with current backend logic which expects an ID.
+      // We'll prioritize existing images or handle via display_order implicitly.
+      Alert.alert('Cover Photo', 'Please save your new images first to set one as the cover photo.');
+      return;
+    }
+
+    const img = form.images[index];
+    if (img?.raw?.id) {
+      setForm(prev => ({ ...prev, primaryImageId: img.raw.id }));
+      Toast.show({
+        type: 'success',
+        text1: 'Cover Photo Set',
+        text2: 'This image will be shown as the main property photo.'
+      });
+    }
+  };
+
   const handleCancelEdit = () => {
     setForm(baseline);
     setSelectedImages([]);
+    setDeletedImageIds([]);
+    setDeletedCredentialIds([]);
     setSelectedVideo(null);
     setNewRule('');
     setCustomAmenity('');
@@ -358,6 +417,13 @@ export default function DormProfileScreen({ route, navigation }) {
       setError('Street, city, and province are required.');
       return false;
     }
+    
+    // Check if at least one image exists
+    if (form.images.length === 0 && selectedImages.length === 0) {
+      setError('At least one property image is required.');
+      return false;
+    }
+
     setError('');
     return true;
   };
@@ -380,7 +446,8 @@ export default function DormProfileScreen({ route, navigation }) {
       latitude: form.latitude,
       longitude: form.longitude,
       total_rooms: form.totalRooms,
-      max_occupants: form.maxOccupants
+      max_occupants: form.maxOccupants,
+      primary_image_id: form.primaryImageId
     };
 
     Object.entries(entries).forEach(([key, value]) => {
@@ -396,20 +463,28 @@ export default function DormProfileScreen({ route, navigation }) {
 
     payload.append('property_rules', JSON.stringify(form.rules));
 
+    // Staged deletions
+    deletedImageIds.forEach((id, index) => {
+      payload.append(`deleted_images[${index}]`, String(id));
+    });
+    
+    deletedCredentialIds.forEach((id, index) => {
+      payload.append(`deleted_credentials[${index}]`, String(id));
+    });
+
     // Payment methods
     const methods = form.acceptedPayments.length ? form.acceptedPayments : ['cash'];
     methods.forEach((method, index) => {
       payload.append(`accepted_payments[${index}]`, method);
     });
 
+    // New images
     selectedImages.forEach((image, index) => {
-      if (!image.id?.toString().startsWith('remote-')) {
-        payload.append(`images[${index}]`, {
-          uri: image.uri,
-          name: image.name,
-          type: image.type
-        });
-      }
+      payload.append('images[]', {
+        uri: image.uri,
+        name: image.name,
+        type: image.type
+      });
     });
 
     if (selectedVideo) {
@@ -424,21 +499,43 @@ export default function DormProfileScreen({ route, navigation }) {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Validation Error',
+        text2: error || 'Please check all required fields.'
+      });
+      return;
+    }
 
     try {
       setSaving(true);
       const payload = buildUpdatePayload();
       const response = await PropertyService.updateProperty(propertyId, payload);
+      
       if (!response.success) {
         throw new Error(response.error || 'Failed to update property');
       }
-      Alert.alert('Success', 'Property updated successfully.');
+
+      Toast.show({
+        type: 'success',
+        text1: 'Property Updated',
+        text2: 'Changes have been saved successfully.'
+      });
+      
+      // Reset staged deletions on success
+      setDeletedImageIds([]);
+      setDeletedCredentialIds([]);
+      
       await loadProperty(false);
     } catch (err) {
       console.error('Failed to update property', err);
       setError(err.message || 'Failed to save changes.');
-      Alert.alert('Error', err.message || 'Failed to update property');
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: err.message || 'An error occurred while saving.'
+      });
     } finally {
       setSaving(false);
     }
@@ -571,7 +668,7 @@ export default function DormProfileScreen({ route, navigation }) {
 
             <TouchableOpacity 
               style={[styles.outlineBtn, styles.outlineBtnBlue]}
-              onPress={() => navigation.navigate('PropertyDetails', { propertyId: form.id })}
+              onPress={() => navigation.navigate('PropertyDetails', { propertyId: form.id, landlordPreview: true })}
             >
               <Ionicons name="eye-outline" size={20} color="#2563EB" />
               <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 14 }}>Preview as Tenant</Text>
@@ -807,17 +904,50 @@ export default function DormProfileScreen({ route, navigation }) {
               <Text style={styles.helperText}>No photos uploaded yet.</Text>
             ) : (
               <View style={styles.imagesRow}>
-                {form.images.map((image) => (
-                  <View key={image.id} style={styles.imagePreview}>
-                    <Image source={{ uri: image.uri }} style={styles.imageFull} />
-                  </View>
-                ))}
+                {form.images.map((image, idx) => {
+                  const isPrimary = image.raw?.id === form.primaryImageId;
+                  return (
+                    <View 
+                      key={image.id} 
+                      style={[
+                        styles.imagePreview,
+                        isPrimary && { borderColor: '#F59E0B', borderWidth: 2 }
+                      ]}
+                    >
+                      <Image source={{ uri: image.uri }} style={styles.imageFull} />
+                      {isEditing && (
+                        <View style={styles.imageOverlay}>
+                          <TouchableOpacity 
+                            style={[styles.imageAction, { backgroundColor: isPrimary ? '#F59E0B' : 'rgba(0,0,0,0.5)' }]}
+                            onPress={() => setPrimaryImage(idx)}
+                          >
+                            <Ionicons name={isPrimary ? "star" : "star-outline"} size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.imageAction, { backgroundColor: '#DC2626' }]}
+                            onPress={() => removeExistingImage(idx)}
+                          >
+                            <Ionicons name="trash-outline" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {isPrimary && (
+                        <View style={styles.primaryBadge}>
+                          <Text style={styles.primaryBadgeText}>COVER</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
                 {selectedImages.map((image, index) => (
                   <View key={`${image.uri}-${index}`} style={styles.imagePreview}>
                     <Image source={{ uri: image.uri }} style={styles.imageFull} />
                     <TouchableOpacity style={styles.imageRemove} onPress={() => removeNewImage(index)}>
                       <Ionicons name="trash" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
+                    <View style={[styles.primaryBadge, { backgroundColor: '#3B82F6' }]}>
+                      <Text style={styles.primaryBadgeText}>NEW</Text>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -867,6 +997,67 @@ export default function DormProfileScreen({ route, navigation }) {
                 <Ionicons name="videocam" size={28} color="#94A3B8" />
                 <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2, textAlign: 'center' }}>Add Video{'\n'}(Max 45s, 90MB)</Text>
               </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Credentials Section */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Property Credentials</Text>
+            {form.credentials.length === 0 ? (
+              <Text style={styles.helperText}>No business documents uploaded yet.</Text>
+            ) : (
+              form.credentials.map((cred, idx) => {
+                const name = cred.original_name || cred.name || `Document ${idx + 1}`;
+                const url = cred.file_url || cred.file_path || cred.url;
+                
+                return (
+                  <View key={cred.id || idx} style={styles.credentialItem}>
+                    <View style={styles.credentialInfo}>
+                      <Ionicons name="document-text-outline" size={24} color="#6B7280" />
+                      <Text style={styles.credentialName} numberOfLines={1}>{name}</Text>
+                    </View>
+                    <View style={styles.credentialActions}>
+                      {url && (
+                        <TouchableOpacity 
+                          style={styles.credActionBtn}
+                          onPress={() => {
+                            const fullUrl = getImageUrl(url);
+                            if (fullUrl) {
+                              import('react-native').then(({ Linking }) => {
+                                Linking.openURL(fullUrl);
+                              });
+                            }
+                          }}
+                        >
+                          <Text style={styles.credActionText}>View</Text>
+                        </TouchableOpacity>
+                      )}
+                      {isEditing && (
+                        <TouchableOpacity 
+                          style={[styles.credActionBtn, { marginLeft: 10 }]}
+                          onPress={() => {
+                            setForm(prev => {
+                              const creds = [...prev.credentials];
+                              const removed = creds.splice(idx, 1);
+                              if (removed[0]?.id) {
+                                setDeletedCredentialIds(ids => [...ids, removed[0].id]);
+                              }
+                              return { ...prev, credentials: creds };
+                            });
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
+            {isEditing && (
+              <Text style={[styles.helperText, { marginTop: 10, fontStyle: 'italic' }]}>
+                To upload new credentials, please use the web dashboard.
+              </Text>
             )}
           </View>
 

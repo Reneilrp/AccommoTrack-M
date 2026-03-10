@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -76,11 +77,13 @@ export default function PaymentsScreen() {
   const [checkoutVisible, setCheckoutVisible] = useState(false);
   const [checkoutItem, setCheckoutItem] = useState(null);
   const [checkoutMethod, setCheckoutMethod] = useState('gcash');
+  const [offlineDetails, setOfflineDetails] = useState({ reference: '', notes: '' });
   const [processingPayment, setProcessingPayment] = useState(false);
 
   const openCheckout = (payment) => {
     setCheckoutItem(payment);
     setCheckoutMethod('gcash');
+    setOfflineDetails({ reference: '', notes: '' });
     setCheckoutVisible(true);
   };
 
@@ -92,7 +95,7 @@ export default function PaymentsScreen() {
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
 
-  const handlePayInvoice = async (paymentItem, paymentMethod = 'gcash') => {
+  const handlePayInvoice = async (paymentItem, paymentMethod = 'gcash', details = {}) => {
     try {
       setProcessingPayment(true);
 
@@ -158,7 +161,12 @@ export default function PaymentsScreen() {
         }
       } else {
         const amountCents = Math.round((paymentItem.amount || 0) * 100);
-        const resp = await PaymentService.createOfflineRecord(invoiceId, { amount_cents: amountCents, method: 'cash_on_site', notes: 'Tenant indicated cash on site payment' });
+        const resp = await PaymentService.createOfflineRecord(invoiceId, { 
+          amount_cents: amountCents, 
+          method: 'cash_on_site', 
+          reference: details.reference || null,
+          notes: details.notes || 'Tenant indicated cash on site payment' 
+        });
         if (!resp.success) {
           Alert.alert('Payment Error', resp.error || 'Failed to request cash payment');
         } else {
@@ -178,7 +186,7 @@ export default function PaymentsScreen() {
     if (!checkoutItem) return;
     setCheckoutVisible(false);
     if (checkoutMethod === 'cash') {
-      await handlePayInvoice(checkoutItem, 'cash');
+      await handlePayInvoice(checkoutItem, 'cash', offlineDetails);
     } else {
       await handlePayInvoice(checkoutItem, checkoutMethod);
     }
@@ -528,6 +536,47 @@ export default function PaymentsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {checkoutMethod === 'cash' && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8 }}>Additional Details (Optional)</Text>
+                <TextInput
+                  placeholder="Reference Number (if bank transfer)"
+                  placeholderTextColor="#9CA3AF"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 10,
+                    padding: 12,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    marginBottom: 10,
+                    fontSize: 14
+                  }}
+                  value={offlineDetails.reference}
+                  onChangeText={(v) => setOfflineDetails(prev => ({ ...prev, reference: v }))}
+                />
+                <TextInput
+                  placeholder="Additional Notes"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 10,
+                    padding: 12,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    height: 80,
+                    textAlignVertical: 'top',
+                    fontSize: 14
+                  }}
+                  value={offlineDetails.notes}
+                  onChangeText={(v) => setOfflineDetails(prev => ({ ...prev, notes: v }))}
+                />
+              </View>
+            )}
 
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setCheckoutVisible(false)} style={[styles.cancelBtn, { backgroundColor: theme.colors.backgroundSecondary }]}>

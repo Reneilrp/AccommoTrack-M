@@ -15,13 +15,14 @@ const buildErrorMessage = (error, fallbackMessage) => {
 const analyticsService = {
   /**
    * Get comprehensive dashboard analytics data
-   * @param {object} params - Optional params like { time_range, property_id }
+   * @param {object} params - Optional params like { timeRange, propertyId, _t }
    */
-  async getDashboardAnalytics({ timeRange = 'month', propertyId = 'all' } = {}) {
+  async getDashboardAnalytics({ timeRange = 'month', propertyId = 'all', ...extra } = {}) {
     try {
       const params = {
         time_range: timeRange,
-        ...(propertyId && propertyId !== 'all' ? { property_id: propertyId } : {})
+        ...(propertyId && propertyId !== 'all' ? { property_id: propertyId } : {}),
+        ...extra
       };
       const response = await api.get('/landlord/analytics/dashboard', { params });
       return { success: true, data: response.data || null };

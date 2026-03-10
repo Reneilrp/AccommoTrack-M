@@ -153,9 +153,9 @@ class PaymentService {
   /**
    * LANDLORD: Get all invoices
    */
-  async getInvoices() {
+  async getInvoices(params = {}) {
     try {
-      const response = await api.get(`/invoices`);
+      const response = await api.get(`/invoices`, { params });
 
       return { success: true, data: response.data };
     } catch (error) {
@@ -239,6 +239,27 @@ class PaymentService {
           error.response?.data?.message ||
           error.message ||
           "Failed to update payment",
+      };
+    }
+  }
+
+  /**
+   * LANDLORD: Refund a transaction
+   */
+  async refundTransaction(transactionId, amountCents) {
+    try {
+      const response = await api.post(`/transactions/${transactionId}/refund`, {
+        amount_cents: amountCents,
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error("Error refunding transaction:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to refund transaction",
       };
     }
   }

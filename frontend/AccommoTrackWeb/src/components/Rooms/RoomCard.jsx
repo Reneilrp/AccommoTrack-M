@@ -8,14 +8,14 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
     : null;
   const getStatusClasses = (status, occupied, capacity) => {
     if (status === 'maintenance') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-    if (occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    if (status === 'occupied' || occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
     if (occupied > 0) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
   };
 
   const statusLabel = (status, occupied, capacity) => {
     if (status === 'maintenance') return 'Maintenance';
-    if (occupied >= capacity) return 'Full';
+    if (status === 'occupied' || occupied >= capacity) return 'Full';
     if (occupied > 0) return 'Partial';
     return 'Available';
   };

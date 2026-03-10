@@ -255,7 +255,7 @@ export default function TenantPayments() {
                       </td>
                       <td className="px-6 py-4 text-sm font-mono">{payment.referenceNo}</td>
                       <td className="px-6 py-4 text-sm">
-                        {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
+                        {['pending', 'unpaid', 'partial', 'overdue', 'refunded'].includes(payment.status?.toLowerCase()) && (
                           <button
                             onClick={() => navigate(`/checkout/${payment.id}`)}
                             className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"

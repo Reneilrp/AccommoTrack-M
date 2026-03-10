@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { BarChart, LineChart } from 'react-native-chart-kit';
@@ -61,20 +62,17 @@ export default function Analytics({ navigation }) {
     }
   }, []);
 
-  const loadAnalytics = useCallback(async () => {
+  const loadAnalytics = useCallback(async (isManual = false) => {
     setErrorMessage('');
-    if (!refreshing) setLoading(true);
+    if (!refreshing && isManual) setLoading(true);
     try {
       const response = await analyticsService.getDashboardAnalytics({
         timeRange,
-        propertyId: selectedProperty
+        propertyId: selectedProperty,
+        _t: Date.now()
       });
 
       if (!response.success) throw new Error(response.error);
-      console.log('✅ Analytics data received:', !!response.data);
-      if (response.data?.revenue?.monthly_trend) {
-          console.log('📈 Trend points:', response.data.revenue.monthly_trend.length);
-      }
       setAnalytics(response.data);
     } catch (err) {
       setErrorMessage(err.message || 'Unable to load analytics');
@@ -85,7 +83,12 @@ export default function Analytics({ navigation }) {
   }, [selectedProperty, timeRange, refreshing]);
 
   useEffect(() => { loadProperties(); }, [loadProperties]);
-  useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAnalytics();
+    }, [loadAnalytics])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -387,9 +390,18 @@ export default function Analytics({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={handleExport} disabled={exporting || !analytics}>
-          {exporting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={24} color="#FFFFFF" />}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity 
+            style={[styles.iconButton, { marginRight: 8 }]} 
+            onPress={() => loadAnalytics(true)} 
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="refresh-outline" size={24} color="#FFFFFF" />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={handleExport} disabled={exporting || !analytics}>
+            {exporting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={24} color="#FFFFFF" />}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filters */}

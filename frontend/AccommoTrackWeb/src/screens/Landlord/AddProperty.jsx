@@ -154,9 +154,8 @@ export default function AddProperty({ onBack, onSave }) {
   }, [formData.latitude, formData.longitude]);
 
   const amenitiesList = [
-    'WiFi', 'Air Conditioning', 'Furnished',
-    'Parking', 'Security',
-    'Water Heater', 'Kitchen', 'Balcony'
+    'WiFi', 'Air Conditioning',
+    'Security', 'Kitchen', 'Balcony'
   ];
 
   const steps = [

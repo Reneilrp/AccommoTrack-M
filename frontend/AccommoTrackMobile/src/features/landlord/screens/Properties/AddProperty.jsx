@@ -38,26 +38,21 @@ const PROPERTY_TYPES = [
 ];
 
 const AMENITIES_SUGGESTIONS = [
-  "WiFi",
-  "Air Conditioning",
-  "Furnished",
-  "Parking",
-  "Security",
-  "Water Heater",
-  "Kitchen",
-  "Laundry",
-  "Pet Friendly",
-  "Balcony",
+  'WiFi', 
+  'Air Conditioning',
+  'Security', 
+  'Kitchen', 
+  'Balcony'
 ];
 
 const RULES_SUGGESTIONS = [
-  "No smoking",
-  "No pets allowed",
-  "No visitors after 10 PM",
-  "Quiet hours: 10 PM - 6 AM",
-  "Keep common areas clean",
-  "No cooking in rooms",
-  "Respect other tenants",
+  'No smoking',
+'No pets allowed',
+'No visitors after 10 PM',
+'Quiet hours: 10 PM - 6 AM',
+'Keep common areas clean',
+'Respect other tenants',
+'No cooking in rooms'
 ];
 
 const initialForm = {

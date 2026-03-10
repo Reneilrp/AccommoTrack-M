@@ -78,17 +78,17 @@ export const paymentService = {
      * @param {string} status 
      */
     getStatusColor(status) {
+        const s = (status || "").toLowerCase();
         const colors = {
             'paid': 'bg-green-100 text-green-800',
-            'Paid': 'bg-green-100 text-green-800',
             'pending': 'bg-yellow-100 text-yellow-800',
-            'Pending': 'bg-yellow-100 text-yellow-800',
+            'partial': 'bg-yellow-100 text-yellow-800',
             'overdue': 'bg-red-100 text-red-800',
-            'Overdue': 'bg-red-100 text-red-800',
-            'cancelled': 'bg-gray-100 text-gray-800',
-            'Cancelled': 'bg-gray-100 text-gray-800',
+            'unpaid': 'bg-red-100 text-red-800',
+            'cancelled': 'bg-red-100 text-red-800',
+            'refunded': 'bg-purple-100 text-purple-800',
         };
-        return colors[status] || 'bg-gray-100 text-gray-800';
+        return colors[s] || 'bg-gray-100 text-gray-800';
     }
 };
 

@@ -80,17 +80,19 @@ class TenantDashboardController extends Controller
         try {
             $tenantId = Auth::id();
             $bookings = $this->dashboardService->getActiveStays($tenantId);
+            $upcomingBooking = $this->dashboardService->getUpcomingBooking($tenantId);
+
+            $formattedUpcoming = $upcomingBooking ? [
+                'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
+                'room' => $upcomingBooking->room->room_number, 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
+                'daysUntil' => now()->diffInDays($upcomingBooking->start_date)
+            ] : null;
 
             if ($bookings->isEmpty()) {
-                $upcomingBooking = $this->dashboardService->getUpcomingBooking($tenantId);
                 return response()->json([
                     'hasActiveStay' => false,
                     'stays' => [],
-                    'upcomingBooking' => $upcomingBooking ? [
-                        'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
-                        'room' => $upcomingBooking->room->room_number, 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
-                        'daysUntil' => now()->diffInDays($upcomingBooking->start_date)
-                    ] : null
+                    'upcomingBooking' => $formattedUpcoming
                 ], 200);
             }
 
@@ -116,7 +118,9 @@ class TenantDashboardController extends Controller
                         'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                         'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
                         'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
-                        'hasReview' => (bool) $booking->review, 'daysRemaining' => now()->diffInDays($booking->end_date),
+                        'hasReview' => (bool) $booking->review, 
+                        'daysRemaining' => now()->diffInDays($booking->end_date, false) < 0 ? 0 : now()->diffInDays($booking->end_date),
+                        'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : abs(now()->diffInDays($booking->start_date, false)),
                         'monthsRemaining' => now()->diffInMonths($booking->end_date)
                     ],
                     'room' => [
@@ -294,6 +298,7 @@ class TenantDashboardController extends Controller
     {
         try {
             $validated = $request->validate([
+                'booking_id' => 'nullable|integer|exists:bookings,id',
                 'is_custom' => 'boolean',
                 'addon_id' => 'required_without:is_custom|exists:addons,id',
                 'name' => 'required_if:is_custom,true|string|max:255',

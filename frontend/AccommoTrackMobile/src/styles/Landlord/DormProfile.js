@@ -372,6 +372,92 @@ export const getStyles = (theme) => StyleSheet.create({
   outlineBtnBlue: {
     borderColor: '#2563EB'
   },
+  imageFull: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover'
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    padding: 6,
+    gap: 6
+  },
+  imageAction: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  primaryBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#F59E0B',
+    paddingVertical: 2,
+    alignItems: 'center'
+  },
+  primaryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5
+  },
+  videoThumbnail: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  credentialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  credentialInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1
+  },
+  credentialName: {
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1
+  },
+  credentialActions: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  credActionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  credActionText: {
+    fontSize: 12,
+    color: theme.colors.primary,
+    fontWeight: '600'
+  },
   badgePill: {
     position: 'absolute', 
     bottom: 4, 

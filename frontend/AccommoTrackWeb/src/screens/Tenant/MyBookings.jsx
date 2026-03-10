@@ -251,6 +251,7 @@ const MyBookings = () => {
       {/* Addon Request Modal */}
       {showAddonModal && activeStays[selectedStayIndex] && (
         <AddonModal
+          bookingId={activeStays[selectedStayIndex].booking.id}
           availableAddons={activeStays[selectedStayIndex]?.addons?.available || []}
           onClose={() => setShowAddonModal(false)}
           onRequest={handleRequestAddon}
@@ -464,10 +465,21 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Column */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Room Details Card */}
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
+                            {/* Main Column */}
+                            <div className="lg:col-span-2 space-y-6">
+                              {booking.paymentStatus === 'refunded' && (
+                                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-3 animate-pulse">
+                                  <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-bold text-purple-900 dark:text-purple-200">Payment Action Required</p>
+                                    <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
+                                      Your last payment was refunded. Please complete a new payment or contact your Property Manager to maintain your active status.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                
+                              {/* Room Details Card */}                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
                     <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
                       {getImageUrl(property.image) ? (
                         <img
@@ -521,15 +533,27 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`} 
                           icon={Banknote} 
                         />
-                        <StatCard
-                          label="Days Left"
-                          value={
-                            booking?.daysRemaining == null
-                              ? '-'
-                              : Math.max(0, Math.ceil(Number(booking.daysRemaining)))
-                          }
-                          icon={CalendarDays}
-                        />
+                        {(() => {
+                          const start = new Date(booking.startDate);
+                          const now = new Date();
+                          now.setHours(0, 0, 0, 0);
+                          const isFuture = start > now;
+                          const daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+
+                          return (
+                            <StatCard
+                              label={isFuture ? "Starts In" : "Days Left"}
+                              value={
+                                isFuture 
+                                  ? `${daysUntil} ${daysUntil === 1 ? 'Day' : 'Days'}`
+                                  : (booking?.daysRemaining == null
+                                      ? '-'
+                                      : Math.max(0, Math.ceil(Number(booking.daysRemaining))))
+                              }
+                              icon={CalendarDays}
+                            />
+                          );
+                        })()}
                         <StatCard 
                           label="Status" 
                           value={booking.paymentStatus} 
@@ -551,7 +575,13 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
                       <button
                         onClick={onRequestAddon}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-500/20 active:scale-95"
+                        disabled={booking.paymentStatus === 'refunded'}
+                        title={booking.paymentStatus === 'refunded' ? "Disabled until payment is re-settled" : ""}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${
+                          booking.paymentStatus === 'refunded'
+                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-200 dark:border-gray-600'
+                            : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-500/20'
+                        }`}
                       >
                         <Plus className="w-4 h-4" />
                         Request
@@ -692,7 +722,7 @@ const StaySelector = ({ stays, selectedIndex, onSelect, className = "" }) => {
       >
         {stays.map((stay, idx) => (
           <option key={stay.booking.id} value={idx}>
-            {stay.property.title} ({stay.room.roomNumber})
+            {stay.property.title} ({stay.room.roomNumber}) {stay.booking.paymentStatus === 'refunded' ? '— (Payment Required)' : ''}
           </option>
         ))}
       </select>
@@ -996,6 +1026,7 @@ const StatCard = ({ label, value, icon: Icon }) => (
 );
 
 const StatusBadge = ({ status }) => {
+  const s = (status || "").toLowerCase();
   const styles = {
     paid: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
     completed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
@@ -1003,13 +1034,15 @@ const StatusBadge = ({ status }) => {
     confirmed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
     pending: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
     unpaid: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    overdue: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
     partial: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-    cancelled: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
-    rejected: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+    cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    rejected: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    refunded: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
   };
 
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${styles[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${styles[s] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
       {status}
     </span>
   );
@@ -1050,7 +1083,7 @@ const AddonItem = ({ addon, status, onCancel }) => (
   </div>
 );
 
-const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => {
+const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requestingId }) => {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customData, setCustomData] = useState({
     name: '',
@@ -1062,6 +1095,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => {
   const handleCustomSubmit = (e) => {
     e.preventDefault();
     onRequest({
+      booking_id: bookingId,
       is_custom: true,
       ...customData,
       quantity: 1
@@ -1122,7 +1156,7 @@ const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => {
                           </div>
                         </div>
                         <button
-                          onClick={() => onRequest({ addon_id: addon.id, quantity: 1 })}
+                          onClick={() => onRequest({ booking_id: bookingId, addon_id: addon.id, quantity: 1 })}
                           disabled={!addon.has_stock || requestingId === addon.id}
                           className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
                             addon.has_stock && requestingId !== addon.id

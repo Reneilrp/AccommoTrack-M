@@ -349,6 +349,65 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.textSecondary,
   },
+  
+  // Transaction List Styles
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  transactionMeta: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  transactionRef: {
+    fontSize: 10,
+    color: theme.colors.textTertiary,
+    marginTop: 1,
+  },
+  refundButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  refundButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7E22CE',
+  },
+  refundedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+  },
+  refundedText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#9CA3AF',
+  },
 });
 
 export default getStyles;

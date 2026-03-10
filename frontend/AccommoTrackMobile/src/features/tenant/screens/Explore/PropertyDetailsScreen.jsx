@@ -30,13 +30,21 @@ export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const { accommodation, isGuest = false, onAuthRequired } = route.params || {};
+  const {
+    accommodation,
+    propertyId,
+    isGuest = false,
+    onAuthRequired,
+    landlordPreview = false,
+  } = route.params || {};
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
+
+  const effectiveId = accommodation?.id || propertyId;
 
   const videoUrl = detailedAccommodation?.video_url || accommodation?.video_url;
   const videoPlayer = useVideoPlayer(
@@ -58,7 +66,7 @@ export default function PropertyDetailsScreen({ route }) {
   useFocusEffect(
     useCallback(() => {
       loadRooms();
-    }, [accommodation?.id]),
+    }, [effectiveId]),
   );
 
   // Hide bottom tab bar for this details screen (if parent is a tab navigator)
@@ -77,7 +85,7 @@ export default function PropertyDetailsScreen({ route }) {
   }, [navigation]);
 
   const loadRooms = async () => {
-    if (!accommodation?.id) {
+    if (!effectiveId) {
       setRooms([]);
       setRoomsLoading(false);
       return;
@@ -85,7 +93,11 @@ export default function PropertyDetailsScreen({ route }) {
 
     try {
       setRoomsLoading(true);
-      const result = await PropertyService.getPublicProperty(accommodation.id);
+
+      // If landlord is previewing, use the private endpoint that allows seeing non-active properties
+      const result = landlordPreview
+        ? await PropertyService.getProperty(effectiveId)
+        : await PropertyService.getPublicProperty(effectiveId);
 
       console.log("Raw API response:", result); // DEBUG
 
@@ -450,6 +462,32 @@ export default function PropertyDetailsScreen({ route }) {
   };
 
   const active = detailedAccommodation || accommodation;
+
+  if (!active) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: theme.colors.background,
+          }}
+        >
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text
+            style={{
+              marginTop: 10,
+              color: theme.colors.textSecondary,
+              fontSize: 16,
+            }}
+          >
+            Loading property details...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

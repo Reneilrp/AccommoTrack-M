@@ -11,7 +11,7 @@ import { BookingCardSkeleton } from '../../../../components/Skeletons/index.jsx'
 
 const TABS = [
   { id: 'current', label: 'My Stay', icon: 'home-outline' },
-  { id: 'financials', label: 'Financials', icon: 'cash-outline' },
+  { id: 'upcoming', label: 'Requests', icon: 'calendar-outline' },
   { id: 'history', label: 'History', icon: 'time-outline' }
 ];
 
@@ -27,24 +27,22 @@ export default function MyBookings() {
   // Data states
   const [stayData, setStayData] = useState(null);
   const [historyData, setHistoryData] = useState([]);
-  const [pendingBookings, setPendingBookings] = useState([]);
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
 
   const fetchData = async () => {
     try {
       if (!refreshing) setLoading(true);
       
-      const [stayRes, bookingsRes, historyRes] = await Promise.all([
+      const [stayRes, bookingsRes] = await Promise.all([
         TenantService.getCurrentStay(),
-        BookingService.getMyBookings(),
-        TenantService.getHistory()
+        BookingService.getMyBookings()
       ]);
 
       if (stayRes.success) setStayData(stayRes.data);
       if (bookingsRes.success) {
-        setPendingBookings((bookingsRes.data || []).filter(b => b.status === 'pending'));
-      }
-      if (historyRes.success) {
-        setHistoryData(historyRes.data.bookings || historyRes.data || []);
+        const all = bookingsRes.data || [];
+        setUpcomingBookings(all.filter(b => ['pending', 'confirmed'].includes(b.status) && b.id !== stayRes.data?.booking?.id));
+        setHistoryData(all.filter(b => ['completed', 'cancelled', 'rejected'].includes(b.status)));
       }
     } catch (error) {
       console.error('Error fetching bookings data:', error);
@@ -144,11 +142,11 @@ export default function MyBookings() {
             </View>
             <View style={{ padding: 16 }}>
               <Text style={styles.stayHeaderValue}>
-                {pendingBookings.length > 0 
-                  ? `You have a pending booking request for ${pendingBookings[0].propertyTitle}.`
+                {upcomingBookings.length > 0 
+                  ? `You have ${upcomingBookings.length} booking request(s) being processed.`
                   : "You don't have an active stay at the moment. Explore our properties to find your next home."}
               </Text>
-              {!pendingBookings.length && (
+              {!upcomingBookings.length && (
                 <TouchableOpacity 
                   style={[styles.primaryButton, styles.stayHeaderBtn]}
                   onPress={() => navigation.navigate('TenantHome')}
@@ -309,114 +307,46 @@ export default function MyBookings() {
     );
   };
 
-  const renderFinancials = () => {
-    const hasActiveStay = stayData?.hasActiveStay;
-    const financials = stayData?.financials || { monthlyRent: 0, monthlyAddons: 0, monthlyTotal: 0, invoices: [] };
-
-    // Flatten all transactions from all invoices into a single sorted list
-    const invoices = Array.isArray(financials.invoices) ? financials.invoices : [];
-    const allTransactions = invoices
-      .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => ({ 
-        ...tx, 
-        date: tx.date || tx.created_at,
-        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
-        invoiceRef: inv.id 
-      })))
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const renderUpcoming = () => {
+    if (upcomingBookings.length === 0) {
+      return (
+        <View style={styles.content}>
+           <View style={styles.emptyHistoryCard}>
+            <Ionicons name="calendar-outline" size={64} color={theme.colors.textTertiary} style={styles.emptyHistoryIcon} />
+            <Text style={[styles.emptyTitle, styles.emptyHistoryTitle, { color: theme.colors.text }]}>No Upcoming Stays</Text>
+            <Text style={[styles.emptyText, styles.emptyHistoryText, { color: theme.colors.textSecondary }]}>
+              Your pending requests and future bookings will appear here.
+            </Text>
+          </View>
+        </View>
+      );
+    }
 
     return (
-      <ScrollView style={styles.financialsContainer} showsVerticalScrollIndicator={false}>
-         {!hasActiveStay && (
-            <View style={[styles.sectionCard, styles.financialsNotice]}>
-              <View style={[styles.sectionHeader, styles.financialsNoticeHeader]}>
-                <Ionicons name="cash-outline" size={20} color="#2563EB" />
-                <Text style={[styles.sectionTitle, styles.financialsNoticeTitle]}>Payment Records</Text>
-              </View>
-              <View style={{ padding: 16 }}>
-                <Text style={styles.financialsNoticeText}>
-                  Financial records and invoices will be available once you have an active stay.
-                </Text>
-              </View>
-            </View>
-         )}
-
-         <View style={[styles.financialSummaryRow, !hasActiveStay && { opacity: 0.7 }]}>
-            <View style={styles.summaryCard}>
-               <Text style={styles.summaryLabel}>Base Rent</Text>
-               <Text style={styles.summaryValue}>{formatCurrency(financials.monthlyRent)}</Text>
-            </View>
-            <View style={styles.summaryCard}>
-               <Text style={styles.summaryLabel}>Add-ons</Text>
-               <Text style={[styles.summaryValue, { color: '#F59E0B' }]}>+{formatCurrency(financials.monthlyAddons)}</Text>
-            </View>
-         </View>
-         
-         <View style={[styles.summaryCard, { width: '100%', marginTop: 12 }, !hasActiveStay && { opacity: 0.7 }]}>
-            <Text style={styles.summaryLabel}>Total Monthly Due</Text>
-            <Text style={[styles.summaryValue, { fontSize: 28, color: theme.colors.primary }]}>{formatCurrency(financials.monthlyTotal)}</Text>
-         </View>
-
-         {/* Transactions */}
-         <View style={[styles.sectionCard, { marginTop: 16, opacity: hasActiveStay ? 1 : 0.7 }]}>
-            <View style={styles.sectionHeader}>
-               <Ionicons name="refresh-circle-outline" size={20} color={hasActiveStay ? theme.colors.primary : theme.colors.textTertiary} />
-               <Text style={[styles.sectionTitle, !hasActiveStay && { color: theme.colors.textTertiary }]}>Recent Transactions</Text>
-            </View>
-            {hasActiveStay && allTransactions.length > 0 ? (
-              <View style={{ paddingVertical: 8 }}>
-                {allTransactions.map((tx, idx) => (
-                  <View key={`tx-${tx.id || idx}`} style={[styles.tableRow, { borderBottomWidth: idx === allTransactions.length - 1 ? 0 : 1, borderBottomColor: theme.colors.border }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>{formatDate(tx.date)}</Text>
-                      <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textTransform: 'capitalize' }}>{tx.method?.replace('paymongo_', '').replace('_', ' ') || 'Payment'}</Text>
+      <View style={styles.content}>
+        {upcomingBookings.map((booking) => (
+          <TouchableOpacity 
+            key={booking.id} 
+            style={[styles.bookingCard, styles.historyItemCard]}
+            onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.property?.id || booking.property_id })}
+          >
+            <View style={{ padding: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                 <Image source={getImageUrl(booking.property?.image || booking.property_image)} style={styles.historyItemImage} />
+                 <View style={styles.historyItemContent}>
+                    <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>{booking.property?.title || booking.property_title || 'Pending Stay'}</Text>
+                    <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
+                      {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
+                    </Text>
+                    <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.status)}15` }]}>
+                      <Text style={[styles.statusText, { color: getStatusColor(booking.status), fontSize: 10 }]}>{booking.status}</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.primary }}>{formatCurrency(tx.amount)}</Text>
-                      <Text style={{ fontSize: 10, color: tx.status === 'succeeded' ? '#16a34a' : '#F59E0B', fontWeight: 'bold', textTransform: 'uppercase' }}>{tx.status}</Text>
-                    </View>
-                  </View>
-                ))}
+                 </View>
               </View>
-            ) : (
-              <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-                <Text style={{ color: theme.colors.textTertiary, fontSize: 12, italic: true }}>No payment transactions recorded.</Text>
-              </View>
-            )}
-         </View>
-
-         {/* Invoices (Always shown structure) */}
-         <View style={[styles.sectionCard, { marginTop: 16, opacity: hasActiveStay ? 1 : 0.7 }]}>
-            <View style={styles.sectionHeader}>
-               <Ionicons name="document-text-outline" size={20} color={hasActiveStay ? theme.colors.primary : theme.colors.textTertiary} />
-               <Text style={[styles.sectionTitle, !hasActiveStay && { color: theme.colors.textTertiary }]}>Invoice History</Text>
             </View>
-            <View style={styles.tableHeader}>
-               <Text style={[styles.tableHeaderText, styles.invoiceDueDateCell]}>Due Date</Text>
-               <Text style={[styles.tableHeaderText, styles.invoiceAmountCell]}>Amount</Text>
-               <Text style={[styles.tableHeaderText, styles.invoiceStatusCell]}>Status</Text>
-            </View>
-            {hasActiveStay && financials.invoices?.length > 0 ? (
-              financials.invoices.map((inv, idx) => (
-                <View key={`inv-${idx}`} style={styles.tableRow}>
-                   <Text style={[styles.tableCell, styles.invoiceDueDateCell]}>{inv.dueDate || inv.issuedAt}</Text>
-                   <Text style={[styles.tableCell, styles.tableCellBold, styles.invoiceAmountCell]}>{formatCurrency(inv.amount_cents ? inv.amount_cents / 100 : inv.amount)}</Text>
-                   <View style={styles.invoiceStatusCell}>
-                      <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(inv.status)}15`, alignSelf: 'flex-start' }]}>
-                        <Text style={[styles.statusText, { color: getStatusColor(inv.status), fontSize: 10 }]}>{inv.status}</Text>
-                      </View>
-                   </View>
-                </View>
-              ))
-            ) : (
-              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <Ionicons name="receipt-outline" size={32} color={theme.colors.textTertiary} style={{ opacity: 0.5 }} />
-                <Text style={{ color: theme.colors.textTertiary, fontSize: 13, marginTop: 12 }}>
-                  {hasActiveStay ? "No invoices found for this stay." : "No invoices available."}
-                </Text>
-              </View>
-            )}
-         </View>
-      </ScrollView>
+          </TouchableOpacity>
+        ))}
+      </View>
     );
   };
 
@@ -533,7 +463,7 @@ export default function MyBookings() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
           >
             {activeTab === 'current' && renderCurrentStay()}
-            {activeTab === 'financials' && renderFinancials()}
+            {activeTab === 'upcoming' && renderUpcoming()}
             {activeTab === 'history' && renderHistory()}
           </ScrollView>
         </View>

@@ -45,16 +45,6 @@ const TenantDashboard = () => {
     }
   };
 
-  const calculateDaysStayed = (startDate) => {
-    if (!startDate) return 0;
-    const start = new Date(startDate);
-    const today = new Date();
-    const diffTime = Math.abs(today - start);
-    // Include the start day as day 1, using Math.floor to get full days
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-    return diffDays >= 0 ? diffDays : 0; 
-  };
-
   // Helper to format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
@@ -204,7 +194,7 @@ const TenantDashboard = () => {
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days Stayed</p>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {calculateDaysStayed(currentStay.booking?.startDate || currentStay.booking?.start_date)}
+                        {currentStay.booking?.daysStayed ?? 0}
                       </p>
                       <p className="text-xs text-gray-500">Total</p>
                     </div>

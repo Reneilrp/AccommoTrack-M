@@ -62,7 +62,7 @@ export default function Payments() {
   const invalidateAnalyticsCache = useCallback(() => {
     // Clear both global state and persistent local cache for analytics
     updateData("landlord_analytics", null);
-    cacheManager.remove("landlord_analytics");
+    cacheManager.invalidate("landlord_analytics");
     console.log("Analytics cache invalidated due to payment action");
   }, [updateData]);
 

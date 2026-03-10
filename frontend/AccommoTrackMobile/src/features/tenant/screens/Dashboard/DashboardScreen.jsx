@@ -162,10 +162,34 @@ const DashboardScreen = () => {
                   <Ionicons name="wallet-outline" size={24} color="#fff" />
                 </View>
                 <Text style={styles.statValue}>
+                  {formatCurrency(stats?.payments?.pendingAmount || stats?.payments?.monthlyDue || 0)}
+                </Text>
+                <Text style={styles.statLabel}>Pending Due</Text>
+                <Text style={styles.statSubLabel}>Current month</Text>
+              </View>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, { backgroundColor: '#D1FAE5' }]}>
+                <View style={[styles.iconContainer, { backgroundColor: '#10B981' }]}>
+                  <Ionicons name="checkmark-done-outline" size={24} color="#fff" />
+                </View>
+                <Text style={styles.statValue}>
                   {formatCurrency(stats?.payments?.totalPaid || 0)}
                 </Text>
                 <Text style={styles.statLabel}>Total Paid</Text>
                 <Text style={styles.statSubLabel}>All time</Text>
+              </View>
+
+              <View style={[styles.statCard, { backgroundColor: '#FEE2E2' }]}>
+                <View style={[styles.iconContainer, { backgroundColor: '#EF4444' }]}>
+                  <Ionicons name="alert-circle-outline" size={24} color="#fff" />
+                </View>
+                <Text style={styles.statValue}>
+                   {stats?.payments?.overdueCount || 0}
+                </Text>
+                <Text style={styles.statLabel}>Overdue</Text>
+                <Text style={styles.statSubLabel}>Check invoices</Text>
               </View>
             </View>
 

@@ -37,6 +37,7 @@ export default function Payments({ navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [refundingTxId, setRefundingTxId] = useState(null);
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
 
   const fetchInvoices = useCallback(async (isRefresh = false) => {
@@ -44,7 +45,7 @@ export default function Payments({ navigation }) {
     else if (invoices.length === 0) setLoading(true);
 
     try {
-      const res = await PaymentService.getInvoices();
+      const res = await PaymentService.getInvoices({ _t: Date.now() });
       if (res.success) {
         // Ensure we have an array
         let data = res.data;
@@ -123,10 +124,57 @@ export default function Payments({ navigation }) {
     }
   };
 
+  const handleRefund = async (tx) => {
+    if (!tx || !tx.id) return;
+    
+    Alert.alert(
+      'Confirm Refund',
+      `Are you sure you want to refund ₱${(tx.amount_cents / 100).toLocaleString()}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Yes, Refund', 
+          style: 'destructive',
+          onPress: async () => {
+            setRefundingTxId(tx.id);
+            try {
+              const res = await PaymentService.refundTransaction(tx.id, tx.amount_cents);
+              if (res.success) {
+                // If the whole booking was paid, we might want to update its status to refunded
+                if (selectedInvoice.booking_id) {
+                   await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
+                }
+                Alert.alert('Success', 'Transaction refunded successfully');
+                fetchInvoices(true);
+                setShowModal(false);
+              } else {
+                Alert.alert('Error', res.error || 'Failed to refund transaction');
+              }
+            } catch {
+              Alert.alert('Error', 'An unexpected error occurred during refund');
+            } finally {
+              setRefundingTxId(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const filteredInvoices = useMemo(() => {
     if (!Array.isArray(invoices)) return [];
     return invoices.filter(inv => {
-      const status = (inv.status || inv.booking?.payment_status || inv.payment_status || 'unpaid').toLowerCase();
+      const bookingPayStatus = (inv.booking?.payment_status || inv.payment_status || '').toLowerCase();
+      const invStatus = (inv.status || '').toLowerCase();
+      
+      const status = (() => {
+        if (bookingPayStatus === 'refunded') return 'refunded';
+        if (bookingPayStatus === 'cancelled') return 'cancelled';
+        if (invStatus) return invStatus;
+        if (bookingPayStatus) return bookingPayStatus;
+        return 'unpaid';
+      })();
+
       const matchesFilter = activeFilter === 'all' || status === activeFilter;
       
       if (!matchesFilter) return false;
@@ -154,7 +202,17 @@ export default function Payments({ navigation }) {
   };
 
   const renderInvoiceItem = ({ item }) => {
-    const status = item.status || item.booking?.payment_status || item.payment_status || 'unpaid';
+    const bookingPayStatus = (item.booking?.payment_status || item.payment_status || '').toLowerCase();
+    const invStatus = (item.status || '').toLowerCase();
+    
+    const status = (() => {
+      if (bookingPayStatus === 'refunded') return 'refunded';
+      if (bookingPayStatus === 'cancelled') return 'cancelled';
+      if (invStatus) return invStatus;
+      if (bookingPayStatus) return bookingPayStatus;
+      return 'unpaid';
+    })();
+
     const statusStyle = getStatusStyle(status);
     const amount = item.amount || (item.amount_cents ? item.amount_cents / 100 : 0);
     const tenantName = item.tenant?.full_name || (item.tenant ? `${item.tenant.first_name} ${item.tenant.last_name}` : '—');
@@ -203,7 +261,7 @@ export default function Payments({ navigation }) {
                 setShowModal(true);
               }}
             >
-              <Text style={styles.viewButtonText}>Manage</Text>
+              <Text style={styles.viewButtonText}>{status === 'paid' ? 'Details' : 'Manage'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -333,109 +391,177 @@ export default function Payments({ navigation }) {
                   </View>
                 </View>
 
-                {/* ── Record a Payment ── */}
-                <View style={styles.sectionDivider}>
-                  <Text style={styles.sectionTitle}>Record a Payment</Text>
-                </View>
+                {/* Status-based Conditional Rendering */}
+                {(() => {
+                  const bookingPayStatus = (selectedInvoice?.booking?.payment_status || selectedInvoice?.payment_status || '').toLowerCase();
+                  const invStatus = (selectedInvoice?.status || '').toLowerCase();
+                  
+                  const status = (() => {
+                    if (bookingPayStatus === 'refunded') return 'refunded';
+                    if (bookingPayStatus === 'cancelled') return 'cancelled';
+                    if (invStatus) return invStatus;
+                    if (bookingPayStatus) return bookingPayStatus;
+                    return 'unpaid';
+                  })();
 
-                {/* Amount */}
-                <Text style={styles.fieldLabel}>Amount Paid (₱) *</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  keyboardType="decimal-pad"
-                  placeholder="e.g. 5000"
-                  placeholderTextColor="#9CA3AF"
-                  value={recordData.amount}
-                  onChangeText={(v) => setRecordData((d) => ({ ...d, amount: v }))}
-                  returnKeyType="done"
-                />
+                  const isSettled = ['paid', 'refunded', 'cancelled'].includes(status);
+                  
+                  if (isSettled) return null;
 
-                {/* Payment Method */}
-                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Payment Method *</Text>
-                <View style={styles.methodRow}>
-                  {[
-                    { id: 'cash', label: 'Cash' },
-                    { id: 'gcash', label: 'GCash' },
-                    { id: 'bank_transfer', label: 'Bank' },
-                    { id: 'check', label: 'Check' },
-                    { id: 'other', label: 'Other' },
-                  ].map((m) => (
-                    <TouchableOpacity
-                      key={m.id}
-                      style={[
-                        styles.methodChip,
-                        recordData.method === m.id && styles.methodChipActive,
-                      ]}
-                      onPress={() => setRecordData((d) => ({ ...d, method: m.id }))}
-                    >
-                      <Text style={[
-                        styles.methodChipText,
-                        recordData.method === m.id && styles.methodChipTextActive,
-                      ]}>{m.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                  return (
+                    <>
+                      {/* ── Record a Payment ── */}
+                      <View style={styles.sectionDivider}>
+                        <Text style={styles.sectionTitle}>Record a Payment</Text>
+                      </View>
 
-                {/* Reference */}
-                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Reference # (Optional)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Transaction / OR number…"
-                  placeholderTextColor="#9CA3AF"
-                  value={recordData.reference}
-                  onChangeText={(v) => setRecordData((d) => ({ ...d, reference: v }))}
-                />
+                      {/* Amount */}
+                      <Text style={styles.fieldLabel}>Amount Paid (₱) *</Text>
+                      <TextInput
+                        style={styles.fieldInput}
+                        keyboardType="decimal-pad"
+                        placeholder="e.g. 5000"
+                        placeholderTextColor="#9CA3AF"
+                        value={recordData.amount}
+                        onChangeText={(v) => setRecordData((d) => ({ ...d, amount: v }))}
+                        returnKeyType="done"
+                      />
 
-                {/* Notes */}
-                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Notes (Optional)</Text>
-                <TextInput
-                  style={[styles.fieldInput, styles.fieldTextarea]}
-                  placeholder="Add any internal notes…"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  numberOfLines={3}
-                  value={recordData.notes}
-                  onChangeText={(v) => setRecordData((d) => ({ ...d, notes: v }))}
-                />
+                      {/* Payment Method */}
+                      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Payment Method *</Text>
+                      <View style={styles.methodRow}>
+                        {[
+                          { id: 'cash', label: 'Cash' },
+                          { id: 'gcash', label: 'GCash' },
+                          { id: 'bank_transfer', label: 'Bank' },
+                          { id: 'check', label: 'Check' },
+                          { id: 'other', label: 'Other' },
+                        ].map((m) => (
+                          <TouchableOpacity
+                            key={m.id}
+                            style={[
+                              styles.methodChip,
+                              recordData.method === m.id && styles.methodChipActive,
+                            ]}
+                            onPress={() => setRecordData((d) => ({ ...d, method: m.id }))}
+                          >
+                            <Text style={[
+                              styles.methodChipText,
+                              recordData.method === m.id && styles.methodChipTextActive,
+                            ]}>{m.label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
 
-                <TouchableOpacity
-                  style={[styles.recordButton, recording && { opacity: 0.6 }]}
-                  onPress={handleRecordPayment}
-                  disabled={recording}
-                >
-                  {recording ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.recordButtonText}>Record Payment</Text>
-                  )}
-                </TouchableOpacity>
+                      {/* Reference */}
+                      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Reference # (Optional)</Text>
+                      <TextInput
+                        style={styles.fieldInput}
+                        placeholder="Transaction / OR number…"
+                        placeholderTextColor="#9CA3AF"
+                        value={recordData.reference}
+                        onChangeText={(v) => setRecordData((d) => ({ ...d, reference: v }))}
+                      />
 
-                {/* ── Quick Status Update ── */}
-                <View style={[styles.sectionDivider, { marginTop: 24 }]}>
-                  <Text style={styles.sectionTitle}>Quick Status Update</Text>
-                </View>
+                      {/* Notes */}
+                      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Notes (Optional)</Text>
+                      <TextInput
+                        style={[styles.fieldInput, styles.fieldTextarea]}
+                        placeholder="Add any internal notes…"
+                        placeholderTextColor="#9CA3AF"
+                        multiline
+                        numberOfLines={3}
+                        value={recordData.notes}
+                        onChangeText={(v) => setRecordData((d) => ({ ...d, notes: v }))}
+                      />
 
-                <View style={styles.statusGrid}>
-                  {[
-                    { id: 'unpaid', label: 'Unpaid', color: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
-                    { id: 'partial', label: 'Partial', color: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
-                    { id: 'paid', label: 'Paid', color: '#DCFCE7', text: '#166534', border: '#86EFAC' },
-                    { id: 'refunded', label: 'Refunded', color: '#F3E8FF', text: '#7E22CE', border: '#D8B4FE' },
-                  ].map((s) => (
-                    <TouchableOpacity
-                      key={s.id}
-                      style={[styles.statusOption, { backgroundColor: s.color, borderColor: s.border }]}
-                      onPress={() => handleUpdatePayment(s.id)}
-                      disabled={updating}
-                    >
-                      {updating ? (
-                        <ActivityIndicator size="small" color={s.text} />
-                      ) : (
-                        <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      <TouchableOpacity
+                        style={[styles.recordButton, recording && { opacity: 0.6 }]}
+                        onPress={handleRecordPayment}
+                        disabled={recording}
+                      >
+                        {recording ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.recordButtonText}>Record Payment</Text>
+                        )}
+                      </TouchableOpacity>
+
+                      {/* ── Quick Status Update ── */}
+                      <View style={[styles.sectionDivider, { marginTop: 24 }]}>
+                        <Text style={styles.sectionTitle}>Quick Status Update</Text>
+                      </View>
+
+                      <View style={styles.statusGrid}>
+                        {[
+                          { id: 'unpaid', label: 'Unpaid', color: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
+                          { id: 'partial', label: 'Partial', color: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
+                          { id: 'paid', label: 'Paid', color: '#DCFCE7', text: '#166534', border: '#86EFAC' },
+                        ].map((s) => (
+                          <TouchableOpacity
+                            key={s.id}
+                            style={[styles.statusOption, { backgroundColor: s.color, borderColor: s.border }]}
+                            onPress={() => handleUpdatePayment(s.id)}
+                            disabled={updating}
+                          >
+                            {updating ? (
+                              <ActivityIndicator size="small" color={s.text} />
+                            ) : (
+                              <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  );
+                })()}
+
+                {/* ── Payment Transactions ── */}
+                {Array.isArray(selectedInvoice?.transactions) && selectedInvoice.transactions.length > 0 && (
+                  <>
+                    <View style={[styles.sectionDivider, { marginTop: 24 }]}>
+                      <Text style={styles.sectionTitle}>Payment Transactions</Text>
+                    </View>
+                    {selectedInvoice.transactions.map((tx, idx) => {
+                      const isRefunding = refundingTxId === tx.id;
+                      const isRefunded = tx.status === 'refunded';
+                      const txAmount = tx.amount_cents ? tx.amount_cents / 100 : (tx.amount || 0);
+                      
+                      return (
+                        <View key={tx.id || idx} style={styles.transactionItem}>
+                          <View style={styles.transactionInfo}>
+                             <Text style={styles.transactionAmount}>₱{Number(txAmount).toLocaleString()}</Text>
+                             <Text style={styles.transactionMeta}>
+                               {tx.method?.replace('_', ' ')} • {new Date(tx.created_at || tx.date).toLocaleDateString()}
+                             </Text>
+                             {tx.reference && <Text style={styles.transactionRef}>Ref: {tx.reference}</Text>}
+                          </View>
+                          
+                          {isRefunded ? (
+                            <View style={styles.refundedBadge}>
+                               <Text style={styles.refundedText}>REFUNDED</Text>
+                            </View>
+                          ) : (
+                            <TouchableOpacity 
+                              style={[styles.refundButton, isRefunding && { opacity: 0.7 }]}
+                              onPress={() => handleRefund(tx)}
+                              disabled={isRefunding}
+                            >
+                              {isRefunding ? (
+                                <ActivityIndicator size="small" color="#7E22CE" />
+                              ) : (
+                                <>
+                                  <Ionicons name="refresh-circle-outline" size={16} color="#7E22CE" />
+                                  <Text style={styles.refundButtonText}>Refund</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </>
+                )}
 
                 <TouchableOpacity
                   style={[styles.cancelButton, { marginTop: 20 }]}

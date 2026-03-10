@@ -29,7 +29,14 @@ class TenantDashboardService
 
         $monthlyDueCents = Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->whereMonth('due_date', now()->month)->whereYear('due_date', now()->year)->sum('amount_cents');
         $totalDueCents = Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->sum('amount_cents');
-        $totalPaidCents = Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->sum('amount_cents');
+        
+        // Calculate net total paid (Amount - Refunded) from all successful transactions
+        // We only sum positive transactions to avoid double-counting the negative refund records
+        $totalPaidCents = PaymentTransaction::where('tenant_id', $tenantId)
+            ->where('amount_cents', '>', 0)
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
         
         $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
 
@@ -87,7 +94,6 @@ class TenantDashboardService
     {
         return Booking::where('tenant_id', $tenantId)
             ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-            ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
             ->with([
                 'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
@@ -151,9 +157,23 @@ class TenantDashboardService
 
     public function requestAddonForActiveBooking(int $tenantId, array $data): Addon
     {
-        $booking = $this->getActiveBooking($tenantId);
+        $bookingId = $data['booking_id'] ?? null;
+        
+        if ($bookingId) {
+            $booking = Booking::where('id', $bookingId)
+                ->where('tenant_id', $tenantId)
+                ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                ->first();
+        } else {
+            $booking = $this->getActiveBooking($tenantId);
+        }
+
         if (!$booking) {
             throw new \Exception('No active booking found');
+        }
+
+        if ($booking->payment_status === 'refunded') {
+            throw new \Exception('Add-on requests are disabled until your room payment is re-settled.');
         }
 
         if ($data['is_custom'] ?? false) {
@@ -176,7 +196,7 @@ class TenantDashboardService
                 ->firstOrFail();
 
             if ($booking->addons()->where('addon_id', $addon->id)->wherePivotNotIn('status', ['rejected', 'cancelled', 'completed'])->exists()) {
-                throw new \Exception('You already have an active request for this addon');
+                throw new \Exception('You already have an active request for this addon in this room');
             }
 
             if ($addon->addon_type === 'rental' && !$addon->hasStock()) {

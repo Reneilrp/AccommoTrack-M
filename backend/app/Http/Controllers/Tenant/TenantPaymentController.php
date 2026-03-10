@@ -78,17 +78,21 @@ class TenantPaymentController extends Controller
         try {
             $tenantId = Auth::id();
 
-            // Total paid this month (via transactions)
+            // Total paid this month (via transactions), subtracting any refunds
+            // We only sum positive transactions to avoid double-counting the negative refund records
             $totalPaidThisMonthCents = PaymentTransaction::where('tenant_id', $tenantId)
-                ->where('status', 'succeeded')
+                ->where('amount_cents', '>', 0)
+                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
-                ->sum('amount_cents');
+                ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+                ->value('net_cents') ?? 0;
 
-            // Count of paid invoices
+            // Count of active paid/partial invoices this month
             $paidCount = Invoice::where('tenant_id', $tenantId)
-                ->where('status', 'paid')
+                ->whereIn('status', ['paid', 'partial'])
                 ->whereMonth('updated_at', now()->month)
+                ->whereYear('updated_at', now()->year)
                 ->count();
 
             // Get next due date from pending invoices
