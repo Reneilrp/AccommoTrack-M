@@ -17,8 +17,8 @@ class MessageResource extends JsonResource
         $user = $request->user();
         $isMine = false;
         if ($user) {
-            $ownerId = $user->isCaretaker() ? $user->effectiveLandlordId() : $user->id;
-            $isMine = (string) $this->sender_id === (string) $ownerId;
+            $ownerId = $user->effectiveLandlordId() ?? $user->id;
+            $isMine = (int) $this->sender_id === (int) $ownerId;
         }
 
         return [

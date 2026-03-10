@@ -49,7 +49,11 @@ export default function ChatScreen({ navigation, route }) {
                 setMessageText('');
                 setSelectedImage(null);
                 // Optimistically update
-                queryClient.setQueryData(['messages', conv.id], (old) => [...(old || []), result.data]);
+                queryClient.setQueryData(['messages', conv.id], (old) => {
+                    const messages = old || [];
+                    if (messages.some(m => String(m.id) === String(result.data.id))) return old;
+                    return [...messages, result.data];
+                });
                 scrollToBottom();
             } else {
                 Alert.alert('Error', result.error || 'Failed to send message');
@@ -62,13 +66,18 @@ export default function ChatScreen({ navigation, route }) {
 
     useEffect(() => {
         const loadUserId = async () => {
-            const stored = await AsyncStorage.getItem('user');
-            if (!stored) return;
             try {
-                const parsed = JSON.parse(stored);
-                const userId = parsed?.id || parsed?.user_id || parsed?.user?.id;
-                setCurrentUserId(userId || null);
-            } catch (e) {}
+                const stored = await AsyncStorage.getItem('user');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    // For landlords and caretakers, effective ID is what identifies "mine"
+                    // The backend returns effectiveLandlordId() as sender_id for these roles.
+                    const userId = parsed?.id; 
+                    setCurrentUserId(userId || null);
+                }
+            } catch (e) {
+                console.error('Failed to load user for chat:', e);
+            }
         };
         loadUserId();
     }, []);
@@ -87,10 +96,15 @@ export default function ChatScreen({ navigation, route }) {
         try {
             echoRef.current = await createEcho();
             echoRef.current.private(`conversation.${conv.id}`).listen('.message.sent', (e) => {
+                const incomingMessage = e.message;
+                
                 queryClient.setQueryData(['messages', conv.id], (old) => {
-                    const exists = old?.find(m => m.id === e.message.id);
-                    if (exists) return old;
-                    return [...(old || []), e.message];
+                    const messages = old || [];
+                    // Avoid duplicates by checking ID (convert to string for safe comparison)
+                    if (messages.some(m => String(m.id) === String(incomingMessage.id))) {
+                        return old;
+                    }
+                    return [...messages, incomingMessage];
                 });
                 scrollToBottom();
             });
@@ -233,7 +247,8 @@ export default function ChatScreen({ navigation, route }) {
                         </View>
                     ) : (
                         messages.map((msg) => {
-                            const isMine = msg.is_mine;
+                            // Local fallback for isMine calculation
+                            const isMine = msg.is_mine || (currentUserId && String(msg.sender_id) === String(currentUserId));
                             const isCaretakerMessage = msg.sender_role === 'caretaker';
                             const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';
 

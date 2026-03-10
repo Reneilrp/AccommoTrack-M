@@ -18,7 +18,16 @@ class MessageSent implements ShouldBroadcast
 
     public function __construct(Message $message)
     {
-        $this->message = $message->load('sender:id,first_name,last_name');
+        $this->message = $message;
+    }
+
+    public function broadcastWith(): array
+    {
+        // We load the necessary relationships for the resource
+        $this->message->load(['sender', 'actualSender']);
+        return [
+            'message' => (new \App\Http\Resources\MessageResource($this->message))->resolve()
+        ];
     }
 
     public function broadcastOn(): array
