@@ -175,55 +175,57 @@ export default function InvoiceCheckout() {
               </h3>
               
               <div className="grid grid-cols-1 gap-4">
-            {/* GCash */}
-            <button
-              onClick={() => handlePayMongoSource('gcash')}
-              disabled={processing}
-              className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
-            >
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                  <Wallet className="w-7 h-7" />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GCash</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instant payment via GCash wallet</p>
-                </div>
-              </div>
-              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-blue-500 flex items-center justify-center transition-colors">
-                <div className="w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-            </button>
+                {/* GCash */}
+                <button
+                  onClick={() => handlePayMongoSource('gcash')}
+                  disabled={processing}
+                  className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                >
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                      <Wallet className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GCash</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instant payment via GCash wallet</p>
+                    </div>
+                  </div>
+                  <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-blue-500 flex items-center justify-center transition-colors">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
+                </button>
 
-            {/* GrabPay */}
-            <button
-              onClick={() => handlePayMongoSource('grab_pay')}
-              disabled={processing}
-              className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-600 dark:hover:border-green-600 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
-            >
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-700 dark:text-green-400 group-hover:scale-110 transition-transform">
-                  <Wallet className="w-7 h-7" />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GrabPay</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Direct payment using GrabPay credits</p>
-                </div>
+                {/* GrabPay */}
+                <button
+                  onClick={() => handlePayMongoSource('grab_pay')}
+                  disabled={processing}
+                  className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-600 dark:hover:border-green-600 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                >
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-700 dark:text-green-400 group-hover:scale-110 transition-transform">
+                      <Wallet className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GrabPay</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Direct payment using GrabPay credits</p>
+                    </div>
+                  </div>
+                  <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-green-600 flex items-center justify-center transition-colors">
+                    <div className="w-3 h-3 bg-green-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
+                </button>
               </div>
-              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-blue-500 flex items-center justify-center transition-colors">
-                <div className="w-3 h-3 bg-green-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-            </button>
-          </div>
 
-          <div className="mt-10 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-4">
-            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-              Transactions are encrypted and processed by PayMongo. By proceeding, you agree to our <span className="text-green-600 dark:text-green-400 font-bold underline cursor-pointer">Payment Terms</span> and confirm this is a valid accommodation payment.
-            </p>
-          </div>
+              <div className="mt-10 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-4">
+                <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                  Transactions are encrypted and processed by PayMongo. By proceeding, you agree to our <span className="text-green-600 dark:text-green-400 font-bold underline cursor-pointer">Payment Terms</span> and confirm this is a valid accommodation payment.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
