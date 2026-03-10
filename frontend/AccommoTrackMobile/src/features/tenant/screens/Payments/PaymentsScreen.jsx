@@ -90,8 +90,8 @@ export default function PaymentsScreen() {
   const isPayable = (payment) => {
     const status = (payment.status || '').toString().toLowerCase();
     const paymentStatus = (payment.paymentStatus || '').toString().toLowerCase();
-    const payableStatus = ['unpaid', 'pending'];
-    const payableBookingStatus = ['unpaid', 'partial'];
+    const payableStatus = ['unpaid', 'pending', 'refunded'];
+    const payableBookingStatus = ['unpaid', 'partial', 'refunded'];
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
 
@@ -254,8 +254,11 @@ export default function PaymentsScreen() {
         return theme.colors.primary;
       case 'pending':
         return '#F59E0B';
+      case 'refunded':
+        return '#9333EA';
       case 'overdue':
       case 'failed':
+      case 'cancelled':
         return '#EF4444';
       default:
         return theme.colors.textSecondary;
@@ -464,6 +467,8 @@ export default function PaymentsScreen() {
                         ? 'checkmark-circle'
                         : payment.status?.toLowerCase() === 'pending'
                         ? 'time'
+                        : payment.status?.toLowerCase() === 'refunded'
+                        ? 'refresh-circle'
                         : 'close-circle'
                     }
                     size={24}

@@ -641,6 +641,112 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'flex-end'
   },
+  // Sliding Toggle Styles
+  sliderContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 20,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  sliderIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sliderTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  sliderTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  // Property Selector Styles
+  selectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 20,
+  },
+  selectorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectorIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectorLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  selectorSublabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+  },
+  selectorDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  selectorValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  // Warning Banner
+  warningBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    gap: 12,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#581C87',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#7E22CE',
+    marginTop: 2,
+    lineHeight: 18,
+  },
 });
 
 export default getStyles;

@@ -221,14 +221,14 @@ export default function Analytics({ navigation }) {
             label="Total Revenue" 
             value={formatCurrency(overview.total_revenue)} 
             tag="Cumulative"
-            icon="cash" color="#16a34a" bgColor="#DCFCE7"
+            icon="cash-outline" color="#16a34a" bgColor="#DCFCE7"
             styles={styles}
           />
           <MetricCard 
             label="Monthly Revenue" 
             value={formatCurrency(overview.monthly_revenue)} 
             tag="This Month"
-            icon="trending-up" color="#059669" bgColor="#D1FAE5"
+            icon="trending-up-outline" color="#059669" bgColor="#D1FAE5"
             styles={styles}
           />
           <MetricCard 
@@ -266,7 +266,7 @@ export default function Analytics({ navigation }) {
             value={overview.active_tenants} 
             subValue={`+${overview.new_tenants_this_month} New`}
             tag="Active"
-            icon="people" color="#DB2777" bgColor="#FCE7F3"
+            icon="people-outline" color="#DB2777" bgColor="#FCE7F3"
             styles={styles}
           />
           <MetricCard 

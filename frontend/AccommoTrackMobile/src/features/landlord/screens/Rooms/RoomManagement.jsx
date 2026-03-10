@@ -513,7 +513,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             </View>
             <View style={styles.priceBlock}>
               <Text style={styles.price}>
-                {formatCurrency(item.monthly_rate || item.daily_rate)}
+                {formatCurrency(item.unit_price || item.monthly_rate || item.daily_rate)}
               </Text>
               <Text style={styles.priceCaption}>
                 {item.billing_policy === "daily" ? "per day" : "per month"}

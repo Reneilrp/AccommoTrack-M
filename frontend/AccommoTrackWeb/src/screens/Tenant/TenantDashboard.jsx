@@ -4,7 +4,7 @@ import { getImageUrl } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
-import { ChevronRight, Home, Calendar, Search, Wallet, Wrench } from 'lucide-react';
+import { ChevronRight, Home, Calendar, Search, Wallet, Wrench, AlertCircle } from 'lucide-react';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();

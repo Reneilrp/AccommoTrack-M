@@ -63,14 +63,6 @@ const DashboardScreen = () => {
     setRefreshing(false);
   };
 
-  const calculateDaysStayed = (startDate) => {
-    const start = new Date(startDate);
-    const today = new Date();
-    const diffTime = Math.abs(today - start);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 ? diffDays : 0;
-  };
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -134,7 +126,7 @@ const DashboardScreen = () => {
                   <Ionicons name="calendar-outline" size={24} color="#fff" />
                 </View>
                 <Text style={styles.statValue}>
-                  {stayData?.hasActiveStay ? calculateDaysStayed(stayData.booking?.start_date) : '0'}
+                  {stayData?.hasActiveStay ? (stayData.booking?.daysStayed ?? 0) : '0'}
                 </Text>
                 <Text style={styles.statLabel}>Days Stayed</Text>
                 <Text style={styles.statSubLabel}>
