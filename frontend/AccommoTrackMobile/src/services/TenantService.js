@@ -75,18 +75,9 @@ class TenantService {
   /**
    * Request an addon for current booking
    */
-  async requestAddon(addonId, quantity = 1, note = null) {
+  async requestAddon(data) {
     try {
-      const body = { addon_id: addonId, quantity };
-      if (note) body.note = note;
-
-      // support optional bookingId passed via note parameter or as fourth arg
-      if (arguments.length >= 4) {
-        const bookingId = arguments[3];
-        if (bookingId) body.booking_id = bookingId;
-      }
-
-      const response = await api.post(`/tenant/addons/request`, body);
+      const response = await api.post(`/tenant/addons/request`, data);
 
       return {
         success: true,

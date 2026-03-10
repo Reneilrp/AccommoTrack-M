@@ -36,6 +36,14 @@ export default function AddonsScreen({ hideHeader = false }) {
   const [submittingId, setSubmittingId] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
   const [noBooking, setNoBooking] = useState(false);
+  
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customData, setCustomData] = useState({
+    name: '',
+    addon_type: 'rental',
+    price_type: 'monthly',
+    note: ''
+  });
 
   useEffect(() => {
     loadAddons();
@@ -73,14 +81,26 @@ export default function AddonsScreen({ hideHeader = false }) {
     }
   };
 
-  const onRequest = async (addon) => {
-    const quantity = qtys[addon.id] || 1;
-    const note = notes[addon.id] || null;
-    setSubmittingId(addon.id);
+  const onRequest = async (addon, isCustom = false) => {
+    const payload = isCustom ? {
+        is_custom: true,
+        ...customData,
+        quantity: 1,
+        booking_id: bookingId
+    } : {
+        addon_id: addon.id,
+        quantity: qtys[addon.id] || 1,
+        note: notes[addon.id] || null,
+        booking_id: bookingId
+    };
+
+    setSubmittingId(isCustom ? 'custom' : addon.id);
     try {
-      const res = await tenantService.requestAddon(addon.id, quantity, note, bookingId);
+      const res = await tenantService.requestAddon(payload);
       if (res.success) {
         showSuccess('Add-on request submitted');
+        setShowCustomForm(false);
+        setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '' });
         await loadAddons();
       } else {
         showError('Error', res.error || 'Failed to request addon');
@@ -191,7 +211,85 @@ export default function AddonsScreen({ hideHeader = false }) {
                         ))}
                     </View>
                 )}
-                {addons.length > 0 && <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 10 }]}>Available for You</Text>}
+
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Available for You</Text>
+                    
+                    {!showCustomForm ? (
+                        <TouchableOpacity 
+                            onPress={() => setShowCustomForm(true)}
+                            style={styles.customRequestBtn}
+                        >
+                            <Ionicons name="add-circle-outline" size={24} color={theme.colors.textSecondary} />
+                            <Text style={styles.customRequestText}>Request something else...</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.customForm}>
+                            <Text style={styles.formLabel}>What do you need?</Text>
+                            <TextInput 
+                                placeholder="Item name (e.g. Desk Lamp)"
+                                placeholderTextColor={theme.colors.textTertiary}
+                                value={customData.name}
+                                onChangeText={t => setCustomData({...customData, name: t})}
+                                style={styles.formInput}
+                            />
+
+                            <View style={styles.pickerRow}>
+                                <View style={styles.pickerContainer}>
+                                    <Text style={styles.formLabel}>Type</Text>
+                                    <TouchableOpacity 
+                                        onPress={() => setCustomData({...customData, addon_type: customData.addon_type === 'rental' ? 'fee' : 'rental'})}
+                                        style={[styles.pickerBtn, customData.addon_type === 'rental' && styles.pickerBtnActive]}
+                                    >
+                                        <Text style={styles.pickerBtnText}>{customData.addon_type === 'rental' ? 'Rental' : 'Service'}</Text>
+                                        <Ionicons name="swap-horizontal" size={16} color={theme.colors.primary} />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={styles.pickerContainer}>
+                                    <Text style={styles.formLabel}>Billing</Text>
+                                    <TouchableOpacity 
+                                        onPress={() => setCustomData({...customData, price_type: customData.price_type === 'monthly' ? 'one_time' : 'monthly'})}
+                                        style={[styles.pickerBtn, customData.price_type === 'monthly' && styles.pickerBtnActive]}
+                                    >
+                                        <Text style={styles.pickerBtnText}>{customData.price_type === 'monthly' ? 'Monthly' : 'One-time'}</Text>
+                                        <Ionicons name="time-outline" size={16} color={theme.colors.primary} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <Text style={styles.formLabel}>Notes for Landlord</Text>
+                            <TextInput 
+                                placeholder="Add any details..."
+                                placeholderTextColor={theme.colors.textTertiary}
+                                multiline
+                                numberOfLines={3}
+                                value={customData.note}
+                                onChangeText={t => setCustomData({...customData, note: t})}
+                                style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+                            />
+
+                            <View style={styles.formFooter}>
+                                <TouchableOpacity 
+                                    onPress={() => setShowCustomForm(false)}
+                                    style={styles.cancelFormBtn}
+                                >
+                                    <Text style={[styles.requestActionText, { color: theme.colors.textSecondary }]}>Back</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    onPress={() => onRequest(null, true)}
+                                    disabled={!customData.name || submittingId === 'custom'}
+                                    style={[styles.submitFormBtn, (!customData.name || submittingId === 'custom') && { opacity: 0.5 }]}
+                                >
+                                    {submittingId === 'custom' ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.requestActionText}>Submit Request</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+                </View>
             </>
         )}
         renderItem={({ item }) => (

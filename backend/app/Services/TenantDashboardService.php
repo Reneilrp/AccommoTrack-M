@@ -144,17 +144,32 @@ class TenantDashboardService
             throw new \Exception('No active booking found');
         }
 
-        $addon = Addon::where('id', $data['addon_id'])
-            ->where('property_id', $booking->property_id)
-            ->where('is_active', true)
-            ->firstOrFail();
+        if ($data['is_custom'] ?? false) {
+            // Handle custom request
+            $addon = Addon::create([
+                'property_id' => $booking->property_id,
+                'name' => $data['name'],
+                'description' => $data['note'] ?? null,
+                'price' => 0, // Landlord will set the price upon approval
+                'price_type' => $data['price_type'],
+                'addon_type' => $data['addon_type'],
+                'is_active' => false, // Inactive so it's not visible to all
+                'is_custom' => true,
+                'request_tenant_id' => $tenantId
+            ]);
+        } else {
+            $addon = Addon::where('id', $data['addon_id'])
+                ->where('property_id', $booking->property_id)
+                ->where('is_active', true)
+                ->firstOrFail();
 
-        if ($booking->addons()->where('addon_id', $addon->id)->wherePivotNotIn('status', ['rejected', 'cancelled', 'completed'])->exists()) {
-            throw new \Exception('You already have an active request for this addon');
-        }
+            if ($booking->addons()->where('addon_id', $addon->id)->wherePivotNotIn('status', ['rejected', 'cancelled', 'completed'])->exists()) {
+                throw new \Exception('You already have an active request for this addon');
+            }
 
-        if ($addon->addon_type === 'rental' && !$addon->hasStock()) {
-            throw new \Exception('This addon is currently out of stock');
+            if ($addon->addon_type === 'rental' && !$addon->hasStock()) {
+                throw new \Exception('This addon is currently out of stock');
+            }
         }
 
         $booking->addons()->attach($addon->id, [

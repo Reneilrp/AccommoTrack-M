@@ -256,7 +256,11 @@ class TenantDashboardController extends Controller
     {
         try {
             $validated = $request->validate([
-                'addon_id' => 'required|exists:addons,id',
+                'is_custom' => 'boolean',
+                'addon_id' => 'required_without:is_custom|exists:addons,id',
+                'name' => 'required_if:is_custom,true|string|max:255',
+                'price_type' => 'required_if:is_custom,true|in:one_time,monthly',
+                'addon_type' => 'required_if:is_custom,true|in:rental,fee',
                 'quantity' => 'integer|min:1|max:10',
                 'note' => 'nullable|string|max:500'
             ]);

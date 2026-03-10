@@ -35,13 +35,9 @@ export const tenantService = {
     /**
      * Request an addon for current booking
      */
-    async requestAddon(addonId, quantity = 1, note = null) {
+    async requestAddon(payload) {
         try {
-            const response = await api.post('/tenant/addons/request', {
-                addon_id: addonId,
-                quantity,
-                note
-            });
+            const response = await api.post('/tenant/addons/request', payload);
             return response.data;
         } catch (error) {
             console.error('Error requesting addon:', error);

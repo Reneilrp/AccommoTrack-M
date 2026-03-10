@@ -95,10 +95,10 @@ const MyBookings = () => {
     }
   };
 
-  const handleRequestAddon = async (addon) => {
-    setRequestingAddon(addon.id);
+  const handleRequestAddon = async (payload) => {
+    setRequestingAddon(payload.addon_id || 'custom');
     try {
-      await tenantService.requestAddon(addon.id, 1);
+      await tenantService.requestAddon(payload);
       // Refresh data
       fetchData();
       setShowAddonModal(false);
@@ -801,85 +801,183 @@ const AddonItem = ({ addon, status, onCancel }) => (
   </div>
 );
 
-const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Available Add-ons</h3>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Select an extra service to add to your stay</p>
+const AddonModal = ({ availableAddons, onClose, onRequest, requestingId }) => {
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customData, setCustomData] = useState({
+    name: '',
+    addon_type: 'rental',
+    price_type: 'monthly',
+    note: ''
+  });
+
+  const handleCustomSubmit = (e) => {
+    e.preventDefault();
+    onRequest({
+      is_custom: true,
+      ...customData,
+      quantity: 1
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">
+                {showCustomForm ? 'Request Custom Item' : 'Available Add-ons'}
+              </h3>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">
+                {showCustomForm ? 'Describe what you need and the owner will review it' : 'Select an extra service to add to your stay'}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+              <X className="w-6 h-6 text-gray-400" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
-            <X className="w-6 h-6 text-gray-400" />
-          </button>
         </div>
-      </div>
-      <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-        {!Array.isArray(availableAddons) || availableAddons.length === 0 ? (
-          <div className="text-center py-12">
-            <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400 font-medium">No add-ons available for this property.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {availableAddons.map((addon) => (
-              <div key={addon.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md transition-all group">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                        addon.price_type === 'monthly' 
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
-                          : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                      }`}>
-                        {addon.price_type_label}
-                      </span>
+
+        <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
+          {!showCustomForm ? (
+            <>
+              {!Array.isArray(availableAddons) || availableAddons.length === 0 ? (
+                <div className="text-center py-8">
+                  <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">No standard add-ons available.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 mb-6">
+                  {availableAddons.map((addon) => (
+                    <div key={addon.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md transition-all group">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-lg">{addon.name}</h4>
+                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                              addon.price_type === 'monthly' 
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
+                                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                            }`}>
+                              {addon.price_type_label}
+                            </span>
+                          </div>
+                          {addon.description && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{addon.description}</p>
+                          )}
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                              ₱{parseFloat(addon.price || 0).toLocaleString()}
+                            </p>
+                            {addon.price_type === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => onRequest({ addon_id: addon.id, quantity: 1 })}
+                          disabled={!addon.has_stock || requestingId === addon.id}
+                          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
+                            addon.has_stock && requestingId !== addon.id
+                              ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          {requestingId === addon.id ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Request'
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    {addon.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{addon.description}</p>
-                    )}
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                        ₱{parseFloat(addon.price || 0).toLocaleString()}
-                      </p>
-                      {addon.price_type === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
-                    </div>
-                    {addon.stock !== null && (
-                      <p className={`text-[10px] font-bold uppercase mt-2 ${addon.has_stock ? 'text-gray-400 dark:text-gray-500' : 'text-red-500'}`}>
-                        {addon.has_stock ? `${addon.stock} Available` : 'Out of stock'}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => onRequest(addon)}
-                    disabled={!addon.has_stock || requestingId === addon.id}
-                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                      addon.has_stock && requestingId !== addon.id
-                        ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                    }`}
+                  ))}
+                </div>
+              )}
+
+              <button 
+                onClick={() => setShowCustomForm(true)}
+                className="w-full py-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 dark:text-gray-400 hover:border-green-500 hover:text-green-600 dark:hover:text-green-400 transition-all font-bold flex items-center justify-center gap-2 group"
+              >
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                Request something else...
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleCustomSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Item Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Extra table, Desk lamp..."
+                  value={customData.name}
+                  onChange={e => setCustomData({...customData, name: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Type *</label>
+                  <select 
+                    value={customData.addon_type}
+                    onChange={e => setCustomData({...customData, addon_type: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                   >
-                    {requestingId === addon.id ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      'Request'
-                    )}
-                  </button>
+                    <option value="rental">Rental (Item)</option>
+                    <option value="fee">Service Fee</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Billing *</label>
+                  <select 
+                    value={customData.price_type}
+                    onChange={e => setCustomData({...customData, price_type: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="one_time">One-time</option>
+                  </select>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-center">
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider leading-relaxed">
-          Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
-        </p>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Notes / Details</label>
+                <textarea 
+                  placeholder="Tell the owner more about your request..."
+                  value={customData.note}
+                  onChange={e => setCustomData({...customData, note: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-24 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowCustomForm(false)}
+                  className="flex-1 py-3 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Back
+                </button>
+                <button 
+                  type="submit"
+                  disabled={requestingId === 'custom'}
+                  className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {requestingId === 'custom' ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-center">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider leading-relaxed">
+            Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default MyBookings;
