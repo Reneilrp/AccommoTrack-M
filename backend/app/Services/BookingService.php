@@ -155,8 +155,9 @@ class BookingService
      */
     protected function handleConfirmation(Booking $booking): void
     {
-        if ($booking->room->available_slots <= 0) {
-            throw new \Exception('Room is fully occupied and cannot accommodate more tenants');
+        // Check if room has physical space for more active tenants
+        if ($booking->room->tenants()->count() >= $booking->room->capacity) {
+            throw new \Exception('Room is fully occupied by active tenants');
         }
 
         $booking->confirmed_at = now();
