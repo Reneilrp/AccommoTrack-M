@@ -999,7 +999,7 @@ export default function DormProfileSettings({
                     Property Type
                   </label>
                   <select
-                    value={dormData.type}
+                    value={['dormitory', 'apartment', 'boardingHouse', 'bedSpacer'].includes(dormData.type) ? dormData.type : 'others'}
                     onChange={(e) => handleInputChange("type", e.target.value)}
                     disabled={!isEditing}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize ${fieldErrors.type ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
@@ -1008,8 +1008,25 @@ export default function DormProfileSettings({
                     <option value="apartment">Apartment</option>
                     <option value="boardingHouse">Boarding House</option>
                     <option value="bedSpacer">Bed Spacer</option>
+                    <option value="others">Others / Specify</option>
                   </select>
                 </div>
+
+                {!['dormitory', 'apartment', 'boardingHouse', 'bedSpacer'].includes(dormData.type) && (
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Specify Property Type
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.type === 'others' ? '' : dormData.type}
+                      placeholder="e.g., Vacation Home, Guest House"
+                      onChange={(e) => handleInputChange("type", e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1023,10 +1040,18 @@ export default function DormProfileSettings({
                     disabled={!isEditing}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    {dormData.status === 'pending' && (
+                      <option value="pending">Pending Approval</option>
+                    )}
+                    <option value="active" disabled={dormData.status === 'pending'}>Active</option>
+                    <option value="inactive" disabled={dormData.status === 'pending'}>Inactive</option>
                     <option value="maintenance">Maintenance</option>
                   </select>
+                  {isEditing && dormData.status === 'pending' && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 italic">
+                      * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
+                    </p>
+                  )}
                 </div>
 
                 <div>

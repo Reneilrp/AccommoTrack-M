@@ -224,7 +224,24 @@ const DashboardScreen = () => {
                     </View>
                     <TouchableOpacity
                       style={styles.messageButton}
-                      onPress={() => navigation.navigate('Messages')}
+                      onPress={() => {
+                        if (stayData?.landlord?.id && stayData?.property?.id) {
+                          navigation.navigate('Messages', {
+                            startConversation: true,
+                            recipient: {
+                              id: stayData.landlord.id,
+                              name: stayData.landlord.name,
+                            },
+                            property: {
+                              id: stayData.property.id,
+                              title: stayData.property.title || stayData.property.name,
+                            },
+                          });
+                        } else {
+                          // Fallback for safety
+                          navigation.navigate('Messages');
+                        }
+                      }}
                     >
                       <Ionicons name="chatbubble-outline" size={20} color={theme.colors.primary} />
                     </TouchableOpacity>

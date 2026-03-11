@@ -76,6 +76,13 @@ class PropertyService
                 $validated['is_published'] = false;
             }
             
+            // Prevent changing status from pending to active/inactive by landlord
+            if ($property->current_status === Property::STATUS_PENDING && isset($validated['current_status'])) {
+                if (in_array($validated['current_status'], [Property::STATUS_ACTIVE, Property::STATUS_INACTIVE])) {
+                    unset($validated['current_status']);
+                }
+            }
+
             $property->update($validated);
 
             if ($request->has('is_eligible')) {

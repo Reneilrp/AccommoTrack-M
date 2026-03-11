@@ -85,6 +85,16 @@ export default function PropertyCard({ accommodation, property, onPress }) {
           </Text>
         </View>
 
+        {/* Curfew */}
+        {item.curfew_time && (
+          <View style={styles.curfewContainer}>
+            <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.curfewText} numberOfLines={2}>
+              Curfew: {item.curfew_time}
+            </Text>
+          </View>
+        )}
+
         {/* Availability */}
         {availableRooms > 0 ? (
           <View style={[styles.availabilityBadge, { backgroundColor: theme.colors.primaryLight }]}>

@@ -165,6 +165,15 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         placeholder="+63 XXX XXX XXXX"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={profileData.dateOfBirth ? profileData.dateOfBirth.split('T')[0] : ''}
+                        onChange={e => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
+                        className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                      />
+                    </div>
                   </div>
                 </div>
                 {/* Account Info Card */}
@@ -186,7 +195,8 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         firstName: user.first_name || '',
                         lastName: user.last_name || '',
                         email: user.email || '',
-                        phone: user.phone || ''
+                        phone: user.phone || '',
+                        dateOfBirth: user.date_of_birth || ''
                       });
                       setIsEditingProfile(false);
                     }}
@@ -237,6 +247,12 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         + Add phone number
                       </button>
                     ) : profileData.phone}
+                  </p>
+                </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Date of Birth</label>
+                  <p className="text-gray-900 dark:text-white font-medium text-lg">
+                    {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                   </p>
                 </div>
                 {/* Account Info Card */}

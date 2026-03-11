@@ -36,6 +36,11 @@ class ForgotPasswordController extends Controller
             return response()->json(['message' => 'If your email is registered, a reset code has been sent.'], 200);
         }
 
+        // Prevent blocked users from resetting password
+        if ($user->is_blocked) {
+            return response()->json(['message' => 'Your account has been blocked. Please contact support.'], 403);
+        }
+
         $code = rand(100000, 999999);
 
         // Remove old codes for this email
@@ -95,7 +100,7 @@ class ForgotPasswordController extends Controller
     public function resetPassword(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
             'code' => 'required|digits:6',
             'password' => 'required|min:8|confirmed'
         ]);
@@ -116,6 +121,14 @@ class ForgotPasswordController extends Controller
 
         // Update User Password
         $user = User::where('email', $request->email)->first();
+        
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        if ($user->is_blocked) {
+            return response()->json(['message' => 'Your account has been blocked. Please contact support.'], 403);
+        }
 
         // Prevent reusing the same password
         if (Hash::check($request->password, $user->password)) {

@@ -75,7 +75,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     setSearchParams(params);
   };
 
-  const [profileData, setProfileData] = useState({ firstName: user?.first_name || '', lastName: user?.last_name || '', email: user?.email || '', phone: user?.phone || '' });
+  const [profileData, setProfileData] = useState({ firstName: user?.first_name || '', lastName: user?.last_name || '', email: user?.email || '', phone: user?.phone || '', dateOfBirth: user?.date_of_birth || '' });
   const [security, setSecurity] = useState({ twoFactorAuth: false, loginAlerts: true });
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [caretakers, setCaretakers] = useState(cachedData?.caretakers || []);
@@ -117,6 +117,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         formData.append('last_name', profileData.lastName);
         formData.append('email', profileData.email);
         formData.append('phone', profileData.phone);
+        formData.append('date_of_birth', profileData.dateOfBirth);
         const result = await api.post('/me', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         onUserUpdate?.(result.data.user);
         setProfilePhoto(result.data.user?.profile_image || null);
@@ -124,14 +125,14 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         if (fileInputRef.current) fileInputRef.current.value = '';
         if (result.data.user) {
           const u = result.data.user;
-          setProfileData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '' });
+          setProfileData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', dateOfBirth: u.date_of_birth || '' });
         }
       } else {
-        const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, email: profileData.email, phone: profileData.phone });
+        const result = await api.put('/me', { first_name: profileData.firstName, last_name: profileData.lastName, email: profileData.email, phone: profileData.phone, date_of_birth: profileData.dateOfBirth });
         onUserUpdate?.(result.data.user);
         if (result.data.user) {
           const u = result.data.user;
-          setProfileData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '' });
+          setProfileData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', dateOfBirth: u.date_of_birth || '' });
         }
       }
       setIsEditingProfile(false);

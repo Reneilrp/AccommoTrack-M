@@ -42,6 +42,11 @@ class BookingService
             $endDate = Carbon::parse($data['end_date']);
             $days = $startDate->diffInDays($endDate);
 
+            // Prevent bookings more than 3 months in advance
+            if ($startDate->greaterThan(now()->addMonths(3))) {
+                throw new \Exception('You cannot book a room more than 3 months in advance.');
+            }
+
             // Enforce minimum stay if configured
             $minStay = $room->min_stay_days ?? null;
             if ($minStay && $days < $minStay) {

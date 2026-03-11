@@ -122,6 +122,8 @@ class Property extends Model
 
         // Property Rules
         'property_rules',
+        'curfew_time',
+        'curfew_policy',
 
         // Property Specifications
         'number_of_bedrooms',

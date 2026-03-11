@@ -125,11 +125,14 @@ const normalizeProperty = (data) => {
   // Find primary image ID
   const primaryImg = images.find(img => img.is_primary);
 
+  const rawType = data?.property_type || '';
+  const isStandardType = PROPERTY_TYPES.some(t => t.value === rawType && t.value !== 'others');
+
   return {
     id: data?.id ?? null,
     title: data?.title || data?.name || '',
-    propertyType: data?.property_type || '',
-    otherType: '',
+    propertyType: isStandardType ? rawType : (rawType ? 'others' : ''),
+    otherType: isStandardType ? '' : rawType,
     status: data?.current_status || 'pending',
     description: data?.description || '',
     street: data?.street_address || '',
@@ -181,6 +184,15 @@ export default function DormProfileScreen({ route, navigation }) {
   const [password, setPassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isPayMongoVerified, setIsPayMongoVerified] = useState(false);
+
+  const availableStatusOptions = useMemo(() => {
+    if (baseline.status === 'pending') {
+      // If currently pending, only allow pending or maintenance. 
+      // Active/Inactive require admin approval first.
+      return STATUS_OPTIONS.filter(opt => opt.value === 'pending' || opt.value === 'maintenance');
+    }
+    return STATUS_OPTIONS;
+  }, [baseline.status]);
 
   useEffect(() => {
     AsyncStorage.getItem('user').then((s) => {
@@ -457,11 +469,13 @@ export default function DormProfileScreen({ route, navigation }) {
     });
 
     const mergedAmenities = Array.from(new Set([...form.amenities, ...form.customAmenities]));
-    mergedAmenities.forEach((amenity, index) => {
-      payload.append(`amenities[${index}]`, amenity);
+    mergedAmenities.forEach((amenity) => {
+      payload.append('amenities[]', amenity);
     });
 
-    payload.append('property_rules', JSON.stringify(form.rules));
+    form.rules.forEach((rule) => {
+      payload.append('property_rules[]', rule);
+    });
 
     // Staged deletions
     deletedImageIds.forEach((id, index) => {
@@ -665,14 +679,6 @@ export default function DormProfileScreen({ route, navigation }) {
               <Ionicons name="list-outline" size={20} color="#6B7280" />
               <Text style={{ color: '#6B7280', fontWeight: '600', fontSize: 14 }}>Activity Logs</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.outlineBtn, styles.outlineBtnBlue]}
-              onPress={() => navigation.navigate('PropertyDetails', { propertyId: form.id, landlordPreview: true })}
-            >
-              <Ionicons name="eye-outline" size={20} color="#2563EB" />
-              <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 14 }}>Preview as Tenant</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.sectionCard}>
@@ -719,11 +725,16 @@ export default function DormProfileScreen({ route, navigation }) {
                 enabled={isEditing}
                 style={styles.picker}
               >
-                {STATUS_OPTIONS.map((option) => (
+                {availableStatusOptions.map((option) => (
                   <Picker.Item key={option.value} label={option.label} value={option.value} />
                 ))}
               </Picker>
             </View>
+            {isEditing && baseline.status === 'pending' && (
+              <Text style={{ fontSize: 11, color: '#92400E', marginTop: 4, fontStyle: 'italic' }}>
+                * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
+              </Text>
+            )}
 
             <Text style={styles.label}>Description</Text>
             <TextInput

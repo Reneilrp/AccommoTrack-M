@@ -195,16 +195,12 @@ export default function RoomDetailsModal({
       return;
     }
 
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const startMonth = start.getMonth();
-    const startYear = start.getFullYear();
+    const threeMonthsFromNow = new Date(today);
+    threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
 
-    if (startMonth !== currentMonth || startYear !== currentYear) {
-      if (!isStartWithinCurrentMonth(startDate)) {
-        toast.error("Check-in must be within the current month.");
-        return;
-      }
+    if (start > threeMonthsFromNow) {
+      toast.error("You cannot book a room more than 3 months in advance.");
+      return;
     }
 
     // Submit booking to server (use shared /bookings endpoint)
@@ -593,7 +589,7 @@ export default function RoomDetailsModal({
                         />
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Must be within the current month
+                        Bookings can be made up to 3 months in advance
                       </p>
                     </div>
 

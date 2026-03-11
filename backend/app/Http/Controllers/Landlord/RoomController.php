@@ -214,4 +214,47 @@ class RoomController extends Controller
             return response()->json(['message' => 'Failed to fetch payment options', 'error' => $e->getMessage()], 500);
         }
     }
+
+    public function assignTenant(Request $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
+            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
+            
+            $validated = $request->validate([
+                'tenant_id' => 'required|exists:users,id',
+                'start_date' => 'nullable|date'
+            ]);
+
+            $updatedRoom = $this->roomService->assignTenant($room, $validated['tenant_id'], $validated['start_date'] ?? null);
+
+            return response()->json((new RoomResource($updatedRoom))->resolve());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Room not found or unauthorized'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to assign tenant', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function removeTenant(Request $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
+            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
+            
+            $tenantId = $request->input('tenant_id');
+
+            $updatedRoom = $this->roomService->removeTenant($room, $tenantId);
+
+            return response()->json((new RoomResource($updatedRoom))->resolve());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Room not found or unauthorized'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to remove tenant', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

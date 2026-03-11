@@ -146,9 +146,14 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
     navigate("/messages", {
       state: {
-        startConversation: {
-          recipient_id: landlordId,
-          property_id: property.id,
+        startConversation: true,
+        recipient: {
+          id: landlordId,
+          name: property.landlord?.name || property.landlord_name || "Landlord",
+        },
+        property: {
+          id: property.id,
+          title: property.title || property.name,
         },
       },
     });

@@ -24,6 +24,16 @@ export function triggerForcedLogout(isBlocked = false) {
   }
 }
 
+let _roleSwitchCallback = null;
+export function setRoleSwitchCallback(cb) {
+  _roleSwitchCallback = cb;
+}
+export function triggerRoleSwitch(role) {
+  if (_roleSwitchCallback) {
+    _roleSwitchCallback(role);
+  }
+}
+
 // Simple navigation state listeners so other modules can react to route changes
 const _stateListeners = new Set();
 export function notifyNavigationStateChange(route) {

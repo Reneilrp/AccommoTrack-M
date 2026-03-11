@@ -501,7 +501,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <div className="flex flex-col gap-2">
                           <button 
                             onClick={() => navigate('/maintenance', { state: { propertyId: property.id } })}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20"
+                            className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-orange-500/20"
                           >
                             <Wrench className="w-4 h-4" />
                             Maintenance
@@ -509,7 +509,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           {!booking.hasReview && (
                             <button 
                               onClick={() => onReview({ ...booking, property })}
-                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-green-500/20"
+                              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-green-500/20"
                             >
                               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                               Review

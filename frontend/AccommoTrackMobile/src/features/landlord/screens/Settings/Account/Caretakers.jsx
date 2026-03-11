@@ -293,6 +293,18 @@ export default function Caretakers() {
           <Text style={[styles.email, { color: theme.colors.textSecondary }]}>{item.caretaker.email}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 4 }}>
+          <TouchableOpacity 
+            onPress={() => {
+              navigation.navigate('Messages', { 
+                startConversation: true, 
+                tenant: { ...item.caretaker, user_id: item.caretaker.id },
+                propertyId: item.assigned_property_ids?.[0] || null
+              });
+            }} 
+            style={styles.editButton}
+          >
+            <Ionicons name="chatbubbles-outline" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => handleResetPassword(item)} style={styles.editButton}>
             <Ionicons name="key-outline" size={20} color={theme.colors.warning} />
           </TouchableOpacity>

@@ -35,6 +35,7 @@ const activityIconMap = {
   booking: 'calendar',
   room: 'bed',
   payment: 'cash-outline',
+  maintenance: 'construct-outline',
   default: 'notifications-outline'
 };
 

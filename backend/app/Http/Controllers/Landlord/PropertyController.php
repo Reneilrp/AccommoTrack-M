@@ -16,6 +16,9 @@ use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\RoomResource;
 use App\Models\Room;
+use App\Models\Booking;
+use App\Models\MaintenanceRequest;
+use App\Models\Review;
 
 class PropertyController extends Controller
 {
@@ -26,6 +29,47 @@ class PropertyController extends Controller
     public function __construct(PropertyService $propertyService)
     {
         $this->propertyService = $propertyService;
+    }
+
+    public function getStats(Request $request, $propertyId)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'addons' => 0,
+                'maintenance' => 0,
+                'activity' => 0, // Placeholder
+                'reviews' => Review::where('property_id', $propertyId)->where('is_published', true)->count(),
+            ]);
+        }
+
+        // Find an active or recent booking for this tenant at this property
+        $booking = Booking::where('tenant_id', $user->id)
+            ->where('property_id', $propertyId)
+            ->whereIn('status', ['confirmed', 'completed']) // Active or recently completed
+            ->orderBy('start_date', 'desc')
+            ->first();
+
+        $stats = [
+            'addons' => 0,
+            'maintenance' => 0,
+            'activity' => 0, // Placeholder as per analysis
+            'reviews' => Review::where('property_id', $propertyId)->where('is_published', true)->count(),
+        ];
+
+        if ($booking) {
+            // Count pending/active addon requests for this booking
+            $stats['addons'] = $booking->addons()->wherePivotIn('status', ['pending', 'approved', 'active'])->count();
+
+            // Count open maintenance requests for this property by this tenant
+            $stats['maintenance'] = MaintenanceRequest::where('property_id', $propertyId)
+                ->where('tenant_id', $user->id)
+                ->whereIn('status', ['pending', 'in_progress'])
+                ->count();
+        }
+
+        return response()->json($stats);
     }
 
     // ====================================================================

@@ -62,6 +62,7 @@ Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
+Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);
 Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 Route::post('/landlord-verification', [LandlordVerificationController::class, 'store']);
@@ -82,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/switch-role', [AuthController::class, 'switchRole']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::post('/me', [AuthController::class, 'updateProfile']); // For FormData with image upload
     Route::delete('/me/profile-image', [AuthController::class, 'removeProfileImage']);
@@ -97,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/properties', [PropertyController::class, 'getAllProperties']);
     Route::get('/properties/accessible', [PropertyController::class, 'getAccessibleProperties']);
     Route::get('/properties/{id}', [PropertyController::class, 'getPropertyDetails']);
+    Route::get('/properties/{id}/stats', [PropertyController::class, 'getStats']);
     Route::get('/landlord/my-verification', [LandlordVerificationController::class, 'getMyVerification']);
 
     // ===== TENANT-ONLY ENDPOINTS (Mobile App) =====
@@ -194,6 +197,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/rooms/{id}', [RoomController::class, 'update']);
         Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
         Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
+        Route::post('/rooms/{id}/assign-tenant', [RoomController::class, 'assignTenant']);
+        Route::delete('/rooms/{id}/remove-tenant', [RoomController::class, 'removeTenant']);
         Route::get('/rooms', [RoomController::class, 'index']);
         Route::get('/dashboard/stats', [LandlordDashboardController::class, 'getStats']);
         Route::get('/dashboard/recent-activities', [LandlordDashboardController::class, 'getRecentActivities']);
@@ -270,10 +275,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invoices/{id}/paymongo-pay', [PaymongoController::class, 'createPayment']);
 
     // ===== SHARED ROOM ROUTES (for landlord and caretaker with rooms permission) =====
-    Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);
     Route::get('/rooms/property/{propertyId}', [RoomController::class, 'index']);
     Route::get('/rooms/property/{propertyId}/stats', [RoomController::class, 'getStats']);
     Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
+    Route::post('/rooms/{id}/assign-tenant', [RoomController::class, 'assignTenant']);
+    Route::delete('/rooms/{id}/remove-tenant', [RoomController::class, 'removeTenant']);
     // extend stay - extend active tenant assignment by days or months
     Route::post('/rooms/{id}/extend', [RoomController::class, 'extendStay']);
     // Alias for mobile frontend (without /tenant/ prefix)
@@ -293,6 +299,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
+        Route::post('/properties/{id}/maintenance', [AdminController::class, 'putUnderMaintenance']);
 
         // Admin: Inquiries
         Route::prefix('inquiries')->group(function () {

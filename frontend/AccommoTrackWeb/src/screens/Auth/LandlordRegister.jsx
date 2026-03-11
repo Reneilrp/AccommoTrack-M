@@ -274,6 +274,7 @@ const LandlordRegister = () => {
       } else {
         const pwd = form.password;
         if (pwd.length < 8) errors.password = 'Password must be at least 8 characters';
+        else if (!/[a-z]/.test(pwd)) errors.password = 'Password must include at least one lowercase letter';
         else if (!/[A-Z]/.test(pwd)) errors.password = 'Password must include at least one uppercase letter';
         else if ((pwd.match(/\d/g) || []).length < 2) errors.password = 'Password must include at least two numbers';
         else if (!/[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd)) errors.password = 'Password must include at least one special character';

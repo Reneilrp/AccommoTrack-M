@@ -31,6 +31,7 @@ import Reviews from '../screens/Reviews/Reviews.jsx';
 import Caretakers from '../screens/Settings/Account/Caretakers.jsx';
 import UpdatePassword from '../../tenant/screens/Profile/UpdatePassword.jsx';
 import PropertyPaymentSettings from '../screens/Settings/PropertyPaymentSettings.jsx';
+import ManualPaymentSettings from '../screens/Settings/ManualPaymentSettings.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -83,6 +84,7 @@ export default function LandlordNavigator({ onLogout }) {
       <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
       <Stack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
       <Stack.Screen name="PropertyPaymentSettings" component={PropertyPaymentSettings} options={{ animation: 'none' }} />
+      <Stack.Screen name="ManualPaymentSettings" component={ManualPaymentSettings} options={{ animation: 'none' }} />
       {userRole === 'landlord' && (
         <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
       )}

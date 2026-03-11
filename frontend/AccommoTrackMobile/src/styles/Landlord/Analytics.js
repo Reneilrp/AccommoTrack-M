@@ -66,7 +66,7 @@ export const getStyles = (theme) => StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.isDark ? theme.colors.surface : '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -76,11 +76,12 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
-    maxHeight: 200
+    maxHeight: 250,
+    zIndex: 5000
   },
   dropdownItem: {
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -88,11 +89,12 @@ export const getStyles = (theme) => StyleSheet.create({
     borderBottomColor: theme.colors.borderLight
   },
   dropdownItemSelected: {
-    backgroundColor: theme.colors.primaryLight
+    backgroundColor: theme.isDark ? theme.colors.backgroundTertiary : theme.colors.primaryLight
   },
   dropdownItemText: {
     fontSize: 14,
-    color: theme.colors.text
+    color: theme.colors.text,
+    fontWeight: '500'
   },
   timeButtonContainer: {
     flexDirection: 'row',

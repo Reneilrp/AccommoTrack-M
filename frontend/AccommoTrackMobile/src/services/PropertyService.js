@@ -80,6 +80,32 @@ const PropertyService = {
   },
 
   /**
+   * Get notification stats for a property (for authenticated tenant)
+   * Matches: GET /api/properties/{id}/stats
+   * @param {number} propertyId - Property ID
+   * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
+   */
+  async getPropertyStats(propertyId) {
+    try {
+      const response = await api.get(`/properties/${propertyId}/stats`);
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: { addons: 0, maintenance: 0, activity: 0, reviews: 0 },
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch property stats",
+      };
+    }
+  },
+
+  /**
    * Reverse geocode coordinates using backend relay
    * Matches: GET /api/reverse-geocode?lat={lat}&lon={lon}
    * @param {number|string} lat
@@ -168,6 +194,8 @@ const PropertyService = {
         ? property.amenities_list.map((a) => a.name || a)
         : this.extractPropertyAmenities(property.rooms),
       propertyRules: propertyRules,
+      curfew_time: property.curfew_time,
+      curfew_policy: property.curfew_policy,
       rooms: (property.rooms || []).map(room => ({
         ...room,
         rules: room.rules || [], // Map rules from backend
@@ -969,6 +997,77 @@ const PropertyService = {
       return {
         success: false,
         data: { total: 0, breakdown: null },
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch all tenants for the current landlord
+   * Matches: GET /api/landlord/tenants
+   */
+  async getTenants() {
+    try {
+      const response = await api.get("/landlord/tenants");
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error fetching tenants:", error);
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Assign a tenant to a room
+   * Matches: POST /api/rooms/{id}/assign-tenant
+   */
+  async assignTenantToRoom(roomId, tenantId, startDate = null) {
+    try {
+      const response = await api.post(`/rooms/${roomId}/assign-tenant`, {
+        tenant_id: tenantId,
+        start_date: startDate,
+      });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error assigning tenant:", error);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Remove a tenant from a room
+   * Matches: DELETE /api/rooms/{id}/remove-tenant
+   */
+  async removeTenantFromRoom(roomId, tenantId = null) {
+    try {
+      const response = await api.delete(`/rooms/${roomId}/remove-tenant`, {
+        data: { tenant_id: tenantId },
+      });
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error removing tenant:", error);
+      return {
+        success: false,
+        data: null,
         error: extractErrorMessage(error),
       };
     }

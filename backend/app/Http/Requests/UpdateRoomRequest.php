@@ -25,9 +25,20 @@ class UpdateRoomRequest extends FormRequest
      */
     public function rules(): array
     {
+        $room = \App\Models\Room::find($this->route('room') ?? $this->route('id'));
+        $isApartment = $room && $room->property && $room->property->property_type === 'apartment';
+
         return [
             'room_number' => 'sometimes|string|max:50',
-            'room_type' => 'sometimes|in:single,double,quad,bedSpacer',
+            'room_type' => [
+                'sometimes',
+                'in:single,double,quad,bedSpacer',
+                function ($attribute, $value, $fail) use ($isApartment) {
+                    if ($isApartment && $value === 'bedSpacer') {
+                        $fail('The room type for Apartment cannot be Bed Spacer. It must be Single, Double, or Quad Room.');
+                    }
+                }
+            ],
             'floor' => 'sometimes|integer|min:1',
             'monthly_rate' => 'sometimes|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
             'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',

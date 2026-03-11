@@ -110,6 +110,18 @@ export default function Payments({ navigation }) {
         notes: recordData.notes || null,
       });
       if (res.success) {
+        // Calculate if full payment reached to auto-update booking status
+        const invoiceTotal = parseFloat(selectedInvoice?.amount || ((selectedInvoice?.amount_cents ?? 0) / 100));
+        const currentPaid = (selectedInvoice.transactions || []).reduce((sum, tx) => {
+            const txAmount = tx.amount_cents ? tx.amount_cents / 100 : (tx.amount || 0);
+            return sum + (tx.status !== 'refunded' ? txAmount : 0);
+        }, 0);
+        
+        if (currentPaid + amountNum >= invoiceTotal && selectedInvoice.booking_id) {
+           // Auto-update booking to paid if threshold reached
+           await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'paid' });
+        }
+
         setShowModal(false);
         setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
         fetchInvoices(true);

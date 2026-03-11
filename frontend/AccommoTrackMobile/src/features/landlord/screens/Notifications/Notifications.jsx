@@ -157,6 +157,7 @@ export default function NotificationsScreen({ navigation }) {
             else if (notification.type.toLowerCase().includes('booking')) simpleType = 'booking';
             else if (notification.type.toLowerCase().includes('payment')) simpleType = 'payment';
             else if (notification.type.toLowerCase().includes('message')) simpleType = 'message';
+            else if (notification.type.toLowerCase().includes('maintenance')) simpleType = 'maintenance';
             
             const typeConfig = notificationTypeMap[simpleType] || notificationTypeMap[notification.type] || notificationTypeMap.default;
             

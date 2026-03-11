@@ -44,7 +44,16 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:100',
             // Require RFC syntax and DNS/MX check during registration
             'email' => 'required|string|email:rfc,dns|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/[a-z]/',      // at least one lowercase letter
+                'regex:/[A-Z]/',      // at least one uppercase letter
+                'regex:/(.*[0-9]){2,}/', // at least two numbers
+                'regex:/[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]/' // at least one special character
+            ],
             'role' => 'required|in:landlord,tenant',
             'phone' => 'nullable|string|max:20',
         ], [
@@ -82,9 +91,9 @@ class AuthController extends Controller
             ];
 
             // Add verification info for landlords on successful login
-            if ($user->role === 'landlord' && !$user->is_verified) {
+            if ($user->role === 'landlord') {
                 $verification = $user->landlordVerification;
-                $responseData['verification_status'] = $verification ? $verification->status : 'pending';
+                $responseData['verification_status'] = $verification ? $verification->status : ($user->is_verified ? 'approved' : 'pending');
                 $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
             }
 
@@ -128,6 +137,25 @@ class AuthController extends Controller
         ]);
     }
 
+    public function switchRole(Request $request)
+    {
+        $request->validate([
+            'role' => 'required|in:landlord,tenant',
+        ]);
+
+        $user = $request->user();
+        
+        // If they are switching to landlord, ensure they are verified (or at least have submitted verification)
+        // For simplicity, we just change the role.
+        $user->role = $request->role;
+        $user->save();
+
+        return response()->json([
+            'user' => $user->fresh(),
+            'message' => 'Role switched to ' . $request->role,
+        ]);
+    }
+
     public function updateProfile(Request $request)
     {
         try {
@@ -138,6 +166,7 @@ class AuthController extends Controller
                 'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'phone' => 'nullable|string|max:20',
+                'date_of_birth' => 'nullable|date',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
                 'payment_methods_settings' => 'nullable|array',
                 'payment_methods_settings.allowed' => 'nullable|array',
@@ -185,10 +214,11 @@ class AuthController extends Controller
                     'confirmed',
                     'regex:/[a-z]/',      // at least one lowercase letter
                     'regex:/[A-Z]/',      // at least one uppercase letter
-                    'regex:/[0-9]/',      // at least one number
+                    'regex:/(.*[0-9]){2,}/', // at least two numbers
+                    'regex:/[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]/' // at least one special character
                 ],
             ], [
-                'new_password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, and one number.',
+                'new_password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, at least two numbers, and one special character.',
             ]);
 
             $user = $request->user();

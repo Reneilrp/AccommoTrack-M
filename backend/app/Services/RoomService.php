@@ -136,6 +136,28 @@ class RoomService
         return $room->load('currentTenant:id,first_name,last_name');
     }
 
+    /**
+     * Assign a tenant to a room.
+     */
+    public function assignTenant(Room $room, int $tenantId, ?string $startDate = null): Room
+    {
+        return DB::transaction(function () use ($room, $tenantId, $startDate) {
+            $room->assignTenant($tenantId, $startDate);
+            return $room->load('currentTenant:id,first_name,last_name', 'tenants');
+        });
+    }
+
+    /**
+     * Remove a tenant from a room.
+     */
+    public function removeTenant(Room $room, ?int $tenantId = null): Room
+    {
+        return DB::transaction(function () use ($room, $tenantId) {
+            $room->removeTenant($tenantId);
+            return $room->load('currentTenant:id,first_name,last_name', 'tenants');
+        });
+    }
+
     // --- Private Helper Methods ---
 
     private function validateRoomTypeForProperty(Property $property, ?string $roomType): void

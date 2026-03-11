@@ -195,6 +195,12 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'space-around',
     marginVertical: 24,
   },
+  featuresContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 24,
+    paddingHorizontal: 16,
+  },
   statItem: {
     alignItems: 'center',
   },

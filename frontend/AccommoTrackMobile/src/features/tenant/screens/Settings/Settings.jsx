@@ -9,7 +9,7 @@ import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import { WEB_BASE_URL } from '../../../../config/index.js';
-import { navigate as rootNavigate, triggerForcedLogout } from '../../../../navigation/RootNavigation.js';
+import { navigate as rootNavigate, triggerForcedLogout, triggerRoleSwitch } from '../../../../navigation/RootNavigation.js';
 
 export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const navigation = useNavigation();
@@ -26,6 +26,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [refreshing, setRefreshing] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('tenant');
 
   useEffect(() => {
     let isMounted = true;
@@ -39,6 +40,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         setIsGuestMode(guest);
         
         if (!guest) {
+          const user = JSON.parse(userJson);
+          setUserRole(user.role || 'tenant');
           await loadSettings();
         } else {
           setLoading(false);
@@ -138,7 +141,9 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         handleLoginPress();
         break;
       case "Become a Landlord":
-        handleBecomeLandlord();
+      case "Switch to Landlord":
+      case "Switch to Tenant":
+        handleSwitchRole();
         break;
       default:
         console.log('Setting pressed:', label);
@@ -153,17 +158,40 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     }
   };
 
-  const handleBecomeLandlord = () => {
+  const handleSwitchRole = async () => {
+    const newRole = userRole === 'landlord' ? 'tenant' : 'landlord';
+    const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
+    
     Alert.alert(
-      'Become a Landlord',
-      'You will be redirected to our web portal to register as a landlord.\n\nAfter creating your account, you can login here in the app as a landlord.',
+      `Switch to ${roleName}`,
+      `Are you sure you want to switch your account to ${roleName} mode?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open Web Portal', 
-          onPress: () => {
-            // Open web admin portal for landlord registration
-            Linking.openURL(`${WEB_BASE_URL}/become-landlord`);
+        {
+          text: 'Switch',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const res = await ProfileService.switchRole(newRole);
+              if (res.success) {
+                // Update local storage
+                const userJson = await AsyncStorage.getItem('user');
+                if (userJson) {
+                  const user = JSON.parse(userJson);
+                  user.role = newRole;
+                  await AsyncStorage.setItem('user', JSON.stringify(user));
+                }
+                // Trigger navigation refresh
+                triggerRoleSwitch(newRole);
+              } else {
+                Alert.alert('Error', res.error || 'Failed to switch role');
+              }
+            } catch (error) {
+              console.error('Role switch error:', error);
+              Alert.alert('Error', 'An unexpected error occurred while switching roles.');
+            } finally {
+              setLoading(false);
+            }
           }
         }
       ]
@@ -242,7 +270,12 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             value: isDarkMode,
             onChange: toggleTheme
           },
-          { id: 4, label: "Become a Landlord", icon: "business-outline", arrow: true },
+          { 
+            id: 4, 
+            label: userRole === 'landlord' ? "Switch to Tenant" : "Switch to Landlord", 
+            icon: "swap-horizontal-outline", 
+            arrow: true 
+          },
         ]
       },
       {

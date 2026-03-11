@@ -268,6 +268,7 @@ class AdminController extends Controller
     {
         $properties = Property::where('current_status', Property::STATUS_PENDING)
             ->with(['landlord', 'images', 'amenities', 'credentials'])
+            ->withCount('rooms')
             ->get();
 
         return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
@@ -281,6 +282,7 @@ class AdminController extends Controller
     {
         $properties = Property::where('current_status', Property::STATUS_ACTIVE)
             ->with(['landlord', 'images', 'amenities', 'credentials'])
+            ->withCount('rooms')
             ->get();
 
         return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
@@ -294,6 +296,7 @@ class AdminController extends Controller
     {
         $properties = Property::where('current_status', Property::STATUS_INACTIVE)
             ->with(['landlord', 'images', 'amenities', 'credentials'])
+            ->withCount('rooms')
             ->get();
 
         return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
@@ -309,6 +312,9 @@ class AdminController extends Controller
         $property->is_published = true;
         $property->is_available = true;
         $property->save();
+        
+        // Ensure available rooms count is up to date
+        $property->updateAvailableRooms();
 
         return response()->json(['property' => $property, 'message' => 'Property approved']);
     }
@@ -324,7 +330,24 @@ class AdminController extends Controller
         $property->is_available = false;
         $property->save();
 
+        // Ensure available rooms count is up to date (will be 0 if not available)
+        $property->updateAvailableRooms();
+
         return response()->json(['property' => $property, 'message' => 'Property rejected']);
+    }
+
+    /**
+     * Put a property under maintenance
+     */
+    public function putUnderMaintenance(Request $request, $id)
+    {
+        $property = Property::findOrFail($id);
+        $property->current_status = Property::STATUS_MAINTENANCE;
+        $property->is_published = false;
+        $property->is_available = false;
+        $property->save();
+
+        return response()->json(['property' => $property, 'message' => 'Property put under maintenance']);
     }
 
     /**

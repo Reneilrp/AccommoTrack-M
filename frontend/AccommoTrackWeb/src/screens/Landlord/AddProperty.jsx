@@ -321,7 +321,7 @@ export default function AddProperty({ onBack, onSave }) {
     return {
       title: formData.propertyName,
       description: formData.description || null,
-      property_type: formData.propertyType === 'others' ? 'others' : formData.propertyType,
+      property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
       // If saving as draft, mark draft; otherwise default to pending
       current_status: isDraft ? 'draft' : 'pending',
       street_address: formData.streetAddress,
@@ -437,6 +437,25 @@ export default function AddProperty({ onBack, onSave }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Custom Header - Matches Global Header Style */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
+        {/* Left: Back button */}
+        <div className="absolute left-4 lg:left-8">
+          <button
+            onClick={onBack}
+            className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all flex-shrink-0"
+            title="Go Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Center: Title */}
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+          Add New Property
+        </h1>
+      </header>
+
       {/* Error Message */}
       {error && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

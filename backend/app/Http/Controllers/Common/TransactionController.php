@@ -61,6 +61,17 @@ class TransactionController extends Controller
             $tx->refunded_amount_cents = ($tx->refunded_amount_cents ?? 0) + $refundAmount;
             $tx->save();
 
+            // Update invoice status if fully refunded
+            if ($invoice) {
+                $totalRefunded = $invoice->transactions()->where('status', 'refunded')->sum('amount_cents');
+                // Note: $refund->amount_cents is negative, so we take absolute value or use the sum
+                // Let's use the sum of negative values and compare with -1 * invoice amount
+                if (abs($totalRefunded) >= $invoice->amount_cents) {
+                    $invoice->status = 'refunded';
+                    $invoice->save();
+                }
+            }
+
             DB::commit();
             return response()->json($refund, 201);
         } catch (\Exception $e) {

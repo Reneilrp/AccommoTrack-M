@@ -69,94 +69,113 @@ const styles = StyleSheet.create({
 export default function LandlordBottomNavigation({ onLogout }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const [user, setUser] = React.useState(null);
+
+  React.useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (e) {}
+    };
+    loadUser();
+  }, []);
+
+  const isCaretaker = user?.role === 'caretaker';
+  const permissions = user?.caretaker_permissions || {};
+
+  // Define tabs with permission checks
+  const tabs = [
+    {
+      name: 'Home',
+      component: LandlordDashboard,
+      label: 'Home',
+      icon: (focused) => focused ? 'home' : 'home-outline',
+      show: true, // Home always visible
+    },
+    {
+      name: 'Properties',
+      component: MyProperties,
+      label: 'Properties',
+      icon: (focused) => focused ? 'business' : 'business-outline',
+      show: !isCaretaker || permissions.can_view_properties || permissions.can_view_rooms || permissions.can_view_tenants,
+    },
+    {
+      name: 'Bookings',
+      component: Bookings,
+      label: 'Bookings',
+      customButton: true,
+      show: !isCaretaker || permissions.can_view_bookings,
+    },
+    {
+      name: 'Messages',
+      component: Messages,
+      label: 'Messages',
+      icon: (focused) => focused ? 'chatbubbles' : 'chatbubbles-outline',
+      show: !isCaretaker || permissions.can_view_messages,
+    },
+    {
+      name: 'Settings',
+      component: Settings,
+      label: 'Settings',
+      icon: (focused) => focused ? 'settings' : 'settings-outline',
+      show: true, // Settings always visible
+    },
+  ];
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Properties') {
-            iconName = focused ? 'business' : 'business-outline';
-          } else if (route.name === 'Bookings') {
-            return <Ionicons name="calendar" size={28} color="#FFFFFF" />;
-          } else if (route.name === 'Messages') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
+      screenOptions={({ route }) => {
+        const tabInfo = tabs.find(t => t.name === route.name);
+        return {
+          headerShown: false,
+          tabBarIcon: ({ focused, color, size }) => {
+            if (tabInfo?.customButton) {
+              return <Ionicons name="calendar" size={28} color="#FFFFFF" />;
+            }
+            const iconName = tabInfo?.icon ? tabInfo.icon(focused) : 'help-outline';
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.textTertiary,
+          tabBarStyle: {
+            backgroundColor: theme.colors.surface,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+            paddingBottom: 8 + insets.bottom,
+            paddingTop: 8,
+            height: 60 + insets.bottom,
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: theme.isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+            marginTop: 4,
+            marginBottom: 6,
           }
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
-          paddingBottom: 8 + insets.bottom,
-          paddingTop: 8,
-          height: 60 + insets.bottom,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: theme.isDark ? 0.3 : 0.1,
-          shadowRadius: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4,
-          marginBottom: 6,
-        }
-      })}
+        };
+      }}
     >
-      <Tab.Screen
-        name="Home"
-        children={(props) => <LandlordDashboard {...props} onLogout={onLogout} />}
-        options={{ tabBarLabel: 'Home' }}
-      />
-
-      <Tab.Screen
-        name="Properties"
-        component={MyProperties}
-        options={{ tabBarLabel: 'Properties' }}
-      />
-
-      <Tab.Screen
-        name="Bookings"
-        component={Bookings}
-        options={{
-          tabBarLabel: () => null,
-          tabBarButton: (props) => (
-            <CustomTabBarButton {...props} theme={theme} />
-          )
-        }}
-      />
-
-      <Tab.Screen
-        name="Messages"
-        component={Messages}
-        options={{
-          tabBarBadge: undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: theme.colors.error,
-            color: '#FFFFFF',
-            fontSize: 10,
-            minWidth: 18,
-            height: 18,
-            borderRadius: 9
-          }
-        }}
-      />
-
-      <Tab.Screen
-        name="Settings"
-        children={(props) => <Settings {...props} onLogout={onLogout} />}
-        options={{ tabBarLabel: 'Settings' }}
-      />
+      {tabs.filter(t => t.show).map((tab) => (
+        <Tab.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            tabBarLabel: tab.customButton ? () => null : tab.label,
+            tabBarButton: tab.customButton 
+              ? (props) => <CustomTabBarButton {...props} theme={theme} />
+              : undefined,
+          }}
+        >
+          {(props) => <tab.component {...props} onLogout={onLogout} />}
+        </Tab.Screen>
+      ))}
     </Tab.Navigator>
   );
 }

@@ -76,6 +76,7 @@ class User extends Authenticatable
         'middle_name',
         'last_name',
         'phone',
+        'date_of_birth',
         'profile_image',
         'is_verified',
         'is_active',
@@ -97,6 +98,7 @@ class User extends Authenticatable
         'payment_methods_settings' => 'array',
         'notification_preferences' => 'array',
         'is_blocked' => 'boolean',
+        'date_of_birth' => 'date',
     ];
 
     protected $appends = [

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -233,6 +233,15 @@ export default function ChatScreen({ navigation, route }) {
                             <Text style={styles.chatHeaderProperty} numberOfLines={1}>{getPropertyLabel(conv)}</Text>
                         </View>
                     </View>
+
+                    {conv?.other_user?.phone && (
+                        <TouchableOpacity 
+                            style={[styles.headerIcon, { marginRight: 4 }]} 
+                            onPress={() => Linking.openURL(`tel:${conv.other_user.phone}`)}
+                        >
+                            <Ionicons name="call-outline" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity style={styles.headerIcon}>
                         <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />

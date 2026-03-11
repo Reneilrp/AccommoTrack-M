@@ -30,10 +30,22 @@ class StoreRoomRequest extends FormRequest
      */
     public function rules(): array
     {
+        $propertyId = $this->input('property_id');
+        $property = Property::find($propertyId);
+        $isApartment = $property && $property->property_type === 'apartment';
+
         return [
             'property_id' => 'required|exists:properties,id',
             'room_number' => 'required|string|max:50',
-            'room_type' => 'required|in:single,double,quad,bedSpacer',
+            'room_type' => [
+                'required',
+                'in:single,double,quad,bedSpacer',
+                function ($attribute, $value, $fail) use ($isApartment) {
+                    if ($isApartment && $value === 'bedSpacer') {
+                        $fail('The room type for Apartment cannot be Bed Spacer. It must be Single, Double, or Quad Room.');
+                    }
+                }
+            ],
             'floor' => 'required|integer|min:1',
             'monthly_rate' => 'required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
             'daily_rate' => 'required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',

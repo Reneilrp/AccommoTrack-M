@@ -239,6 +239,17 @@ export const getStyles = (theme) => StyleSheet.create({
     marginLeft: 4,
     flex: 1,
   },
+  curfewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  curfewText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginLeft: 4,
+    flex: 1,
+  },
   availabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -462,6 +473,50 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   fullFlex: {
     flex: 1,
+  },
+
+  // MODAL STYLES
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '80%',
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  modalButton: {
+    width: '100%',
+    borderRadius: 10,
+    padding: 10,
+    elevation: 2,
+    backgroundColor: theme.colors.primary,
+    marginBottom: 10,
+  },
+  modalButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center"
   },
 });
 

@@ -25,10 +25,13 @@ import homeStyles from "../../../../styles/Tenant/HomePage.js";
 import PropertyService from "../../../../services/PropertyService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
+import { useAuth } from "../../../../contexts/AuthContext.jsx";
+import IconWithBadge from '../../../../components/IconWithBadge.jsx';
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { user } = useAuth();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const {
     accommodation,
@@ -43,8 +46,27 @@ export default function PropertyDetailsScreen({ route }) {
   const [detailedAccommodation, setDetailedAccommodation] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [videoVisible, setVideoVisible] = useState(false);
+  const [notificationCounts, setNotificationCounts] = useState({
+    addons: 0,
+    maintenance: 0,
+    activity: 0,
+    reviews: 0,
+  });
+
 
   const effectiveId = accommodation?.id || propertyId;
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (effectiveId && user && !isGuest && !landlordPreview) {
+        const result = await PropertyService.getPropertyStats(effectiveId);
+        if (result.success) {
+          setNotificationCounts(result.data);
+        }
+      }
+    };
+    fetchStats();
+  }, [effectiveId, user, isGuest, landlordPreview]);
 
   const videoUrl = detailedAccommodation?.video_url || accommodation?.video_url;
   const videoPlayer = useVideoPlayer(
@@ -63,28 +85,7 @@ export default function PropertyDetailsScreen({ route }) {
     }
   }, [videoVisible, videoPlayer]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadRooms();
-    }, [effectiveId]),
-  );
-
-  // Hide bottom tab bar for this details screen (if parent is a tab navigator)
-  useEffect(() => {
-    const parent = navigation.getParent?.();
-    try {
-      parent?.setOptions?.({ tabBarStyle: { display: "none" } });
-    } catch (e) {
-      // ignore if parent doesn't support tabBarStyle
-    }
-    return () => {
-      try {
-        parent?.setOptions?.({ tabBarStyle: undefined });
-      } catch (e) {}
-    };
-  }, [navigation]);
-
-  const loadRooms = async () => {
+  const loadRooms = useCallback(async () => {
     if (!effectiveId) {
       setRooms([]);
       setRoomsLoading(false);
@@ -94,34 +95,19 @@ export default function PropertyDetailsScreen({ route }) {
     try {
       setRoomsLoading(true);
 
-      // If landlord is previewing, use the private endpoint that allows seeing non-active properties
       const result = landlordPreview
         ? await PropertyService.getProperty(effectiveId)
         : await PropertyService.getPublicProperty(effectiveId);
 
-      console.log("Raw API response:", result); // DEBUG
-
       if (result.success && result.data) {
-        // Store the raw API data with ALL landlord fields
         const rawData = result.data;
-
-        console.log("Landlord data from API:", {
-          landlord_id: rawData.landlord_id,
-          user_id: rawData.user_id,
-          landlord_name: rawData.landlord_name,
-          landlord: rawData.landlord,
-        }); // DEBUG
-
-        // Build detailed accommodation with ALL possible landlord fields
         const detailed = {
           ...rawData,
-          // Preserve ALL landlord-related fields
           landlord_id: rawData.landlord_id,
           user_id: rawData.user_id || rawData.landlord_id,
           landlord_name: rawData.landlord_name,
           owner_name: rawData.owner_name || rawData.landlord_name,
           landlord: rawData.landlord,
-          // Also add common aliases
           name: rawData.title || rawData.name,
           title: rawData.title || rawData.name,
           type: rawData.property_type || rawData.type,
@@ -130,8 +116,6 @@ export default function PropertyDetailsScreen({ route }) {
           priceRange: rawData.price_range,
           amenities: rawData.amenities || [],
         };
-
-        console.log("Detailed accommodation object:", detailed); // DEBUG
         setDetailedAccommodation(detailed);
 
         const standardizedRooms = (rawData.rooms || []).map((room) => ({
@@ -151,7 +135,11 @@ export default function PropertyDetailsScreen({ route }) {
     } finally {
       setRoomsLoading(false);
     }
-  };
+  }, [effectiveId, landlordPreview]);
+
+  useFocusEffect(
+    loadRooms
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -671,62 +659,32 @@ export default function PropertyDetailsScreen({ route }) {
             </View>
           )}
 
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Ionicons
-                name="bed-outline"
-                size={24}
-                color={theme.colors.primary}
-              />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {(active &&
-                  (active.availableRooms || active.available_rooms)) ||
-                  0}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  { color: theme.colors.textSecondary },
-                ]}
-              >
-                Available Rooms
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons
-                name="pricetag-outline"
-                size={24}
-                color={theme.colors.primary}
-              />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {active && active.priceRange}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  { color: theme.colors.textSecondary },
-                ]}
-              >
-                Price Range
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons name="star" size={24} color="#F59E0B" />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {active && active.rating ? active.rating : "-"}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  { color: theme.colors.textSecondary },
-                ]}
-              >
-                {active && active.reviews_count
-                  ? `${active.reviews_count} Reviews`
-                  : "No Reviews"}
-              </Text>
-            </View>
+          {/* Features Section */}
+          <View style={styles.featuresContainer}>
+            <IconWithBadge
+              iconName="add-circle-outline"
+              label="Add-ons"
+              badgeCount={notificationCounts.addons}
+              onPress={() => navigation.navigate("Addons")}
+            />
+            <IconWithBadge
+              iconName="build-outline"
+              label="Maintenance"
+              badgeCount={notificationCounts.maintenance}
+              onPress={() => navigation.navigate("MyMaintenanceRequests")}
+            />
+            <IconWithBadge
+              iconName="list-outline"
+              label="Activity"
+              badgeCount={notificationCounts.activity}
+              onPress={() => navigation.navigate("Dashboard")}
+            />
+            <IconWithBadge
+              iconName="star-outline"
+              label="Reviews"
+              badgeCount={notificationCounts.reviews}
+              onPress={() => navigation.navigate("MyReviews")}
+            />
           </View>
 
           {/* Amenities */}
@@ -747,6 +705,33 @@ export default function PropertyDetailsScreen({ route }) {
               ))}
             </View>
           )}
+
+          {/* House Rules */}
+          {(() => {
+            const propertyRules = getPropertyRules();
+            if (propertyRules.length > 0) {
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>House Rules</Text>
+                  {propertyRules.map((rule, index) => (
+                    <View key={index} style={styles.ruleItem}>
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={16}
+                        color={theme.colors.warning}
+                      />
+                      <Text
+                        style={[styles.ruleText, { color: theme.colors.text }]}
+                      >
+                        {rule}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            }
+            return null;
+          })()}
 
           {/* Map Section */}
           {active.latitude && active.longitude && (
@@ -1039,10 +1024,7 @@ export default function PropertyDetailsScreen({ route }) {
                             Capacity: {room.capacity}
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          style={styles.viewDetailsButton}
-                          onPress={() => handleRoomPress(room)}
-                        >
+                        <View style={styles.viewDetailsButton}>
                           <Text
                             style={[
                               styles.viewDetailsText,
@@ -1057,7 +1039,7 @@ export default function PropertyDetailsScreen({ route }) {
                             size={14}
                             color={theme.colors.primary}
                           />
-                        </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   </TouchableOpacity>

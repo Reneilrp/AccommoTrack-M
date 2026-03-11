@@ -40,6 +40,9 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       } else if (action === 'reject') {
         await api.post(`/admin/properties/${propertyId}/reject`);
         toast.success('Property rejected successfully');
+      } else if (action === 'maintenance') {
+        await api.post(`/admin/properties/${propertyId}/maintenance`);
+        toast.success('Property put under maintenance');
       }
 
       setProperties(prev => prev.filter(p => p.id !== propertyId));
@@ -55,13 +58,14 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
   const confirmAction = (propertyId, action) => {
     const isApprove = action === 'approve';
+    const isMaintenance = action === 'maintenance';
     setConfirmModalState({
       isOpen: true,
-      title: `Confirm ${isApprove ? 'Approval' : 'Rejection'}`,
-      message: `Are you sure you want to ${action} this property?`,
+      title: `Confirm ${isApprove ? 'Approval' : isMaintenance ? 'Maintenance' : 'Rejection'}`,
+      message: `Are you sure you want to ${isMaintenance ? 'put this property under maintenance' : action + ' this property'}?`,
       onConfirm: () => runAction(propertyId, action),
-      confirmText: isApprove ? 'Approve' : 'Reject',
-      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+      confirmText: isApprove ? 'Approve' : isMaintenance ? 'Maintenance' : 'Reject',
+      confirmButtonClass: isApprove ? 'bg-green-600 hover:bg-green-700' : isMaintenance ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700'
     });
   };
 
@@ -71,7 +75,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   };
 
   return (
-    <div className={isEmbedded ? "w-full" : "w-full max-w-full px-6 py-6"}>
+    <div className={isEmbedded ? "w-full" : "w-full max-full px-6 py-6"}>
       <ConfirmationModal 
         isOpen={confirmModalState.isOpen}
         onClose={() => setConfirmModalState({ isOpen: false })}
@@ -107,6 +111,15 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             }`}
         >
           Approved
+        </button>
+        <button
+          onClick={() => setStatusFilter('maintenance')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors border ${statusFilter === 'maintenance'
+              ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 shadow-sm'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-amber-200 dark:hover:border-amber-800 hover:text-amber-700 dark:hover:text-amber-400'
+            }`}
+        >
+          Maintenance
         </button>
         <button
           onClick={() => setStatusFilter('rejected')}
@@ -201,10 +214,11 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Property Details</h3>
+              <div className="w-10"></div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white text-center flex-1">Property Details</h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold w-10"
               >
                 ×
               </button>
@@ -370,6 +384,13 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                     className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {actionLoading === selectedProperty.id + ':reject' ? 'Rejecting...' : 'Reject Property'}
+                  </button>
+                  <button
+                    onClick={() => confirmAction(selectedProperty.id, 'maintenance')}
+                    disabled={actionLoading}
+                    className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading === selectedProperty.id + ':maintenance' ? 'Putting...' : 'Put Under Maintenance'}
                   </button>
                   <button
                     onClick={() => confirmAction(selectedProperty.id, 'approve')}

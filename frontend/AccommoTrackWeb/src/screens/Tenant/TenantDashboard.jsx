@@ -4,7 +4,7 @@ import { getImageUrl } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
-import { ChevronRight, Home, Calendar, Search, Wallet, Wrench, AlertCircle } from 'lucide-react';
+import { ChevronRight, Home, Calendar, Search, Wallet, Wrench, AlertCircle, MessageSquare } from 'lucide-react';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
@@ -16,7 +16,6 @@ const TenantDashboard = () => {
   const [loading, setLoading] = useState(!cachedData);
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
-  const [selectedStayIndex, setSelectedStayIndex] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
@@ -71,7 +70,6 @@ const TenantDashboard = () => {
   }
 
   const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
-  const currentStay = hasActiveStays ? (stayData.stays[selectedStayIndex] || stayData.stays[0]) : null;
 
   // Calculate Total Monthly Rent across all active stays
   const totalMonthlyRent = hasActiveStays 
@@ -130,114 +128,106 @@ const TenantDashboard = () => {
 
       {/* Middle Area: The "My Stays" Hub */}
       <div className="space-y-6">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white px-1">My Active Stays</h3>
+        
         {hasActiveStays ? (
-          <>
-            {/* Stay Selector for Multi-stay */}
-            {stayData.stays.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                {stayData.stays.map((stay, idx) => (
-                  <button
-                    key={stay.booking.id}
-                    onClick={() => setSelectedStayIndex(idx)}
-                    className={`flex items-center gap-3 px-5 py-2.5 rounded-xl border transition-all whitespace-nowrap shadow-sm ${
-                      selectedStayIndex === idx
-                        ? 'bg-green-600 text-white border-green-600'
-                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className={`w-2 h-2 rounded-full ${selectedStayIndex === idx ? 'bg-white' : 'bg-green-500'}`} />
-                    <span className="text-sm font-bold">{stay.property?.title} <span className="opacity-60 font-normal ml-1">Rm {stay.room?.roomNumber || stay.room?.room_number}</span></span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Horizontal Property Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden flex flex-col md:flex-row">
-              {/* Left Side: Image */}
-              <div className="md:w-1/3 h-48 md:h-auto relative">
-                <img 
-                  src={currentStay.property?.image || getImageUrl(currentStay.property?.image_url) || 'https://via.placeholder.com/800x400'} 
-                  alt="Property" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent md:hidden flex items-end p-4">
-                   <h2 className="text-xl font-bold text-white tracking-tight leading-tight drop-shadow-md">{currentStay.property?.title}</h2>
+          <div className={`grid gap-6 ${stayData.stays.length > 1 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+            {stayData.stays.map((stay) => (
+              <div key={stay.booking.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden flex flex-col group hover:shadow-xl transition-all duration-300">
+                {/* Top: Image */}
+                <div className="h-48 relative overflow-hidden">
+                  <img 
+                    src={stay.property?.image || getImageUrl(stay.property?.image_url) || 'https://via.placeholder.com/800x400'} 
+                    alt="Property" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
+                    <div className="flex-1">
+                      <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{stay.property?.title}</h2>
+                      <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{stay.property?.address || stay.property?.full_address}</p>
+                    </div>
+                    <div className="bg-green-600 px-3 py-1 rounded-full shadow-lg shadow-green-900/40 border border-green-500/50">
+                      <p className="text-white text-[10px] font-bold uppercase tracking-widest">Active</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              {/* Right Side: Details */}
-              <div className="flex-1 flex flex-col justify-between">
-                <div className="p-6">
-                  <div className="hidden md:flex justify-between items-start mb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{currentStay.property?.title}</h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{currentStay.property?.address || currentStay.property?.full_address}</p>
+                
+                {/* Middle: Details */}
+                <div className="p-5 flex-1 space-y-5">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                        <Home className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Room</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white leading-none mt-0.5">
+                          {stay.room?.roomNumber || stay.room?.room_number}
+                        </p>
+                      </div>
                     </div>
                     <button 
-                      onClick={() => navigate(`/property/${currentStay.property?.id}`)}
-                      className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-sm font-bold bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-lg transition-colors"
+                      onClick={() => navigate(`/property/${stay.property?.id}`)}
+                      className="text-green-600 dark:text-green-400 hover:text-green-700 text-xs font-bold transition-colors"
                     >
-                      View Details
+                      View Property
                     </button>
                   </div>
 
-                  {/* Specific Stats Row */}
-                  <div className="grid grid-cols-3 gap-4 border-t md:border-t-0 border-gray-100 dark:border-gray-700 pt-4 md:pt-0">
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Room</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {currentStay.room?.roomNumber || currentStay.room?.room_number}
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize">{currentStay.room?.roomType || currentStay.room?.type}</p>
-                    </div>
-                    <div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-700 pt-4">
+                    <div className="bg-gray-50/50 dark:bg-gray-900/30 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days Stayed</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {currentStay.booking?.daysStayed ?? 0}
+                      <p className="text-lg font-black text-gray-900 dark:text-white">
+                        {stay.booking?.daysStayed ?? 0}
                       </p>
-                      <p className="text-xs text-gray-500">Total</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Rent</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {formatCurrency(currentStay.booking?.monthlyRent || currentStay.booking?.monthly_rent)}
+                    <div className="bg-gray-50/50 dark:bg-gray-900/30 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Monthly Rent</p>
+                      <p className="text-lg font-black text-green-600 dark:text-green-400">
+                        {formatCurrency(stay.booking?.unit_price || stay.booking?.monthlyRent || stay.booking?.monthly_rent)}
                       </p>
-                      <p className="text-xs text-gray-500">/ mo</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer (Landlord) */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                {/* Footer: Manager */}
+                <div className="bg-gray-50 dark:bg-gray-700/30 p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img
-                      src={getImageUrl(currentStay.landlord?.profile_image) || `https://ui-avatars.com/api/?name=${currentStay.landlord?.name}&background=random`}
-                      alt={currentStay.landlord?.name}
-                      className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600 object-cover"
+                      src={getImageUrl(stay.landlord?.profile_image) || `https://ui-avatars.com/api/?name=${stay.landlord?.name}&background=random`}
+                      alt={stay.landlord?.name}
+                      className="w-8 h-8 rounded-full border border-white dark:border-gray-600 object-cover shadow-sm"
                     />
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-none">Property Manager</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight mt-0.5">{currentStay.landlord?.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Property Manager</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                        {stay.landlord?.name || 'Landlord'}
+                      </p>
                     </div>
                   </div>
                   <button
                     onClick={() => navigate('/messages', { 
                       state: { 
-                        startConversation: { 
-                          recipient_id: currentStay.landlord?.id, 
-                          property_id: currentStay.property?.id 
+                        startConversation: true,
+                        recipient: { 
+                          id: stay.landlord?.id,
+                          name: stay.landlord?.name
+                        }, 
+                        property: { 
+                          id: stay.property?.id,
+                          title: stay.property?.title || stay.property?.name
                         } 
                       } 
                     })}
-                    className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
                   >
-                    Message
+                    <MessageSquare className="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Send Message</span>
                   </button>
                 </div>
               </div>
-            </div>
-          </>
+            ))}
+          </div>
         ) : (
           /* Zero-State Main Card */
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-12 text-center flex flex-col items-center justify-center min-h-[300px]">

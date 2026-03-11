@@ -15,14 +15,30 @@ import {
   Settings as SettingsIcon,
   Menu,
   ChevronLeft,
-  LogOut
+  LogOut,
+  ArrowLeftRight
 } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 export default function TenantLayout({ user, onLogout, children }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleSwitchRole = async () => {
+    if (window.confirm('Are you sure you want to switch to Landlord mode?')) {
+      try {
+        const response = await authService.switchRole('landlord');
+        if (response.user) {
+          window.location.href = '/dashboard';
+        }
+      } catch (error) {
+        console.error('Failed to switch role:', error);
+        alert('Failed to switch role. Please try again.');
+      }
+    }
+  };
 
   const tenantMenu = [
     {
@@ -156,14 +172,26 @@ export default function TenantLayout({ user, onLogout, children }) {
                 ${!isSidebarOpen && 'justify-center'}
               `}
             >
-              {item.icon}
-              {isSidebarOpen && (
-                <span className="font-medium truncate">{item.label}</span>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
+                          {item.icon}
+                          {isSidebarOpen && (
+                            <span className="font-medium truncate">{item.label}</span>
+                          )}
+                        </NavLink>
+                      ))}
+              
+                      <button
+                        onClick={handleSwitchRole}
+                        className={`
+                          w-full flex items-center gap-3 px-4 py-3 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors
+                          ${!isSidebarOpen && 'justify-center'}
+                        `}
+                      >
+                        <ArrowLeftRight className="w-5 h-5 flex-shrink-0" />
+                        {isSidebarOpen && (
+                          <span className="font-medium truncate">Switch to Landlord</span>
+                        )}
+                      </button>
+                    </nav>
         {/* Settings + Logout Buttons (bottom) */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto space-y-2">
           <button

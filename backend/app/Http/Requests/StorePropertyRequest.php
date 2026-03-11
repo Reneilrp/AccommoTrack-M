@@ -27,7 +27,7 @@ class StorePropertyRequest extends FormRequest
         return [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'property_type' => 'required|in:apartment,dormitory,boardingHouse,bedSpacer,others',
+            'property_type' => 'required|string|max:255',
             'current_status' => 'nullable|in:pending,draft',
             'is_draft' => 'sometimes|boolean',
             'street_address' => 'required|string',
@@ -44,11 +44,11 @@ class StorePropertyRequest extends FormRequest
             'is_eligible' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'images' => 'nullable|array|max:10',
-            'video' => 'nullable|mimes:mp4,mov,avi|max:92160',
+            'video' => 'nullable|mimes:mp4,mov,avi|max:40960',
             'credentials' => 'nullable|array',
-            'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
+            'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:5120',
             'accepted_payments' => 'nullable|array',
             'accepted_payments.*' => 'in:cash,online',
         ];

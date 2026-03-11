@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Addon;
 use App\Models\Booking;
 use App\Models\Property;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AddonService
 {
@@ -55,19 +57,56 @@ class AddonService
 
             $newStatus = $addon->price_type === 'monthly' ? 'active' : 'approved';
 
-            $booking->addons()->updateExistingPivot($addonId, [
-                'status' => $newStatus,
-                'response_note' => $note,
-                'approved_at' => now(),
-                'approved_by' => $userId,
-                'updated_at' => now()
-            ]);
+            DB::beginTransaction();
+            try {
+                $booking->addons()->updateExistingPivot($addonId, [
+                    'status' => $newStatus,
+                    'response_note' => $note,
+                    'approved_at' => now(),
+                    'approved_by' => $userId,
+                    'updated_at' => now()
+                ]);
 
-            if ($addon->addon_type === 'rental' && !is_null($addon->stock)) {
-                $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
+                if ($addon->addon_type === 'rental' && !is_null($addon->stock)) {
+                    $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
+                }
+
+                // Create automatic invoice for the addon
+                $reference = 'INV-ADD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+                $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
+
+                $invoice = Invoice::create([
+                    'reference' => $reference,
+                    'landlord_id' => $booking->landlord_id,
+                    'property_id' => $booking->property_id,
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'description' => "Add-on: {$addon->name} (" . ($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee') . ")",
+                    'amount_cents' => $amountCents,
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => now(),
+                    'due_date' => now()->addDays(3),
+                    'metadata' => [
+                        'addon_id' => $addon->id,
+                        'addon_name' => $addon->name,
+                        'quantity' => $addonRequest->pivot->quantity ?? 1,
+                        'price_type' => $addon->price_type,
+                    ]
+                ]);
+
+                // Link invoice back to the addon request
+                $booking->addons()->updateExistingPivot($addonId, [
+                    'invoice_id' => $invoice->id,
+                    'invoiced_at' => now(),
+                ]);
+
+                DB::commit();
+                return ['status' => $newStatus, 'message' => 'Addon request approved and invoice generated successfully'];
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
-
-            return ['status' => $newStatus, 'message' => 'Addon request approved successfully'];
         } else {
             $booking->addons()->updateExistingPivot($addonId, [
                 'status' => 'rejected',

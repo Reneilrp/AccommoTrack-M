@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
@@ -35,6 +36,8 @@ export default function TenantHomePage({
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [selectedCurfew, setSelectedCurfew] = useState(null);
+  const [curfewModalVisible, setCurfewModalVisible] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("Explore");
 
   const { theme } = useTheme();
@@ -61,7 +64,7 @@ export default function TenantHomePage({
 
   useEffect(() => {
     filterProperties();
-  }, [properties, searchQuery, activeTab]);
+  }, [properties, searchQuery, activeTab, selectedCurfew]);
 
   const loadProperties = async () => {
     try {
@@ -137,6 +140,44 @@ export default function TenantHomePage({
       });
     }
 
+    if (selectedCurfew) {
+        const timeToMinutes = (timeStr) => {
+            if (!timeStr || typeof timeStr !== 'string') return null;
+            const lowerTime = timeStr.toLowerCase();
+            if (lowerTime === 'none') return Infinity; // Or a very large number
+
+            const match = lowerTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)/);
+            if (!match) return null;
+
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2], 10);
+            const isPm = match[3] === 'pm';
+
+            if (isPm && hours < 12) hours += 12;
+            if (!isPm && hours === 12) hours = 0; // 12 AM is midnight
+
+            // Treat early morning curfews as "late"
+            if (hours >= 0 && hours <= 4) {
+                hours += 24;
+            }
+            
+            return hours * 60 + minutes;
+        };
+        
+        const selectedMinutes = timeToMinutes(selectedCurfew);
+
+        if (selectedMinutes !== null) {
+            if (selectedMinutes === Infinity) { // "No Curfew"
+                 filtered = filtered.filter(prop => !prop.curfew_time || prop.curfew_time.toLowerCase() === 'none');
+            } else {
+                filtered = filtered.filter(prop => {
+                    const propMinutes = timeToMinutes(prop.curfew_time);
+                    return propMinutes !== null && propMinutes <= selectedMinutes;
+                });
+            }
+        }
+    }
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter((property) => {
@@ -177,6 +218,11 @@ export default function TenantHomePage({
     }
 
     setFilteredProperties(filtered);
+  };
+
+  const handleCurfewSelect = (curfew) => {
+    setSelectedCurfew(curfew);
+    setCurfewModalVisible(false);
   };
 
   const handleFilterSelect = (filterValue) => {
@@ -356,6 +402,25 @@ export default function TenantHomePage({
               </Text>
             </TouchableOpacity>
           ))}
+          {/* New Curfew Filter Button */}
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              selectedCurfew && {
+                backgroundColor: theme.colors.primary,
+              },
+            ]}
+            onPress={() => setCurfewModalVisible(true)}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                selectedCurfew && styles.filterButtonTextActive,
+              ]}
+            >
+              {selectedCurfew ? `${selectedCurfew}` : "Curfew"}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
 
         <ScrollView contentContainerStyle={styles.contentContainerPadding}>
@@ -450,6 +515,49 @@ export default function TenantHomePage({
         onMenuItemPress={handleMenuItemPress}
         isGuest={isGuest}
       />
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={curfewModalVisible}
+        onRequestClose={() => {
+          setCurfewModalVisible(!curfewModalVisible);
+        }}
+      >
+        <TouchableOpacity 
+            style={styles.centeredView} 
+            activeOpacity={1} 
+            onPressOut={() => setCurfewModalVisible(false)}
+        >
+          <View style={styles.modalView} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalText}>Select Curfew</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => handleCurfewSelect("10:00 PM")}
+            >
+              <Text style={styles.modalButtonText}>Before 10 PM</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => handleCurfewSelect("12:00 AM")}
+            >
+              <Text style={styles.modalButtonText}>Before 12 AM</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => handleCurfewSelect("None")}
+            >
+              <Text style={styles.modalButtonText}>No Curfew</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10}]}
+              onPress={() => handleCurfewSelect(null)}
+            >
+              <Text style={[styles.modalButtonText, {color: theme.colors.primary}]}>Clear Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }

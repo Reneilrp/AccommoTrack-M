@@ -137,6 +137,26 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
 
+  const [allTenants, setAllTenants] = useState([]);
+  const [tenantModalVisible, setTenantModalVisible] = useState(false);
+  const [assignTargetRoom, setAssignTargetRoom] = useState(null);
+  const [assigningTenant, setAssigningTenant] = useState(false);
+
+  const loadTenants = useCallback(async () => {
+    try {
+      const res = await PropertyService.getTenants();
+      if (res.success) {
+        setAllTenants(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to load tenants:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTenants();
+  }, [loadTenants]);
+
   const selectedProperty = useMemo(
     () =>
       properties.find(
@@ -246,6 +266,60 @@ export default function RoomManagementScreen({ navigation, route }) {
   }, [selectedPropertyId, loadRooms]);
 
   const handleRoomsRefresh = () => loadRooms(true);
+
+  const handleRemoveTenant = (room) => {
+    Alert.alert(
+      "Remove Tenant",
+      `Are you sure you want to remove the tenant from Room ${room.room_number}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            const res = await PropertyService.removeTenantFromRoom(room.id);
+            if (res.success) {
+              loadRooms();
+            } else {
+              Alert.alert("Error", res.error || "Failed to remove tenant");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSelectTenant = async (tenantId) => {
+    if (!assignTargetRoom) return;
+    setAssigningTenant(true);
+    try {
+      const res = await PropertyService.assignTenantToRoom(
+        assignTargetRoom.id,
+        tenantId,
+      );
+      if (res.success) {
+        setTenantModalVisible(false);
+        setAssignTargetRoom(null);
+        loadRooms();
+      } else {
+        Alert.alert("Error", res.error || "Failed to assign tenant");
+      }
+    } finally {
+      setAssigningTenant(false);
+    }
+  };
+
+  const [tenantSearch, setTenantSearch] = useState("");
+  const filteredTenants = useMemo(() => {
+    if (!tenantSearch.trim()) return allTenants;
+    const query = tenantSearch.toLowerCase();
+    return allTenants.filter(
+      (t) =>
+        t.first_name?.toLowerCase().includes(query) ||
+        t.last_name?.toLowerCase().includes(query) ||
+        t.email?.toLowerCase().includes(query),
+    );
+  }, [allTenants, tenantSearch]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => {
@@ -528,6 +602,32 @@ export default function RoomManagementScreen({ navigation, route }) {
               <Ionicons name="create-outline" size={18} color="#0369A1" />
               <Text style={styles.actionText}>Edit</Text>
             </TouchableOpacity>
+
+            {item.status === 'available' ? (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#DCFCE7" }]}
+                onPress={() => {
+                  setAssignTargetRoom(item);
+                  setTenantModalVisible(true);
+                }}
+              >
+                <Ionicons name="person-add-outline" size={18} color="#15803D" />
+                <Text style={[styles.actionText, { color: "#15803D" }]}>
+                  Assign
+                </Text>
+              </TouchableOpacity>
+            ) : item.status === 'occupied' ? (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#FEE2E2" }]}
+                onPress={() => handleRemoveTenant(item)}
+              >
+                <Ionicons name="person-remove-outline" size={18} color="#B91C1C" />
+                <Text style={[styles.actionText, { color: "#B91C1C" }]}>
+                  Remove
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: "#FEF3C7" }]}
               onPress={() => {
@@ -1155,6 +1255,144 @@ export default function RoomManagementScreen({ navigation, route }) {
                 Cancel
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Tenant Selection Modal */}
+      <Modal visible={tenantModalVisible} transparent animationType="slide">
+        <View style={styles.statusModalOverlay}>
+          <View
+            style={[
+              styles.statusSheet,
+              {
+                height: "80%",
+                paddingBottom: 20,
+                backgroundColor: theme.colors.background,
+              },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Text style={[styles.sectionTitle, { marginTop: 0 }]}>
+                Select Tenant
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setTenantModalVisible(false);
+                  setAssignTargetRoom(null);
+                  setTenantSearch("");
+                }}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: theme.colors.surface,
+                borderRadius: 10,
+                paddingHorizontal: 10,
+                marginBottom: 15,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <Ionicons name="search" size={20} color={theme.colors.textSecondary} />
+              <TextInput
+                style={{
+                  flex: 1,
+                  height: 45,
+                  marginLeft: 10,
+                  color: theme.colors.text,
+                }}
+                placeholder="Search tenants..."
+                placeholderTextColor={theme.colors.textTertiary}
+                value={tenantSearch}
+                onChangeText={setTenantSearch}
+              />
+            </View>
+
+            <FlatList
+              data={filteredTenants}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.border,
+                  }}
+                  onPress={() => handleSelectTenant(item.id)}
+                  disabled={assigningTenant}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: theme.colors.primary + "20",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.primary,
+                        fontWeight: "bold",
+                        fontSize: 16,
+                      }}
+                    >
+                      {item.first_name?.[0] || ""}
+                      {item.last_name?.[0] || ""}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: theme.colors.text,
+                      }}
+                    >
+                      {item.first_name} {item.last_name}
+                    </Text>
+                    <Text
+                      style={{ fontSize: 13, color: theme.colors.textSecondary }}
+                    >
+                      {item.email}
+                    </Text>
+                  </View>
+                  {assigningTenant && assignTargetRoom?.id === item.id ? (
+                    <ActivityIndicator color={theme.colors.primary} />
+                  ) : (
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.textTertiary}
+                    />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", marginTop: 50 }}>
+                  <Text style={{ color: theme.colors.textSecondary }}>
+                    No tenants found
+                  </Text>
+                </View>
+              }
+            />
           </View>
         </View>
       </Modal>

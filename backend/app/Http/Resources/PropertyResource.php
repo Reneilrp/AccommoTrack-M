@@ -46,6 +46,8 @@ class PropertyResource extends JsonResource
             'longitude' => $this->longitude,
             'nearby_landmarks' => $this->nearby_landmarks,
             'property_rules' => $this->property_rules ?? [],
+            'curfew_time' => $this->curfew_time,
+            'curfew_policy' => $this->curfew_policy,
             'total_rooms' => $this->rooms_count ?? $this->whenLoaded('rooms', fn() => $this->rooms->count()),
             'available_rooms' => $this->available_rooms_count ?? (
                 $this->relationLoaded('rooms') 

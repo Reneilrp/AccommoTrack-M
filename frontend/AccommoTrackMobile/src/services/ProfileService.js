@@ -236,6 +236,27 @@ const ProfileService = {
         status: error.response?.status,
       };
     }
+  },
+
+  /**
+   * Switch user role (Landlord <-> Tenant)
+   * @param {string} role - 'landlord' or 'tenant'
+   */
+  async switchRole(role) {
+    try {
+      const response = await api.post('/switch-role', { role });
+      return {
+        success: true,
+        data: response.data.user || response.data,
+        message: response.data.message || 'Role switched successfully'
+      };
+    } catch (error) {
+      console.error('Error switching role:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to switch role'
+      };
+    }
   }
 };
 

@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import api from "../../utils/api";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import PricingHelp from "../../components/Rooms/PricingHelp";
+import PriceRow from "../../components/Shared/PriceRow";
 
 export default function AddRoomModal({
   isOpen,

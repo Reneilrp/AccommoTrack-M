@@ -23,7 +23,7 @@ export default function MyProperties({ user }) {
 
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentView, setCurrentView] = useState('list');
+  const [currentView, setCurrentView] = useState(uiState.data?.landlord_property_view || 'list');
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
   const navigate = useNavigate();
   const { collapse, setIsSidebarOpen, open } = useSidebar();
@@ -41,10 +41,20 @@ export default function MyProperties({ user }) {
     fetchProperties();
     checkVerificationStatus();
 
-    const handleOpenAdd = () => setCurrentView('add');
+    const handleOpenAdd = () => {
+      setCurrentView('add');
+      updateData('landlord_property_view', 'add');
+    };
     window.addEventListener('open-add-property', handleOpenAdd);
     return () => window.removeEventListener('open-add-property', handleOpenAdd);
   }, []);
+
+  useEffect(() => {
+    // Sync local state if global state changes from elsewhere
+    if (uiState.data?.landlord_property_view && uiState.data.landlord_property_view !== currentView) {
+      setCurrentView(uiState.data.landlord_property_view);
+    }
+  }, [uiState.data?.landlord_property_view]);
 
   const checkVerificationStatus = async () => {
     try {
@@ -118,6 +128,7 @@ export default function MyProperties({ user }) {
 
   const handleBackToList = () => {
     setCurrentView('list');
+    updateData('landlord_property_view', 'list');
     setSelectedPropertyId(null);
     fetchProperties();
   };

@@ -181,10 +181,22 @@ export const useMessaging = (user, accessRole = 'landlord') => {
   // Effects
   useEffect(() => {
     const initChat = async () => {
-      if (location.state?.startConversation) {
-        const { recipient_id, property_id } = location.state.startConversation;
+      // Check both formats: startConversation object or flat params
+      const startParams = location.state?.startConversation || {};
+      const recipientParam = location.state?.recipient || {};
+      const propertyParam = location.state?.property || {};
+
+      const recipient_id = startParams.recipient_id || startParams.landlord_id || recipientParam.id;
+      const property_id = startParams.property_id || propertyParam.id;
+      
+      const shouldStart = location.state?.startConversation || location.state?.startConversation === true;
+
+      if (shouldStart && recipient_id) {
         try {
-          const res = await api.post('/messages/start', { recipient_id, property_id });
+          const res = await api.post('/messages/start', { 
+            recipient_id, 
+            property_id 
+          });
           const conversation = res.data;
           if (conversation) {
             setConversations(prev => {

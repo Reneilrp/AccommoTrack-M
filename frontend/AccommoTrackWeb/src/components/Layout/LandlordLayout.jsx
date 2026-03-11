@@ -18,8 +18,10 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  ArrowLeftRight
 } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 export default function LandlordLayout({
   user,
@@ -37,6 +39,20 @@ export default function LandlordLayout({
   });
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleSwitchRole = async () => {
+    if (window.confirm('Are you sure you want to switch to Tenant mode?')) {
+      try {
+        const response = await authService.switchRole('tenant');
+        if (response.user) {
+          window.location.href = '/dashboard';
+        }
+      } catch (error) {
+        console.error('Failed to switch role:', error);
+        alert('Failed to switch role. Please try again.');
+      }
+    }
+  };
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
@@ -140,6 +156,10 @@ export default function LandlordLayout({
   };
 
   const getPageTitle = () => {
+    if (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') {
+      return 'Add New Property';
+    }
+    
     const item = landlordMenu.find(m => m.path === location.pathname);
     if (item) return item.label;
     if (location.pathname === '/settings') return 'Settings';
@@ -274,6 +294,21 @@ export default function LandlordLayout({
               )}
             </NavLink>
           ))}
+
+          <button
+            onClick={handleSwitchRole}
+            className={`
+              w-full flex items-center gap-3 px-4 py-3 transition-colors relative
+              text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700
+              ${!isSidebarOpen && 'justify-center'}
+            `}
+            title={!isSidebarOpen ? "Switch to Tenant" : ""}
+          >
+            <ArrowLeftRight className="w-5 h-5 flex-shrink-0" />
+            {isSidebarOpen && (
+              <span className="flex-1 text-left font-medium truncate">Switch to Tenant</span>
+            )}
+          </button>
         </nav>
 
         {/* Caretaker-only quick links */}
@@ -365,7 +400,7 @@ export default function LandlordLayout({
               {getPageTitle()}
             </h1>
             <div className="absolute right-4 lg:right-8 flex items-center gap-4">
-              {location.pathname === '/properties' && (
+              {location.pathname === '/properties' && uiState.data?.landlord_property_view !== 'add' && (
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}
                   className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"
@@ -374,7 +409,7 @@ export default function LandlordLayout({
                   <span className="hidden lg:inline">Add Property</span>
                 </button>
               )}
-              {location.pathname === '/bookings' && (
+              {location.pathname === '/bookings' && uiState.data?.landlord_booking_view !== 'add' && (
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-add-booking'))}
                   className="flex items-center gap-2 p-2 lg:px-4 lg:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-500/20"

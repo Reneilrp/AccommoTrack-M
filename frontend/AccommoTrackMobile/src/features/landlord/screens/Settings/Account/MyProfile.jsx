@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from 'expo-image-picker';
 import { getStyles } from '../../../../../styles/Landlord/MyProfile.js';
 import Button from '../../../components/Button.jsx';
@@ -31,6 +32,7 @@ export default function MyProfileScreen({ navigation }) {
   const [isEditing, setIsEditing] = useState(false);
   const [tempUser, setTempUser] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -61,6 +63,40 @@ export default function MyProfileScreen({ navigation }) {
     setRefreshing(true);
     await fetchProfile();
   }, [fetchProfile]);
+
+  const calculateAge = (dob) => {
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate =
+      selectedDate ||
+      (tempUser?.date_of_birth
+        ? new Date(tempUser.date_of_birth)
+        : new Date());
+    setShowDatePicker(Platform.OS === "ios");
+
+    if (event.type === "set" || Platform.OS === "ios") {
+      const age = calculateAge(currentDate);
+      if (age < 18) {
+        Alert.alert("Age Restriction", "You must be at least 18 years old.");
+        return;
+      }
+
+      const formattedDate = currentDate.toISOString().split("T")[0];
+      setTempUser((prev) => ({
+        ...prev,
+        date_of_birth: formattedDate,
+      }));
+    }
+  };
 
   // Handle image picker
   const handlePickImage = async () => {
@@ -98,10 +134,25 @@ export default function MyProfileScreen({ navigation }) {
         middle_name: tempUser.middle_name?.trim() || '',
         last_name: tempUser.last_name.trim(),
         phone: tempUser.phone?.trim() || '',
+        date_of_birth: tempUser.date_of_birth || null,
       }, selectedImage);
       
       if (response.success) {
-        setUser(response.data || tempUser);
+        const updatedUser = response.data || tempUser;
+        setUser(updatedUser);
+        
+        // Persist updated user data to AsyncStorage
+        try {
+          const stored = await AsyncStorage.getItem('user');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const newUserObj = { ...parsed, ...updatedUser };
+            await AsyncStorage.setItem('user', JSON.stringify(newUserObj));
+          }
+        } catch (e) {
+          console.error('Error persisting user update:', e);
+        }
+
         setSelectedImage(null);
         setIsEditing(false);
         Alert.alert('Success', 'Your profile has been updated!');
@@ -302,6 +353,35 @@ export default function MyProfileScreen({ navigation }) {
             maxLength={20}
             styles={styles}
           />
+
+          <View style={styles.fieldContainer}>
+            <View style={styles.fieldLabelContainer}>
+              <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+              <Text style={styles.fieldLabel}>Date of Birth</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => isEditing && setShowDatePicker(true)}
+              disabled={!isEditing}
+              style={[styles.fieldValue, isEditing && styles.fieldValueEditable]}
+            >
+              <Text style={{ color: tempUser?.date_of_birth ? theme.colors.text : "#9CA3AF", fontSize: 16 }}>
+                {tempUser?.date_of_birth || "Select Date of Birth"}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={
+                  tempUser?.date_of_birth
+                    ? new Date(tempUser.date_of_birth)
+                    : new Date(new Date().setFullYear(new Date().getFullYear() - 18))
+                }
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+                maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+              />
+            )}
+          </View>
         </View>
 
         {/* Account Status */}

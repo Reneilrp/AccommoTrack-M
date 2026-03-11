@@ -14,6 +14,7 @@ export default function InvoiceCheckout() {
   const [error, setError] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [remainingBalance, setRemainingBalance] = useState(0);
+  const [offlineDetails, setOfflineDetails] = useState({ method: '', reference: '', notes: '', show: false });
 
   useEffect(() => {
     loadInvoice();
@@ -28,7 +29,7 @@ export default function InvoiceCheckout() {
       
       const totalAmount = invData.amount_cents ? invData.amount_cents / 100 : Number(invData.amount || 0);
       const paidAmount = invData.transactions
-        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid' || tx.status === 'pending_offline')
         .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
         
       const balance = Math.max(0, totalAmount - paidAmount);
@@ -70,6 +71,30 @@ export default function InvoiceCheckout() {
     }
   };
 
+  const handleOfflinePayment = async () => {
+    const amountToPay = Number(paymentAmount);
+    if (isNaN(amountToPay) || amountToPay <= 0) {
+      return toast.error('Please enter a valid amount');
+    }
+
+    setProcessing(true);
+    try {
+      await api.post(`/tenant/invoices/${id}/record-offline`, {
+        amount_cents: Math.round(amountToPay * 100),
+        method: offlineDetails.method,
+        reference: offlineDetails.reference,
+        notes: offlineDetails.notes
+      });
+      
+      toast.success('Offline payment recorded! Please wait for landlord verification.');
+      navigate('/payments');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to record payment');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -97,6 +122,16 @@ export default function InvoiceCheckout() {
   }
 
   const isFullyPaid = remainingBalance <= 0;
+  
+  // Extract payment settings
+  const property = invoice.property || invoice.booking?.property;
+  const landlord = property?.landlord;
+  const acceptedPayments = property?.accepted_payments || ['cash'];
+  const globalSettings = landlord?.payment_methods_settings || { allowed: ['cash'], details: {} };
+  
+  const showOnline = acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
+  const showCash = acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
+  const showManualGcash = globalSettings.allowed?.includes('gcash');
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -144,6 +179,60 @@ export default function InvoiceCheckout() {
                 View History
               </button>
             </div>
+          ) : offlineDetails.show ? (
+            <div className="animate-in slide-in-from-right duration-300">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Record {offlineDetails.method === 'cash' ? 'Cash' : 'GCash'} Payment</h3>
+              
+              <div className="space-y-6 bg-gray-50 dark:bg-gray-900/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Amount to Pay (₱)</label>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">₱{Number(paymentAmount).toLocaleString()}</div>
+                </div>
+
+                {offlineDetails.method === 'gcash' && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                      Reference Number
+                    </label>
+                    <input
+                      type="text"
+                      value={offlineDetails.reference}
+                      onChange={(e) => setOfflineDetails({ ...offlineDetails, reference: e.target.value })}
+                      placeholder="Enter GCash reference number"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                    Notes / Message (Optional)
+                  </label>
+                  <textarea
+                    value={offlineDetails.notes}
+                    onChange={(e) => setOfflineDetails({ ...offlineDetails, notes: e.target.value })}
+                    placeholder={offlineDetails.method === 'cash' ? "e.g. Paid at the front desk" : "e.g. Transferred from mobile number ..."}
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none h-24 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button
+                  onClick={() => setOfflineDetails({ ...offlineDetails, show: false })}
+                  className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleOfflinePayment}
+                  disabled={processing || (offlineDetails.method === 'gcash' && !offlineDetails.reference)}
+                  className="flex-1 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {processing ? 'Processing...' : 'Submit Payment'}
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <div className="mb-8">
@@ -175,45 +264,92 @@ export default function InvoiceCheckout() {
               </h3>
               
               <div className="grid grid-cols-1 gap-4">
-                {/* GCash */}
-                <button
-                  onClick={() => handlePayMongoSource('gcash')}
-                  disabled={processing}
-                  className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                      <Wallet className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GCash</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instant payment via GCash wallet</p>
-                    </div>
-                  </div>
-                  <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-blue-500 flex items-center justify-center transition-colors">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
-                </button>
+                {/* PayMongo Online Options */}
+                {showOnline && (
+                  <>
+                    <button
+                      onClick={() => handlePayMongoSource('gcash')}
+                      disabled={processing}
+                      className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                          <Wallet className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GCash Online</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instant payment via PayMongo</p>
+                        </div>
+                      </div>
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-blue-500 flex items-center justify-center transition-colors">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                    </button>
 
-                {/* GrabPay */}
-                <button
-                  onClick={() => handlePayMongoSource('grab_pay')}
-                  disabled={processing}
-                  className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-600 dark:hover:border-green-600 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-700 dark:text-green-400 group-hover:scale-110 transition-transform">
-                      <Wallet className="w-7 h-7" />
+                    <button
+                      onClick={() => handlePayMongoSource('grab_pay')}
+                      disabled={processing}
+                      className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-600 dark:hover:border-green-600 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-700 dark:text-green-400 group-hover:scale-110 transition-transform">
+                          <Wallet className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GrabPay</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Direct payment via PayMongo</p>
+                        </div>
+                      </div>
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-green-600 flex items-center justify-center transition-colors">
+                        <div className="w-3 h-3 bg-green-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                    </button>
+                  </>
+                )}
+
+                {/* Manual GCash */}
+                {showManualGcash && (
+                  <button
+                    onClick={() => setOfflineDetails({ method: 'gcash', reference: '', notes: '', show: true })}
+                    disabled={processing}
+                    className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/10 rounded-xl flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                        <Landmark className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Manual GCash</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-1">{globalSettings.details?.gcash_info || 'Transfer to Landlord'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">GrabPay</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Direct payment using GrabPay credits</p>
+                  </button>
+                )}
+
+                {/* Cash */}
+                {showCash && (
+                  <button
+                    onClick={() => setOfflineDetails({ method: 'cash', reference: '', notes: '', show: true })}
+                    disabled={processing}
+                    className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="w-14 h-14 bg-green-50 dark:bg-green-900/10 rounded-xl flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
+                        <Landmark className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Cash Payment</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pay in person and record reference</p>
+                      </div>
                     </div>
+                  </button>
+                )}
+                
+                {!showOnline && !showCash && !showManualGcash && (
+                  <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">No payment methods currently available for this property. Please contact the landlord.</p>
                   </div>
-                  <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 group-hover:border-green-600 flex items-center justify-center transition-colors">
-                    <div className="w-3 h-3 bg-green-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
-                </button>
+                )}
               </div>
 
               <div className="mt-10 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-4">
@@ -221,11 +357,16 @@ export default function InvoiceCheckout() {
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                  Transactions are encrypted and processed by PayMongo. By proceeding, you agree to our <span className="text-green-600 dark:text-green-400 font-bold underline cursor-pointer">Payment Terms</span> and confirm this is a valid accommodation payment.
+                  Payments are securely tracked. By proceeding, you agree to our <span className="text-green-600 dark:text-green-400 font-bold underline cursor-pointer">Payment Terms</span> and confirm this is a valid accommodation payment.
                 </p>
               </div>
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
         </div>
       </div>
     </div>

@@ -121,7 +121,7 @@ class TenantPaymentController extends Controller
     public function show($id)
     {
         try {
-            $invoice = Invoice::with(['booking.property', 'property', 'booking.room', 'transactions'])
+            $invoice = Invoice::with(['booking.property.landlord', 'property.landlord', 'booking.room', 'transactions'])
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 

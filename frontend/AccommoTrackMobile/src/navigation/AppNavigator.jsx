@@ -11,7 +11,7 @@ import LandlordLayout from '../features/landlord/navigation/LandlordLayout.jsx';
 import TenantLayout from '../features/tenant/navigation/TenantLayout.jsx';
 import { getStyles } from '../styles/AppNavigator.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
-import { setForcedLogoutCallback } from './RootNavigation.js';
+import { setForcedLogoutCallback, setRoleSwitchCallback } from './RootNavigation.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,8 +22,7 @@ export default function AppNavigator() {
   const [userRole, setUserRole] = useState(null); 
   const [authContext, setAuthContext] = useState(null);
 
-  // Register the forced-logout handler so the API interceptor can trigger a
-  // navigation reset to the auth stack when a 401 or blocked (403) is received.
+  // Register handlers for navigation events
   useEffect(() => {
     setForcedLogoutCallback(async (isBlocked) => {
       try {
@@ -43,7 +42,16 @@ export default function AppNavigator() {
       setAuthContext('returning');
       setUserRole('auth');
     });
-    return () => setForcedLogoutCallback(null);
+
+    setRoleSwitchCallback((newRole) => {
+      console.log('🔄 Switching role to:', newRole);
+      setUserRole(newRole);
+    });
+
+    return () => {
+      setForcedLogoutCallback(null);
+      setRoleSwitchCallback(null);
+    };
   }, []);
 
   const handleLogout = async () => {

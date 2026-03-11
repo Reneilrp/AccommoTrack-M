@@ -215,22 +215,20 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   };
 
   // Booking window helpers:
-  // - check-in must be within current month (from today through end of this month)
+  // - check-in must be within 3 months from today
   // - check-out can be any future date after check-in
-  const getEndOfCurrentMonth = (fromDate = new Date()) => {
-    const year = fromDate.getFullYear();
-    const month = fromDate.getMonth(); // 0-indexed
-    const lastDay = new Date(year, month + 1, 0);
-    lastDay.setHours(23, 59, 59, 999);
-    return lastDay;
+  const getAllowedMaxDate = (fromDate = new Date()) => {
+    const dt = new Date(fromDate);
+    dt.setMonth(dt.getMonth() + 3);
+    return dt;
   };
 
-  const isStartWithinCurrentMonth = (date) => {
+  const isStartWithinAllowedRange = (date) => {
     if (!date) return false;
     const dt = new Date(date);
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const end = getEndOfCurrentMonth();
+    const end = getAllowedMaxDate();
     return dt >= start && dt <= end;
   };
 
@@ -238,13 +236,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const onStartDateChange = (event, selectedDate) => {
     setShowStartDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
-      // Ensure selected start date is within current month
-      if (!isStartWithinCurrentMonth(selectedDate)) {
-        Alert.alert('Invalid Check-in', 'Check-in must be within the current month.');
+      // Ensure selected start date is within allowed range
+      if (!isStartWithinAllowedRange(selectedDate)) {
+        Alert.alert('Invalid Check-in', 'Check-in must be within the next 3 months.');
         return;
       }
 
-      // Calculate default checkout date (30 days / 1 month later) - allow it to extend beyond current month
+      // Calculate default checkout date (30 days / 1 month later) - allow it to extend beyond 3 months
       const defaultEndDate = new Date(selectedDate);
       defaultEndDate.setDate(defaultEndDate.getDate() + 30);
 
@@ -349,9 +347,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       return false;
     }
 
-    // Ensure start is within current month
-    if (!isStartWithinCurrentMonth(start)) {
-      Alert.alert('Invalid Date', 'Check-in must be within the current month.');
+    // Ensure start is within allowed range (3 months)
+    if (!isStartWithinAllowedRange(start)) {
+      Alert.alert('Invalid Date', 'Check-in must be within the next 3 months.');
       return false;
     }
 
@@ -753,7 +751,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onStartDateChange}
                   minimumDate={new Date()}
-                  maximumDate={getEndOfCurrentMonth()}
+                  maximumDate={getAllowedMaxDate()}
                 />
               )}
             </View>

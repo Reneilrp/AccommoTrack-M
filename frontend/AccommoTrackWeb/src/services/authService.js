@@ -73,4 +73,12 @@ export const authService = {
     });
     return response.data;
   },
+
+  async switchRole(role) {
+    const response = await api.post("/switch-role", { role });
+    if (response.data.user) {
+      localStorage.setItem("userData", JSON.stringify(response.data.user));
+    }
+    return response.data;
+  },
 };
