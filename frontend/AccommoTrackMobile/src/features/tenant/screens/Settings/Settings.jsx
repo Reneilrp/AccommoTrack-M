@@ -27,6 +27,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const [isGuestMode, setIsGuestMode] = useState(isGuest ?? true);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('tenant');
+  const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -58,9 +59,13 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
 
   const loadSettings = async () => {
     try {
-      const res = await ProfileService.getProfile();
-      if (res.success && res.data) {
-        const prefs = res.data.notification_preferences;
+      const [profileRes, verificationRes] = await Promise.all([
+        ProfileService.getProfile(),
+        ProfileService.getVerificationStatus()
+      ]);
+      
+      if (profileRes.success && profileRes.data) {
+        const prefs = profileRes.data.notification_preferences;
         if (prefs) {
           const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
           setNotificationSettings({
@@ -70,6 +75,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             locationServices: parsed.locationServices ?? true
           });
         }
+      }
+
+      if (verificationRes.success) {
+        setLandlordVerificationStatus(verificationRes.data.status);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -161,62 +170,54 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const handleSwitchRole = async () => {
     const newRole = userRole === 'landlord' ? 'tenant' : 'landlord';
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
+    const switchFn = async () => {
+      try {
+        setLoading(true);
+        const res = await ProfileService.switchRole(newRole);
+        if (res.success) {
+          const userJson = await AsyncStorage.getItem('user');
+          if (userJson) {
+            const user = JSON.parse(userJson);
+            user.role = newRole;
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            if (user.id) {
+              await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
+            }
+          }
+          triggerRoleSwitch(newRole);
+        } else {
+          Alert.alert('Error', res.error || 'Failed to switch role');
+        }
+      } catch (error) {
+        console.error('Role switch error:', error);
+        Alert.alert('Error', 'An unexpected error occurred while switching roles.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // Tenant switching to Landlord: Navigate to verification screen
     if (userRole === 'tenant' && newRole === 'landlord') {
-      Alert.alert(
-        `Become a Landlord`,
-        `To become a landlord, you need to submit verification documents. Would you like to proceed?`,
-        [
+      if (landlordVerificationStatus === 'approved') {
+        Alert.alert(`Switch to ${roleName}`, `Are you sure you want to switch your account to ${roleName} mode?`, [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Proceed',
-            onPress: () => navigation.navigate('VerificationStatus'),
-          },
-        ],
-      );
+          { text: 'Switch', onPress: switchFn },
+        ]);
+      } else if (landlordVerificationStatus === 'pending') {
+        Alert.alert('Verification Pending', 'Your landlord verification is still under review. Please wait for approval before switching.');
+      } else {
+        Alert.alert('Become a Landlord', `To become a landlord, you need to submit verification documents. Would you like to proceed?`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Proceed', onPress: () => navigation.navigate('VerificationStatus') },
+        ]);
+      }
       return;
     }
 
-    // Landlord switching to Tenant: The original flow
-    Alert.alert(
-      `Switch to ${roleName}`,
-      `Are you sure you want to switch your account to ${roleName} mode?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Switch',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const res = await ProfileService.switchRole(newRole);
-              if (res.success) {
-                // Update local storage
-                const userJson = await AsyncStorage.getItem('user');
-                if (userJson) {
-                  const user = JSON.parse(userJson);
-                  user.role = newRole;
-                  await AsyncStorage.setItem('user', JSON.stringify(user));
-                  // Persist role preference across logout/login cycles
-                  if (user.id) {
-                    await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
-                  }
-                }
-                // Trigger navigation refresh
-                triggerRoleSwitch(newRole);
-              } else {
-                Alert.alert('Error', res.error || 'Failed to switch role');
-              }
-            } catch (error) {
-              console.error('Role switch error:', error);
-              Alert.alert('Error', 'An unexpected error occurred while switching roles.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
-    );
+    // Landlord switching to Tenant (or any other case)
+    Alert.alert(`Switch to ${roleName}`, `Are you sure you want to switch your account to ${roleName} mode?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Switch', onPress: switchFn },
+    ]);
   };
 
   const handleLogout = async () => {

@@ -45,17 +45,16 @@ class AuthController extends Controller
                 'last_name' => 'required|string|max:100',
                 // Require RFC syntax during registration
                 'email' => 'required|string|email:rfc|max:255|unique:users',
-                'password' => [
-                    'required',
-                    'string',
-                    'min:8',
-                    'confirmed',
-                    'regex:/[a-z]/',      // at least one lowercase letter
-                    'regex:/[A-Z]/',      // at least one uppercase letter
-                    'regex:/(.*[0-9]){2,}/', // at least two numbers
-                    'regex:/[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]/' // at least one special character
-                ],
-                'role' => 'required|in:landlord,tenant',
+                            'password' => [
+                                'required',
+                                'string',
+                                'min:8',
+                                'confirmed',
+                                'regex:/[a-z]/',      // at least one lowercase letter
+                                'regex:/[A-Z]/',      // at least one uppercase letter
+                                'regex:/(.*[0-9]){2,}/', // at least two numbers
+                                'regex:{[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]}', // at least one special character
+                            ],                'role' => 'required|in:landlord,tenant',
                 'phone' => 'nullable|string|max:20',
             ], [
                 'email.unique' => 'This email is already taken. Please use a different email address.',
@@ -230,7 +229,7 @@ class AuthController extends Controller
                     'regex:/[a-z]/',      // at least one lowercase letter
                     'regex:/[A-Z]/',      // at least one uppercase letter
                     'regex:/(.*[0-9]){2,}/', // at least two numbers
-                    'regex:/[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]/' // at least one special character
+                    'regex:{[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]}', // at least one special character
                 ],
             ], [
                 'new_password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, at least two numbers, and one special character.',
