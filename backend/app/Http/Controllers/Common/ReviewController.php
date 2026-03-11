@@ -109,9 +109,9 @@ class ReviewController extends Controller
                 return response()->json(['message' => 'You can only review your own bookings'], 403);
             }
 
-            // Check if booking is completed
-            if ($booking->status !== 'completed') {
-                return response()->json(['message' => 'You can only review completed bookings'], 400);
+            // Check if booking is completed or confirmed
+            if (!in_array($booking->status, ['completed', 'confirmed'])) {
+                return response()->json(['message' => 'You can only review confirmed or completed bookings'], 400);
             }
 
             // Check if already reviewed

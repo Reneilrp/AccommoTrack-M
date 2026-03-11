@@ -506,7 +506,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             <Wrench className="w-4 h-4" />
                             Maintenance
                           </button>
-                          {!booking.hasReview && (
+                          {(!booking.hasReview && !booking.has_review) && (
                             <button 
                               onClick={() => onReview({ ...booking, property })}
                               className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-green-500/20"
@@ -917,7 +917,7 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport, onCancelBooking, isC
                 <div className="flex flex-col items-end gap-2">
                   <StatusBadge status={booking.status} />
                   <div className="flex items-center gap-3">
-                    {booking.status === 'completed' && !booking.review && (
+                    {['completed', 'confirmed'].includes(booking.status) && !booking.review && (
                       <button 
                         onClick={() => onReview(booking)}
                         className="flex items-center gap-1 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"

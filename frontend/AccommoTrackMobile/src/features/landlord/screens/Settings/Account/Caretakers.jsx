@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { getStyles } from '../../../../../styles/Landlord/Caretakers.js';
 import CaretakerService from '../../../../../services/CaretakerService.js';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
@@ -34,6 +35,7 @@ export default function Caretakers() {
   const [isEditing, setIsEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [roomPermissionPrompt, setRoomPermissionPrompt] = useState(false);
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
 
@@ -41,9 +43,11 @@ export default function Caretakers() {
   const [formData, setFormData] = useState({
     assignmentId: null,
     firstName: '',
+    middleName: '',
     lastName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
     password: '',
     passwordConfirmation: '',
     permissions: {
@@ -78,9 +82,11 @@ export default function Caretakers() {
     setFormData({
       assignmentId: null,
       firstName: '',
+      middleName: '',
       lastName: '',
       email: '',
       phone: '',
+      dateOfBirth: '',
       password: '',
       passwordConfirmation: '',
           permissions: {
@@ -118,9 +124,11 @@ export default function Caretakers() {
     setFormData({
       assignmentId: item.id,
       firstName: item.caretaker.first_name,
+      middleName: item.caretaker.middle_name || '',
       lastName: item.caretaker.last_name,
       email: item.caretaker.email,
       phone: item.caretaker.phone || '',
+      dateOfBirth: item.caretaker.date_of_birth || '',
       password: '',
       passwordConfirmation: '',
       permissions: {
@@ -202,27 +210,66 @@ export default function Caretakers() {
     if (!isEditing) {
       // Create
       payload.first_name = formData.firstName;
+      payload.middle_name = formData.middleName;
       payload.last_name = formData.lastName;
       payload.email = formData.email;
       payload.phone = formData.phone;
+      payload.date_of_birth = formData.dateOfBirth;
       payload.password = formData.password;
       payload.password_confirmation = formData.passwordConfirmation;
       
       const res = await CaretakerService.createCaretaker(payload);
       if (res.success) {
+        const newData = res.data.caretaker;
+        const transformed = {
+          id: newData.assignment_id,
+          caretaker: {
+            first_name: newData.first_name,
+            middle_name: newData.middle_name,
+            last_name: newData.last_name,
+            email: newData.email,
+            phone: newData.phone,
+            date_of_birth: newData.date_of_birth,
+          },
+          permissions: newData.permissions,
+          assigned_properties: newData.assigned_properties,
+          assigned_property_ids: newData.assigned_properties.map(p => p.id),
+        };
+        setCaretakers(prev => [transformed, ...prev]);
         showSuccess('Success', `Caretaker created! Temp password: ${res.data.temporary_password || formData.password}`);
         setModalVisible(false);
-        fetchData();
       } else {
         showError('Error', res.error);
       }
     } else {
       // Update
+      payload.first_name = formData.firstName;
+      payload.middle_name = formData.middleName;
+      payload.last_name = formData.lastName;
+      payload.email = formData.email;
+      payload.phone = formData.phone;
+      payload.date_of_birth = formData.dateOfBirth;
+
       const res = await CaretakerService.updateCaretaker(formData.assignmentId, payload);
       if (res.success) {
+        const newData = res.data.caretaker;
+        const transformed = {
+          id: newData.assignment_id,
+          caretaker: {
+            first_name: newData.first_name,
+            middle_name: newData.middle_name,
+            last_name: newData.last_name,
+            email: newData.email,
+            phone: newData.phone,
+            date_of_birth: newData.date_of_birth,
+          },
+          permissions: newData.permissions,
+          assigned_properties: newData.assigned_properties,
+          assigned_property_ids: newData.assigned_properties.map(p => p.id),
+        };
+        setCaretakers(prev => prev.map(c => c.id === formData.assignmentId ? transformed : c));
         showSuccess('Success', 'Caretaker updated');
         setModalVisible(false);
-        fetchData();
       } else {
         showError('Error', res.error);
       }
@@ -412,6 +459,15 @@ export default function Caretakers() {
                   />
                   {fieldErrors.firstName ? <Text style={styles.fieldError}>{fieldErrors.firstName}</Text> : null}
                   
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Middle Name (Optional)</Text>
+                  <TextInput 
+                    style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border }]} 
+                    value={formData.middleName} 
+                    onChangeText={(t) => setFormData(prev => ({...prev, middleName: t}))} 
+                    placeholder="e.g. Quency"
+                    placeholderTextColor={theme.colors.textTertiary}
+                  />
+
                   <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Last Name</Text>
                   <TextInput 
                     style={[styles.input, { color: theme.colors.text, borderColor: fieldErrors.lastName ? '#EF4444' : theme.colors.border }]} 
@@ -444,6 +500,29 @@ export default function Caretakers() {
                     placeholderTextColor={theme.colors.textTertiary}
                   />
                   {fieldErrors.phone ? <Text style={styles.fieldError}>{fieldErrors.phone}</Text> : null}
+
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Date of Birth</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(true)}
+                    style={[styles.input, { justifyContent: 'center', borderColor: theme.colors.border }]}
+                  >
+                    <Text style={{ color: formData.dateOfBirth ? theme.colors.text : theme.colors.textTertiary }}>
+                      {formData.dateOfBirth || "Select Date of Birth"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (date) {
+                          setFormData(prev => ({ ...prev, dateOfBirth: date.toISOString().split('T')[0] }));
+                        }
+                      }}
+                    />
+                  )}
 
                   <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Account Password</Text>
                   <View style={[styles.passwordContainer, { borderColor: theme.colors.border }]}>

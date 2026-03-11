@@ -54,8 +54,8 @@ export default function MyBookings() {
         const all = bookingsRes.data || [];
         // Pending: status is pending
         setPendingBookings(all.filter(b => b.status?.toLowerCase() === 'pending'));
-        // History: finished or rejected
-        setHistoryData(all.filter(b => ['completed', 'cancelled', 'rejected'].includes(b.status?.toLowerCase())));
+        // History: finished, rejected, or confirmed (if they are past stays)
+        setHistoryData(all.filter(b => ['completed', 'confirmed', 'cancelled', 'rejected'].includes(b.status?.toLowerCase())));
       }
     } catch (error) {
       console.error('Error fetching bookings data:', error);
@@ -325,11 +325,11 @@ export default function MyBookings() {
                {!booking.isPending ? (
                  <>
                    <TouchableOpacity 
-                    style={[styles.reviewBtn, { backgroundColor: !booking.hasReview ? theme.colors.primary : theme.colors.backgroundTertiary }]}
-                    disabled={booking.hasReview}
+                    style={[styles.reviewBtn, { backgroundColor: (!booking.hasReview && !booking.has_review) ? theme.colors.primary : theme.colors.backgroundTertiary }]}
+                    disabled={booking.hasReview || booking.has_review}
                     onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: property.id })}
                    >
-                     <Text style={{ color: !booking.hasReview ? '#fff' : theme.colors.textTertiary, fontWeight: 'bold' }}>Review</Text>
+                     <Text style={{ color: (!booking.hasReview && !booking.has_review) ? '#fff' : theme.colors.textTertiary, fontWeight: 'bold' }}>Review</Text>
                    </TouchableOpacity>
                    <TouchableOpacity 
                     style={[styles.reviewBtn, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
@@ -529,6 +529,16 @@ export default function MyBookings() {
                     </Text>
                  </View>
               </View>
+
+              {/* Review Button for History */}
+              {['completed', 'confirmed'].includes(booking.status?.toLowerCase()) && !booking.has_review && !booking.hasReview && (
+                <TouchableOpacity 
+                  style={[styles.reviewBtn, { backgroundColor: theme.colors.primary, marginTop: 0, marginBottom: 12, width: '100%' }]}
+                  onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: booking.property?.id || booking.property_id })}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Leave a Review</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Activity Timeline */}
               {booking.activityLog && booking.activityLog.length > 0 && (

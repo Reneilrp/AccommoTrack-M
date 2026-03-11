@@ -233,7 +233,7 @@ export default function TenantNotifications({ navigation }) {
       const [backendRes, bookingsRes, paymentsRes] = await Promise.all([
         api.get("/notifications").catch(() => ({ data: [] })),
         BookingService.getMyBookings(),
-        PaymentService.getMyPayments(),
+        PaymentService.getPayments(),
       ]);
 
       const items = [];

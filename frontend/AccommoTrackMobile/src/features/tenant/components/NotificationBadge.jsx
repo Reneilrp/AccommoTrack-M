@@ -17,7 +17,7 @@ export default function NotificationBadge({ type = 'combined', compact = false, 
       // Try to fetch counts; services may return arrays or objects
       const [bookingsRes, paymentsRes] = await Promise.all([
         BookingService.getMyBookings ? BookingService.getMyBookings() : Promise.resolve({ success: false }),
-        PaymentService.getMyPayments ? PaymentService.getMyPayments() : Promise.resolve({ success: false })
+        PaymentService.getPayments ? PaymentService.getPayments() : Promise.resolve({ success: false })
       ]);
 
       if (bookingsRes && bookingsRes.success && Array.isArray(bookingsRes.data)) {

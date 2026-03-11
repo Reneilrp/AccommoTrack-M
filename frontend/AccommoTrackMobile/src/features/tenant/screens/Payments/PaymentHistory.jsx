@@ -18,7 +18,7 @@ export default function PaymentHistory() {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      const paymentsResult = await PaymentService.getMyPayments();
+      const paymentsResult = await PaymentService.getPayments();
       if (paymentsResult.success && paymentsResult.data) {
         setPayments(paymentsResult.data);
       } else {

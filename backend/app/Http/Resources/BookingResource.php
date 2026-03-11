@@ -51,6 +51,16 @@ class BookingResource extends JsonResource
             'confirmed_at' => $this->confirmed_at,
             'refund_amount' => $this->refund_amount,
             'refund_processed_at' => $this->refund_processed_at,
+            'has_review' => $this->review()->exists(),
+            'review' => $this->whenLoaded('review', fn() => [
+                'id' => $this->review->id,
+                'rating' => $this->review->rating,
+                'comment' => $this->review->comment,
+            ]) ?: ($this->review ? [
+                'id' => $this->review->id,
+                'rating' => $this->review->rating,
+                'comment' => $this->review->comment,
+            ] : null),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 

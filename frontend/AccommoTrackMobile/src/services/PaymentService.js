@@ -6,7 +6,7 @@ class PaymentService {
   /**
    * Get all payments for the authenticated tenant
    */
-  async getMyPayments(status = "all") {
+  async getPayments(status = "all") {
     try {
       const url =
         status !== "all"
@@ -31,7 +31,7 @@ class PaymentService {
   /**
    * Get payment statistics
    */
-  async getPaymentStats() {
+  async getStats() {
     try {
       const response = await api.get(`/tenant/payments/stats`);
 

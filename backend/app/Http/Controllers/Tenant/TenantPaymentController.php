@@ -102,10 +102,16 @@ class TenantPaymentController extends Controller
                 ->orderBy('due_date', 'asc')
                 ->first();
 
+            // Total outstanding balance
+            $pendingAmountCents = Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'unpaid', 'overdue'])
+                ->sum(DB::raw('amount_cents - paid_amount_cents'));
+
             return response()->json([
                 'totalPaidThisMonth' => (float) $totalPaidThisMonthCents / 100,
                 'paidCount' => $paidCount,
-                'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->format('M d') : 'None'
+                'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->format('M d') : 'None',
+                'pendingAmount' => (float) $pendingAmountCents / 100
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

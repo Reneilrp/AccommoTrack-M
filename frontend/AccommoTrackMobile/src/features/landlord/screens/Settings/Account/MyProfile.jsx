@@ -85,8 +85,8 @@ export default function MyProfileScreen({ navigation }) {
 
     if (event.type === "set" || Platform.OS === "ios") {
       const age = calculateAge(currentDate);
-      if (age < 18) {
-        Alert.alert("Age Restriction", "You must be at least 18 years old.");
+      if (age < 20) {
+        Alert.alert("Age Restriction", "You must be at least 20 years old.");
         return;
       }
 
@@ -373,12 +373,12 @@ export default function MyProfileScreen({ navigation }) {
                 value={
                   tempUser?.date_of_birth
                     ? new Date(tempUser.date_of_birth)
-                    : new Date(new Date().setFullYear(new Date().getFullYear() - 18))
+                    : new Date(new Date().setFullYear(new Date().getFullYear() - 20))
                 }
                 mode="date"
                 display="default"
                 onChange={handleDateChange}
-                maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 20))}
               />
             )}
           </View>

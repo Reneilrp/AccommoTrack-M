@@ -90,7 +90,7 @@ export default function PaymentsScreen() {
   const isPayable = (payment) => {
     const status = (payment.status || '').toString().toLowerCase();
     const paymentStatus = (payment.paymentStatus || '').toString().toLowerCase();
-    const payableStatus = ['unpaid', 'pending', 'refunded'];
+    const payableStatus = ['unpaid', 'pending', 'refunded', 'partial'];
     const payableBookingStatus = ['unpaid', 'partial', 'refunded'];
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
@@ -253,6 +253,7 @@ export default function PaymentsScreen() {
       case 'completed':
         return theme.colors.primary;
       case 'pending':
+      case 'partial':
         return '#F59E0B';
       case 'refunded':
         return '#9333EA';
