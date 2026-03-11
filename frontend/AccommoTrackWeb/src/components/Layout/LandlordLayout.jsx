@@ -18,10 +18,8 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Menu,
-  ChevronLeft,
-  ArrowLeftRight
+  ChevronLeft
 } from 'lucide-react';
-import { authService } from '../../services/authService';
 
 export default function LandlordLayout({
   user,
@@ -39,8 +37,6 @@ export default function LandlordLayout({
   });
   const location = useLocation();
   const navigate = useNavigate();
-
-  };
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
@@ -217,136 +213,51 @@ export default function LandlordLayout({
           </div>
         )}
 
-        {/* User Profile */}
+        {/* User Profile Summary */}
         <div 
             className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             onClick={() => navigate('/settings')}
             title="Go to Profile Settings"
         >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-            <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {user?.profile_image ? (
-                <img 
-                  src={getImageUrl(user.profile_image)} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-brand-600 dark:text-brand-400 font-semibold">
-                  {user?.first_name?.[0]}{user?.last_name?.[0]}
-                </span>
-              )}
-            </div>
+            <img
+              src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${user?.name || 'Landlord'}&background=random`}
+              alt="Profile"
+              className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
+            />
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={`${user?.first_name} ${user?.last_name}`}>
-                  {user?.first_name} {user?.last_name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={user?.email}>{user?.email}</p>
-                {isCaretaker && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">Caretaker Access</p>
-                )}
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name || 'Landlord'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{normalizedRole}</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4">
+        <nav className="flex-1 py-4 overflow-y-auto">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) => 
-                `w-full flex items-center gap-3 px-4 py-3 transition-colors relative ${
-                  isActive
-                    ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 border-r-4 border-brand-600 dark:border-brand-500'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                } ${!isSidebarOpen && 'justify-center'}`
-              }
-              title={!isSidebarOpen ? item.label : ''}
+              className={({ isActive }) => `
+                w-full flex items-center gap-3 px-4 py-3 transition-colors relative
+                ${isActive 
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
+                ${!isSidebarOpen && 'justify-center'}
+              `}
             >
               {item.icon}
               {isSidebarOpen && (
-                <>
-                  <span className="flex-1 text-left font-medium truncate" title={item.label}>{item.label}</span>
-                  {item.badge && (
-                    <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </>
-              )}
-              {!isSidebarOpen && item.badge && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+                <span className="font-medium truncate">{item.label}</span>
               )}
             </NavLink>
           ))}
-
-          <button
-            onClick={handleSwitchRole}
-            className={`
-              w-full flex items-center gap-3 px-4 py-3 transition-colors relative
-              text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700
-              ${!isSidebarOpen && 'justify-center'}
-            `}
-            title={!isSidebarOpen ? "Switch to Tenant" : ""}
-          >
-            <ArrowLeftRight className="w-5 h-5 flex-shrink-0" />
-            {isSidebarOpen && (
-              <span className="flex-1 text-left font-medium truncate">Switch to Tenant</span>
-            )}
-              <div className="text-xs text-gray-500 dark:text-gray-400">Monitoring</div>
-              <div 
-                className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1 truncate"
-                title={selectedCaretakerProperty ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`) : ''}
-              >
-                {selectedCaretakerProperty
-                  ? (caretakerProperties.find((p) => p.id === selectedCaretakerProperty)?.title || `Property ${selectedCaretakerProperty}`)
-                  : 'No assigned property'}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              {caretakerPermissions.rooms && (
-                (selectedCaretakerProperty) ? (
-                  <NavLink
-                    to={`/rooms?property=${selectedCaretakerProperty}`}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <Building2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span>Rooms</span>
-                  </NavLink>
-                ) : (
-                  <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700" aria-disabled="true">
-                    <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span>Rooms</span>
-                  </div>
-                )
-              )}
-
-              {caretakerPermissions.tenants && (
-                (selectedCaretakerProperty) ? (
-                  <NavLink
-                    to={`/tenants?property=${selectedCaretakerProperty}`}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <Users className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span>Tenants</span>
-                  </NavLink>
-                ) : (
-                  <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700" aria-disabled="true">
-                    <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span>Tenants</span>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        )}
+        </nav>
 
         {/* Bottom Actions */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto space-y-2">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={handleLogoutClick}
             className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${

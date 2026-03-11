@@ -31,6 +31,7 @@ import MyReviews from '../screens/Reviews/MyReviews.jsx';
 import BookingDetails from '../screens/Bookings/BookingDetails.jsx';
 import ReportProperty from '../screens/Support/ReportProperty.jsx';
 import ServiceRequests from '../screens/ServiceRequests/ServiceRequests.jsx';
+import VerificationStatus from '../../landlord/screens/Settings/Account/VerificationStatus.jsx';
 
 const RootStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
@@ -100,6 +101,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
         </MainStack.Screen>
 
         <MainStack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }} />
+        <MainStack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
         
         <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
           {(props) => (

@@ -4,7 +4,8 @@ import PreferencesTab from '../../components/Settings/tenant/PreferencesTab';
 import AccountTab from '../../components/Settings/tenant/AccountTab';
 import NotificationsTab from '../../components/Settings/tenant/NotificationsTab';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
-import { User, Sliders, Shield, Bell, Palette } from 'lucide-react';
+import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
+import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight } from 'lucide-react';
 
 const TenantSettings = ({ user, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -15,6 +16,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
     { id: 'account', label: 'Account Security', icon: 'Shield' },
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
     { id: 'appearance', label: 'Appearance', icon: 'Palette' },
+    { id: 'switch-role', label: 'Switch Role', icon: 'ArrowLeftRight' },
   ];
 
   return (
@@ -44,12 +46,13 @@ const TenantSettings = ({ user, onUserUpdate }) => {
 
         {/* Main Content */}
         <div className="flex-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 md:p-8">
+          <div className="">
             {activeTab === 'profile' && <ProfileTab onUserUpdate={onUserUpdate} />}
             {activeTab === 'preferences' && <PreferencesTab />}
             {activeTab === 'account' && <AccountTab user={user} />}
             {activeTab === 'notifications' && <NotificationsTab />}
             {activeTab === 'appearance' && <AppearanceTab />}
+            {activeTab === 'switch-role' && <SwitchRoleTab />}
           </div>
         </div>
       </div>
@@ -64,6 +67,7 @@ const Icon = ({ name, className }) => {
     case 'Shield': return <Shield className={className} />;
     case 'Bell': return <Bell className={className} />;
     case 'Palette': return <Palette className={className} />;
+    case 'ArrowLeftRight': return <ArrowLeftRight className={className} />;
     default: return null;
   }
 };

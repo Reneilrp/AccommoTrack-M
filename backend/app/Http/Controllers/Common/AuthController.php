@@ -27,8 +27,8 @@ class AuthController extends Controller
     public function checkEmail(Request $request)
     {
         $request->validate([
-            // Use email:rfc,dns to validate syntax and DNS/MX records
-            'email' => 'required|email:rfc,dns',
+            // Use email:rfc to validate syntax
+            'email' => 'required|email:rfc',
         ]);
         $exists = User::where('email', $request->email)->exists();
         return response()->json([
@@ -38,38 +38,53 @@ class AuthController extends Controller
     }
     public function register(Request $request)
     {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'last_name' => 'required|string|max:100',
-            // Require RFC syntax and DNS/MX check during registration
-            'email' => 'required|string|email:rfc,dns|max:255|unique:users',
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'confirmed',
-                'regex:/[a-z]/',      // at least one lowercase letter
-                'regex:/[A-Z]/',      // at least one uppercase letter
-                'regex:/(.*[0-9]){2,}/', // at least two numbers
-                'regex:/[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]/' // at least one special character
-            ],
-            'role' => 'required|in:landlord,tenant',
-            'phone' => 'nullable|string|max:20',
-        ], [
-            'email.unique' => 'This email is already taken. Please use a different email address.',
-            'email.email' => 'Email address is not valid or cannot receive mail.',
-        ]);
+        try {
+            $validated = $request->validate([
+                'first_name' => 'required|string|max:100',
+                'middle_name' => 'nullable|string|max:100',
+                'last_name' => 'required|string|max:100',
+                // Require RFC syntax during registration
+                'email' => 'required|string|email:rfc|max:255|unique:users',
+                'password' => [
+                    'required',
+                    'string',
+                    'min:8',
+                    'confirmed',
+                    'regex:/[a-z]/',      // at least one lowercase letter
+                    'regex:/[A-Z]/',      // at least one uppercase letter
+                    'regex:/(.*[0-9]){2,}/', // at least two numbers
+                    'regex:/[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]/' // at least one special character
+                ],
+                'role' => 'required|in:landlord,tenant',
+                'phone' => 'nullable|string|max:20',
+            ], [
+                'email.unique' => 'This email is already taken. Please use a different email address.',
+                'email.email' => 'Email address is not valid or cannot receive mail.',
+            ]);
 
-        $user = $this->authService->register($validated);
+            $user = $this->authService->register($validated);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            try {
+                $token = $user->createToken('auth_token')->plainTextToken;
+            } catch (\Exception $e) {
+                // If token creation fails (e.g. missing table), delete user and rethrow
+                $user->delete();
+                throw new \Exception('Failed to create access token. Please ensure migrations are run: ' . $e->getMessage());
+            }
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-            'message' => 'Registration successful.'
-        ], 201);
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+                'message' => 'Registration successful.'
+            ], 201);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Registration failed: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function login(Request $request)

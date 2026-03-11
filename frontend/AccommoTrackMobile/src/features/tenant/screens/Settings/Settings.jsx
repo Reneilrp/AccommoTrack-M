@@ -161,7 +161,24 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
   const handleSwitchRole = async () => {
     const newRole = userRole === 'landlord' ? 'tenant' : 'landlord';
     const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
-    
+
+    // Tenant switching to Landlord: Navigate to verification screen
+    if (userRole === 'tenant' && newRole === 'landlord') {
+      Alert.alert(
+        `Become a Landlord`,
+        `To become a landlord, you need to submit verification documents. Would you like to proceed?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Proceed',
+            onPress: () => navigation.navigate('VerificationStatus'),
+          },
+        ],
+      );
+      return;
+    }
+
+    // Landlord switching to Tenant: The original flow
     Alert.alert(
       `Switch to ${roleName}`,
       `Are you sure you want to switch your account to ${roleName} mode?`,
@@ -196,9 +213,9 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
             } finally {
               setLoading(false);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
