@@ -171,6 +171,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         type="date"
                         value={profileData.dateOfBirth ? profileData.dateOfBirth.split('T')[0] : ''}
                         onChange={e => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 20)).toISOString().split('T')[0]}
                         className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                       />
                     </div>

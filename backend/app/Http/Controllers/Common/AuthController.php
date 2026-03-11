@@ -175,7 +175,7 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            $validated = $request->validate([
+            $rules = [
                 'first_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
@@ -186,6 +186,20 @@ class AuthController extends Controller
                 'payment_methods_settings.allowed' => 'nullable|array',
                 'payment_methods_settings.details' => 'nullable|array',
                 'notification_preferences' => 'nullable|array',
+            ];
+
+            // Add role-based age validation
+            if ($request->filled('date_of_birth')) {
+                $minAge = $user->role === 'landlord' ? 20 : 18;
+                $rules['date_of_birth'] = [
+                    'nullable',
+                    'date',
+                    'before_or_equal:' . now()->subYears($minAge)->format('Y-m-d')
+                ];
+            }
+
+            $validated = $request->validate($rules, [
+                'date_of_birth.before_or_equal' => 'User must be at least ' . ($user->role === 'landlord' ? '20' : '18') . ' years old.'
             ]);
 
             // Handle profile image upload
@@ -202,10 +216,31 @@ class AuthController extends Controller
                 }
             }
 
-            $user->update($validated);
+            // Separate user data from tenant profile data
+            $userFields = [
+                'first_name', 'middle_name', 'last_name', 'phone', 'profile_image', 
+                'payment_methods_settings', 'notification_preferences'
+            ];
+            $tenantProfileFields = ['date_of_birth', 'gender'];
+
+            $userData = array_intersect_key($validated, array_flip($userFields));
+            $tenantData = array_intersect_key($validated, array_flip($tenantProfileFields));
+
+            // Update the core user table
+            if (!empty($userData)) {
+                $user->update($userData);
+            }
+
+            // If the user is a tenant and there's tenant-specific data, update their profile
+            if ($user->role === 'tenant' && !empty($tenantData)) {
+                $user->tenantProfile()->updateOrCreate(
+                    ['user_id' => $user->id],
+                    $tenantData
+                );
+            }
 
             return response()->json([
-                'user' => $user->fresh(),
+                'user' => $user->fresh()->load('tenantProfile'),
                 'message' => 'Profile updated successfully'
             ]);
         } catch (\Exception $e) {

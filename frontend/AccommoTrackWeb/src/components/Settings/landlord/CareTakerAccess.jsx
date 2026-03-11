@@ -45,9 +45,11 @@ export default function CareTakerAccess({
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
     first_name: '',
+    middle_name: '',
     last_name: '',
     email: '',
     phone: '',
+    date_of_birth: '',
     password: '',
     password_confirmation: '',
     permissions: {},
@@ -58,9 +60,11 @@ export default function CareTakerAccess({
   const [propertyError, setPropertyError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({
     first_name: '',
+    middle_name: '',
     last_name: '',
     email: '',
     phone: '',
+    date_of_birth: '',
   });
   const navigate = useNavigate();
 
@@ -69,7 +73,7 @@ export default function CareTakerAccess({
   const safeProperties = Array.isArray(landlordProperties) ? landlordProperties : [];
   const safeSelectedIds = Array.isArray(selectedPropertyIds) ? selectedPropertyIds : [];
   const safePermissions = caretakerPermissions || {};
-  const safeForm = caretakerForm || { first_name: '', last_name: '', email: '', password: '', password_confirmation: '', phone: '' };
+  const safeForm = caretakerForm || { first_name: '', middle_name: '', last_name: '', email: '', password: '', password_confirmation: '', phone: '', date_of_birth: '' };
   const safeState = caretakerState || { loading: false, error: '' };
 
   useEffect(() => {
@@ -111,19 +115,21 @@ export default function CareTakerAccess({
     },
   ];
   const resetCreationForm = () => {
-    if (setCaretakerForm) setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
+    if (setCaretakerForm) setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
     if (resetCaretakerPermissions) resetCaretakerPermissions();
     if (setSelectedPropertyIds) setSelectedPropertyIds([]);
-    setFieldErrors({ first_name: '', last_name: '', email: '', phone: '' });
+    setFieldErrors({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '' });
   };
 
   const handleEditClick = (c) => {
     setEditFormData({
       id: c.id,
       first_name: c.caretaker.first_name || '',
+      middle_name: c.caretaker.middle_name || '',
       last_name: c.caretaker.last_name || '',
       email: c.caretaker.email || '',
       phone: c.caretaker.phone || '',
+      date_of_birth: c.caretaker.date_of_birth ? new Date(c.caretaker.date_of_birth).toISOString().split('T')[0] : '',
       password: '',
       password_confirmation: '',
       permissions: {
@@ -182,6 +188,11 @@ export default function CareTakerAccess({
     }
 
     try {
+      if (!editFormData.id) {
+        toast.error("Invalid caretaker ID");
+        return;
+      }
+
       // Map to backend keys
       const mappedPermissions = {
         can_view_bookings: !!editFormData.permissions.bookings,
@@ -191,33 +202,51 @@ export default function CareTakerAccess({
         can_view_properties: !!editFormData.permissions.properties
       };
 
-      await api.patch(`/landlord/caretakers/${editFormData.id}`, {
+      const updateData = {
         first_name: editFormData.first_name,
+        middle_name: editFormData.middle_name,
         last_name: editFormData.last_name,
         email: editFormData.email,
         phone: editFormData.phone,
-        password: editFormData.password || undefined,
-        password_confirmation: editFormData.password_confirmation || undefined,
+        date_of_birth: editFormData.date_of_birth,
         property_ids: editFormData.property_ids,
         permissions: mappedPermissions
-      });
+      };
+
+      if (editFormData.password && editFormData.password.trim() !== '') {
+        updateData.password = editFormData.password;
+        updateData.password_confirmation = editFormData.password_confirmation;
+      }
+
+      await api.patch(`/landlord/caretakers/${editFormData.id}`, updateData);
 
       toast.success('Caretaker updated successfully');
       setShowEditModal(false);
       fetchCaretakers();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update caretaker');
+      console.error('Update caretaker failed:', err);
+      const msg = err.response?.data?.message || 'Failed to update caretaker';
+      const errors = err.response?.data?.errors;
+      if (errors) {
+        const firstError = Object.values(errors)[0];
+        toast.error(`${msg}: ${Array.isArray(firstError) ? firstError[0] : firstError}`);
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
   const handleMessageCaretaker = (c) => {
+    if (!c?.caretaker?.id) {
+      toast.error("Cannot message: Caretaker user ID not found");
+      return;
+    }
     setSelectedCaretaker(null);
-    // Assuming we have a /messages route that can take a userId or similar
-    // Similar to mobile navigation
     navigate('/messages', { 
       state: { 
         startConversation: true, 
-        participant: { 
+        recipient_id: c.caretaker.id,
+        recipient: { 
           id: c.caretaker.id, 
           name: `${c.caretaker.first_name} ${c.caretaker.last_name}`,
           role: 'caretaker'
@@ -375,6 +404,17 @@ export default function CareTakerAccess({
                             />
                           </div>
                           <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Middle Name (Optional)</label>
+                            <input
+                              name="middle_name"
+                              type="text"
+                              placeholder="e.g. Quency"
+                              value={safeForm.middle_name}
+                              onChange={handleInputChange}
+                              className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.middle_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
                             <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Last Name</label>
                             <input
                               name="last_name"
@@ -405,6 +445,16 @@ export default function CareTakerAccess({
                               value={safeForm.phone}
                               onChange={handleInputChange}
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.phone ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Date of Birth (Optional)</label>
+                            <input
+                              name="date_of_birth"
+                              type="date"
+                              value={safeForm.date_of_birth}
+                              onChange={handleInputChange}
+                              className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.date_of_birth ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">
@@ -945,6 +995,15 @@ export default function CareTakerAccess({
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Middle Name</label>
+                  <input
+                    type="text"
+                    value={editFormData.middle_name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, middle_name: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Last Name</label>
                   <input
                     type="text"
@@ -968,6 +1027,15 @@ export default function CareTakerAccess({
                     type="text"
                     value={editFormData.phone}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={editFormData.date_of_birth}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, date_of_birth: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
                   />
                 </div>
@@ -1025,24 +1093,40 @@ export default function CareTakerAccess({
                         />
                       </div>
                       <span className="font-bold text-gray-900 dark:text-white text-sm">{field.label}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">{field.description}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               {/* Properties Section */}
-              <div className="space-y-4">
-                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Assigned Properties
-                </h4>
-                <div className="flex flex-wrap gap-2">
+              <div className={`space-y-4 p-4 rounded-2xl transition-all duration-300 ${
+                editFormData.property_ids.length === 0 
+                  ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-gray-800' 
+                  : ''
+              }`}>
+                <div className="flex items-center justify-between">
+                  <h4 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
+                    editFormData.property_ids.length === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'
+                  }`}>
+                    <Building2 className="w-4 h-4" /> Assigned Properties
+                  </h4>
+                  {editFormData.property_ids.length === 0 && (
+                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1 animate-pulse">
+                      <AlertCircle className="w-3 h-3" /> Still didn't assign a property
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
                   {safeProperties.map((property) => (
                     <label 
                       key={property.id} 
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                      className={`flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
                         editFormData.property_ids.includes(property.id)
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200 dark:shadow-none'
-                          : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
+                          : editFormData.property_ids.length === 0
+                            ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
+                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
                       }`}
                     >
                       <input
@@ -1059,7 +1143,8 @@ export default function CareTakerAccess({
                         }}
                         className="hidden"
                       />
-                      <span>{property.name || property.title}</span>
+                      <span className="whitespace-nowrap">{property.name || property.title || 'Unnamed Property'}</span>
+                      <Building2 className={`w-4 h-4 shrink-0 ${editFormData.property_ids.includes(property.id) ? 'text-emerald-100' : 'text-gray-400'}`} />
                     </label>
                   ))}
                 </div>

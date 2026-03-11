@@ -309,7 +309,7 @@ const ProfileTab = ({ onUserUpdate }) => {
               value={formData.date_of_birth}
               onChange={handleChange}
               disabled={!isEditing}
-              max={new Date().toISOString().split('T')[0]}
+              max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
               onKeyDown={(e) => e.preventDefault()}
               onClick={(e) => isEditing && e.target.showPicker?.()}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 cursor-pointer"

@@ -99,7 +99,7 @@ class TenantSettingsController extends Controller
                 'notification_preferences'      => 'nullable',
 
                 // TenantProfile fields
-                'date_of_birth'                 => 'nullable|date',
+                'date_of_birth'                 => ['nullable', 'date', 'before_or_equal:' . now()->subYears(18)->format('Y-m-d')],
                 'gender'                        => 'nullable|string|max:50',
                 'emergency_contact_name'        => 'nullable|string|max:255',
                 'emergency_contact_phone'       => 'nullable|string|max:20',
@@ -110,6 +110,8 @@ class TenantSettingsController extends Controller
                 'move_in_date'                  => 'nullable|date',
                 'move_out_date'                 => 'nullable|date',
                 'status'                        => 'nullable|string',
+            ], [
+                'date_of_birth.before_or_equal' => 'Tenants must be at least 18 years old.'
             ]);
 
             DB::beginTransaction();

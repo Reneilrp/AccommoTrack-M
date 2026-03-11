@@ -161,11 +161,17 @@ class CaretakerController extends Controller
         $context = $this->resolveLandlordContext($request);
         $this->assertNotCaretaker($context);
 
+        $assignment = CaretakerAssignment::where('landlord_id', $context['landlord_id'])
+            ->with('caretaker')
+            ->findOrFail($assignmentId);
+
         $validated = $request->validate([
             'first_name' => 'sometimes|string|max:255',
+            'middle_name' => 'sometimes|nullable|string|max:255',
             'last_name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|max:255',
+            'email' => 'sometimes|email|max:255|unique:users,email,' . $assignment->caretaker_id,
             'phone' => 'sometimes|nullable|string|max:20',
+            'date_of_birth' => 'sometimes|nullable|date',
             'password' => 'sometimes|nullable|string|min:6|confirmed',
             'permissions' => 'sometimes|array',
             'permissions.can_view_bookings' => 'sometimes|boolean',
@@ -173,21 +179,19 @@ class CaretakerController extends Controller
             'permissions.can_view_tenants' => 'sometimes|boolean',
             'permissions.can_view_rooms' => 'sometimes|boolean',
             'permissions.can_view_properties' => 'sometimes|boolean',
-            'property_ids' => 'sometimes|array',
+            'property_ids' => 'sometimes|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
         ]);
 
-        $assignment = CaretakerAssignment::where('landlord_id', $context['landlord_id'])
-            ->with('caretaker')
-            ->findOrFail($assignmentId);
-
         // Update caretaker personal details if provided
         $caretakerUpdates = [];
-        if (isset($validated['first_name'])) $caretakerUpdates['first_name'] = $validated['first_name'];
-        if (isset($validated['last_name']))  $caretakerUpdates['last_name']  = $validated['last_name'];
-        if (isset($validated['email']))      $caretakerUpdates['email']      = $validated['email'];
-        if (array_key_exists('phone', $validated)) $caretakerUpdates['phone'] = $validated['phone'];
-        if (!empty($validated['password']))  $caretakerUpdates['password']   = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        if (isset($validated['first_name']))  $caretakerUpdates['first_name']  = $validated['first_name'];
+        if (isset($validated['middle_name'])) $caretakerUpdates['middle_name'] = $validated['middle_name'];
+        if (isset($validated['last_name']))   $caretakerUpdates['last_name']   = $validated['last_name'];
+        if (isset($validated['email']))       $caretakerUpdates['email']       = $validated['email'];
+        if (array_key_exists('phone', $validated))         $caretakerUpdates['phone']         = $validated['phone'];
+        if (array_key_exists('date_of_birth', $validated))  $caretakerUpdates['date_of_birth']  = $validated['date_of_birth'];
+        if (!empty($validated['password']))   $caretakerUpdates['password']    = \Illuminate\Support\Facades\Hash::make($validated['password']);
         if (!empty($caretakerUpdates)) {
             $assignment->caretaker->update($caretakerUpdates);
         }
@@ -241,9 +245,11 @@ class CaretakerController extends Controller
             'caretaker' => [
                 'assignment_id' => $assignment->id,
                 'first_name' => $assignment->caretaker->first_name,
+                'middle_name' => $assignment->caretaker->middle_name,
                 'last_name' => $assignment->caretaker->last_name,
                 'email' => $assignment->caretaker->email,
                 'phone' => $assignment->caretaker->phone,
+                'date_of_birth' => $assignment->caretaker->date_of_birth,
                 'permissions' => [
                     'bookings' => $assignment->can_view_bookings,
                     'messages' => $assignment->can_view_messages,

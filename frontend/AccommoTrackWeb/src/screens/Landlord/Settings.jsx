@@ -87,7 +87,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   // --- Caretaker State ---
   const [caretakers, setCaretakers] = useState(() => Array.isArray(cachedData?.caretakers) ? cachedData.caretakers : []);
   const [landlordProperties, setLandlordProperties] = useState(() => Array.isArray(cachedData?.landlordProperties) ? cachedData.landlordProperties : []);
-  const [caretakerForm, setCaretakerForm] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
+  const [caretakerForm, setCaretakerForm] = useState({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
   const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
   const [caretakerPermissions, setCaretakerPermissions] = useState(createCaretakerPermissionDefaults());
   const [caretakerState, setCaretakerState] = useState({ loading: false, error: '' });
@@ -235,9 +235,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         caretaker: {
           id: null, // The user ID is not returned from this endpoint
           first_name: newCaretakerData.first_name,
+          middle_name: newCaretakerData.middle_name,
           last_name: newCaretakerData.last_name,
           email: newCaretakerData.email,
           phone: newCaretakerData.phone,
+          date_of_birth: newCaretakerData.date_of_birth,
           is_active: true,
         },
         permissions: newCaretakerData.permissions,
@@ -249,7 +251,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       setCaretakers(prev => [transformedCaretaker, ...prev]);
       
       toast.success('Caretaker added!');
-      setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
+      setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
       setSelectedPropertyIds([]);
       resetCaretakerPermissions();
     } catch (e) {
@@ -284,9 +286,11 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         caretaker: {
           id: null, // Not available in response
           first_name: updatedCaretakerData.first_name,
+          middle_name: updatedCaretakerData.middle_name,
           last_name: updatedCaretakerData.last_name,
           email: updatedCaretakerData.email,
           phone: updatedCaretakerData.phone,
+          date_of_birth: updatedCaretakerData.date_of_birth,
           is_active: true,
         },
         permissions: updatedCaretakerData.permissions,
