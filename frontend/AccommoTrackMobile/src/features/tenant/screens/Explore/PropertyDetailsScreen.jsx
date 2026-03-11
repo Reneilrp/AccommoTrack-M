@@ -25,13 +25,13 @@ import homeStyles from "../../../../styles/Tenant/HomePage.js";
 import PropertyService from "../../../../services/PropertyService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
-import { useAuth } from "../../../../contexts/AuthContext.jsx";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import IconWithBadge from '../../../../components/IconWithBadge.jsx';
 
 export default function PropertyDetailsScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const [user, setUser] = useState(null);
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const {
     accommodation,
@@ -55,6 +55,18 @@ export default function PropertyDetailsScreen({ route }) {
 
 
   const effectiveId = accommodation?.id || propertyId;
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (e) {}
+    };
+    loadUser();
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {

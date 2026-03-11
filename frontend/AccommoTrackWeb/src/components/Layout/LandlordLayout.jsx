@@ -40,18 +40,6 @@ export default function LandlordLayout({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleSwitchRole = async () => {
-    if (window.confirm('Are you sure you want to switch to Tenant mode?')) {
-      try {
-        const response = await authService.switchRole('tenant');
-        if (response.user) {
-          window.location.href = '/dashboard';
-        }
-      } catch (error) {
-        console.error('Failed to switch role:', error);
-        alert('Failed to switch role. Please try again.');
-      }
-    }
   };
 
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -308,17 +296,6 @@ export default function LandlordLayout({
             {isSidebarOpen && (
               <span className="flex-1 text-left font-medium truncate">Switch to Tenant</span>
             )}
-          </button>
-        </nav>
-
-        {/* Caretaker-only quick links */}
-        {isCaretaker && (
-          <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">Caretaker</div>
-            </div>
-
-            <div className="mb-2">
               <div className="text-xs text-gray-500 dark:text-gray-400">Monitoring</div>
               <div 
                 className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-1 truncate"

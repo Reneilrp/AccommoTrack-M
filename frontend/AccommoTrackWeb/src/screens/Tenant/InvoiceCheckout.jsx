@@ -367,8 +367,3 @@ export default function InvoiceCheckout() {
     </div>
   );
 }
-        </div>
-      </div>
-    </div>
-  );
-}

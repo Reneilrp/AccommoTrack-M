@@ -26,18 +26,6 @@ export default function TenantLayout({ user, onLogout, children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleSwitchRole = async () => {
-    if (window.confirm('Are you sure you want to switch to Landlord mode?')) {
-      try {
-        const response = await authService.switchRole('landlord');
-        if (response.user) {
-          window.location.href = '/dashboard';
-        }
-      } catch (error) {
-        console.error('Failed to switch role:', error);
-        alert('Failed to switch role. Please try again.');
-      }
-    }
   };
 
   const tenantMenu = [
@@ -192,19 +180,6 @@ export default function TenantLayout({ user, onLogout, children }) {
                         )}
                       </button>
                     </nav>
-        {/* Settings + Logout Buttons (bottom) */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto space-y-2">
-          <button
-            onClick={() => setShowLogoutModal(true)}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
-              !isSidebarOpen && 'justify-center'
-            }`}
-          >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {isSidebarOpen && <span className="font-medium">Log out</span>}
-          </button>
-        </div>
-      </aside>
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>

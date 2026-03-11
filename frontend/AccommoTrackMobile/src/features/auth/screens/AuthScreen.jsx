@@ -439,6 +439,24 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
 
         // Persist token inside the user object for standardized access across the app
         const userObj = { ...(data.user || {}), token: data.token || (data.user && data.user.token) };
+        
+        // Restore previously switched role if any (helps for unverified landlords)
+        let effectiveRole = data.user.role;
+        try {
+          const savedRole = await AsyncStorage.getItem(`user_role_${data.user.id}`);
+          // Only override if the backend returns tenant or landlord, and we have a local preference for the other.
+          // This avoids touching special roles like 'caretaker' unless explicitly desired.
+          if (savedRole && savedRole !== effectiveRole && 
+              (effectiveRole === 'landlord' || effectiveRole === 'tenant') && 
+              (savedRole === 'landlord' || savedRole === 'tenant')) {
+            console.log(`🔄 Restoring persisted role preference: ${savedRole} (Backend was: ${effectiveRole})`);
+            effectiveRole = savedRole;
+            userObj.role = savedRole;
+          }
+        } catch (e) {
+          console.error('Failed to restore role preference:', e);
+        }
+
         await AsyncStorage.setItem('user', JSON.stringify(userObj));
         // Keep legacy `token` key for backward compatibility
         if (data.token) {
@@ -448,12 +466,12 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         await AsyncStorage.setItem('hasLaunched', 'true');
 
         
-        console.log('✅ Login successful! Role:', data.user.role);
+        console.log('✅ Login successful! Role:', effectiveRole, (effectiveRole !== data.user.role ? `(Backend: ${data.user.role})` : ''));
         console.log('✅ Token saved');
         console.log('✅ User ID saved:', data.user.id);
         
         if (onLoginSuccess) {
-          onLoginSuccess(data.user.role);
+          onLoginSuccess(effectiveRole);
         }
       } else {
         // Check for pending verification (restricted)

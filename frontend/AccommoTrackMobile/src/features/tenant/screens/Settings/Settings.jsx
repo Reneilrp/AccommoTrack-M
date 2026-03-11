@@ -180,6 +180,10 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
                   const user = JSON.parse(userJson);
                   user.role = newRole;
                   await AsyncStorage.setItem('user', JSON.stringify(user));
+                  // Persist role preference across logout/login cycles
+                  if (user.id) {
+                    await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
+                  }
                 }
                 // Trigger navigation refresh
                 triggerRoleSwitch(newRole);
@@ -212,7 +216,8 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
               if (onLogout) {
                 await onLogout();
               } else {
-                await AsyncStorage.clear();
+                // Clear only auth-related data
+                await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
                 triggerForcedLogout();
               }
             } catch (error) {

@@ -343,22 +343,6 @@ export default function VerificationStatus({ navigation }) {
           </View>
         )}
 
-        {/* Action Button */}
-        {(verification?.status === "rejected" ||
-          verification?.status === "not_submitted") && (
-          <TouchableOpacity
-            style={styles.resubmitButton}
-            onPress={() => setShowResubmitForm(true)}
-          >
-            <Ionicons name="cloud-upload-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.resubmitButtonText}>
-              {verification?.status === "rejected"
-                ? "Resubmit Documents"
-                : "Submit Verification"}
-            </Text>
-          </TouchableOpacity>
-        )}
-
         {/* History Section */}
         {verification?.history && verification.history.length > 0 && (
           <View>
@@ -437,6 +421,24 @@ export default function VerificationStatus({ navigation }) {
           </View>
         )}
       </ScrollView>
+
+      {/* Fixed Footer with Action Button */}
+      {(verification?.status === "rejected" ||
+        verification?.status === "not_submitted") && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.resubmitButton}
+            onPress={() => setShowResubmitForm(true)}
+          >
+            <Ionicons name="cloud-upload-outline" size={22} color="#FFFFFF" />
+            <Text style={styles.resubmitButtonText}>
+              {verification?.status === "rejected"
+                ? "Resubmit Documents"
+                : "Submit Verification"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Form Modal */}
       <Modal

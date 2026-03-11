@@ -227,13 +227,13 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
         style: 'destructive',
         onPress: async () => {
           try {
-            if (onLogout) {
-              await onLogout();
-            } else {
-              await AsyncStorage.clear();
-              triggerForcedLogout();
-            }
-          } catch (error) {
+                      if (onLogout) {
+                        await onLogout();
+                      } else {
+                        // Clear only auth-related data
+                        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+                        triggerForcedLogout();
+                      }          } catch (error) {
             console.error('Logout error:', error);
           }
         }

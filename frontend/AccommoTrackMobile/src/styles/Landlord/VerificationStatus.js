@@ -24,7 +24,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   statusCard: {
     padding: 20,
@@ -164,6 +164,13 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700',
+  },
+  footer: {
+    padding: 16,
+    paddingBottom: 24,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
   },
   
   // History Styles

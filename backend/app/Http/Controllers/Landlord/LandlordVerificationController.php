@@ -214,11 +214,8 @@ class LandlordVerificationController extends Controller
         
         $verification = LandlordVerification::where('user_id', $user->id)->first();
         
-        if (!$verification) {
-            return response()->json(['message' => 'No verification record found'], 404);
-        }
-
-        if ($verification->status !== 'rejected') {
+        // If it exists, check if it's rejected. If it doesn't exist, we'll create it.
+        if ($verification && $verification->status !== 'rejected') {
             return response()->json([
                 'message' => 'You can only resubmit after your application has been rejected'
             ], 400);
@@ -241,21 +238,35 @@ class LandlordVerificationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Save old documents to history (already done during rejection, but keep paths for reference)
             // Store new files
             $validIdPath = $request->file('valid_id')->store('landlord_ids', 'public');
             $permitPath = $request->file('permit')->store('landlord_permits', 'public');
 
-            // Update verification record with new documents
-            $verification->valid_id_type = $request->valid_id_type;
-            $verification->valid_id_other = $request->valid_id_other;
-            $verification->valid_id_path = $validIdPath;
-            $verification->permit_path = $permitPath;
-            $verification->status = 'pending';
-            $verification->rejection_reason = null;
-            $verification->reviewed_at = null;
-            $verification->reviewed_by = null;
-            $verification->save();
+            if ($verification) {
+                // Update verification record with new documents
+                $verification->valid_id_type = $request->valid_id_type;
+                $verification->valid_id_other = $request->valid_id_other;
+                $verification->valid_id_path = $validIdPath;
+                $verification->permit_path = $permitPath;
+                $verification->status = 'pending';
+                $verification->rejection_reason = null;
+                $verification->reviewed_at = null;
+                $verification->reviewed_by = null;
+                $verification->save();
+            } else {
+                // Create new verification record
+                $verification = LandlordVerification::create([
+                    'user_id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'middle_name' => $user->middle_name,
+                    'last_name' => $user->last_name,
+                    'valid_id_type' => $request->valid_id_type,
+                    'valid_id_other' => $request->valid_id_other,
+                    'valid_id_path' => $validIdPath,
+                    'permit_path' => $permitPath,
+                    'status' => 'pending',
+                ]);
+            }
 
             DB::commit();
 

@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { getStyles } from "../../../../styles/Landlord/Settings.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
-import { triggerForcedLogout } from "../../../../navigation/RootNavigation.js";
+import { triggerForcedLogout, triggerRoleSwitch } from "../../../../navigation/RootNavigation.js";
 
 import ProfileService from "../../../../services/ProfileService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
@@ -71,7 +71,9 @@ const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
             ? theme.colors.successLight
             : item.value === "Pending"
               ? theme.colors.warningLight
-              : theme.colors.backgroundTertiary,
+              : item.value === "Rejected"
+                ? theme.colors.errorLight
+                : theme.colors.backgroundTertiary,
       };
       const textStyle = {
         fontSize: 12,
@@ -81,7 +83,9 @@ const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
             ? theme.colors.successDark
             : item.value === "Pending"
               ? theme.colors.warningDark
-              : theme.colors.textSecondary,
+              : item.value === "Rejected"
+                ? theme.colors.error
+                : theme.colors.textSecondary,
       };
       return (
         <View style={statusStyle}>
@@ -126,6 +130,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const styles = useMemo(() => getStyles(theme), [theme]);
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState("landlord");
+  const [verificationStatus, setVerificationStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notificationPrefs, setNotificationPrefs] = useState({
     payments: true,
@@ -142,11 +147,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const res = await ProfileService.getProfile();
-      if (res.success && res.data) {
-        setUser(res.data);
-        setUserRole(res.data.role || "landlord");
-        const prefs = res.data.notification_preferences;
+      const [profileRes, verificationRes] = await Promise.all([
+        ProfileService.getProfile(),
+        ProfileService.getVerificationStatus()
+      ]);
+
+      if (profileRes.success && profileRes.data) {
+        setUser(profileRes.data);
+        setUserRole(profileRes.data.role || "landlord");
+        const prefs = profileRes.data.notification_preferences;
         if (prefs) {
           const parsed = typeof prefs === "string" ? JSON.parse(prefs) : prefs;
           setNotificationPrefs({
@@ -157,6 +166,10 @@ export default function SettingsScreen({ navigation, onLogout }) {
             email: parsed.email ?? true,
           });
         }
+      }
+
+      if (verificationRes.success) {
+        setVerificationStatus(verificationRes.data.status || 'not_submitted');
       }
     } catch (error) {
       console.error("Failed to load user info:", error.message);
@@ -173,18 +186,65 @@ export default function SettingsScreen({ navigation, onLogout }) {
         style: "destructive",
         onPress: async () => {
           try {
-            if (onLogout) {
-              await onLogout();
-            } else {
-              await AsyncStorage.clear();
-              triggerForcedLogout();
-            }
-          } catch (error) {
+                      if (onLogout) {
+                        await onLogout();
+                      } else {
+                        // Clear only auth-related data
+                        await AsyncStorage.multiRemove(['token', 'user', 'user_id', 'isGuest']);
+                        triggerForcedLogout();
+                      }          } catch (error) {
             console.error("Logout error:", error);
           }
         },
       },
     ]);
+  };
+
+  const handleSwitchRole = async () => {
+    const newRole = userRole === "landlord" ? "tenant" : "landlord";
+    const roleName = newRole.charAt(0).toUpperCase() + newRole.slice(1);
+
+    Alert.alert(
+      `Switch to ${roleName}`,
+      `Are you sure you want to switch your account to ${roleName} mode?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Switch",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const res = await ProfileService.switchRole(newRole);
+              if (res.success) {
+                // Update local storage
+                const userJson = await AsyncStorage.getItem("user");
+                if (userJson) {
+                  const user = JSON.parse(userJson);
+                  user.role = newRole;
+                  await AsyncStorage.setItem("user", JSON.stringify(user));
+                  // Persist role preference across logout/login cycles
+                  if (user.id) {
+                    await AsyncStorage.setItem(`user_role_${user.id}`, newRole);
+                  }
+                }
+                // Trigger navigation refresh
+                triggerRoleSwitch(newRole);
+              } else {
+                Alert.alert("Error", res.error || "Failed to switch role");
+              }
+            } catch (error) {
+              console.error("Role switch error:", error);
+              Alert.alert(
+                "Error",
+                "An unexpected error occurred while switching roles.",
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleUnavailable = (label) => {
@@ -212,16 +272,16 @@ export default function SettingsScreen({ navigation, onLogout }) {
   };
 
   const handleItemPress = (item) => {
-    if (item.type === "navigate") {
+    if (item.type === "navigate" || item.target) {
       navigation.navigate(item.target);
       return;
     }
-    if (item.type === "action" && item.action) {
+    if (item.action) {
       item.action();
       return;
     }
     if (item.type === "value" || item.type === "status") {
-      // For status, maybe navigate to a detail screen in the future
+      // If no action or target, do nothing
       return;
     }
     handleUnavailable(item.label);
@@ -261,16 +321,25 @@ export default function SettingsScreen({ navigation, onLogout }) {
         ? "Verified"
         : "Pending";
 
+    const idStatusLabel = !verificationStatus || verificationStatus === 'not_submitted'
+      ? "Not Submitted"
+      : verificationStatus === 'pending'
+        ? "Pending"
+        : verificationStatus === 'rejected'
+          ? "Rejected"
+          : "Verified";
+
     const allSections = [
       {
         title: "Account",
         items: [
           {
             id: "verification",
-            label: "ID Verification",
+            label: verificationStatus === 'not_submitted' ? "Submit Documents" : "ID Verification",
             description: "ID and business permit status",
-            icon: "shield-checkmark-outline",
-            type: "navigate",
+            icon: verificationStatus === 'approved' ? "shield-checkmark-outline" : "alert-circle-outline",
+            type: "status",
+            value: idStatusLabel,
             target: "VerificationStatus",
             role: "landlord",
           },
@@ -404,6 +473,13 @@ export default function SettingsScreen({ navigation, onLogout }) {
             type: "toggle",
             value: isDarkMode,
             stateKey: "darkMode",
+          },
+          {
+            id: "switch-role",
+            label: userRole === "landlord" ? "Switch to Tenant" : "Switch to Landlord",
+            icon: "swap-horizontal-outline",
+            type: "action",
+            action: () => handleSwitchRole(),
           },
           {
             id: "version",
