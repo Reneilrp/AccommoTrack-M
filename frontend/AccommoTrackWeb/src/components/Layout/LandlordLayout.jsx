@@ -88,6 +88,7 @@ export default function LandlordLayout({
   ];
 
   const caretakerAllowedPaths = new Set([
+    '/dashboard',
     caretakerPermissions.rooms ? '/rooms' : null,
     caretakerPermissions.rooms ? '/maintenance' : null,
     caretakerPermissions.bookings ? '/bookings' : null,
@@ -221,13 +222,15 @@ export default function LandlordLayout({
         >
           <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
             <img
-              src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${user?.name || 'Landlord'}&background=random`}
+              src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || 'Landlord'))}&background=random`}
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
             />
             {isSidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name || 'Landlord'}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || 'Landlord')}
+                </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{normalizedRole}</p>
               </div>
             )}

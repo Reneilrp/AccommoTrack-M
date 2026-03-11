@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -12,7 +12,7 @@ import {
   Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { getStyles } from "../../../../styles/Tenant/HomePage.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 
@@ -59,16 +59,14 @@ export default function TenantHomePage({
   ];
 
   useEffect(() => {
-    loadProperties();
-  }, [selectedFilter]);
-
-  useEffect(() => {
     filterProperties();
   }, [properties, searchQuery, activeTab, selectedCurfew]);
 
-  const loadProperties = async () => {
+  const loadProperties = useCallback(async () => {
     try {
-      setLoading(true);
+      if (properties.length === 0) {
+        setLoading(true);
+      }
       setError(null);
 
       const filters = {};
@@ -95,7 +93,13 @@ export default function TenantHomePage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedFilter]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProperties();
+    }, [loadProperties])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

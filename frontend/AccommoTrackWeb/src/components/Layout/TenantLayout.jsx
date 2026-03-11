@@ -71,7 +71,7 @@ export default function TenantLayout({ user, onLogout, children }) {
     return 'AccommoTrack';
   };
 
-  const displayName = user?.name || (user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Tenant');
+  const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || 'Tenant');
 
   return (
     <div className="flex h-screen bg-gray-200 dark:bg-gray-900">

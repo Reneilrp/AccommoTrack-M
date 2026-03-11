@@ -47,10 +47,11 @@ export default function Caretakers() {
     password: '',
     passwordConfirmation: '',
     permissions: {
-      bookings: true,
-      messages: true,
-      tenants: true,
+      bookings: false,
+      messages: false,
+      tenants: false,
       rooms: false,
+      properties: false,
     },
     propertyIds: []
   });
@@ -82,13 +83,13 @@ export default function Caretakers() {
       phone: '',
       password: '',
       passwordConfirmation: '',
-      permissions: {
-        bookings: true,
-        messages: true,
-        tenants: true,
-        rooms: false,
-      },
-      propertyIds: []
+          permissions: {
+            bookings: false,
+            messages: false,
+            tenants: false,
+            rooms: false,
+            properties: false,
+          },      propertyIds: []
     });
     setFieldErrors({});
     setIsEditing(false);
@@ -127,6 +128,7 @@ export default function Caretakers() {
         messages: permMap.messages || permMap.can_view_messages || false,
         tenants: permMap.tenants || permMap.can_view_tenants || false,
         rooms: permMap.rooms || permMap.can_view_rooms || false,
+        properties: permMap.properties || permMap.can_view_properties || false,
       },
       propertyIds: item.assigned_property_ids || []
     });
@@ -193,7 +195,7 @@ export default function Caretakers() {
         can_view_messages: formData.permissions.messages,
         can_view_tenants: formData.permissions.tenants,
         can_view_rooms: formData.permissions.rooms,
-        can_view_properties: false, // Default to false as web version doesn't handle this
+        can_view_properties: formData.permissions.properties,
       }
     };
 
@@ -481,7 +483,8 @@ export default function Caretakers() {
                       {key === 'bookings' ? 'View and manage reservation requests' : 
                        key === 'tenants' ? 'Access profiles and room assignments' : 
                        key === 'messages' ? 'Chat with prospects and residents' : 
-                       'Full control over room availability'}
+                       key === 'rooms' ? 'Full control over room availability' :
+                       'View and manage property details'}
                     </Text>
                   </View>
                   <Switch

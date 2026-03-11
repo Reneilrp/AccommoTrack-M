@@ -17,9 +17,9 @@ const VALID_TABS = ['profile', 'notifications', 'security', 'caretaker', 'paymen
 const ensureValidTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'profile');
 
 const createCaretakerPermissionDefaults = () => ({
-  bookings: true,
-  tenants: true,
-  messages: true,
+  bookings: false,
+  tenants: false,
+  messages: false,
   rooms: false,
   properties: false
 });
@@ -36,6 +36,19 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   });
 
   const normalizedRole = accessRole || user?.role || 'landlord';
+
+  const allTabs = [
+    { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'caretaker', label: 'Caretaker Management', icon: <Users className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'verification', label: 'Verification', icon: <ShieldCheck className="w-4 h-4" />, roles: ['landlord'] },
+    { id: 'appearance', label: 'Appearance', icon: <Palette className="w-4 h-4" />, roles: ['landlord', 'caretaker'] },
+    { id: 'switch-role', label: 'Switch Role', icon: <ArrowLeftRight className="w-4 h-4" />, roles: ['landlord'] },
+  ];
+
+  const visibleTabs = allTabs.filter(tab => tab.roles.includes(normalizedRole));
 
   // --- Profile State ---
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -72,8 +85,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const [security, setSecurity] = useState({ twoFactorAuth: false, loginAlerts: true });
 
   // --- Caretaker State ---
-  const [caretakers, setCaretakers] = useState(cachedData?.caretakers || []);
-  const [landlordProperties, setLandlordProperties] = useState(cachedData?.landlordProperties || []);
+  const [caretakers, setCaretakers] = useState(() => Array.isArray(cachedData?.caretakers) ? cachedData.caretakers : []);
+  const [landlordProperties, setLandlordProperties] = useState(() => Array.isArray(cachedData?.landlordProperties) ? cachedData.landlordProperties : []);
   const [caretakerForm, setCaretakerForm] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
   const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
   const [caretakerPermissions, setCaretakerPermissions] = useState(createCaretakerPermissionDefaults());
@@ -178,9 +191,14 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     setCaretakerState(s => ({ ...s, loading: true }));
     try {
       const [cRes, pRes] = await Promise.all([api.get('/landlord/caretakers'), api.get('/landlord/properties')]);
-      setCaretakers(cRes.data);
-      setLandlordProperties(pRes.data.data || pRes.data);
-      updateData('landlord_settings', { caretakers: cRes.data, landlordProperties: pRes.data.data || pRes.data });
+      
+      // The backend returns { caretakers: [...], landlord_properties: [...] }
+      const caretakersData = Array.isArray(cRes.data?.caretakers) ? cRes.data.caretakers : [];
+      const propertiesData = Array.isArray(pRes.data.data) ? pRes.data.data : (Array.isArray(pRes.data) ? pRes.data : []);
+      
+      setCaretakers(caretakersData);
+      setLandlordProperties(propertiesData);
+      updateData('landlord_settings', { caretakers: caretakersData, landlordProperties: propertiesData });
     } catch (e) {
       console.error(e);
     } finally {
@@ -194,16 +212,46 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const handleCreateCaretaker = async () => {
     setCaretakerState(s => ({ ...s, loading: true }));
     try {
-      await api.post('/landlord/caretakers', {
+      // Map frontend permission keys to backend 'can_view_*' keys
+      const mappedPermissions = {
+        can_view_bookings: !!caretakerPermissions.bookings,
+        can_view_messages: !!caretakerPermissions.messages,
+        can_view_tenants: !!caretakerPermissions.tenants,
+        can_view_rooms: !!caretakerPermissions.rooms,
+        can_view_properties: !!caretakerPermissions.properties
+      };
+
+      const response = await api.post('/landlord/caretakers', {
         ...caretakerForm,
         property_ids: selectedPropertyIds,
-        permissions: caretakerPermissions
+        permissions: mappedPermissions
       });
+
+      const newCaretakerData = response.data.caretaker;
+      
+      // Transform the response object to match the structure of the existing list
+      const transformedCaretaker = {
+        id: newCaretakerData.assignment_id,
+        caretaker: {
+          id: null, // The user ID is not returned from this endpoint
+          first_name: newCaretakerData.first_name,
+          last_name: newCaretakerData.last_name,
+          email: newCaretakerData.email,
+          phone: newCaretakerData.phone,
+          is_active: true,
+        },
+        permissions: newCaretakerData.permissions,
+        assigned_properties: newCaretakerData.assigned_properties,
+        assigned_property_ids: newCaretakerData.assigned_properties.map(p => p.id),
+        created_at: new Date().toISOString(), // Set current date for immediate display
+      };
+
+      setCaretakers(prev => [transformedCaretaker, ...prev]);
+      
       toast.success('Caretaker added!');
       setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
       setSelectedPropertyIds([]);
       resetCaretakerPermissions();
-      fetchCaretakers();
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to add caretaker');
     } finally {
@@ -214,13 +262,41 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const handleUpdateCaretaker = async (id) => {
     setCaretakerState(s => ({ ...s, loading: true }));
     try {
-      await api.patch(`/landlord/caretakers/${id}`, {
+      // Map frontend permission keys to backend 'can_view_*' keys
+      const mappedPermissions = {
+        can_view_bookings: !!caretakerPermissions.bookings,
+        can_view_messages: !!caretakerPermissions.messages,
+        can_view_tenants: !!caretakerPermissions.tenants,
+        can_view_rooms: !!caretakerPermissions.rooms,
+        can_view_properties: !!caretakerPermissions.properties
+      };
+
+      const response = await api.patch(`/landlord/caretakers/${id}`, {
         ...caretakerForm,
         property_ids: selectedPropertyIds,
-        permissions: caretakerPermissions
+        permissions: mappedPermissions
       });
+      
+      const updatedCaretakerData = response.data.caretaker;
+
+      const transformedCaretaker = {
+        id: updatedCaretakerData.assignment_id,
+        caretaker: {
+          id: null, // Not available in response
+          first_name: updatedCaretakerData.first_name,
+          last_name: updatedCaretakerData.last_name,
+          email: updatedCaretakerData.email,
+          phone: updatedCaretakerData.phone,
+          is_active: true,
+        },
+        permissions: updatedCaretakerData.permissions,
+        assigned_properties: updatedCaretakerData.assigned_properties,
+        assigned_property_ids: updatedCaretakerData.assigned_properties.map(p => p.id),
+        created_at: new Date().toISOString(), // This will be slightly off, but ok for UI update
+      };
+
+      setCaretakers(prev => prev.map(c => c.id === id ? transformedCaretaker : c));
       toast.success('Caretaker updated!');
-      fetchCaretakers();
     } catch (e) {
       toast.error(e.response?.data?.message || 'Update failed');
     } finally {
@@ -244,12 +320,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
             <nav className="space-y-1">
-              {[
-                { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
-                { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
-                { id: 'security', label: 'Security', icon: <Lock className="w-4 h-4" /> },
-                { id: 'caretaker', label: 'Caretaker Management', icon: <Users className="w-4 h-4" /> }
-              ].map(tab => (
+              {visibleTabs.map(tab => (
                 <button 
                   key={tab.id} 
                   onClick={() => handleTabChange(tab.id)} 
@@ -258,14 +329,6 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
                   {tab.icon} {tab.label}
                 </button>
               ))}
-              {normalizedRole === 'landlord' && (
-                <>
-                  <button onClick={() => handleTabChange('payments')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'payments' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><CreditCard className="w-4 h-4" /> Payments</button>
-                  <button onClick={() => handleTabChange('verification')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'verification' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><ShieldCheck className="w-4 h-4" /> Verification</button>
-                </>
-              )}
-              <button onClick={() => handleTabChange('appearance')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'appearance' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><Palette className="w-4 h-4" /> Appearance</button>
-              <button onClick={() => handleTabChange('switch-role')} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === 'switch-role' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}><ArrowLeftRight className="w-4 h-4" /> Switch Role</button>
             </nav>
           </div>
         </div>

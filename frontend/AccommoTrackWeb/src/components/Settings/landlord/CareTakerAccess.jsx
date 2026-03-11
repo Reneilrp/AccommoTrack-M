@@ -15,7 +15,9 @@ import {
   Eye,
   EyeOff,
   User,
-  Calendar
+  Calendar,
+  Key,
+  KeyRound
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,7 +34,6 @@ export default function CareTakerAccess({
   caretakerState,
   setCaretakerState,
   handleCreateCaretaker,
-  handleUpdateCaretaker,
   handleRevokeCaretaker,
   fetchCaretakers,
   resetCaretakerPermissions,
@@ -41,10 +42,20 @@ export default function CareTakerAccess({
   const [roomPermissionPrompt, setRoomPermissionPrompt] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const [selectedCaretaker, setSelectedCaretaker] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    password: '',
+    password_confirmation: '',
+    permissions: {},
+    property_ids: []
+  });
+  const [passwordResetModal, setPasswordResetModal] = useState({ show: false, caretaker: null, loading: false, tempPassword: '' });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [propertyError, setPropertyError] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editId, setEditId] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({
     first_name: '',
     last_name: '',
@@ -54,9 +65,9 @@ export default function CareTakerAccess({
   const navigate = useNavigate();
 
   // Safe access to props
-  const safeCaretakers = caretakers || [];
-  const safeProperties = landlordProperties || [];
-  const safeSelectedIds = selectedPropertyIds || [];
+  const safeCaretakers = Array.isArray(caretakers) ? caretakers : [];
+  const safeProperties = Array.isArray(landlordProperties) ? landlordProperties : [];
+  const safeSelectedIds = Array.isArray(selectedPropertyIds) ? selectedPropertyIds : [];
   const safePermissions = caretakerPermissions || {};
   const safeForm = caretakerForm || { first_name: '', last_name: '', email: '', password: '', password_confirmation: '', phone: '' };
   const safeState = caretakerState || { loading: false, error: '' };
@@ -92,11 +103,14 @@ export default function CareTakerAccess({
       description: 'Full control over room availability.',
       icon: <Building2 className="w-4 h-4" />,
     },
+    {
+      key: 'properties',
+      label: 'Properties',
+      description: 'View and manage property details.',
+      icon: <Shield className="w-4 h-4" />,
+    },
   ];
-
-  const resetEditState = () => {
-    setIsEditing(false);
-    setEditId(null);
+  const resetCreationForm = () => {
     if (setCaretakerForm) setCaretakerForm({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '' });
     if (resetCaretakerPermissions) resetCaretakerPermissions();
     if (setSelectedPropertyIds) setSelectedPropertyIds([]);
@@ -104,32 +118,112 @@ export default function CareTakerAccess({
   };
 
   const handleEditClick = (c) => {
-    if (setCaretakerForm) {
-      setCaretakerForm({
-        first_name: c.caretaker.first_name || '',
-        last_name: c.caretaker.last_name || '',
-        email: c.caretaker.email || '',
-        phone: c.caretaker.phone || '',
-        password: '',
-        password_confirmation: ''
-      });
-    }
-    if (setCaretakerPermissions) {
-      setCaretakerPermissions({
-        bookings: c.permissions.bookings ?? false,
-        messages: c.permissions.messages ?? false,
-        tenants: c.permissions.tenants ?? false,
-        rooms: c.permissions.rooms ?? false,
-        properties: c.permissions.properties ?? false,
-      });
-    }
-    if (setSelectedPropertyIds) {
-      setSelectedPropertyIds((c.assigned_properties || []).map(p => p.id));
-    }
-    setIsEditing(true);
-    setEditId(c.id);
+    setEditFormData({
+      id: c.id,
+      first_name: c.caretaker.first_name || '',
+      last_name: c.caretaker.last_name || '',
+      email: c.caretaker.email || '',
+      phone: c.caretaker.phone || '',
+      password: '',
+      password_confirmation: '',
+      permissions: {
+        bookings: !!c.permissions.bookings,
+        messages: !!c.permissions.messages,
+        tenants: !!c.permissions.tenants,
+        rooms: !!c.permissions.rooms,
+        properties: !!c.permissions.properties,
+      },
+      property_ids: (c.assigned_properties || []).map(p => p.id)
+    });
+    setShowEditModal(true);
     setSelectedCaretaker(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleResetPassword = (c) => {
+    setPasswordResetModal({ show: true, caretaker: c, loading: false, tempPassword: '' });
+    setSelectedCaretaker(null);
+  };
+
+  const confirmResetPassword = async () => {
+    const { caretaker } = passwordResetModal;
+    setPasswordResetModal(prev => ({ ...prev, loading: true }));
+    try {
+      // Endpoint from api.php: Route::post('/caretakers/{assignmentId}/reset-password', [CaretakerController::class, 'resetPassword']);
+      // Note: In LandlordNavigator.jsx on web, we might need the exact URL. Assuming /landlord/caretakers/{id}/reset-password or similar.
+      // Based on the grep, it's inside a group. Let's check the group in api.php
+      const res = await api.post(`/landlord/caretakers/${caretaker.id}/reset-password`);
+      setPasswordResetModal(prev => ({ ...prev, loading: false, tempPassword: res.data.temporary_password }));
+      toast.success('Password has been reset');
+    } catch (e) {
+      toast.error('Failed to reset password');
+      setPasswordResetModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const toggleEditPermission = (key) => {
+    setEditFormData(prev => ({
+      ...prev,
+      permissions: { ...prev.permissions, [key]: !prev.permissions[key] }
+    }));
+  };
+
+  const handleUpdateSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    
+    // Validate required
+    if (!editFormData.first_name || !editFormData.last_name || !editFormData.email) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (editFormData.property_ids.length === 0) {
+      toast.error("Please assign at least one property");
+      return;
+    }
+
+    try {
+      // Map to backend keys
+      const mappedPermissions = {
+        can_view_bookings: !!editFormData.permissions.bookings,
+        can_view_messages: !!editFormData.permissions.messages,
+        can_view_tenants: !!editFormData.permissions.tenants,
+        can_view_rooms: !!editFormData.permissions.rooms,
+        can_view_properties: !!editFormData.permissions.properties
+      };
+
+      await api.patch(`/landlord/caretakers/${editFormData.id}`, {
+        first_name: editFormData.first_name,
+        last_name: editFormData.last_name,
+        email: editFormData.email,
+        phone: editFormData.phone,
+        password: editFormData.password || undefined,
+        password_confirmation: editFormData.password_confirmation || undefined,
+        property_ids: editFormData.property_ids,
+        permissions: mappedPermissions
+      });
+
+      toast.success('Caretaker updated successfully');
+      setShowEditModal(false);
+      fetchCaretakers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update caretaker');
+    }
+  };
+
+  const handleMessageCaretaker = (c) => {
+    setSelectedCaretaker(null);
+    // Assuming we have a /messages route that can take a userId or similar
+    // Similar to mobile navigation
+    navigate('/messages', { 
+      state: { 
+        startConversation: true, 
+        participant: { 
+          id: c.caretaker.id, 
+          name: `${c.caretaker.first_name} ${c.caretaker.last_name}`,
+          role: 'caretaker'
+        } 
+      } 
+    });
   };
 
   const validateField = (name, value) => {
@@ -208,7 +302,7 @@ export default function CareTakerAccess({
       toast.error('Please fill in all required fields');
       return;
     }
-    if (!isEditing && !safeForm.password) {
+    if (!safeForm.password) {
       toast.error('Password is required when creating a caretaker');
       return;
     }
@@ -226,13 +320,7 @@ export default function CareTakerAccess({
     }
 
     try {
-      if (isEditing && typeof handleUpdateCaretaker === 'function') {
-        await handleUpdateCaretaker(editId);
-        setIsEditing(false);
-        setEditId(null);
-      } else {
-        await handleCreateCaretaker();
-      }
+      await handleCreateCaretaker();
     } catch (err) {
       // Error handled by parent
     }
@@ -245,8 +333,8 @@ export default function CareTakerAccess({
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-center">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isEditing ? 'Edit Caretaker Assignment' : 'Add New Caretaker'}</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{isEditing ? 'Update personal details, permissions, or assigned properties.' : 'Grant property management access to a trusted person.'}</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add New Caretaker</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Grant property management access to a trusted person.</p>
             </div>
           </div>
 
@@ -320,7 +408,7 @@ export default function CareTakerAccess({
                             />
                           </div>                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">
-                    Account Password {isEditing && <span className="text-gray-400 font-normal">(leave blank to keep current)</span>}
+                    Account Password
                   </label>
                   <div className="relative">
                     <input
@@ -413,16 +501,16 @@ export default function CareTakerAccess({
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {safeProperties.map((property) => (
                     <label 
                       key={property.id} 
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                      className={`flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
                         safeSelectedIds.includes(property.id)
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200 dark:shadow-none'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
                           : propertyError
-                            ? 'bg-white dark:bg-gray-700 border-red-200 dark:border-red-900/30 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
-                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                            ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-900/50 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/10'
+                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-gray-600'
                       }`}
                     >
                       <input
@@ -437,7 +525,8 @@ export default function CareTakerAccess({
                         }}
                         className="hidden"
                       />
-                      <span>{property.name}</span>
+                      <span className="whitespace-nowrap">{property.name || property.title || 'Unnamed Property'}</span>
+                      <Building2 className={`w-4 h-4 shrink-0 ${safeSelectedIds.includes(property.id) ? 'text-emerald-100' : 'text-gray-400'}`} />
                     </label>
                   ))}
                 </div>
@@ -445,26 +534,17 @@ export default function CareTakerAccess({
             )}
 
             <div className="flex gap-3 pt-4 border-t border-gray-50 dark:border-gray-700">
-              {isEditing && (
-                <button
-                  className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
-                  onClick={resetEditState}
-                  disabled={safeState.loading}
-                >
-                  Cancel
-                </button>
-              )}
               <button
                 className="flex-1 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50"
                 onClick={handleRegister}
                 disabled={safeState.loading}
               >
                 {safeState.loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                {safeState.loading ? (isEditing ? 'Saving...' : 'Creating Account...') : (isEditing ? 'Save Changes' : 'Confirm & Add Caretaker')}
+                {safeState.loading ? 'Creating Account...' : 'Confirm & Add Caretaker'}
               </button>
               <button
                 className="px-6 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
-                onClick={isEditing ? resetEditState : resetCaretakerPermissions}
+                onClick={resetCreationForm}
               >
                 Reset
               </button>
@@ -513,7 +593,7 @@ export default function CareTakerAccess({
                     {safeCaretakers.map((c) => {
                       const obj = c?.caretaker || {};
                       const name = `${obj.first_name || ''} ${obj.last_name || ''}`.trim() || 'Staff Member';
-                      const assigned = c?.assigned_properties || [];
+                      const assigned = Array.isArray(c?.assigned_properties) ? c.assigned_properties : [];
                       const profileImage = obj.profile_image;
                       
                       return (
@@ -538,14 +618,15 @@ export default function CareTakerAccess({
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-2">
                               {assigned.length > 0 ? assigned.map(p => (
-                                <span key={p.id} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px] font-bold border border-gray-200 dark:border-gray-600">
+                                <span key={p.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-600 shadow-sm">
+                                  <Building2 className="w-3 h-3 text-gray-400" />
                                   {p.name || p.title}
                                 </span>
                               )) : (
-                                <span className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3" /> No assignment
+                                <span className="text-xs text-amber-600 font-bold flex items-center gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5" /> No assignment
                                 </span>
                               )}
                             </div>
@@ -672,9 +753,8 @@ export default function CareTakerAccess({
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                   <Shield className="w-3 h-3" /> Module Permissions
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                   {Object.entries(selectedCaretaker.permissions || {})
-                    .filter(([key]) => key !== 'properties')
                     .map(([key, val]) => (
                     <div 
                       key={key} 
@@ -696,21 +776,21 @@ export default function CareTakerAccess({
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                   <Building2 className="w-3 h-3" /> Managed Properties
                 </p>
-                <div className="space-y-2">
-                  {(selectedCaretaker.assigned_properties || []).length > 0 ? (
-                    (selectedCaretaker.assigned_properties || []).map(p => (
-                      <div key={p.id} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-2xl">
-                        <div className="w-8 h-8 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm">
-                          <Building2 className="w-4 h-4 text-emerald-600" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Array.isArray(selectedCaretaker.assigned_properties) && selectedCaretaker.assigned_properties.length > 0 ? (
+                    selectedCaretaker.assigned_properties.map(p => (
+                      <div key={p.id} className="flex items-center gap-4 p-5 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-[1.25rem] shadow-sm hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-colors group">
+                        <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                          <Building2 className="w-6 h-6 text-emerald-600" />
                         </div>
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                        <span className="text-base font-bold text-gray-800 dark:text-gray-200">
                           {p.name || p.title}
                         </span>
                       </div>
                     ))
                   ) : (
-                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl">
-                      <p className="text-xs text-amber-600 dark:text-amber-400 font-bold italic text-center">No properties assigned to this caretaker.</p>
+                    <div className="col-span-full p-8 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-3xl text-center">
+                      <p className="text-sm text-amber-600 dark:text-amber-400 font-bold italic">No properties assigned to this caretaker.</p>
                     </div>
                   )}
                 </div>
@@ -718,25 +798,45 @@ export default function CareTakerAccess({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-3 gap-3">
+            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <button
+                onClick={() => handleMessageCaretaker(selectedCaretaker)}
+                className="py-3 px-2 rounded-2xl border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex flex-col items-center justify-center gap-1"
+                title="Message Caretaker"
+              >
+                <Mail className="w-4 h-4" />
+                <span className="text-[10px]">Message</span>
+              </button>
+              <button
+                onClick={() => handleResetPassword(selectedCaretaker)}
+                className="py-3 px-2 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all flex flex-col items-center justify-center gap-1"
+                title="Reset Password"
+              >
+                <Key className="w-4 h-4" />
+                <span className="text-[10px]">Reset Key</span>
+              </button>
               <button
                 onClick={() => handleEditClick(selectedCaretaker)}
-                className="py-3 px-4 rounded-2xl border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex items-center justify-center gap-2"
+                className="py-3 px-2 rounded-2xl border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex flex-col items-center justify-center gap-1"
+                title="Edit Details"
               >
-                Edit
+                <Plus className="w-4 h-4 rotate-45" />
+                <span className="text-[10px]">Edit</span>
               </button>
               <button
                 onClick={() => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' })}
-                className="py-3 px-4 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center gap-2"
+                className="py-3 px-2 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex flex-col items-center justify-center gap-1"
+                title="Revoke Access"
               >
                 <Trash2 className="w-4 h-4" />
-                Revoke
+                <span className="text-[10px]">Revoke</span>
               </button>
               <button
                 onClick={() => setSelectedCaretaker(null)}
-                className="py-3 px-4 rounded-2xl bg-gray-900 dark:bg-green-600 text-white font-bold hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
+                className="py-3 px-2 rounded-2xl bg-gray-900 dark:bg-green-600 text-white font-bold hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none flex flex-col items-center justify-center gap-1 col-span-2 sm:col-span-1"
               >
-                Close
+                <XCircle className="w-4 h-4" />
+                <span className="text-[10px]">Close</span>
               </button>
             </div>
           </div>
@@ -813,6 +913,242 @@ export default function CareTakerAccess({
                   Grant Access
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Caretaker Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Caretaker</h3>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <XCircle className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto custom-scrollbar space-y-8">
+              {/* Info Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">First Name</label>
+                  <input
+                    type="text"
+                    value={editFormData.first_name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={editFormData.last_name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Phone (Optional)</label>
+                  <input
+                    type="text"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Password Section */}
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl space-y-4">
+                <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Change Password (leave blank to keep current)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <input
+                      type={showPasswords ? "text" : "password"}
+                      placeholder="New password"
+                      value={editFormData.password}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, password: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPasswords ? "text" : "password"}
+                      placeholder="Confirm new password"
+                      value={editFormData.password_confirmation}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, password_confirmation: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Permissions Section */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Shield className="w-4 h-4" /> Update Permissions
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {CARETAKER_PERMISSION_FIELDS.map((field) => (
+                    <label
+                      key={field.key}
+                      className={`flex flex-col p-4 rounded-2xl border transition-all cursor-pointer group ${
+                        editFormData.permissions[field.key] 
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 ring-1 ring-green-100 dark:ring-green-900/30' 
+                          : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={`p-2 rounded-lg ${editFormData.permissions[field.key] ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                          {field.icon}
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={!!editFormData.permissions[field.key]}
+                          onChange={() => toggleEditPermission(field.key)}
+                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                        />
+                      </div>
+                      <span className="font-bold text-gray-900 dark:text-white text-sm">{field.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Properties Section */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Building2 className="w-4 h-4" /> Assigned Properties
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {safeProperties.map((property) => (
+                    <label 
+                      key={property.id} 
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                        editFormData.property_ids.includes(property.id)
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200 dark:shadow-none'
+                          : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editFormData.property_ids.includes(property.id)}
+                        onChange={e => {
+                          const ids = [...editFormData.property_ids];
+                          if (e.target.checked) ids.push(property.id);
+                          else {
+                            const index = ids.indexOf(property.id);
+                            if (index > -1) ids.splice(index, 1);
+                          }
+                          setEditFormData(prev => ({ ...prev, property_ids: ids }));
+                        }}
+                        className="hidden"
+                      />
+                      <span>{property.name || property.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateSubmit}
+                className="flex-[2] py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {passwordResetModal.show && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <KeyRound className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reset Password</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Generate a new temporary password for <span className="font-bold text-gray-900 dark:text-white">{passwordResetModal.caretaker?.caretaker?.first_name}</span>?
+                </p>
+              </div>
+
+              {passwordResetModal.tempPassword ? (
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
+                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center mb-2">New Temporary Password</p>
+                  <div className="bg-white dark:bg-gray-800 py-3 px-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-700 flex items-center justify-between group">
+                    <span className="text-xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">
+                      {passwordResetModal.tempPassword}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(passwordResetModal.tempPassword);
+                        toast.success('Copied to clipboard');
+                      }}
+                      className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-4 h-4 rotate-45" />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-500 text-center mt-3 leading-relaxed">
+                    Please share this password with the caretaker. They should change it after logging in.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={() => setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+                    className="py-3 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                    disabled={passwordResetModal.loading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmResetPassword}
+                    className="py-3 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center gap-2"
+                    disabled={passwordResetModal.loading}
+                  >
+                    {passwordResetModal.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                    Confirm
+                  </button>
+                </div>
+              )}
+
+              {passwordResetModal.tempPassword && (
+                <button
+                  onClick={() => setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
+                  className="w-full py-3 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all"
+                >
+                  Done
+                </button>
+              )}
             </div>
           </div>
         </div>

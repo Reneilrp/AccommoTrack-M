@@ -37,10 +37,10 @@ const menuItems = [
   },
   {
     id: 4,
-    title: "Bookings",
-    icon: "calendar-outline",
+    title: "Payments",
+    icon: "card-outline",
     color: "#FF9800",
-    screen: "Bookings",
+    screen: "Payments",
   },
   {
     id: 5,

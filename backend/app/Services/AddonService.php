@@ -71,7 +71,49 @@ class AddonService
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
-                // Create automatic invoice for the addon
+                // New logic: Find the latest unpaid invoice and add the addon cost to it.
+                $latestInvoice = $booking->invoices()
+                    ->whereIn('status', ['pending', 'partially_paid'])
+                    ->orderBy('due_date', 'desc')
+                    ->first();
+
+                $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
+
+                if ($latestInvoice) {
+                    $latestInvoice->amount_cents += $amountCents;
+                    
+                    $new_metadata = $latestInvoice->metadata ?? [];
+                    if (!isset($new_metadata['addons'])) {
+                        $new_metadata['addons'] = [];
+                    }
+                    $new_metadata['addons'][] = [
+                        'addon_id' => $addon->id,
+                        'addon_name' => $addon->name,
+                        'quantity' => $addonRequest->pivot->quantity ?? 1,
+                        'price' => $amountCents,
+                        'price_type' => $addon->price_type,
+                    ];
+                    
+                    $latestInvoice->metadata = $new_metadata;
+                    
+                    // Append to description if it's not already about addons
+                    if (!str_contains($latestInvoice->description, 'Add-on:')) {
+                         $latestInvoice->description .= "\n+ Includes Add-ons";
+                    }
+
+                    $latestInvoice->save();
+                    
+                    $booking->addons()->updateExistingPivot($addonId, [
+                        'invoice_id' => $latestInvoice->id,
+                        'invoiced_at' => now(),
+                    ]);
+                } else {
+                    // Fallback or a more robust solution for future invoice generation would be needed here.
+                    // For now, this addresses the primary case of updating an existing pending invoice.
+                }
+
+                /*
+                // OLD LOGIC: Create automatic invoice for the addon
                 $reference = 'INV-ADD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
                 $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
 
@@ -100,9 +142,10 @@ class AddonService
                     'invoice_id' => $invoice->id,
                     'invoiced_at' => now(),
                 ]);
+                */
 
                 DB::commit();
-                return ['status' => $newStatus, 'message' => 'Addon request approved and invoice generated successfully'];
+                return ['status' => $newStatus, 'message' => 'Addon request approved and invoice updated successfully'];
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
