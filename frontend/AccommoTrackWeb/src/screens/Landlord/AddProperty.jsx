@@ -191,10 +191,29 @@ export default function AddProperty({ onBack, onSave }) {
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, ...files]
-    }));
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    
+    const validFiles = [];
+    let hasLargeFile = false;
+
+    files.forEach(file => {
+      if (file.size <= MAX_SIZE) {
+        validFiles.push(file);
+      } else {
+        hasLargeFile = true;
+      }
+    });
+
+    if (hasLargeFile) {
+      toast.error('Some images were skipped because they exceed the 10MB limit.');
+    }
+
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...validFiles]
+      }));
+    }
   };
 
   const handleVideoUpload = (e) => {
@@ -304,10 +323,29 @@ export default function AddProperty({ onBack, onSave }) {
   // Credential handlers
   const handleCredentialUpload = (e) => {
     const files = Array.from(e.target.files);
-    setFormData(prev => ({
-      ...prev,
-      credentials: [...prev.credentials, ...files]
-    }));
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    
+    const validFiles = [];
+    let hasLargeFile = false;
+
+    files.forEach(file => {
+      if (file.size <= MAX_SIZE) {
+        validFiles.push(file);
+      } else {
+        hasLargeFile = true;
+      }
+    });
+
+    if (hasLargeFile) {
+      toast.error('Some documents were skipped because they exceed the 10MB limit.');
+    }
+
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        credentials: [...prev.credentials, ...validFiles]
+      }));
+    }
   };
 
   const removeCredential = (index) => {

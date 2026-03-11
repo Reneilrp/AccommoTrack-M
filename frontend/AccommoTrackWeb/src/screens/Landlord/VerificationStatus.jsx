@@ -190,11 +190,16 @@ export default function VerificationStatus() {
       formData.append('valid_id', resubmitForm.validId);
       formData.append('permit', resubmitForm.permit);
 
-      await api.post('/landlord/resubmit-verification', formData, {
+      // Dynamically select the correct endpoint based on the user's role
+      // Tenants use the /tenant prefix, Landlords use the /landlord prefix
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const endpoint = userData.role === 'tenant' ? '/tenant/resubmit-verification' : '/landlord/resubmit-verification';
+
+      await api.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast.success('Documents resubmitted successfully! Please wait for admin review.');
+      toast.success('Documents submitted successfully! Please wait for admin review.');
       setShowResubmitForm(false);
       setResubmitForm({ validIdType: '', validIdOther: '', validId: null, permit: null });
       fetchVerificationStatus();
