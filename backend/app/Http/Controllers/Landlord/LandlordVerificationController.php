@@ -118,19 +118,11 @@ class LandlordVerificationController extends Controller
     public function getMyVerification()
     {
         $user = Auth::user();
-        $landlordId = $user->effectiveLandlordId();
-
-        if (!$landlordId) {
-            return response()->json([
-                'message' => 'Not authorized to view verification status',
-                'status' => 'error'
-            ], 403);
-        }
         
         $verification = LandlordVerification::with(['history' => function($query) {
             $query->orderBy('created_at', 'desc');
         }, 'reviewer:id,first_name,last_name'])
-            ->where('user_id', $landlordId)
+            ->where('user_id', $user->id)
             ->first();
 
         if (!$verification) {
@@ -140,7 +132,7 @@ class LandlordVerificationController extends Controller
             ], 404);
         }
 
-        $landlord = User::find($landlordId);
+        $landlord = User::find($user->id);
 
         return response()->json([
             'id' => $verification->id,

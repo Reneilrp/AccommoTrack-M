@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeftRight, ShieldCheck, Clock, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
-import api from '../../services/api';
+import api from '../../utils/api';
 
 export default function SwitchRoleTab() {
   const navigate = useNavigate();
