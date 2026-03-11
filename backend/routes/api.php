@@ -169,7 +169,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('landlord')->middleware(EnsureUserIsLandlord::class)->group(function () {
         // Landlord Verification Status & Resubmission
-        Route::get('/my-verification', [LandlordVerificationController::class, 'getMyVerification']);
         Route::get('/verification-history', [LandlordVerificationController::class, 'getVerificationHistory']);
         Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
         
