@@ -53,8 +53,8 @@ export default function VerificationStatus({ navigation }) {
       ]);
 
       if (statusRes.success) setVerification(statusRes.data);
-      if (typesRes.success) setIdTypes(typesRes.data);
-      else if (typesRes.data) setIdTypes(typesRes.data); // Fallback data
+      if (typesRes.success) setIdTypes(Array.isArray(typesRes.data) ? typesRes.data : []);
+      else if (typesRes.data) setIdTypes(Array.isArray(typesRes.data) ? typesRes.data : []); // Fallback data
     } catch (error) {
       console.error("Error fetching verification data:", error);
     } finally {

@@ -40,8 +40,8 @@ export default function PaymentMethods({ user, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [connectingPaymongo, setConnectingPaymongo] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [allowed, setAllowed] = useState(user.payment_methods_settings?.allowed || ['cash']);
-  const [details, setDetails] = useState(user.payment_methods_settings?.details || {});
+  const [allowed, setAllowed] = useState(user?.payment_methods_settings?.allowed || ['cash']);
+  const [details, setDetails] = useState(user?.payment_methods_settings?.details || {});
 
   // ── Per-property state ─────────────────────────────────────────────────────
   const [properties, setProperties] = useState([]);
@@ -55,7 +55,7 @@ export default function PaymentMethods({ user, onUpdate }) {
 
   // ── Sync global settings if user prop updates ──────────────────────────────
   useEffect(() => {
-    if (user.payment_methods_settings) {
+    if (user?.payment_methods_settings) {
       setAllowed(user.payment_methods_settings.allowed || ['cash']);
       setDetails(user.payment_methods_settings.details || {});
     }

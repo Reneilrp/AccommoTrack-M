@@ -19,6 +19,7 @@ import MyProperties from '../screens/Landlord/MyProperties.jsx';
 import CaretakerDashboard from '../screens/Landlord/CaretakerDashboard.jsx';
 import LandlordMaintenance from '../screens/Landlord/LandlordMaintenance.jsx';
 import LandlordReviews from '../screens/Landlord/Reviews.jsx';
+import VerificationStatus from '../screens/Landlord/VerificationStatus.jsx';
 
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
@@ -82,6 +83,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
               <Settings user={user} accessRole="landlord" onUserUpdate={onUserUpdate} />
             }
           />
+          <Route path="/verification" element={<VerificationStatus />} />
         </Routes>
       </LandlordLayout>
     </SidebarProvider>

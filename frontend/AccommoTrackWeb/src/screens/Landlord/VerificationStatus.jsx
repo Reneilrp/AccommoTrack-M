@@ -327,52 +327,148 @@ export default function VerificationStatus() {
         </div>
       )}
 
-      {/* Current Documents (if any) */}
-      {verification?.status && verification.status !== 'not_submitted' && (
+      {/* Document Views and Resubmit button for REJECTED status */}
+      {verification?.status === 'rejected' && (
+        <>
+          {/* Current Documents */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+              <h4 className="font-semibold text-gray-800 dark:text-white">Previously Submitted Documents</h4>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-3">
+                  <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Valid ID ({verification.valid_id_type})</span>
+                </div>
+                <DocumentPreview path={verification.valid_id_path} alt="Valid ID" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-3">
+                  <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <span>Business/Accommodation Permit</span>
+                </div>
+                <DocumentPreview path={verification.permit_path} alt="Permit" />
+              </div>
+            </div>
+          </div>
+
+          {/* Resubmit Button */}
+          {!showResubmitForm && (
+            <button
+              onClick={() => setShowResubmitForm(true)}
+              className="w-full px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <Upload className="w-5 h-5" />
+              Resubmit Documents
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Initial submission form for NOT_SUBMITTED status */}
+      {verification?.status === 'not_submitted' && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-            <h4 className="font-semibold text-gray-800 dark:text-white">Submitted Documents</h4>
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
+            <h4 className="font-semibold text-emerald-800 dark:text-emerald-300">Submit Documents for Verification</h4>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">Please provide the following documents to become a landlord.</p>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Valid ID */}
+          <form onSubmit={handleResubmit} className="p-6 space-y-6">
+            {/* ID Type Selection */}
             <div>
-              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-3">
-                <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <span>Valid ID ({verification.valid_id_type})</span>
-              </div>
-              <DocumentPreview 
-                path={verification.valid_id_path} 
-                alt="Valid ID"
-              />
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                Valid ID Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={resubmitForm.validIdType}
+                onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdType: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                disabled={submitting}
+              >
+                <option value="">Select ID Type</option>
+                {idTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+                <option value="other">Other (specify below)</option>
+              </select>
             </div>
-            {/* Permit */}
+
+            {resubmitForm.validIdType === 'other' && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                  Specify ID Type <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={resubmitForm.validIdOther}
+                  onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdOther: e.target.value }))}
+                  placeholder="Enter your ID type"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  disabled={submitting}
+                />
+              </div>
+            )}
+
+            {/* Valid ID Upload */}
             <div>
-              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-3">
-                <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                <span>Business/Accommodation Permit</span>
-              </div>
-              <DocumentPreview 
-                path={verification.permit_path} 
-                alt="Permit"
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                Valid ID Image <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setResubmitForm(prev => ({ ...prev, validId: e.target.files[0] }))}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                disabled={submitting}
               />
+              {resubmitForm.validId && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selected: {resubmitForm.validId.name}</p>
+              )}
             </div>
-          </div>
+
+            {/* Permit Upload */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                Business/Accommodation Permit <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setResubmitForm(prev => ({ ...prev, permit: e.target.files[0] }))}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                disabled={submitting}
+              />
+              {resubmitForm.permit && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selected: {resubmitForm.permit.name}</p>
+              )}
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5" />
+                    Submit for Review
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       )}
-
-      {/* Resubmit Button */}
-      {verification?.status === 'rejected' && !showResubmitForm && (
-        <button
-          onClick={() => setShowResubmitForm(true)}
-          className="w-full px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-colors flex items-center justify-center gap-2"
-        >
-          <Upload className="w-5 h-5" />
-          Resubmit Documents
-        </button>
-      )}
-
-      {/* Resubmit Form */}
-      {showResubmitForm && (
+      
+      {/* Resubmit Form (now shown for rejected status) */}
+      {showResubmitForm && verification?.status === 'rejected' && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
             <h4 className="font-semibold text-emerald-800 dark:text-emerald-300">Resubmit Verification Documents</h4>

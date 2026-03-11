@@ -48,7 +48,7 @@ export default function SwitchRoleTab() {
         alert('Your landlord verification is still under review. Please wait for approval before switching.');
       } else {
         if (window.confirm(`To become a landlord, you need to submit verification documents. Proceed to verification?`)) {
-          navigate('/settings', { state: { tab: 'verification' } });
+          navigate('/verification');
         }
       }
       return;

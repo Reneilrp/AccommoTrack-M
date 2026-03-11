@@ -296,6 +296,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/pending', [AdminController::class, 'getPendingProperties']);
         Route::get('/properties/approved', [AdminController::class, 'getApprovedProperties']);
         Route::get('/properties/rejected', [AdminController::class, 'getRejectedProperties']);
+        Route::get('/properties/maintenance', [AdminController::class, 'getMaintenanceProperties']);
         Route::post('/properties/{id}/approve', [AdminController::class, 'approveProperty']);
         Route::post('/properties/{id}/reject', [AdminController::class, 'rejectProperty']);
         Route::post('/properties/{id}/maintenance', [AdminController::class, 'putUnderMaintenance']);

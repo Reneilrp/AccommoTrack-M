@@ -13,6 +13,7 @@ import TenantSettings from '../screens/Tenant/TenantSettings';
 import TenantPayments from '../screens/Tenant/TenantPayments';
 import InvoiceCheckout from '../screens/Tenant/InvoiceCheckout';
 import TenantMaintenance from '../screens/Tenant/TenantMaintenance';
+import VerificationStatus from '../screens/Landlord/VerificationStatus';
 
 export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
   return (
@@ -28,6 +29,7 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/checkout/:id" element={<InvoiceCheckout />} />
           <Route path="/messages" element={<TenantMessages user={user} />} />
           <Route path="/settings" element={<TenantSettings user={user} onUserUpdate={onUserUpdate} />} />
+          <Route path="/verification" element={<VerificationStatus />} />
           
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -303,6 +303,19 @@ class AdminController extends Controller
     }
 
     /**
+     * Get maintenance properties
+     */
+    public function getMaintenanceProperties(Request $request)
+    {
+        $properties = Property::where('current_status', Property::STATUS_MAINTENANCE)
+            ->with(['landlord', 'images', 'amenities', 'credentials'])
+            ->withCount('rooms')
+            ->get();
+
+        return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
+    }
+
+    /**
      * Approve a property
      */
     public function approveProperty(Request $request, $id)

@@ -93,7 +93,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
     if (visible) {
       fetch(`${API_URL}/valid-id-types`)
         .then(res => res.json())
-        .then(data => setIdTypes(data))
+        .then(data => setIdTypes(Array.isArray(data) ? data : []))
         .catch(() => setIdTypes(['Passport', 'Driver\'s License', 'National ID', 'UMID', 'Postal ID', 'Other']));
     }
   }, [visible]);

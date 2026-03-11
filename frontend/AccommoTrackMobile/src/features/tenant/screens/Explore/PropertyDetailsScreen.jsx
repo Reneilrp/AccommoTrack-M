@@ -150,7 +150,9 @@ export default function PropertyDetailsScreen({ route }) {
   }, [effectiveId, landlordPreview]);
 
   useFocusEffect(
-    loadRooms
+    useCallback(() => {
+      loadRooms();
+    }, [loadRooms])
   );
 
   const onRefresh = async () => {

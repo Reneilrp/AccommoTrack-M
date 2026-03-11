@@ -199,7 +199,7 @@ const ProfileTab = ({ onUserUpdate }) => {
   };
 
   return (
-    <div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Personal Information</h2>
         {!isEditing && (
