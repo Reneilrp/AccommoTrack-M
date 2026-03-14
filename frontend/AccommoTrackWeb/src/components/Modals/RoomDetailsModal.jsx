@@ -31,6 +31,7 @@ export default function RoomDetailsModal({
 
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
+  const [bedCount, setBedCount] = useState(1);
   const [startDate, setStartDate] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -67,7 +68,7 @@ export default function RoomDetailsModal({
       setLoadingPricing(true);
       try {
         const res = await api.get(`/rooms/${room.id}/pricing`, {
-          params: { start: startDate, end: endDate }
+          params: { start: startDate, end: endDate, bed_count: bedCount }
         });
         
         setTotalPrice(res.data.total);
@@ -125,43 +126,46 @@ export default function RoomDetailsModal({
   };
 
   const calculateTotal = () => {
-    const dur = calculateDuration();
-    setDuration(dur);
+    // If we have pricing from backend, use it
+    if (totalPrice > 0 && pricingBreakdown) {
+      return; 
+    }
 
-    if (!dur) {
+    if (!startDate || !endDate) {
       setTotalPrice(0);
       return;
     }
 
-    const billing = String(room.billing_policy || "monthly")
-      .toLowerCase()
-      .trim()
-      .replace(/[\s-]+/g, "_");
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (end <= start) {
+      setTotalPrice(0);
+      return;
+    }
 
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
     const monthly = Number(room.monthly_rate) || 0;
     const daily = Number(room.daily_rate) || Math.round(monthly / 30) || 0;
+    const policy = room.billing_policy || "monthly";
 
-    let effectiveBilling = billing;
-    if (effectiveBilling === "monthly" && daily > 0 && dur.extraDays > 0) {
-      effectiveBilling = "monthly_with_daily";
-    }
+    const months = Math.floor(diffDays / 30);
+    const extraDays = diffDays % 30;
 
     let total = 0;
-    if (
-      ["monthly_with_daily", "monthly+daily", "monthly_and_daily"].includes(
-        effectiveBilling,
-      )
-    ) {
-      total = dur.months * monthly + dur.extraDays * daily;
-    } else if (effectiveBilling === "daily") {
-      total = dur.days * daily;
+    if (policy === "daily") {
+      total = diffDays * daily;
+    } else if (policy === "monthly_with_daily") {
+      total = (months * monthly) + (extraDays * daily);
     } else {
-      // Default monthly: round up to nearest month
-      const monthsCeil = Math.ceil(dur.days / 30);
-      total = monthsCeil * monthly;
+      // monthly: round up to nearest month
+      const totalMonths = extraDays > 0 ? months + 1 : months;
+      total = totalMonths * monthly;
     }
 
-    setTotalPrice(total);
+    setTotalPrice(total * bedCount);
+    setDuration({ days: diffDays, months, extraDays });
   };
 
   const handleStartDateChange = (e) => {
@@ -190,8 +194,32 @@ export default function RoomDetailsModal({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (start < today) {
-      toast.error("Check-in date cannot be in the past.");
+    if (room.billing_policy === 'daily') {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (start < tomorrow) {
+            toast.error("For daily rentals, check-in must be at least one day after today.");
+            return;
+        }
+    } else {
+        if (start < today) {
+            toast.error("Check-in date cannot be in the past.");
+            return;
+        }
+    }
+
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Explicitly enforce minimum stay for monthly rooms
+    const minStay = parseInt(room.min_stay_days) || 1;
+    const effectiveMinStay = (room.billing_policy === 'monthly' || room.billing_policy === 'monthly_with_daily') 
+      ? Math.max(30, minStay) 
+      : minStay;
+
+    if (diffDays < effectiveMinStay) {
+      toast.error(`The minimum stay for this room is ${effectiveMinStay} days.`);
       return;
     }
 
@@ -208,6 +236,7 @@ export default function RoomDetailsModal({
     try {
       const payload = {
         room_id: room.id,
+        bed_count: bedCount,
         start_date: startDate,
         end_date: endDate,
         notes: notes || "",
@@ -339,7 +368,12 @@ export default function RoomDetailsModal({
                     <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-300">
                       <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
                         <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <span>{room.capacity} Pax</span>
+                        <span>
+                          {room.room_type === 'bedSpacer' || room.room_type === 'bedspacer' 
+                            ? `${room.occupied_count || 0} / ${room.capacity} Beds taken` 
+                            : `${room.capacity} Pax`
+                          }
+                        </span>
                       </div>
                       {room.floor && (
                         <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
@@ -575,6 +609,27 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
+                    {(room.room_type === 'bedSpacer' || room.room_type === 'bedspacer') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Number of Beds
+                        </label>
+                        <select
+                          value={bedCount}
+                          onChange={(e) => setBedCount(parseInt(e.target.value))}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          {[...Array(Math.max(1, room.available_slots || 1))].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {i + 1} {i === 0 ? 'Bed' : 'Beds'}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Available: {room.available_slots} / {room.capacity}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Check-in Date

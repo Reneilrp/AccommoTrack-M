@@ -83,6 +83,7 @@ class Booking extends Model
         'landlord_id',
         'guest_name',
         'room_id',
+        'bed_count',
         'booking_reference',
         'start_date',
         'end_date',

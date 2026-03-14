@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Booking;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Carbon\Carbon;
 
 class StoreBookingRequest extends FormRequest
 {
@@ -22,8 +23,22 @@ class StoreBookingRequest extends FormRequest
         return [
             'room_id' => 'required|exists:rooms,id',
             'guest_name' => 'nullable|string|max:255',
+            'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
-            'end_date' => 'required|date|after:start_date',
+            'end_date' => [
+                'required',
+                'date',
+                'after:start_date',
+                function ($attribute, $value, $fail) {
+                    $startDate = $this->input('start_date');
+                    if ($startDate) {
+                        $fourYearsLater = Carbon::parse($startDate)->addYears(4);
+                        if (Carbon::parse($value)->gt($fourYearsLater)) {
+                            $fail('The booking duration cannot exceed 4 years.');
+                        }
+                    }
+                },
+            ],
             'notes' => 'nullable|string|max:1000'
         ];
     }

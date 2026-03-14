@@ -38,6 +38,8 @@ use App\Http\Controllers\Common\ReportController;
 // PUBLIC ROUTES (No authentication)
 // ====================================
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-attempts');
+Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp'])->middleware('throttle:auth-attempts');
+Route::post('/resend-email-otp', [AuthController::class, 'resendEmailOtp'])->middleware('throttle:auth-attempts');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-attempts');
 Route::post('/inquiries', [InquiryController::class, 'store']);
 
@@ -88,6 +90,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me', [AuthController::class, 'updateProfile']); // For FormData with image upload
     Route::delete('/me/profile-image', [AuthController::class, 'removeProfileImage']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+
+    // Extension Requests
+    Route::get('/extensions', [\App\Http\Controllers\Tenant\ExtensionController::class, 'index']);
+    Route::post('/bookings/{id}/extend', [\App\Http\Controllers\Tenant\ExtensionController::class, 'store']);
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -221,6 +227,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/tenants/{id}', [TenantController::class, 'update']);        
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
+        Route::post('/tenants/{id}/transfer-room', [TenantController::class, 'transferRoom']);
         Route::delete('/tenants/{id}/unassign-room', [TenantController::class, 'unassignRoom']);
         Route::get('/caretakers', [CaretakerController::class, 'index']);
         Route::post('/caretakers', [CaretakerController::class, 'store']);
@@ -242,6 +249,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Landlord: Get single tenant
         Route::get('/tenants/{id}', [TenantController::class, 'show']);
+
+        // Landlord: Extension requests handling
+        Route::get('/extensions', [\App\Http\Controllers\Landlord\ExtensionController::class, 'index']);
+        Route::patch('/extensions/{id}/handle', [\App\Http\Controllers\Landlord\ExtensionController::class, 'handle']);
     });
 
     // ===== SHARED BOOKINGS =====

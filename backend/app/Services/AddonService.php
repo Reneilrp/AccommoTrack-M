@@ -71,15 +71,16 @@ class AddonService
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
-                // New logic: Find the latest unpaid invoice and add the addon cost to it.
+                $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
+
+                // Check for existing PENDING invoice for this booking
                 $latestInvoice = $booking->invoices()
-                    ->whereIn('status', ['pending', 'partially_paid'])
+                    ->where('status', 'pending')
                     ->orderBy('due_date', 'desc')
                     ->first();
 
-                $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
-
                 if ($latestInvoice) {
+                    // Append to existing pending invoice
                     $latestInvoice->amount_cents += $amountCents;
                     
                     $new_metadata = $latestInvoice->metadata ?? [];
@@ -96,8 +97,7 @@ class AddonService
                     
                     $latestInvoice->metadata = $new_metadata;
                     
-                    // Append to description if it's not already about addons
-                    if (!str_contains($latestInvoice->description, 'Add-on:')) {
+                    if (!str_contains($latestInvoice->description, 'Includes Add-ons')) {
                          $latestInvoice->description .= "\n+ Includes Add-ons";
                     }
 
@@ -108,41 +108,40 @@ class AddonService
                         'invoiced_at' => now(),
                     ]);
                 } else {
-                    // Fallback or a more robust solution for future invoice generation would be needed here.
-                    // For now, this addresses the primary case of updating an existing pending invoice.
+                    // Create a separate invoice for this immediate addon request
+                    $reference = 'INV-ADD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+                    
+                    $invoice = Invoice::create([
+                        'reference' => $reference,
+                        'landlord_id' => $booking->landlord_id,
+                        'property_id' => $booking->property_id,
+                        'booking_id' => $booking->id,
+                        'tenant_id' => $booking->tenant_id,
+                        'description' => "Add-on: {$addon->name} (" . ($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee') . ")",
+                        'amount_cents' => $amountCents,
+                        'currency' => 'PHP',
+                        'status' => 'pending',
+                        'issued_at' => now(),
+                        'due_date' => now()->addDays(3),
+                        'metadata' => [
+                            'addons' => [
+                                [
+                                    'addon_id' => $addon->id,
+                                    'addon_name' => $addon->name,
+                                    'quantity' => $addonRequest->pivot->quantity ?? 1,
+                                    'price' => $amountCents,
+                                    'price_type' => $addon->price_type,
+                                ]
+                            ]
+                        ]
+                    ]);
+
+                    // Link invoice back to the addon request
+                    $booking->addons()->updateExistingPivot($addonId, [
+                        'invoice_id' => $invoice->id,
+                        'invoiced_at' => now(),
+                    ]);
                 }
-
-                /*
-                // OLD LOGIC: Create automatic invoice for the addon
-                $reference = 'INV-ADD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
-                $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
-
-                $invoice = Invoice::create([
-                    'reference' => $reference,
-                    'landlord_id' => $booking->landlord_id,
-                    'property_id' => $booking->property_id,
-                    'booking_id' => $booking->id,
-                    'tenant_id' => $booking->tenant_id,
-                    'description' => "Add-on: {$addon->name} (" . ($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee') . ")",
-                    'amount_cents' => $amountCents,
-                    'currency' => 'PHP',
-                    'status' => 'pending',
-                    'issued_at' => now(),
-                    'due_date' => now()->addDays(3),
-                    'metadata' => [
-                        'addon_id' => $addon->id,
-                        'addon_name' => $addon->name,
-                        'quantity' => $addonRequest->pivot->quantity ?? 1,
-                        'price_type' => $addon->price_type,
-                    ]
-                ]);
-
-                // Link invoice back to the addon request
-                $booking->addons()->updateExistingPivot($addonId, [
-                    'invoice_id' => $invoice->id,
-                    'invoiced_at' => now(),
-                ]);
-                */
 
                 DB::commit();
                 return ['status' => $newStatus, 'message' => 'Addon request approved and invoice updated successfully'];

@@ -1,83 +1,140 @@
-import { Home, Mail, Phone, Calendar, User, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { Home, Mail, Phone, Calendar, User, FileText, MessageSquare, AlertCircle, ShieldAlert, Clock, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({ tenant }) {
   const profile = tenant.tenantProfile;
+  const navigate = useNavigate();
+  const [showEmergency, setShowEmergency] = useState(false);
+
+  // Behavioral Logic
+  const isLate = tenant.has_overdue_invoices;
+  const isExpiringSoon = (() => {
+    if (!tenant.latestBooking?.end_date) return false;
+    const endDate = new Date(tenant.latestBooking.end_date);
+    const today = new Date();
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 30;
+  })();
+
+  const handleMessageTenant = () => {
+    navigate('/messages', { 
+      state: { 
+        startConversation: true,
+        recipient: { id: tenant.id },
+        property: tenant.room ? { id: tenant.room.property_id } : null
+      } 
+    });
+  };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-all relative overflow-hidden group">
+      {/* Top Behavioral Badges */}
+      <div className="flex flex-wrap gap-1 mb-3">
+        {isLate && (
+          <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1 border border-red-200 dark:border-red-800">
+            <AlertCircle className="w-3 h-3" /> Late Payer
+          </span>
+        )}
+        {isExpiringSoon && (
+          <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1 border border-orange-200 dark:border-orange-800">
+            <Clock className="w-3 h-3" /> Expiring Soon
+          </span>
+        )}
+        {!isLate && !isExpiringSoon && profile?.status === 'active' && (
+          <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-green-200 dark:border-green-800">
+            Good Standing
+          </span>
+        )}
+      </div>
+
       {/* Header: Name + Status */}
       <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-green-600 transition-colors">
             {tenant.first_name} {tenant.last_name}
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-            <Mail className="w-4 h-4" /> {tenant.email}
+          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
+            <Mail className="w-3 h-3" /> {tenant.email}
           </p>
           {tenant.phone && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <Phone className="w-4 h-4" /> {tenant.phone}
-            </p>
-          )}
-          {tenant.age && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-              <User className="w-4 h-4" /> Age: {tenant.age}
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <Phone className="w-3 h-3" /> {tenant.phone}
             </p>
           )}
         </div>
 
         {/* Status Badge */}
-        <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize
-          ${profile?.status === 'active' ? 'bg-green-100 text-green-700' :
-            profile?.status === 'inactive' ? 'bg-yellow-100 text-yellow-700' :
-            'bg-red-100 text-red-700'}`}>
-          {profile?.status || 'active'}
+        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider
+          ${profile?.status === 'active' ? 'bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' :
+            profile?.status === 'inactive' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800' :
+            'bg-red-50 text-red-700 border border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'}`}>
+          {profile?.status || 'Active'}
         </span>
       </div>
 
-      {/* Room Info */}
-      {tenant.room ? (
-        <p className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300 mb-2">
-          <Home className="w-4 h-4" />
-          Room {tenant.room?.room_number} ({tenant.room?.type_label})
-        </p>
-      ) : (
-        <p className="text-sm text-amber-700 dark:text-amber-500 italic mb-2">No room assigned</p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Room Info */}
+        <div className="p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Assigned Room</p>
+          {tenant.room ? (
+            <p className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1">
+              <Home className="w-3 h-3" /> {tenant.room?.room_number}
+            </p>
+          ) : (
+            <p className="text-xs italic text-gray-400">None</p>
+          )}
+        </div>
+
+        {/* End Date Info */}
+        <div className="p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Contract End</p>
+          <p className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1">
+            <Calendar className="w-3 h-3" /> 
+            {tenant.latestBooking?.end_date ? new Date(tenant.latestBooking.end_date).toLocaleDateString() : 'N/A'}
+          </p>
+        </div>
+      </div>
+
+      {/* Emergency Quick View (Inline) */}
+      {showEmergency && profile && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg animate-in slide-in-from-top-2">
+          <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase mb-2 flex items-center gap-1">
+            <ShieldAlert className="w-3 h-3" /> Emergency Contact
+          </p>
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{profile.emergency_contact_name || 'No Name'}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+              <Phone className="w-3 h-3" /> {profile.emergency_contact_phone || 'No Phone'}
+            </p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-500 italic">Relation: {profile.emergency_contact_relationship || '—'}</p>
+          </div>
+        </div>
       )}
 
-      {/* Move-in Date */}
-      {profile?.move_in_date && (
-        <p className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
-          <Calendar className="w-4 h-4" />
-          Move-in: {new Date(profile.move_in_date).toLocaleDateString()}
-        </p>
-      )}
-
-      {/* Move-out Date */}
-      {profile?.move_out_date && (
-        <p className="text-sm text-red-600 italic mb-2">
-          Move-out: {new Date(profile.move_out_date).toLocaleDateString()}
-        </p>
-      )}
-
-      {/* Preference */}
-      {profile?.preference && (
-        <p className="text-sm italic text-gray-600 dark:text-gray-400 mb-2">
-          "{profile.preference}"
-        </p>
-      )}
-
-      {/* Notes */}
-      {profile?.notes && (
-        <details className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          <summary className="cursor-pointer flex items-center gap-1 font-medium">
-            <FileText className="w-3 h-3" /> Notes
-          </summary>
-          <p className="mt-1 pl-4">{profile.notes}</p>
-        </details>
-      )}
-
-      {/* View-only cards keep tenant data visible but avoid edit actions */}
+      {/* Footer Actions */}
+      <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+        <button
+          onClick={handleMessageTenant}
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+        >
+          <MessageSquare className="w-3.5 h-3.5" /> Message
+        </button>
+        <button
+          onClick={() => setShowEmergency(!showEmergency)}
+          className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95
+            ${showEmergency ? 'bg-red-600 text-white border-red-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => navigate(`/tenants/${tenant.id}`)}
+          className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent"
+        >
+          Logs
+        </button>
+      </div>
     </div>
   );
 }

@@ -198,7 +198,7 @@ const HomePage = ({ onGetStarted }) => {
                   </div>
                 )}
                 <button 
-                  onClick={() => window.open('https://expo.dev/accounts/pheinz/projects/AccommoTrack/builds/901262c3-0c95-4fb5-abcb-d574b8134507', '_blank')} 
+                  onClick={() => window.open('https://expo.dev/accounts/pheinz/projects/AccommoTrack/builds/a31c73e1-07d3-4acb-9e43-bb1027a87765', '_blank')} 
                   className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   Download App 

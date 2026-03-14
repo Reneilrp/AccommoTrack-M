@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\User;
 use App\Models\Room;
+use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
@@ -104,6 +105,12 @@ class TenantController extends Controller
                     ? $legacyRoom
                     : $bookingRoom;
 
+                // Check for overdue invoices
+                $hasOverdue = Invoice::where('tenant_id', $tenant->id)
+                    ->where('status', 'pending')
+                    ->where('due_date', '<', now())
+                    ->exists();
+
                 return [
                     'id' => $tenant->id,
                     'first_name' => $tenant->first_name,
@@ -114,6 +121,7 @@ class TenantController extends Controller
                     'phone' => $tenant->phone,
                     'profile_image' => $tenant->profile_image,
                     'is_active' => $tenant->is_active,
+                    'has_overdue_invoices' => $hasOverdue,
 
                     // Room — resolved from either legacy assignment or confirmed booking
                     'room' => $room ? [
@@ -205,6 +213,12 @@ class TenantController extends Controller
             $latestBooking = $tenant->bookings->first();
             $room = $latestBooking?->room ?? $tenant->room;
 
+            // Check for overdue invoices
+            $hasOverdue = Invoice::where('tenant_id', $tenant->id)
+                ->where('status', 'pending')
+                ->where('due_date', '<', now())
+                ->exists();
+
             return response()->json([
                 'id' => $tenant->id,
                 'first_name' => $tenant->first_name,
@@ -215,6 +229,7 @@ class TenantController extends Controller
                 'phone' => $tenant->phone,
                 'profile_image' => $tenant->profile_image,
                 'is_active' => $tenant->is_active,
+                'has_overdue_invoices' => $hasOverdue,
                 'room' => $room ? [
                     'id' => $room->id,
                     'room_number' => $room->room_number,
@@ -466,7 +481,107 @@ class TenantController extends Controller
         return response()->json($tenant->load(['tenantProfile', 'room']));
     }
 
-        protected function assertNotCaretaker(array $context): void
+        /**
+     * Transfer tenant to a new room
+     */
+    public function transferRoom(Request $request, string $id): JsonResponse
+    {
+        $context = $this->resolveLandlordContext($request);
+        $this->assertNotCaretaker($context);
+
+        $validated = $request->validate([
+            'new_room_id' => 'required|exists:rooms,id',
+            'reason' => 'required|string',
+            'damage_charge' => 'nullable|numeric|min:0',
+            'damage_description' => 'nullable|string|required_if:damage_charge,>0',
+        ]);
+
+        $tenant = User::where('role', 'tenant')->with(['room', 'tenantProfile'])->findOrFail($id);
+        $oldRoom = $tenant->room;
+        $newRoom = Room::with('property')->findOrFail($validated['new_room_id']);
+
+        // Verify new room belongs to the same landlord
+        if ($newRoom->property->landlord_id !== $context['landlord_id']) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Verify new room availability
+        if (!$newRoom->isAvailable() || $newRoom->available_slots <= 0) {
+            return response()->json(['error' => 'New room is not available'], 400);
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // 1. Handle damage charges if provided
+            if (!empty($validated['damage_charge']) && $validated['damage_charge'] > 0) {
+                $reference = 'DMG-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+                Invoice::create([
+                    'reference' => $reference,
+                    'landlord_id' => $context['landlord_id'],
+                    'property_id' => $oldRoom->property_id,
+                    'tenant_id' => $tenant->id,
+                    'description' => 'Damage charge during transfer from ' . ($oldRoom ? $oldRoom->room_number : 'previous room') . ': ' . $validated['damage_description'],
+                    'amount_cents' => (int) round($validated['damage_charge'] * 100),
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => now(),
+                    'due_date' => now(),
+                ]);
+            }
+
+            // 2. End current booking/assignment
+            if ($oldRoom) {
+                // Find latest active booking
+                $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
+                    ->where('room_id', $oldRoom->id)
+                    ->whereIn('status', ['confirmed', 'active'])
+                    ->first();
+
+                if ($activeBooking) {
+                    $this->bookingService->updateStatus($activeBooking, ['status' => 'completed']);
+                }
+
+                $oldRoom->removeTenant($tenant->id);
+            }
+
+            // 3. Start new booking for the new room
+            $moveInDate = now()->format('Y-m-d');
+            $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+
+            $newBooking = $this->bookingService->createBooking([
+                'room_id' => $newRoom->id,
+                'start_date' => $moveInDate,
+                'end_date' => $endDate,
+                'notes' => 'Transferred from ' . ($oldRoom ? $oldRoom->room_number : 'previous room') . '. Reason: ' . $validated['reason'],
+            ], $tenant->id);
+
+            // Confirm the booking immediately
+            $this->bookingService->updateStatus($newBooking, ['status' => 'confirmed']);
+
+            // 4. Update tenant profile notes
+            if ($tenant->tenantProfile) {
+                $currentNotes = $tenant->tenantProfile->notes ?? '';
+                $transferLog = "\n[" . now()->toDateString() . "] Room Transfer: " . ($oldRoom ? $oldRoom->room_number : 'N/A') . " -> " . $newRoom->room_number . ". Reason: " . $validated['reason'];
+                $tenant->tenantProfile->update([
+                    'notes' => $currentNotes . $transferLog
+                ]);
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'message' => 'Room transfer successful',
+                'tenant' => $tenant->load(['tenantProfile', 'room'])
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            Log::error('Room transfer failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to transfer room', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    protected function assertNotCaretaker(array $context): void
         {
             if ($context['is_caretaker']) {
                 throw new AccessDeniedHttpException('Caretaker accounts are read-only for tenants.');

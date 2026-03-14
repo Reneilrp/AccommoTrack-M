@@ -21,17 +21,18 @@ class BookingService
     {
         return DB::transaction(function() use ($data, $tenantId) {
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
+            $requestedBeds = (int) ($data['bed_count'] ?? 1);
 
-            // Calculate effective occupancy (confirmed + pending bookings)
-            $pendingCount = Booking::where('room_id', $room->id)
+            // Calculate effective occupancy (confirmed beds + pending beds)
+            $pendingBeds = (int) Booking::where('room_id', $room->id)
                 ->where('status', 'pending')
-                ->count();
+                ->sum('bed_count');
             
-            $effectiveOccupancy = $room->occupied + $pendingCount;
+            $effectiveOccupancy = $room->occupied + $pendingBeds;
 
             // Check if room has available slots
-            if ($effectiveOccupancy >= $room->capacity) {
-                throw new \Exception('Room is already fully booked or has pending reservations.');
+            if ($effectiveOccupancy + $requestedBeds > $room->capacity) {
+                throw new \Exception('Room does not have enough available beds for this request.');
             }
 
             if ($room->status === 'maintenance') {
@@ -42,6 +43,20 @@ class BookingService
             $endDate = Carbon::parse($data['end_date']);
             $days = $startDate->diffInDays($endDate);
 
+            $today = Carbon::today();
+            
+            if ($room->billing_policy === 'daily') {
+                // For daily rooms, check-in must be tomorrow or later
+                if ($startDate->lessThanOrEqualTo($today)) {
+                    throw new \Exception('For daily rentals, check-in must be at least one day after today.');
+                }
+            } else {
+                // For monthly/others, check-in can be today
+                if ($startDate->lessThan($today)) {
+                    throw new \Exception('Check-in date cannot be in the past.');
+                }
+            }
+
             // Prevent bookings more than 3 months in advance
             if ($startDate->greaterThan(now()->addMonths(3))) {
                 throw new \Exception('You cannot book a room more than 3 months in advance.');
@@ -49,13 +64,19 @@ class BookingService
 
             // Enforce minimum stay if configured
             $minStay = $room->min_stay_days ?? null;
+            
+            // If billing policy is monthly, the implicit minimum stay is 30 days
+            if (($room->billing_policy === 'monthly' || $room->billing_policy === 'monthly_with_daily') && ($minStay === null || $minStay < 30)) {
+                $minStay = 30;
+            }
+
             if ($minStay && $days < $minStay) {
-                throw new \Exception("Minimum stay is {$minStay} days");
+                throw new \Exception("Minimum stay for this room is {$minStay} days.");
             }
 
             // Calculate pricing (use calendar-period-aware calculation)
             $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
-            $totalAmount = $priceResult['total'];
+            $totalAmount = $priceResult['total'] * $requestedBeds;
             $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
 
             $bookingReference = 'BK-' . strtoupper(Str::random(8));
@@ -66,6 +87,7 @@ class BookingService
                 'landlord_id' => $room->property->landlord_id,
                 'guest_name' => $data['guest_name'] ?? null,
                 'room_id' => $room->id,
+                'bed_count' => $requestedBeds,
                 'booking_reference' => $bookingReference,
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate->format('Y-m-d'),
@@ -77,11 +99,8 @@ class BookingService
                 'notes' => $data['notes'] ?? null
             ]);
 
-            // Re-calculate effective occupancy after this new booking
-            $newEffectiveOccupancy = $effectiveOccupancy + 1;
-
             // Update room status to occupied if it's now full (confirmed + pending)
-            if ($newEffectiveOccupancy >= $room->capacity) {
+            if ($effectiveOccupancy + $requestedBeds >= $room->capacity) {
                 $room->update(['status' => 'occupied']);
             }
 
@@ -169,7 +188,7 @@ class BookingService
 
         // Assign tenant to room only if we have a tenant_id
         if ($booking->tenant_id) {
-            $booking->room->assignTenant($booking->tenant_id, $booking->start_date);
+            $booking->room->assignTenant($booking->tenant_id, $booking->start_date, $booking->bed_count);
 
             // Create or update tenant profile - check if tenant exists first to avoid 500
             if ($booking->tenant) {

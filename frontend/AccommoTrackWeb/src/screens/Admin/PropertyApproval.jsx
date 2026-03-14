@@ -226,7 +226,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
             <div className="p-6 space-y-6">
               {/* Property Images */}
-              {selectedProperty.image_url && (
+              {selectedProperty.image && (
                 <div>
                   <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Property Images</h4>
                   <div className="grid grid-cols-3 gap-3">
@@ -234,7 +234,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                       selectedProperty.images.map((img, idx) => (
                         <img
                           key={idx}
-                          src={getImageUrl(img.image_path || img.image_url)}
+                          src={getImageUrl(img.image_url || img.image_path)}
                           alt={`Property ${idx + 1}`}
                           className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                           onError={(e) => e.target.src = '/placeholder.png'}
@@ -242,7 +242,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                       ))
                     ) : (
                       <img
-                        src={getImageUrl(selectedProperty.image_url)}
+                        src={getImageUrl(selectedProperty.image)}
                         alt="Property"
                         className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                         onError={(e) => e.target.src = '/placeholder.png'}
@@ -303,11 +303,11 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               </div>
 
               {/* Amenities */}
-              {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
+              {selectedProperty.amenities_list && selectedProperty.amenities_list.length > 0 && (
                 <div>
                   <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Amenities</h4>
                   <div className="grid grid-cols-3 gap-2">
-                    {selectedProperty.amenities.map((amenity, idx) => (
+                    {selectedProperty.amenities_list.map((amenity, idx) => (
                       <div key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-lg text-sm font-medium border border-blue-100 dark:border-blue-800">
                         {amenity}
                       </div>
@@ -317,12 +317,12 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               )}
 
               {/* Property Rules */}
-              {selectedProperty.rules && selectedProperty.rules.length > 0 && (
+              {selectedProperty.property_rules && selectedProperty.property_rules.length > 0 && (
                 <div>
                   <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Property Rules</h4>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     <ul className="list-disc list-inside space-y-2">
-                      {selectedProperty.rules.map((rule, idx) => (
+                      {selectedProperty.property_rules.map((rule, idx) => (
                         <li key={idx} className="text-gray-700 dark:text-gray-300">{rule}</li>
                       ))}
                     </ul>

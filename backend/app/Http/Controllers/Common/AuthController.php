@@ -13,6 +13,9 @@ use Illuminate\Validation\Rule;
 use App\Services\AuthService;
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
+use App\Mail\EmailOtpMail;
+use Illuminate\Support\Facades\Mail;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -61,20 +64,15 @@ class AuthController extends Controller
                 'email.email' => 'Email address is not valid or cannot receive mail.',
             ]);
 
-            $user = $this->authService->register($validated);
+            $result = $this->authService->register($validated);
+            $user = $result['user'];
+            $otp = $result['otp'];
 
-            try {
-                $token = $user->createToken('auth_token')->plainTextToken;
-            } catch (\Exception $e) {
-                // If token creation fails (e.g. missing table), delete user and rethrow
-                $user->delete();
-                throw new \Exception('Failed to create access token. Please ensure migrations are run: ' . $e->getMessage());
-            }
+            // Send OTP email
+            Mail::to($user->email)->send(new EmailOtpMail($otp));
 
             return response()->json([
-                'user' => $user,
-                'token' => $token,
-                'message' => 'Registration successful.'
+                'message' => 'Registration successful. An OTP has been sent to your email address for verification.'
             ], 201);
         } catch (ValidationException $e) {
             throw $e;
@@ -84,6 +82,64 @@ class AuthController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function verifyEmailOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'email_otp_code' => 'required|string|min:6|max:6',
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (!$user || !$user->email_otp_code) {
+            return response()->json(['message' => 'Verification code not found.'], 404);
+        }
+
+        if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
+            return response()->json(['message' => 'Verification code has expired.'], 422);
+        }
+
+        if (!Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
+            return response()->json(['message' => 'Invalid verification code.'], 422);
+        }
+
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'is_verified' => true,
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+            'message' => 'Email verified successfully. You are now logged in.'
+        ]);
+    }
+
+    public function resendEmailOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        // Regenerate OTP
+        $otp = (string) random_int(100000, 999999);
+        $user->forceFill([
+            'email_otp_code' => Hash::make($otp),
+            'email_otp_expires_at' => Carbon::now()->addMinutes(15),
+        ])->save();
+
+        // Resend OTP email
+        Mail::to($user->email)->send(new EmailOtpMail($otp));
+
+        return response()->json(['message' => 'A new verification code has been sent to your email address.']);
     }
 
     public function login(Request $request)

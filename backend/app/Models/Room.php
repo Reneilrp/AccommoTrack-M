@@ -148,19 +148,19 @@ class Room extends Model
     }
 
     /**
-     * Get occupied count (actual number of tenants)
+     * Get occupied count (actual number of beds taken)
      */
     public function getOccupiedAttribute()
     {
-        // Count active tenants in this room
-        $activeTenantsCount = $this->tenants()->count();
+        // Sum bed_count for all active tenants in this room
+        $occupiedBeds = (int) $this->tenants()->sum('room_tenant_assignments.bed_count');
         
-        // If no active tenants but room has current_tenant_id (legacy support)
-        if ($activeTenantsCount === 0 && $this->current_tenant_id) {
+        // If no active assignments but room has legacy current_tenant_id
+        if ($occupiedBeds === 0 && $this->current_tenant_id) {
             return 1;
         }
         
-        return $activeTenantsCount;
+        return $occupiedBeds;
     }
 
     /**
@@ -235,19 +235,19 @@ class Room extends Model
         }
         
         $occupiedCount = $this->occupied;
-        $pendingCount = Booking::where('room_id', $this->id)
+        $pendingBeds = (int) Booking::where('room_id', $this->id)
             ->where('status', 'pending')
-            ->count();
+            ->sum('bed_count');
             
-        return max(0, $this->capacity - ($occupiedCount + $pendingCount));
+        return max(0, $this->capacity - ($occupiedCount + $pendingBeds));
     }
 
     /**
      * Check if room is available (has available slots)
      */
-    public function isAvailable()
+    public function isAvailable($requestedBeds = 1)
     {
-        return $this->status !== 'maintenance' && $this->available_slots > 0;
+        return $this->status !== 'maintenance' && $this->available_slots >= $requestedBeds;
     }
 
     /**
@@ -309,18 +309,21 @@ class Room extends Model
     }
 
     /**
-     * Assign tenant to room (supports multiple tenants)
+     * Assign tenant to room (supports multiple tenants and beds)
      */
-    public function assignTenant($tenantId, $moveInDate = null)
+    public function assignTenant($tenantId, $moveInDate = null, $bedCount = 1)
     {
-        // Check if room has physical space for more active tenants
-        if ($this->tenants()->count() >= $this->capacity) {
-            throw new \Exception('Room is fully occupied');
+        $requestedBeds = (int) ($bedCount ?: 1);
+
+        // Check if room has physical space for more active tenants/beds
+        if ($this->occupied + $requestedBeds > $this->capacity) {
+            throw new \Exception('Room has insufficient available beds');
         }
         
         // Add tenant to room_tenant_assignments
         $this->tenants()->attach($tenantId, [
             'start_date' => $moveInDate ?? now()->format('Y-m-d'),
+            'bed_count' => $requestedBeds,
             'monthly_rent' => $this->monthly_rate,
             'status' => 'active',
             'created_at' => now(),
@@ -531,49 +534,52 @@ class Room extends Model
         $months = intdiv($days, $daysInMonth);
         $remaining = $days % $daysInMonth;
 
-        $monthCharge = $months * $monthly;
-        $daysCharge = 0.0;
-        $method = $policy;
-
         if ($policy === 'daily') {
             $ratePerDay = $daily ?? ($monthly / $daysInMonth);
-            $daysCharge = $days * $ratePerDay;
-            $total = $daysCharge;
-            $method = 'daily';
-        } elseif ($policy === 'monthly_with_daily') {
-            $total = $monthCharge;
-            if ($remaining > 0) {
-                $ratePerDay = $daily ?? ($monthly / $daysInMonth);
-                $daysCharge = $remaining * $ratePerDay;
-                $total += $daysCharge;
-            }
-            $method = 'monthly_with_daily';
-        } else { // monthly (fixed 30-day block logic)
-            // If there's any remainder, it's treated as a full month for the 'monthly' policy
-            $totalMonths = ($remaining > 0) ? $months + 1 : $months;
-            $monthCharge = $totalMonths * $monthly;
-            $daysCharge = 0.0;
-            $total = $monthCharge;
-            $method = 'monthly_fixed';
+            $total = round($days * $ratePerDay, 2);
+            return [
+                'total' => $total,
+                'breakdown' => [
+                    'months' => 0,
+                    'remaining_days' => $days,
+                    'month_charge' => 0.00,
+                    'days_charge' => $total,
+                ],
+                'method' => 'daily',
+            ];
         }
 
-        // Final rounding to 2 decimal places to ensure consistent currency representation
-        $total = round((float)number_format($total, 2, '.', ''), 2);
+        if ($policy === 'monthly_with_daily') {
+            $monthCharge = $months * $monthly;
+            $ratePerDay = $daily ?? ($monthly / $daysInMonth);
+            $daysCharge = $remaining * $ratePerDay;
+            $total = round($monthCharge + $daysCharge, 2);
 
-        if ($method === 'monthly_fixed') {
-            $months = ($remaining > 0) ? $months + 1 : $months;
-            $remaining = 0; // In fixed monthly, we don't show remaining days as separate charge
+            return [
+                'total' => $total,
+                'breakdown' => [
+                    'months' => $months,
+                    'remaining_days' => $remaining,
+                    'month_charge' => round($monthCharge, 2),
+                    'days_charge' => round($daysCharge, 2),
+                ],
+                'method' => 'monthly_with_daily',
+            ];
         }
+
+        // Default 'monthly' (fixed 30-day block logic)
+        $totalMonths = ($remaining > 0) ? $months + 1 : $months;
+        $total = round($totalMonths * $monthly, 2);
 
         return [
             'total' => $total,
             'breakdown' => [
-                'months' => $months,
+                'months' => $totalMonths,
                 'remaining_days' => $remaining,
-                'month_charge' => round($monthCharge, 2),
-                'days_charge' => round($daysCharge, 2),
+                'month_charge' => $total,
+                'days_charge' => 0.00,
             ],
-            'method' => $method,
+            'method' => 'monthly_fixed',
         ];
     }
 
@@ -590,9 +596,10 @@ class Room extends Model
         $monthly = (float) $this->monthly_rate;
         $daily = $this->daily_rate !== null ? (float) $this->daily_rate : null;
         $policy = $this->billing_policy ?? 'monthly';
+        $daysInMonth = 30;
 
         if ($policy === 'daily') {
-            $ratePerDay = $daily ?? ($monthly / 30);
+            $ratePerDay = $daily ?? ($monthly / $daysInMonth);
             $total = round($days * $ratePerDay, 2);
             return [
                 'total' => $total,
@@ -606,11 +613,29 @@ class Room extends Model
             ];
         }
 
-        // Fix for the 3999.98 issue: use intdiv for whole months
-        $months = intdiv($days, 30);
-        $remaining = $days % 30;
-        
-        // If there's any remainder, it's a partial month (ceil behavior but safer)
+        $months = intdiv($days, $daysInMonth);
+        $remaining = $days % $daysInMonth;
+
+        if ($policy === 'monthly_with_daily') {
+            $monthCharge = $months * $monthly;
+            $ratePerDay = $daily ?? ($monthly / $daysInMonth);
+            $daysCharge = $remaining * $ratePerDay;
+            $total = round($monthCharge + $daysCharge, 2);
+
+            return [
+                'total' => $total,
+                'breakdown' => [
+                    'months' => $months,
+                    'remaining_days' => $remaining,
+                    'month_charge' => round($monthCharge, 2),
+                    'days_charge' => round($daysCharge, 2),
+                ],
+                'method' => 'monthly_with_daily',
+            ];
+        }
+
+        // Default 'monthly' policy (fixed 30-day block logic)
+        // If there's any remainder, it's treated as a full month
         $totalMonths = ($remaining > 0) ? $months + 1 : $months;
         $total = round($totalMonths * $monthly, 2);
 

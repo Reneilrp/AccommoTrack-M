@@ -283,6 +283,134 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
   );
 };
 
+// ... (imports)
+
+const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      setError("Please enter a valid 6-digit OTP.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const response = await api.post("/verify-email-otp", {
+        email: email,
+        email_otp_code: otp,
+      });
+      onVerified(response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Verification failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.post("/resend-email-otp", { email });
+      toast.success("A new OTP has been sent to your email.");
+      setResendCooldown(60); // 60-second cooldown
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to resend OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+        aria-label="Back"
+      >
+        <ChevronLeft className="w-7 h-7" />
+      </button>
+      <div className="text-center mb-8">
+        <h2 className="no-scale text-2xl md:text-3xl lg:text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
+          Verify Your Email
+        </h2>
+        <p className="text-green-900/90 dark:text-gray-300">
+          An OTP has been sent to <strong>{email}</strong>. Please enter it below.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
+            {error}
+          </span>
+        </div>
+      )}
+
+      <form onSubmit={handleVerify} className="space-y-5">
+        <div>
+          <label className="block text-sm font-semibold text-black dark:text-gray-200 mb-2">
+            Verification Code
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="w-full text-center tracking-[0.5em] font-bold text-2xl p-4 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              maxLength="6"
+              disabled={loading}
+              required
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin h-5 w-5" />
+              Verifying...
+            </span>
+          ) : (
+            "Verify Account"
+          )}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <span className="text-green-700/80">Didn't receive the code? </span>
+        <button
+          onClick={handleResend}
+          className="text-green-700 font-semibold hover:text-green-900 transition-colors underline disabled:text-gray-400 disabled:no-underline"
+          disabled={loading || resendCooldown > 0}
+        >
+          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 function AuthScreen({ onLogin = () => {} }) {
   const navigate = useNavigate();
   const { effectiveTheme } = usePreferences();
@@ -315,6 +443,7 @@ function AuthScreen({ onLogin = () => {} }) {
     reason: "",
   });
   const [registeredEmail, setRegisteredEmail] = useState("");
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   // Detect if user is on mobile device
@@ -749,33 +878,14 @@ function AuthScreen({ onLogin = () => {} }) {
 
     try {
       const result = await api.post("/register", formData);
-      const data = result.data;
-
-      // Store email for platform choice modal
+      
+      // Store email for OTP screen
       setRegisteredEmail(formData.email);
 
-      // Check if user is on mobile device
-      if (isMobileDevice) {
-        // Show platform choice modal for mobile users
-        setShowPlatformChoice(true);
-      } else {
-        // Desktop users get normal flow
-        toast.success(
-          "Registration successful! Please login with your credentials.",
-        );
-        setIsLogin(true);
-      }
+      // Show OTP verification screen
+      setShowOtpVerification(true);
+      toast.success(result.data.message);
 
-      setFormData({
-        first_name: "",
-        middle_name: "",
-        last_name: "",
-        email: formData.email,
-        password: "",
-        password_confirmation: "",
-        role: "tenant",
-        phone: "",
-      });
     } catch (err) {
       // Try to extract Laravel validation errors and map them to fieldErrors
       let errorMsg = "Registration failed. Please try again.";
@@ -848,6 +958,16 @@ function AuthScreen({ onLogin = () => {} }) {
     setIsLogin(true);
   };
 
+  const handleOtpVerified = (data) => {
+    const me = data.user;
+    localStorage.setItem("authToken", data.token);
+    localStorage.setItem("userData", JSON.stringify(me));
+    api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    onLogin(me);
+    const landingRoute = getDefaultLandingRoute(me);
+    navigate(landingRoute);
+  };
+
   const toggleScreen = () => {
     setIsLogin(!isLogin);
     setError("");
@@ -864,647 +984,660 @@ function AuthScreen({ onLogin = () => {} }) {
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Toaster />
-      <BlockedUserModal
-        isOpen={showBlockedModal}
-        onClose={() => setShowBlockedModal(false)}
-      />
-      <ResubmitModal
-        visible={showResubmitModal}
-        onClose={() => setShowResubmitModal(false)}
-        theme={effectiveTheme}
-      />
-      <ForgotPasswordModal
-        isOpen={showForgotPassword}
-        onClose={() => setShowForgotPassword(false)}
-      />
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
-        {/* Back/Sign In Button */}
-        {isLogin ? (
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
-            aria-label="Back to Landing Page"
-          >
-            <ChevronLeft className="w-7 h-7" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsLogin(true)}
-            className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
-            aria-label="Back to Sign In"
-          >
-            <ChevronLeft className="w-7 h-7" />
-          </button>
-        )}
-        {/* Logo and Header */}
-        <div className="flex flex-col items-center justify-center mb-4">
-          <img
-            src={Logo}
-            alt="AccommoTrack Logo"
-            className="h-12 w-auto mb-2"
+      {showOtpVerification ? (
+        <OtpVerificationScreen
+          email={registeredEmail}
+          onVerified={handleOtpVerified}
+          onBack={() => {
+            setShowOtpVerification(false);
+            setIsLogin(true); // Go back to login screen
+          }}
+        />
+      ) : (
+        <>
+          <BlockedUserModal
+            isOpen={showBlockedModal}
+            onClose={() => setShowBlockedModal(false)}
           />
-          <span className="no-scale text-2xl md:text-3xl lg:text-3xl font-extrabold text-green-700 dark:text-green-400 tracking-tight">
-            AccommoTrack
-          </span>
-        </div>
-        <div className="text-center mb-8">
-          <h2 className="no-scale text-2xl md:text-3xl lg:text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
-            {isLogin ? "Welcome Back" : "Create Account"}
-          </h2>
-          <p className="text-green-900/90 dark:text-gray-300">
-            {isLogin
-              ? "Access your account and discover accommodations."
-              : "Sign up to get started and look for accommodations."}
-          </p>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
-              {error}
-            </span>
-          </div>
-        )}
-
-        {/* LOGIN FORM (all users) */}
-        {isLogin && (
-          <form onSubmit={handleLogin} className="space-y-5">
-            {/* Email Field */}
-            <div>
-              <label className={labelClasses}>
-                Email Address
-                {emailAvailable === false && (
-                  <span className="ml-2 text-red-400 text-xs font-semibold">
-                    *
-                  </span>
-                )}
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className={iconClasses} />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className={
-                    inputClasses +
-                    (emailAvailable === false
-                      ? " border-red-400"
-                      : emailAvailable === true
-                        ? " border-green-400"
-                        : "")
-                  }
-                  placeholder="Enter your email"
-                  disabled={loading}
-                  required
-                />
-                {/* Live email check message */}
-                {formData.email && emailCheckMsg && (
-                  <span
-                    className={
-                      "absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold " +
-                      (emailAvailable === false
-                        ? "text-red-400"
-                        : emailAvailable === true
-                          ? "text-green-400"
-                          : "text-gray-300")
-                    }
-                  >
-                    {emailCheckMsg}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label className={labelClasses}>Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className={iconClasses} />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  className={inputClasses + " pr-12"}
-                  placeholder="Enter your password"
-                  disabled={loading}
-                  required
-                />
-                <button
-                  type="button"
-                  tabIndex="-1"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  disabled={loading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Forgot Password */}
-            <div className="text-right">
+          <ResubmitModal
+            visible={showResubmitModal}
+            onClose={() => setShowResubmitModal(false)}
+            theme={effectiveTheme}
+          />
+          <ForgotPasswordModal
+            isOpen={showForgotPassword}
+            onClose={() => setShowForgotPassword(false)}
+          />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-green-100 dark:border-gray-700 relative">
+            {/* Back/Sign In Button */}
+            {isLogin ? (
               <button
                 type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white font-semibold transition-colors opacity-50 hover:opacity-80"
+                onClick={() => navigate("/")}
+                className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+                aria-label="Back to Landing Page"
               >
-                Forgot Password?
+                <ChevronLeft className="w-7 h-7" />
               </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsLogin(true)}
+                className="absolute top-4 left-4 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-semibold text-lg z-10 bg-transparent p-0 border-0 shadow-none"
+                aria-label="Back to Sign In"
+              >
+                <ChevronLeft className="w-7 h-7" />
+              </button>
+            )}
+            {/* Logo and Header */}
+            <div className="flex flex-col items-center justify-center mb-4">
+              <img
+                src={Logo}
+                alt="AccommoTrack Logo"
+                className="h-12 w-auto mb-2"
+              />
+              <span className="no-scale text-2xl md:text-3xl lg:text-3xl font-extrabold text-green-700 dark:text-green-400 tracking-tight">
+                AccommoTrack
+              </span>
+            </div>
+            <div className="text-center mb-8">
+              <h2 className="no-scale text-2xl md:text-3xl lg:text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
+                {isLogin ? "Welcome Back" : "Create Account"}
+              </h2>
+              <p className="text-green-900/90 dark:text-gray-300">
+                {isLogin
+                  ? "Access your account and discover accommodations."
+                  : "Sign up to get started and look for accommodations."}
+              </p>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="animate-spin h-5 w-5 text-white" />
-                  Signing In...
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
+                  {error}
                 </span>
-              ) : (
-                "Sign In"
-              )}
-            </button>
-          </form>
-        )}
-        {/* TENANT SIGN UP ONLY (role is fixed to tenant) */}
-        {!isLogin && (
-          <form onSubmit={handleRegister} className="space-y-4">
-            {/* First Name */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>First Name</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className={iconClasses} />
-                </div>
-                <input
-                  type="text"
-                  name="first_name"
-                  ref={(el) => (fieldRefs.current.first_name = el)}
-                  value={formData.first_name}
-                  onChange={(e) =>
-                    handleInputChange("first_name", e.target.value)
-                  }
-                  className={inputClasses}
-                  placeholder="Enter your first name"
-                  disabled={loading}
-                  required
-                />
               </div>
-              {fieldErrors.first_name && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldErrors.first_name}
-                </p>
-              )}
-            </div>
+            )}
 
-            {/* Middle Name */}
-            <div>
-              <label className={labelClasses}>
-                Middle Name{" "}
-                <span className="text-black/50 dark:text-white/50 text-xs">
-                  (Optional)
-                </span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className={iconClasses} />
+            {/* LOGIN FORM (all users) */}
+            {isLogin && (
+              <form onSubmit={handleLogin} className="space-y-5">
+                {/* Email Field */}
+                <div>
+                  <label className={labelClasses}>
+                    Email Address
+                    {emailAvailable === false && (
+                      <span className="ml-2 text-red-400 text-xs font-semibold">
+                        *
+                      </span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className={iconClasses} />
+                    </div>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={
+                        inputClasses +
+                        (emailAvailable === false
+                          ? " border-red-400"
+                          : emailAvailable === true
+                            ? " border-green-400"
+                            : "")
+                      }
+                      placeholder="Enter your email"
+                      disabled={loading}
+                      required
+                    />
+                    {/* Live email check message */}
+                    {formData.email && emailCheckMsg && (
+                      <span
+                        className={
+                          "absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold " +
+                          (emailAvailable === false
+                            ? "text-red-400"
+                            : emailAvailable === true
+                              ? "text-green-400"
+                              : "text-gray-300")
+                        }
+                      >
+                        {emailCheckMsg}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  name="middle_name"
-                  ref={(el) => (fieldRefs.current.middle_name = el)}
-                  value={formData.middle_name}
-                  onChange={(e) =>
-                    handleInputChange("middle_name", e.target.value)
-                  }
-                  className={inputClasses}
-                  placeholder="Enter your middle name"
-                  disabled={loading}
-                />
-              </div>
-              {fieldErrors.middle_name && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldErrors.middle_name}
-                </p>
-              )}
-            </div>
 
-            {/* Last Name */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Last Name</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className={iconClasses} />
+                {/* Password Field */}
+                <div>
+                  <label className={labelClasses}>Password</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className={iconClasses} />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
+                      className={inputClasses + " pr-12"}
+                      placeholder="Enter your password"
+                      disabled={loading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      disabled={loading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  name="last_name"
-                  ref={(el) => (fieldRefs.current.last_name = el)}
-                  value={formData.last_name}
-                  onChange={(e) =>
-                    handleInputChange("last_name", e.target.value)
-                  }
-                  className={inputClasses}
-                  placeholder="Enter your last name"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              {fieldErrors.last_name && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldErrors.last_name}
-                </p>
-              )}
-            </div>
 
-            {/* Email */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Email Address</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-                {/* Show live email check or backend error as a red span next to label */}
-                {formData.email &&
-                  (emailCheckMsg ||
-                    (error && error.toLowerCase().includes("email"))) && (
-                    <span className="text-red-400 text-xs font-semibold ml-2">
-                      {emailCheckMsg ? emailCheckMsg : error}
+                {/* Forgot Password */}
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white font-semibold transition-colors opacity-50 hover:opacity-80"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="animate-spin h-5 w-5 text-white" />
+                      Signing In...
                     </span>
-                  )}
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className={iconClasses} />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  ref={(el) => (fieldRefs.current.email = el)}
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className={
-                    inputClasses +
-                    (emailAvailable === false
-                      ? " border-red-400"
-                      : emailAvailable === true
-                        ? " border-green-400"
-                        : "")
-                  }
-                  placeholder="Enter your email"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              {fieldErrors.email && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
-              )}
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className={labelClasses}>
-                Phone Number{" "}
-                <span className="text-black/50 dark:text-white/50 text-xs">
-                  (Optional)
-                </span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className={iconClasses} />
-                </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  ref={(el) => (fieldRefs.current.phone = el)}
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className={inputClasses}
-                  placeholder="Enter your phone number"
-                  disabled={loading}
-                />
-              </div>
-              {fieldErrors.phone && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Password</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className={iconClasses} />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  ref={(el) => (fieldRefs.current.password = el)}
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  className={inputClasses + " pr-12"}
-                  placeholder="Create a password"
-                  disabled={loading}
-                  required
-                  minLength="8"
-                />
-                <button
-                  type="button"
-                  tabIndex="-1"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  disabled={loading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
                   ) : (
-                    <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                    "Sign In"
                   )}
                 </button>
-              </div>
-              <div className="mt-2">
-                <ul className="text-xs space-y-1">
-                  {!passwordChecks.minLen && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        --Minimum 8 characters
-                      </span>
-                    </li>
+              </form>
+            )}
+            {/* TENANT SIGN UP ONLY (role is fixed to tenant) */}
+            {!isLogin && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                {/* First Name */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>First Name</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="first_name"
+                      ref={(el) => (fieldRefs.current.first_name = el)}
+                      value={formData.first_name}
+                      onChange={(e) =>
+                        handleInputChange("first_name", e.target.value)
+                      }
+                      className={inputClasses}
+                      placeholder="Enter your first name"
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.first_name && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldErrors.first_name}
+                    </p>
                   )}
-                  {!passwordChecks.hasUpper && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        --At least 1 uppercase letter
-                      </span>
-                    </li>
-                  )}
-                  {!passwordChecks.numCount && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        --At least 2 numbers
-                      </span>
-                    </li>
-                  )}
-                  {!passwordChecks.hasSpecial && (
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        --At least 1 special character
-                      </span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-              {fieldErrors.password && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldErrors.password}
-                </p>
-              )}
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label className={labelClasses + " flex items-center gap-2"}>
-                <span>Confirm Password</span>
-                <span className="text-red-400 text-xs font-bold">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className={iconClasses} />
                 </div>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="password_confirmation"
-                  ref={(el) => (fieldRefs.current.password_confirmation = el)}
-                  value={formData.password_confirmation}
-                  onChange={(e) =>
-                    handleInputChange("password_confirmation", e.target.value)
-                  }
-                  className={inputClasses + " pr-12"}
-                  placeholder="Confirm your password"
-                  disabled={loading}
-                  required
-                  minLength="8"
-                />
+
+                {/* Middle Name */}
+                <div>
+                  <label className={labelClasses}>
+                    Middle Name{" "}
+                    <span className="text-black/50 dark:text-white/50 text-xs">
+                      (Optional)
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="middle_name"
+                      ref={(el) => (fieldRefs.current.middle_name = el)}
+                      value={formData.middle_name}
+                      onChange={(e) =>
+                        handleInputChange("middle_name", e.target.value)
+                      }
+                      className={inputClasses}
+                      placeholder="Enter your middle name"
+                      disabled={loading}
+                    />
+                  </div>
+                  {fieldErrors.middle_name && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldErrors.middle_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Last Name</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="last_name"
+                      ref={(el) => (fieldRefs.current.last_name = el)}
+                      value={formData.last_name}
+                      onChange={(e) =>
+                        handleInputChange("last_name", e.target.value)
+                      }
+                      className={inputClasses}
+                      placeholder="Enter your last name"
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.last_name && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldErrors.last_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Email Address</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                    {/* Show live email check or backend error as a red span next to label */}
+                    {formData.email &&
+                      (emailCheckMsg ||
+                        (error && error.toLowerCase().includes("email"))) && (
+                        <span className="text-red-400 text-xs font-semibold ml-2">
+                          {emailCheckMsg ? emailCheckMsg : error}
+                        </span>
+                      )}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className={iconClasses} />
+                    </div>
+                    <input
+                      type="email"
+                      name="email"
+                      ref={(el) => (fieldRefs.current.email = el)}
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={
+                        inputClasses +
+                        (emailAvailable === false
+                          ? " border-red-400"
+                          : emailAvailable === true
+                            ? " border-green-400"
+                            : "")
+                      }
+                      placeholder="Enter your email"
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.email && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className={labelClasses}>
+                    Phone Number{" "}
+                    <span className="text-black/50 dark:text-white/50 text-xs">
+                      (Optional)
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className={iconClasses} />
+                    </div>
+                    <input
+                      type="tel"
+                      name="phone"
+                      ref={(el) => (fieldRefs.current.phone = el)}
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className={inputClasses}
+                      placeholder="Enter your phone number"
+                      disabled={loading}
+                    />
+                  </div>
+                  {fieldErrors.phone && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Password</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className={iconClasses} />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      ref={(el) => (fieldRefs.current.password = el)}
+                      value={formData.password}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
+                      className={inputClasses + " pr-12"}
+                      placeholder="Create a password"
+                      disabled={loading}
+                      required
+                      minLength="8"
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      disabled={loading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2">
+                    <ul className="text-xs space-y-1">
+                      {!passwordChecks.minLen && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --Minimum 8 characters
+                          </span>
+                        </li>
+                      )}
+                      {!passwordChecks.hasUpper && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --At least 1 uppercase letter
+                          </span>
+                        </li>
+                      )}
+                      {!passwordChecks.numCount && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --At least 2 numbers
+                          </span>
+                        </li>
+                      )}
+                      {!passwordChecks.hasSpecial && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 text-gray-300" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            --At least 1 special character
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                  {fieldErrors.password && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldErrors.password}
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Confirm Password</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className={iconClasses} />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="password_confirmation"
+                      ref={(el) => (fieldRefs.current.password_confirmation = el)}
+                      value={formData.password_confirmation}
+                      onChange={(e) =>
+                        handleInputChange("password_confirmation", e.target.value)
+                      }
+                      className={inputClasses + " pr-12"}
+                      placeholder="Confirm your password"
+                      disabled={loading}
+                      required
+                      minLength="8"
+                    />
+                    <button
+                      type="button"
+                      tabIndex="-1"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                      )}
+                    </button>
+                  </div>
+                  {fieldErrors.password_confirmation && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldErrors.password_confirmation}
+                    </p>
+                  )}
+                </div>
+
+                {/* Hidden Role Field (always tenant) */}
+                <input type="hidden" name="role" value="tenant" />
+
+                {/* Submit Button */}
                 <button
-                  type="button"
-                  tabIndex="-1"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  type="submit"
                   disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="animate-spin h-5 w-5 text-white" />
+                      Creating Account...
+                    </span>
                   ) : (
-                    <Eye className="w-5 h-5 text-green-400 hover:text-green-700 transition-colors opacity-50" />
+                    "Create Account"
                   )}
                 </button>
-              </div>
-              {fieldErrors.password_confirmation && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldErrors.password_confirmation}
-                </p>
-              )}
-            </div>
+              </form>
+            )}
 
-            {/* Hidden Role Field (always tenant) */}
-            <input type="hidden" name="role" value="tenant" />
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="animate-spin h-5 w-5 text-white" />
-                  Creating Account...
-                </span>
-              ) : (
-                "Create Account"
-              )}
-            </button>
-          </form>
-        )}
-
-        {/* Toggle Login/Register */}
-        <div className="mt-6 text-center">
-          <span className="text-green-700/80">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-          </span>
-          <button
-            onClick={toggleScreen}
-            className="text-green-700 font-semibold hover:text-green-900 transition-colors underline"
-            disabled={loading}
-          >
-            {isLogin ? "Sign Up" : "Sign In"}
-          </button>
-        </div>
-      </div>
-
-      {/* Platform Choice Modal - Shows for mobile users after registration */}
-      {showPlatformChoice && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
-            {/* Success Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <Check className="w-10 h-10 text-green-500" />
-              </div>
-            </div>
-
-            {/* Title */}
-            <h3 className="text-xl font-bold text-green-700 text-center mb-2">
-              Registration Successful!
-            </h3>
-
-            {/* Description */}
-            <p className="text-green-900/90 text-center mb-6">
-              Your tenant account has been created. How would you like to
-              continue?
-            </p>
-
-            {/* Registered Email Display */}
-            <div className="bg-green-50 rounded-lg p-3 mb-6 border border-green-100">
-              <p className="text-sm text-green-700 text-center">
-                Registered as:
-              </p>
-              <p className="text-sm font-medium text-green-900 text-center">
-                {registeredEmail}
-              </p>
-            </div>
-
-            {/* Choice Buttons */}
-            <div className="space-y-3">
-              <Toaster />
-              {/* Continue on Web */}
+            {/* Toggle Login/Register */}
+            <div className="mt-6 text-center">
+              <span className="text-green-700/80">
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+              </span>
               <button
-                onClick={handleContinueOnWeb}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                onClick={toggleScreen}
+                className="text-green-700 font-semibold hover:text-green-900 transition-colors underline"
+                disabled={loading}
               >
-                <Monitor className="w-5 h-5" />
-                Continue on Web
-              </button>
-
-              {/* Return to Mobile App */}
-              <button
-                onClick={handleGoToMobileApp}
-                className="w-full bg-green-50 text-green-900 font-semibold py-3 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
-              >
-                <Smartphone className="w-5 h-5" />
-                Go Back to Mobile App
-              </button>
-            </div>
-
-            {/* Note */}
-            <p className="text-xs text-green-700/70 text-center mt-4">
-              You can access your tenant account from any device
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Pending/Rejected Verification Modal */}
-      {showPendingModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
-            {/* Status Icon */}
-            <div className="flex justify-center mb-4">
-              {pendingModalData.status === "pending_verification" ? (
-                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
-                </div>
-              ) : (
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                  <XCircle className="w-10 h-10 text-red-600" />
-                </div>
-              )}
-            </div>
-
-            {/* Title */}
-            <h3
-              className={`text-xl font-bold text-center mb-2 ${pendingModalData.status === "pending_verification" ? "text-yellow-700" : "text-red-700"}`}
-            >
-              {pendingModalData.title}
-            </h3>
-
-            {/* Description */}
-            <p className="text-gray-600 text-center mb-4">
-              {pendingModalData.message}
-            </p>
-
-            {/* Rejection Reason */}
-            {pendingModalData.status === "rejected_verification" &&
-              pendingModalData.reason && (
-                <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6">
-                  <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">
-                    Reason for Rejection:
-                  </p>
-                  <p className="text-sm text-red-600 italic">
-                    "{pendingModalData.reason}"
-                  </p>
-                </div>
-              )}
-
-            {/* Choice Buttons */}
-            <div className="space-y-3">
-              {pendingModalData.status === "rejected_verification" && (
-                <button
-                  onClick={() => {
-                    setShowPendingModal(false);
-                    setShowResubmitModal(true);
-                  }}
-                  className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                  Resubmit Documents
-                </button>
-              )}
-
-              {/* Close Button */}
-              <button
-                onClick={() => setShowPendingModal(false)}
-                className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === "pending_verification" ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg" : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"}`}
-              >
-                {pendingModalData.status === "pending_verification"
-                  ? "Got it, thanks!"
-                  : "Close"}
+                {isLogin ? "Sign Up" : "Sign In"}
               </button>
             </div>
           </div>
-        </div>
+
+          {/* Platform Choice Modal - Shows for mobile users after registration */}
+          {showPlatformChoice && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
+                {/* Success Icon */}
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-10 h-10 text-green-500" />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-bold text-green-700 text-center mb-2">
+                  Registration Successful!
+                </h3>
+
+                {/* Description */}
+                <p className="text-green-900/90 text-center mb-6">
+                  Your tenant account has been created. How would you like to
+                  continue?
+                </p>
+
+                {/* Registered Email Display */}
+                <div className="bg-green-50 rounded-lg p-3 mb-6 border border-green-100">
+                  <p className="text-sm text-green-700 text-center">
+                    Registered as:
+                  </p>
+                  <p className="text-sm font-medium text-green-900 text-center">
+                    {registeredEmail}
+                  </p>
+                </div>
+
+                {/* Choice Buttons */}
+                <div className="space-y-3">
+                  <Toaster />
+                  {/* Continue on Web */}
+                  <button
+                    onClick={handleContinueOnWeb}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Monitor className="w-5 h-5" />
+                    Continue on Web
+                  </button>
+
+                  {/* Return to Mobile App */}
+                  <button
+                    onClick={handleGoToMobileApp}
+                    className="w-full bg-green-50 text-green-900 font-semibold py-3 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
+                  >
+                    <Smartphone className="w-5 h-5" />
+                    Go Back to Mobile App
+                  </button>
+                </div>
+
+                {/* Note */}
+                <p className="text-xs text-green-700/70 text-center mt-4">
+                  You can access your tenant account from any device
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Pending/Rejected Verification Modal */}
+          {showPendingModal && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-green-100 animate-in fade-in zoom-in duration-200">
+                {/* Status Icon */}
+                <div className="flex justify-center mb-4">
+                  {pendingModalData.status === "pending_verification" ? (
+                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                      <XCircle className="w-10 h-10 text-red-600" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Title */}
+                <h3
+                  className={`text-xl font-bold text-center mb-2 ${pendingModalData.status === "pending_verification" ? "text-yellow-700" : "text-red-700"}`}
+                >
+                  {pendingModalData.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-gray-600 text-center mb-4">
+                  {pendingModalData.message}
+                </p>
+
+                {/* Rejection Reason */}
+                {pendingModalData.status === "rejected_verification" &&
+                  pendingModalData.reason && (
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6">
+                      <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">
+                        Reason for Rejection:
+                      </p>
+                      <p className="text-sm text-red-600 italic">
+                        "{pendingModalData.reason}"
+                      </p>
+                    </div>
+                  )}
+
+                {/* Choice Buttons */}
+                <div className="space-y-3">
+                  {pendingModalData.status === "rejected_verification" && (
+                    <button
+                      onClick={() => {
+                        setShowPendingModal(false);
+                        setShowResubmitModal(true);
+                      }}
+                      className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      Resubmit Documents
+                    </button>
+                  )}
+
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setShowPendingModal(false)}
+                    className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === "pending_verification" ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg" : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"}`}
+                  >
+                    {pendingModalData.status === "pending_verification"
+                      ? "Got it, thanks!"
+                      : "Close"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

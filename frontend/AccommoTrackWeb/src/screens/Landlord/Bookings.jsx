@@ -241,22 +241,30 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
-            {['all', 'confirmed', 'pending', 'completed', 'cancelled'].map((s) => (
+            {['all', 'confirmed', 'pending', 'completed', 'cancelled', 'extensions'].map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={`flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterStatus === s ? 'bg-green-600 text-white shadow-md shadow-green-500/20' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'extensions' ? 'Extensions' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+        {/* Table / Extensions List */}
+        {filterStatus === 'extensions' ? (
+          <ExtensionRequestsList 
+            requests={extensionRequests} 
+            loading={loadingExtensions}
+            onHandle={handleHandleExtension}
+            onRefresh={fetchExtensions}
+          />
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
               <thead className="bg-gray-50 dark:bg-gray-700 text-xs font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Guest</th>
@@ -678,3 +686,149 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     </>
   );
 }
+
+// ==================== Extension Requests List ====================
+const ExtensionRequestsList = ({ requests, loading, onHandle, onRefresh }) => {
+  const [modifying, setModifying] = useState(null); // id of request being modified
+  const [modifyData, setModifyData] = useState({ requested_end_date: '', proposed_amount: '' });
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Loader2 className="w-10 h-10 text-green-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading requests...</p>
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">No Extension Requests</h3>
+        <p className="text-gray-500 text-sm">When tenants want to extend their stay, they will appear here.</p>
+      </div>
+    );
+  }
+
+  const startModify = (req) => {
+    setModifying(req.id);
+    setModifyData({
+      requested_end_date: req.requested_end_date,
+      proposed_amount: req.proposed_amount
+    });
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {requests.map((req) => (
+        <div key={req.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name}</h4>
+              <p className="text-xs text-gray-500">Room {req.booking?.room?.room_number} • {req.booking?.room?.property?.title}</p>
+            </div>
+            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+              req.status === 'approved' ? 'bg-green-100 text-green-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {req.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current End</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{new Date(req.current_end_date).toLocaleDateString()}</p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+              <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Requested End</p>
+              {modifying === req.id ? (
+                <input 
+                  type="date"
+                  value={modifyData.requested_end_date}
+                  onChange={e => setModifyData({...modifyData, requested_end_date: e.target.value})}
+                  className="w-full bg-transparent text-sm font-bold outline-none border-b border-blue-300"
+                />
+              ) : (
+                <p className="text-sm font-bold text-blue-900 dark:text-blue-200">{new Date(req.requested_end_date).toLocaleDateString()}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Extension Fee</p>
+              {modifying === req.id ? (
+                <div className="flex items-center">
+                  <span className="text-green-600 font-bold mr-1">₱</span>
+                  <input 
+                    type="number"
+                    value={modifyData.proposed_amount}
+                    onChange={e => setModifyData({...modifyData, proposed_amount: e.target.value})}
+                    className="w-24 bg-transparent text-xl font-black text-green-600 outline-none border-b border-green-300"
+                  />
+                </div>
+              ) : (
+                <p className="text-xl font-black text-green-600">₱{parseFloat(req.proposed_amount).toLocaleString()}</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Type</p>
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 capitalize">{req.extension_type}</p>
+            </div>
+          </div>
+
+          {req.tenant_notes && (
+            <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400">
+              "{req.tenant_notes}"
+            </div>
+          )}
+
+          {req.status === 'pending' && (
+            <div className="flex gap-2">
+              {modifying === req.id ? (
+                <>
+                  <button 
+                    onClick={() => onHandle(req.id, 'modify', modifyData)}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-500/20"
+                  >
+                    Apply Changes
+                  </button>
+                  <button 
+                    onClick={() => setModifying(null)}
+                    className="px-4 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-2 rounded-lg text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => onHandle(req.id, 'approve')}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-1"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" /> Approve
+                  </button>
+                  <button 
+                    onClick={() => startModify(req)}
+                    className="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Modify
+                  </button>
+                  <button 
+                    onClick={() => onHandle(req.id, 'reject')}
+                    className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};

@@ -105,40 +105,55 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2">
                       <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Extension</div>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          value={(() => {
-                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                            return extensionValues[idKey] ?? 1;
-                          })()}
-                          onChange={(e) => {
-                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                            setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
-                          }}
-                          className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          aria-label="Extension days"
-                        />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            value={(() => {
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              return extensionValues[idKey] ?? 1;
+                            })()}
+                            onChange={(e) => {
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
+                            }}
+                            className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                            aria-label="Extension value"
+                          />
+                          {/* Mini Price Preview */}
+                          <div className="absolute -top-5 left-0 whitespace-nowrap text-[10px] font-bold text-green-600 dark:text-green-400">
+                            Est: ₱{(() => {
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              const val = extensionValues[idKey] ?? 1;
+                              const monthly = Number(room.monthly_rate) || 0;
+                              const daily = Number(room.daily_rate) || (monthly / 30);
+                              return (val * daily).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            })()}
+                          </div>
+                        </div>
                           <button
                             disabled={extending}
                             onClick={async () => {
                               if (!onExtend) return;
+                              const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
+                              const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                              const days = extensionValues[idKey] ?? 1;
+                              
+                              if (!window.confirm(`Extend stay for ${days} days? This will generate an invoice.`)) return;
+                              
                               setExtending(true);
                               try {
-                                const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
-                                const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                                const days = extensionValues[idKey] ?? 1;
-                                await onExtend({ roomId: room.id, days: Number(days), tenantId });
+                                await onExtend({ roomId: room.id, days: Number(days), tenant_id: tenantId });
                               } catch (e) {
                                 // parent handles error
                               } finally {
                                 setExtending(false);
                               }
                             }}
-                          className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-sm"
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-xs font-bold uppercase"
                         >
                           Days
                         </button>
@@ -146,19 +161,22 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                           disabled={extending}
                           onClick={async () => {
                             if (!onExtend) return;
+                            const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
+                            const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
+                            const months = extensionValues[idKey] ?? 1;
+
+                            if (!window.confirm(`Extend stay for ${months} month(s)? This will generate an invoice.`)) return;
+
                             setExtending(true);
                             try {
-                                const tenantId = t?.id || t?.tenant_id || t?.tenantId || null;
-                                const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
-                                const days = extensionValues[idKey] ?? 1;
-                                await onExtend({ roomId: room.id, months: 1, tenantId });
+                                await onExtend({ roomId: room.id, months: Number(months), tenant_id: tenantId });
                             } catch (e) {
                               // parent handles error
                             } finally {
                               setExtending(false);
                             }
                           }}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-sm"
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-xs font-bold uppercase"
                         >
                           Month
                         </button>

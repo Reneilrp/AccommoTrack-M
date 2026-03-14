@@ -7,18 +7,22 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
+use Carbon\Carbon;
 
 class AuthService
 {
     /**
-     * Register a new user.
+     * Register a new user and generate an OTP.
      *
      * @param array $data
-     * @return User
+     * @return array{user: User, otp: string}
      */
-    public function register(array $data): User
+    public function register(array $data): array
     {
-        return User::create([
+        $otp = (string) random_int(100000, 999999);
+        $otpExpiresAt = Carbon::now()->addMinutes(15);
+
+        $user = User::create([
             'first_name' => $data['first_name'],
             'middle_name' => $data['middle_name'] ?? null,
             'last_name' => $data['last_name'],
@@ -26,9 +30,13 @@ class AuthService
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
             'phone' => $data['phone'] ?? null,
-            'is_verified' => false,
+            'is_verified' => false, // User is not verified until OTP is confirmed
             'is_active' => true,
+            'email_otp_code' => Hash::make($otp),
+            'email_otp_expires_at' => $otpExpiresAt,
         ]);
+        
+        return ['user' => $user, 'otp' => $otp];
     }
 
     /**

@@ -67,6 +67,80 @@ export default function RoomManagement() {
   const [loadingRooms, setLoadingRooms] = useState(selectedPropertyId && !cachedRoomsData);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ show: false, room: null });
   const [deleting, setDeleting] = useState(false);
+  const [propertyRules, setPropertyRules] = useState([]);
+  const [propertyAmenitiesList, setPropertyAmenitiesList] = useState([]);
+  const [newRule, setNewRule] = useState('');
+  const [newAmenity, setNewAmenity] = useState('');
+
+  // Load property-level rules and amenities when edit modal opens
+  useEffect(() => {
+    if (!showEditModal || !selectedPropertyId) return;
+    const fetchPropertyDetails = async () => {
+      try {
+        const res = await api.get(`/properties/${selectedPropertyId}`);
+        const p = res.data || {};
+        setPropertyRules(p.property_rules || []);
+        setPropertyAmenitiesList(p.amenities_list || []);
+      } catch (err) {
+        console.error('Failed to fetch property details for edit modal', err);
+      }
+    };
+    fetchPropertyDetails();
+  }, [showEditModal, selectedPropertyId]);
+
+  const toggleAmenity = (amenity) => {
+    setSelectedRoom(prev => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity]
+    }));
+  };
+
+  const toggleRule = (rule) => {
+    setSelectedRoom(prev => ({
+      ...prev,
+      rules: prev.rules.includes(rule)
+        ? prev.rules.filter(r => r !== rule)
+        : [...prev.rules, rule]
+    }));
+  };
+
+  const addNewRule = async () => {
+    if (!newRule.trim() || !selectedPropertyId) return;
+    try {
+      await api.post(`/landlord/properties/${selectedPropertyId}/rules`, {
+        rule: newRule.trim()
+      });
+      setPropertyRules(prev => [...prev, newRule.trim()]);
+      setSelectedRoom(prev => ({
+        ...prev,
+        rules: [...prev.rules, newRule.trim()]
+      }));
+      setNewRule('');
+      toast.success('Rule added');
+    } catch (err) {
+      toast.error('Failed to add rule');
+    }
+  };
+
+  const addNewAmenity = async () => {
+    if (!newAmenity.trim() || !selectedPropertyId) return;
+    try {
+      await api.post(`/landlord/properties/${selectedPropertyId}/amenities`, {
+        amenity: newAmenity.trim()
+      });
+      setPropertyAmenitiesList(prev => [...prev, newAmenity.trim()]);
+      setSelectedRoom(prev => ({
+        ...prev,
+        amenities: [...prev.amenities, newAmenity.trim()]
+      }));
+      setNewAmenity('');
+      toast.success('Amenity added');
+    } catch (err) {
+      toast.error('Failed to add amenity');
+    }
+  };
 
   // Load properties (once)
   useEffect(() => {
@@ -151,13 +225,26 @@ export default function RoomManagement() {
       type: room.type_label,
       roomNumber: room.room_number,
       price: room.monthly_rate,
-      floor: room.floor_label,
+      floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
       dailyRate: room.daily_rate || '',
-      billingPolicy: room.billing_policy || 'monthly'
+      billingPolicy: room.billing_policy || 'monthly',
+      pricingModel: room.pricing_model || 'full_room',
+      minStayDays: room.min_stay_days || 1,
+      amenities: room.amenities || [],
+      rules: room.rules || []
     });
     setShowEditModal(true);
     setError(null);
   };
+
+  function getOrdinalSuffix(num) {
+    const j = num % 10;
+    const k = num % 100;
+    if (j === 1 && k !== 11) return "st";
+    if (j === 2 && k !== 12) return "nd";
+    if (j === 3 && k !== 13) return "rd";
+    return "th";
+  }
 
   // Update Room
   const handleUpdateRoom = async () => {
@@ -181,9 +268,13 @@ export default function RoomManagement() {
         // include optional short-stay pricing fields
         daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
         billing_policy: selectedRoom.billingPolicy || null,
+        pricing_model: selectedRoom.pricingModel || 'full_room',
+        min_stay_days: parseInt(selectedRoom.minStayDays) || 1,
         capacity: parseInt(selectedRoom.capacity),
         status: selectedRoom.status,
-        description: selectedRoom.description || null
+        description: selectedRoom.description || null,
+        amenities: selectedRoom.amenities || [],
+        rules: selectedRoom.rules || []
       };
 
       const response = await api.put(`/landlord/rooms/${selectedRoom.id}`, updateData);
@@ -493,7 +584,15 @@ export default function RoomManagement() {
                 className="h-full"
                 room={room}
                 onEdit={handleEditRoom}
-                onClick={() => { setSelectedRoomDetails(room); setShowRoomDetails(true); }}
+                onClick={() => { 
+                  // Ensure room object has tenants loaded as array for RoomDetails
+                  const preparedRoom = {
+                    ...room,
+                    tenants: room.tenants || (room.tenant ? [{ name: room.tenant }] : [])
+                  };
+                  setSelectedRoomDetails(preparedRoom); 
+                  setShowRoomDetails(true); 
+                }}
                 onStatusChange={handleStatusChange}
               />
             ))
@@ -611,15 +710,64 @@ export default function RoomManagement() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capacity</label>
-                <input
-                  type="number"
-                  value={selectedRoom.capacity}
-                  onChange={(e) => setSelectedRoom({ ...selectedRoom, capacity: parseInt(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  min="1"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capacity</label>
+                  <input
+                    type="number"
+                    value={selectedRoom.capacity}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, capacity: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min. Stay (Days)</label>
+                  <input
+                    type="number"
+                    value={selectedRoom.minStayDays || 1}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, minStayDays: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              {/* Pricing Model Section */}
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Pricing Model</h4>
+                <div className="space-y-2">
+                  {selectedRoom.type !== 'Bed Spacer' && (
+                    <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'full_room' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                      <input
+                        type="radio"
+                        name="editPricingModel"
+                        value="full_room"
+                        checked={selectedRoom.pricingModel === 'full_room'}
+                        onChange={(e) => setSelectedRoom({ ...selectedRoom, pricingModel: e.target.value })}
+                        className="w-4 h-4"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Full Room Price</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Tenants divide the monthly rate equally.</p>
+                      </div>
+                    </label>
+                  )}
+                  <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'per_bed' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                    <input
+                      type="radio"
+                      name="editPricingModel"
+                      value="per_bed"
+                      checked={selectedRoom.pricingModel === 'per_bed'}
+                      onChange={(e) => setSelectedRoom({ ...selectedRoom, pricingModel: e.target.value })}
+                      className="w-4 h-4"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">Per Bed/Tenant Price</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Each tenant pays the monthly rate independently.</p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               {/* Short-stay / Daily pricing for edit */}
@@ -674,6 +822,76 @@ export default function RoomManagement() {
                   rows="3"
                   placeholder="Add room description..."
                 />
+              </div>
+
+              {/* Rules Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Rules</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                  {propertyRules.map((rule) => (
+                    <button
+                      key={rule}
+                      type="button"
+                      onClick={() => toggleRule(rule)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all text-left ${selectedRoom.rules.includes(rule)
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                    >
+                      {rule}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newRule}
+                    onChange={(e) => setNewRule(e.target.value)}
+                    placeholder="New rule..."
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                  />
+                  <button
+                    onClick={addNewRule}
+                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Amenities Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Amenities</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                  {propertyAmenitiesList.map((amenity) => (
+                    <button
+                      key={amenity}
+                      type="button"
+                      onClick={() => toggleAmenity(amenity)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all text-left ${selectedRoom.amenities.includes(amenity)
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newAmenity}
+                    onChange={(e) => setNewAmenity(e.target.value)}
+                    placeholder="New amenity..."
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                  />
+                  <button
+                    onClick={addNewAmenity}
+                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             </div>
 

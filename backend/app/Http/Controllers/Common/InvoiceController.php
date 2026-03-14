@@ -33,21 +33,58 @@ class InvoiceController extends Controller
         foreach ($uninvoicedBookings as $booking) {
             try {
                 $reference = 'INV-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
-                Invoice::create([
+                $roomAmountCents = (int) round($booking->total_amount * 100);
+                
+                // Bundle active monthly addons
+                $activeMonthlyAddons = $booking->addons()
+                    ->wherePivot('status', 'active')
+                    ->where('price_type', 'monthly')
+                    ->get();
+                
+                $addonsTotalCents = 0;
+                $addonMetadata = [];
+                foreach ($activeMonthlyAddons as $addon) {
+                    $priceCents = (int) round($addon->pivot->price_at_booking * $addon->pivot->quantity * 100);
+                    $addonsTotalCents += $priceCents;
+                    $addonMetadata[] = [
+                        'addon_id' => $addon->id,
+                        'addon_name' => $addon->name,
+                        'quantity' => $addon->pivot->quantity,
+                        'price' => $priceCents,
+                        'price_type' => 'monthly',
+                    ];
+                }
+
+                $totalAmountCents = $roomAmountCents + $addonsTotalCents;
+                $description = 'Monthly invoice for booking ' . $booking->booking_reference;
+                if ($addonsTotalCents > 0) {
+                    $description .= "\n+ Includes active Add-ons";
+                }
+
+                $invoice = Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $booking->landlord_id,
                     'property_id' => $booking->property_id,
                     'booking_id' => $booking->id,
                     'tenant_id' => $booking->tenant_id,
-                    'description' => 'Initial invoice for booking ' . $booking->booking_reference,
-                    'amount_cents' => (int) round($booking->total_amount * 100),
+                    'description' => $description,
+                    'amount_cents' => $totalAmountCents,
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => $booking->created_at,
                     'due_date' => \Carbon\Carbon::parse($booking->start_date)->addDays(3),
+                    'metadata' => ['addons' => $addonMetadata]
                 ]);
+
+                // Link these addons to the new invoice so we know they've been billed for this cycle
+                foreach ($activeMonthlyAddons as $addon) {
+                    $booking->addons()->updateExistingPivot($addon->id, [
+                        'invoice_id' => $invoice->id,
+                        'invoiced_at' => now(),
+                    ]);
+                }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to auto-generate invoice for booking ' . $booking->id . ': ' . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error('Failed to auto-generate bundled invoice for booking ' . $booking->id . ': ' . $e->getMessage());
             }
         }
 

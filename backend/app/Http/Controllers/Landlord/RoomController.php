@@ -43,7 +43,7 @@ class RoomController extends Controller
             }
 
             $rooms = Room::where('property_id', $property->id)
-                ->with('currentTenant:id,first_name,last_name', 'amenities', 'images')
+                ->with('tenants', 'amenities', 'images')
                 ->orderBy('room_number')
                 ->get();
 
@@ -60,7 +60,7 @@ class RoomController extends Controller
         try {
             $property = Property::findOrFail($request->validated()['property_id']);
             $room = $this->roomService->createRoom($request->validated(), $property);
-            return response()->json((new RoomResource($room->fresh(['currentTenant:id,first_name,last_name', 'amenities', 'images'])))->resolve());
+            return response()->json((new RoomResource($room->fresh(['tenants', 'amenities', 'images'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -78,7 +78,7 @@ class RoomController extends Controller
             
             $updatedRoom = $this->roomService->updateRoom($room, $request->validated());
 
-            return response()->json((new RoomResource($updatedRoom->load(['currentTenant:id,first_name,last_name', 'amenities', 'images'])))->resolve());
+            return response()->json((new RoomResource($updatedRoom->load(['tenants', 'amenities', 'images'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -121,7 +121,7 @@ class RoomController extends Controller
             
             $updatedRoom = $this->roomService->updateStatus($room, $validated['status']);
 
-            return response()->json((new RoomResource($updatedRoom))->resolve());
+            return response()->json((new RoomResource($updatedRoom->load('tenants')))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Exception $e) {
@@ -235,6 +235,37 @@ class RoomController extends Controller
             return response()->json(['message' => 'Room not found or unauthorized'], 404);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to assign tenant', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function extendStay(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            
+            $validated = $request->validate([
+                'tenant_id' => 'required|exists:users,id',
+                'type' => 'nullable|in:monthly,daily',
+                'value' => 'nullable|integer|min:1',
+                'days' => 'nullable|integer|min:1',
+                'months' => 'nullable|integer|min:1',
+            ]);
+
+            // Map incoming days/months to type/value for the service
+            $type = $validated['type'] ?? (isset($validated['days']) ? 'daily' : 'monthly');
+            $value = $validated['value'] ?? ($validated['days'] ?? ($validated['months'] ?? 1));
+
+            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))
+                ->findOrFail($id);
+
+            $result = $this->roomService->extendStay($room, $validated['tenant_id'], $type, $value);
+
+            return response()->json([
+                'message' => 'Stay extended successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to extend stay', 'error' => $e->getMessage()], 500);
         }
     }
 

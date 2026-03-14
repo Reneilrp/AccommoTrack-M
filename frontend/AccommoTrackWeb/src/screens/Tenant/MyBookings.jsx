@@ -52,8 +52,45 @@ const MyBookings = () => {
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
   const [showAddonModal, setShowAddonModal] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [requestingAddon, setRequestingAddon] = useState(null);
+  const [extendingStay, setExtendingStay] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
+
+  // ... (inside CurrentStayTab component props) ...
+  const CurrentStayTab = ({ 
+    stays = [], 
+    selectedIndex = 0, 
+    onSelectStay, 
+    pendingBookings = [], 
+    upcomingBooking = null, 
+    onRequestAddon, 
+    onCancelAddon, 
+    onCancelBooking, 
+    onRequestExtension,
+    isCancelling, 
+    onReview, 
+    onReport, 
+    navigate 
+  }) => {
+    // ...
+  }
+
+  // Handle Extension Request
+  const handleRequestExtension = async (payload) => {
+    setExtendingStay(true);
+    try {
+      await api.post(`/bookings/${payload.booking_id}/extend`, payload);
+      toast.success('Extension request sent to landlord');
+      fetchData();
+      setShowExtensionModal(false);
+    } catch (err) {
+      console.error('Failed to request extension:', err);
+      toast.error(err.response?.data?.message || 'Failed to request extension');
+    } finally {
+      setExtendingStay(false);
+    }
+  };
   
   // Review Modal State
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -246,6 +283,17 @@ const MyBookings = () => {
             />
           )}
         </>
+      )}
+
+      {/* Extension Request Modal */}
+      {showExtensionModal && activeStays[selectedStayIndex] && (
+        <ExtensionModal
+          booking={activeStays[selectedStayIndex].booking}
+          room={activeStays[selectedStayIndex].room}
+          onClose={() => setShowExtensionModal(false)}
+          onSubmit={handleRequestExtension}
+          loading={extendingStay}
+        />
       )}
 
       {/* Addon Request Modal */}
@@ -561,10 +609,34 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         />
                       </div>
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-between">
-                          <span><span className="font-bold dark:text-gray-300">Lease:</span> {booking.startDate} to {booking.endDate}</span>
-                          <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{booking.totalMonths} Months</span>
-                        </p>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <span className="font-bold dark:text-gray-300">Lease:</span> 
+                            {booking.startDate} to {booking.endDate}
+                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} Months</span>
+                          </p>
+                          
+                          {/* Show Extend button if expiring soon (e.g. within 30 days) or already expired but still active */}
+                          {(() => {
+                            const end = new Date(booking.endDate);
+                            const today = new Date();
+                            const diff = end - today;
+                            const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                            
+                            if (daysLeft <= 30) {
+                              return (
+                                <button
+                                  onClick={onRequestExtension}
+                                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                                >
+                                  <CalendarDays className="w-4 h-4" />
+                                  Extend Stay
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1258,6 +1330,131 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
             Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
           </p>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
+  const [type, setType] = useState('monthly');
+  const [customDate, setCustomDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [estimatedPrice, setEstimatedPrice] = useState(0);
+
+  const currentEndDate = new Date(booking.endDate);
+  
+  // Calculate default dates
+  const nextMonthDate = new Date(currentEndDate);
+  nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+  const nextMonthStr = nextMonthDate.toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (type === 'monthly') {
+      setEstimatedPrice(parseFloat(booking.unit_price || booking.monthlyRent || 0));
+    } else if (customDate) {
+      const start = new Date(booking.endDate);
+      const end = new Date(customDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      const dailyRate = room.daily_rate || (parseFloat(booking.unit_price || booking.monthlyRent || 0) / 30);
+      setEstimatedPrice(diffDays * dailyRate);
+    } else {
+      setEstimatedPrice(0);
+    }
+  }, [type, customDate, booking, room]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const finalEndDate = type === 'monthly' ? nextMonthStr : customDate;
+    
+    if (!finalEndDate) {
+      toast.error('Please select an end date');
+      return;
+    }
+
+    onSubmit({
+      booking_id: booking.id,
+      extension_type: type,
+      requested_end_date: finalEndDate,
+      notes: notes
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Extend Stay</h3>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+              <X className="w-6 h-6 text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50">
+            <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Current Lease Ends</p>
+            <p className="text-lg font-bold text-blue-900 dark:text-blue-200">{new Date(booking.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          </div>
+
+          <div className="flex bg-gray-100 dark:bg-gray-900/50 p-1 rounded-xl border border-gray-300 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setType('monthly')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${type === 'monthly' ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              Add 1 Month
+            </button>
+            <button
+              type="button"
+              onClick={() => setType('daily')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${type === 'daily' ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              Custom Days
+            </button>
+          </div>
+
+          {type === 'daily' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 text-center">Select New End Date</label>
+              <input
+                type="date"
+                required
+                min={new Date(new Date(booking.endDate).getTime() + 86400000).toISOString().split('T')[0]}
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Reason / Notes</label>
+            <textarea
+              placeholder="Why are you extending? (Optional)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-20 resize-none text-sm"
+            />
+          </div>
+
+          <div className="pt-2">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-bold text-gray-500 uppercase">Estimated Fee</span>
+              <span className="text-xl font-black text-green-600 dark:text-green-400">₱{estimatedPrice.toLocaleString()}</span>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Send Request'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

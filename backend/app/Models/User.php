@@ -85,11 +85,15 @@ class User extends Authenticatable
         'is_blocked',
         'paymongo_child_id',
         'paymongo_verification_status',
+        'email_otp_code',
+        'email_otp_expires_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'email_otp_code',
+        'email_otp_expires_at',
     ];
 
     protected $casts = [

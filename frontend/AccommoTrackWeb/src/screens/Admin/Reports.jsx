@@ -194,7 +194,7 @@ export default function Reports() {
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Property Flagged</p>
                   <p className="font-bold text-gray-900 dark:text-white">{selectedReport.property?.title}</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" onClick={() => window.open(`/properties/${selectedReport.property_id}`, '_blank')}>View Listing</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" onClick={() => window.open(`/property/${selectedReport.property_id}`, '_blank')}>View Listing</p>
                 </div>
               </div>
 
