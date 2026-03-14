@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2 } from 'lucide-react';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3 } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -27,6 +27,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [processing, setProcessing] = useState(false);
   const [cancellationData, setCancellationData] = useState({ reason: '', refundAmount: 0, shouldRefund: false });
   const [showAddBookingModal, setShowAddBookingModal] = useState(false);
+  const [extensionRequests, setExtensionRequests] = useState([]);
+  const [loadingExtensions, setLoadingExtensions] = useState(false);
 
   const readOnlyGuard = () => {
     if (canManageBookings) return false;
@@ -35,12 +37,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  const formatDateTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const calculateDays = (checkIn, checkOut) => Math.ceil(Math.abs(new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
 
   useEffect(() => {
     fetchBookings();
     fetchStats();
+    fetchExtensions();
 
     const handleOpenAdd = () => setShowAddBookingModal(true);
     window.addEventListener('open-add-booking', handleOpenAdd);
@@ -67,12 +68,41 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     } catch (err) { console.error('Error fetching stats:', err); }
   };
 
+  const fetchExtensions = async () => {
+    try {
+      setLoadingExtensions(true);
+      const response = await api.get('/landlord/extensions');
+      setExtensionRequests(response.data);
+    } catch (err) {
+      console.error('Error fetching extensions:', err);
+    } finally {
+      setLoadingExtensions(false);
+    }
+  };
+
+  const handleHandleExtension = async (id, action, modifyData = null) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
+    try {
+      await api.patch(`/landlord/extensions/${id}/handle`, {
+        action,
+        ...modifyData
+      });
+      toast.success(`Request ${action === 'modify' ? 'modified' : action} successfully!`, { id: toastId });
+      fetchExtensions();
+      fetchBookings(); // Refresh bookings to reflect new dates
+    } catch (err) {
+      console.error('Error handling extension:', err);
+      toast.error(err.response?.data?.message || 'Failed to handle request', { id: toastId });
+    }
+  };
+
   const handleUpdateStatus = async (bookingId, newStatus, cancellationReason = null, refundData = null) => {
     if (readOnlyGuard()) return;
     const toastId = toast.loading(`${newStatus === 'cancelled' ? 'Cancelling' : 'Updating'} booking...`);
     setProcessing(true);
     try {
-      const response = await api.patch(`/bookings/${bookingId}/status`, {
+      await api.patch(`/bookings/${bookingId}/status`, {
         status: newStatus,
         cancellation_reason: cancellationReason,
         refund_amount: refundData?.refundAmount || 0,
@@ -259,7 +289,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             requests={extensionRequests} 
             loading={loadingExtensions}
             onHandle={handleHandleExtension}
-            onRefresh={fetchExtensions}
           />
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
@@ -317,6 +346,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             </table>
           </div>
         </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -688,7 +718,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 }
 
 // ==================== Extension Requests List ====================
-const ExtensionRequestsList = ({ requests, loading, onHandle, onRefresh }) => {
+const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
   const [modifying, setModifying] = useState(null); // id of request being modified
   const [modifyData, setModifyData] = useState({ requested_end_date: '', proposed_amount: '' });
 

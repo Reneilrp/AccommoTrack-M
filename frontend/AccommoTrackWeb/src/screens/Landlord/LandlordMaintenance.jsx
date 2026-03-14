@@ -30,7 +30,7 @@ export default function LandlordMaintenance() {
   const [requests, setRequests] = useState(cachedData?.requests || []);
   const [loading, setLoading] = useState(!cachedData);
   const [filterStatus, setFilterStatus] = useState(savedState.filterStatus || 'all');
-  const [selectedRequest, setSelectedInquiry] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function LandlordMaintenance() {
 
         if (selectedRequest?.id === id) {
 
-          setSelectedInquiry(prev => ({ ...prev, status: newStatus }));
+          setSelectedRequest(prev => ({ ...prev, status: newStatus }));
 
         }
 
@@ -364,7 +364,7 @@ export default function LandlordMaintenance() {
 
                     <button
 
-                      onClick={() => setSelectedInquiry(req)}
+                      onClick={() => setSelectedRequest(req)}
 
                       className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors"
 
@@ -390,7 +390,7 @@ export default function LandlordMaintenance() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
               <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Maintenance Details</h3>
-                <button onClick={() => setSelectedInquiry(null)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setSelectedRequest(null)} className="text-gray-400 hover:text-gray-600">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -456,7 +456,7 @@ export default function LandlordMaintenance() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setSelectedInquiry(null)}
+                    onClick={() => setSelectedRequest(null)}
                     className="px-6 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-lg"
                   >
                     Close

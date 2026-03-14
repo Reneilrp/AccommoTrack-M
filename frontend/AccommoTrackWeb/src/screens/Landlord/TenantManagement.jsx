@@ -564,6 +564,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         )}
       </div>
     </div>
-    </div>
+  </div>
   );
 }
