@@ -476,6 +476,14 @@ function AuthScreen({ onLogin = () => {} }) {
   const emailCheckTimeout = useRef(null);
   const emailCheckAbortController = useRef(null);
   const fieldRefs = useRef({});
+  const todayDate = new Date();
+  const latestTenantBirthDate = new Date(
+    todayDate.getFullYear() - 18,
+    todayDate.getMonth(),
+    todayDate.getDate(),
+  )
+    .toISOString()
+    .split("T")[0];
   const [formData, setFormData] = useState(() => {
     try {
       const saved = localStorage.getItem("auth_form_data");
@@ -483,6 +491,8 @@ function AuthScreen({ onLogin = () => {} }) {
         const parsed = JSON.parse(saved);
         return {
           ...parsed,
+          date_of_birth: parsed.date_of_birth || "",
+          gender: parsed.gender || "",
           password: "",
           password_confirmation: "",
           role: "tenant",
@@ -500,6 +510,8 @@ function AuthScreen({ onLogin = () => {} }) {
       password_confirmation: "",
       role: "tenant", // Registration is tenant-only
       phone: "",
+      date_of_birth: "",
+      gender: "",
     };
   });
 
@@ -606,6 +618,9 @@ function AuthScreen({ onLogin = () => {} }) {
     if (!formData.first_name) errors.first_name = "First name is required";
     if (!formData.last_name) errors.last_name = "Last name is required";
     if (!formData.email) errors.email = "Email is required";
+    if (!formData.date_of_birth)
+      errors.date_of_birth = "Date of birth is required";
+    if (!formData.gender) errors.gender = "Gender is required";
     if (!formData.password) errors.password = "Password is required";
     if (!formData.password_confirmation)
       errors.password_confirmation = "Please confirm your password";
@@ -630,6 +645,53 @@ function AuthScreen({ onLogin = () => {} }) {
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
     if (formData.email && !emailRegex.test(formData.email)) {
       errors.email = "Please enter a valid email address";
+    }
+
+    if (formData.date_of_birth) {
+      const dobParts = formData.date_of_birth.split("-").map(Number);
+      const dob =
+        dobParts.length === 3
+          ? new Date(dobParts[0], dobParts[1] - 1, dobParts[2])
+          : new Date(NaN);
+
+      if (
+        Number.isNaN(dob.getTime()) ||
+        dobParts[1] < 1 ||
+        dobParts[1] > 12 ||
+        dobParts[2] < 1 ||
+        dobParts[2] > 31
+      ) {
+        errors.date_of_birth = "Please provide a valid date of birth";
+      } else {
+        const today = new Date(
+          todayDate.getFullYear(),
+          todayDate.getMonth(),
+          todayDate.getDate(),
+        );
+
+        if (dob > today) {
+          errors.date_of_birth = "Date of birth cannot be in the future";
+        }
+
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < dob.getDate())
+        ) {
+          age -= 1;
+        }
+
+        const minAge = formData.role === "landlord" ? 20 : 18;
+        if (!errors.date_of_birth && age < minAge) {
+          errors.date_of_birth = `You must be at least ${minAge} years old`;
+        }
+      }
+    }
+
+    const allowedGenders = ["male", "female", "other", "prefer_not_to_say"];
+    if (formData.gender && !allowedGenders.includes(formData.gender)) {
+      errors.gender = "Please select a valid gender";
     }
 
     // Password rules
@@ -749,6 +811,8 @@ function AuthScreen({ onLogin = () => {} }) {
           password_confirmation: "",
           role: "tenant",
           phone: "",
+          date_of_birth: "",
+          gender: "",
         });
         const landingRoute = getDefaultLandingRoute(me);
         navigate(landingRoute);
@@ -784,6 +848,8 @@ function AuthScreen({ onLogin = () => {} }) {
             password_confirmation: "",
             role: "tenant",
             phone: "",
+            date_of_birth: "",
+            gender: "",
           });
           const landingRoute = getDefaultLandingRoute(me);
           navigate(landingRoute);
@@ -877,7 +943,12 @@ function AuthScreen({ onLogin = () => {} }) {
     }
 
     try {
-      const result = await api.post("/register", formData);
+      const registerPayload = {
+        ...formData,
+        role: "tenant",
+      };
+
+      const result = await api.post("/register", registerPayload);
       
       // Store email for OTP screen
       setRegisteredEmail(formData.email);
@@ -915,6 +986,8 @@ function AuthScreen({ onLogin = () => {} }) {
             "last_name",
             "email",
             "phone",
+            "date_of_birth",
+            "gender",
             "password",
             "password_confirmation",
           ];
@@ -1340,6 +1413,58 @@ function AuthScreen({ onLogin = () => {} }) {
                   </div>
                   {fieldErrors.phone && (
                     <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Date of Birth</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="date_of_birth"
+                    ref={(el) => (fieldRefs.current.date_of_birth = el)}
+                    value={formData.date_of_birth}
+                    onChange={(e) =>
+                      handleInputChange("date_of_birth", e.target.value)
+                    }
+                    className={inputClasses}
+                    disabled={loading}
+                    required
+                    max={latestTenantBirthDate}
+                  />
+                  {fieldErrors.date_of_birth && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldErrors.date_of_birth}
+                    </p>
+                  )}
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className={labelClasses + " flex items-center gap-2"}>
+                    <span>Gender</span>
+                    <span className="text-red-400 text-xs font-bold">*</span>
+                  </label>
+                  <select
+                    name="gender"
+                    ref={(el) => (fieldRefs.current.gender = el)}
+                    value={formData.gender}
+                    onChange={(e) => handleInputChange("gender", e.target.value)}
+                    className={inputClasses + " pl-4"}
+                    disabled={loading}
+                    required
+                  >
+                    <option value="">Select your gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                  {fieldErrors.gender && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.gender}</p>
                   )}
                 </div>
 

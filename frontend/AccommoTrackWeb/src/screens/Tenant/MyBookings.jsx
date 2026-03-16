@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tenantService } from '../../services/tenantService';
-import { getImageUrl } from '../../utils/api';
+import api, { getImageUrl } from '../../utils/api';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
 import ReviewModal from '../../components/Modals/ReviewModal';
@@ -44,7 +44,6 @@ const MyBookings = () => {
 
   const [activeStays, setActiveStays] = useState(cachedData?.activeStays || []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
-  const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
   const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
@@ -59,26 +58,6 @@ const MyBookings = () => {
   const [extendingStay, setExtendingStay] = useState(false);
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
-
-  // ... (inside CurrentStayTab component props) ...
-  const CurrentStayTab = ({ 
-    stays = [], 
-    selectedIndex = 0, 
-    onSelectStay, 
-    pendingBookings = [], 
-    upcomingBooking = null, 
-    onRequestAddon, 
-    onCancelAddon, 
-    onCancelBooking, 
-    onRequestExtension,
-    onRequestTransfer,
-    isCancelling, 
-    onReview, 
-    onReport, 
-    navigate 
-  }) => {
-    // ...
-  }
 
   // Handle Extension Request
   const handleRequestExtension = async (payload) => {
@@ -100,7 +79,7 @@ const MyBookings = () => {
   const handleRequestTransfer = async (payload) => {
     setRequestingTransfer(true);
     try {
-      await api.post('/transfers', payload);
+      await api.post('/tenant/transfers', payload);
       toast.success('Room transfer request sent to landlord');
       fetchData();
       setShowTransferModal(false);
@@ -133,8 +112,13 @@ const MyBookings = () => {
     try {
       if (activeTab === 'current' || activeTab === 'financials') {
         const response = await tenantService.getCurrentStay();
-        const stays = response?.stays || [];
-        const upcoming = response?.upcomingBooking || null;
+        const stays = response?.stays || response?.data?.stays || [];
+        const upcoming =
+          response?.upcomingBooking ||
+          response?.upcoming_booking ||
+          response?.data?.upcomingBooking ||
+          response?.data?.upcoming_booking ||
+          null;
         
         setActiveStays(stays);
         setUpcomingBooking(upcoming);
@@ -143,8 +127,16 @@ const MyBookings = () => {
         let pending = [];
         try {
           const bookingsResp = await tenantService.getBookings();
-          const bookingsList = bookingsResp?.bookings || bookingsResp || [];
-          pending = bookingsList.filter(b => String(b.status).toLowerCase() === 'pending');
+          const bookingsList =
+            bookingsResp?.bookings ||
+            bookingsResp?.data?.bookings ||
+            bookingsResp?.data ||
+            bookingsResp ||
+            [];
+          const pendingStatuses = new Set(['pending', 'booked']);
+          pending = Array.isArray(bookingsList)
+            ? bookingsList.filter((b) => pendingStatuses.has(String(b?.status || '').toLowerCase()))
+            : [];
           setPendingBookings(pending);
         } catch (e) {
           console.warn('Failed to fetch tenant bookings for pending detection', e);
@@ -371,7 +363,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
   const hasPending = pendingBookings && pendingBookings.length > 0;
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon } from 'lucide-react';
+import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, } from 'lucide-react';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import TenantCard from './TenantCard';
 import { Skeleton, SkeletonTableRow } from '../../components/Shared/Skeleton';
+import toast from 'react-hot-toast';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const { uiState, updateData } = useUIState();
@@ -240,11 +241,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Stats Cards Skeleton */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            {[...Array(5)].map((_, i) => (
-              <SkeletonStatCard key={i} />
-            ))}
-          </div>
+          
 
           {/* Search Bar Skeleton */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
@@ -448,7 +445,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             </div>
           ) : (
             filteredTenants.map(tenant => (
-              <TenantCard key={tenant.id} tenant={tenant} />
+              <TenantCard
+                key={tenant.id}
+                tenant={tenant}
+                onTransfer={handleTransferInitiate}
+                canTransfer={!isCaretaker}
+              />
             ))
           )}
         </div>

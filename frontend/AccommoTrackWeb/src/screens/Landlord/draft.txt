@@ -1,0 +1,15 @@
+ {/* Grid of Tenant Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTenants.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+              <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
+              <p className="text-sm mt-1 text-gray-400 dark:text-gray-500">
+                {searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}
+              </p>
+            </div>
+          ) : (
+            filteredTenants.map(tenant => (
+              <TenantCard key={tenant.id} tenant={tenant} />
+            ))
+          )}
+        </div>

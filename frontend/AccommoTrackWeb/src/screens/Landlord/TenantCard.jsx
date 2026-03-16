@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, User, FileText, MessageSquare, AlertCircle, ShieldAlert, Clock, UserPlus } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export default function TenantCard({ tenant }) {
+export default function TenantCard({ tenant, onTransfer, canTransfer = true }) {
   const profile = tenant.tenantProfile;
   const navigate = useNavigate();
   const [showEmergency, setShowEmergency] = useState(false);
@@ -120,6 +120,14 @@ export default function TenantCard({ tenant }) {
           className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
         >
           <MessageSquare className="w-3.5 h-3.5" /> Message
+        </button>
+        <button
+          onClick={() => onTransfer?.(tenant)}
+          disabled={!canTransfer || !tenant.room}
+          title={!tenant.room ? 'Tenant has no room assigned' : 'Transfer room'}
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+        >
+          <Shuffle className="w-3.5 h-3.5" /> Transfer
         </button>
         <button
           onClick={() => setShowEmergency(!showEmergency)}
