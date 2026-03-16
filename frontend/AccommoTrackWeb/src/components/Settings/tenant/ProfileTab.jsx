@@ -51,7 +51,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       try { prefs = JSON.parse(prefs); } catch (e) { prefs = {}; }
     }
 
-    const backendGender = data.tenant_profile?.gender || prefs.gender || '';
+    const backendGender = data.gender || prefs.gender || '';
     let initialMode = '';
     if (backendGender === 'Male' || backendGender === 'Female') {
       initialMode = backendGender;
@@ -66,7 +66,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       middle_name: data.middle_name || '',
       last_name: data.last_name || '',
       phone: data.phone || '',
-      date_of_birth: data.tenant_profile?.date_of_birth || '',
+      date_of_birth: data.date_of_birth || '',
       gender: backendGender,
       current_address: data.tenant_profile?.current_address || '',
       emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',

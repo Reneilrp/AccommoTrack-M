@@ -19,6 +19,7 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function RoomManagement() {
@@ -70,6 +71,8 @@ export default function RoomManagement() {
   const [deleting, setDeleting] = useState(false);
   const [propertyRules, setPropertyRules] = useState([]);
   const [propertyAmenitiesList, setPropertyAmenitiesList] = useState([]);
+  const [totalFloors, setTotalFloors] = useState(1);
+  const [propertyGender, setPropertyGender] = useState("mixed");
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
 
@@ -82,6 +85,8 @@ export default function RoomManagement() {
         const p = res.data || {};
         setPropertyRules(p.property_rules || []);
         setPropertyAmenitiesList(p.amenities_list || []);
+        setTotalFloors(p.total_floors || 1);
+        setPropertyGender(p.gender_restriction || "mixed");
       } catch (err) {
         console.error('Failed to fetch property details for edit modal', err);
       }
@@ -226,6 +231,7 @@ export default function RoomManagement() {
       type: room.type_label,
       roomNumber: room.room_number,
       price: room.monthly_rate,
+      genderRestriction: room.gender_restriction || 'mixed',
       floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
       dailyRate: room.daily_rate || '',
       billingPolicy: room.billing_policy || 'monthly',
@@ -259,11 +265,15 @@ export default function RoomManagement() {
         'Bed Spacer': 'bedSpacer'
       };
 
+      const propertyType = properties.find(p => p.id === selectedPropertyId)?.property_type;
+      const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(propertyType);
+
       const floorNumber = parseInt(selectedRoom.floor.match(/\d+/)[0]);
 
       const updateData = {
         room_number: selectedRoom.roomNumber,
         room_type: roomTypeMap[selectedRoom.type] || 'single',
+        gender_restriction: isGenderRestricted ? selectedRoom.genderRestriction : 'mixed',
         floor: floorNumber,
         monthly_rate: parseFloat(selectedRoom.price),
         // include optional short-stay pricing fields
@@ -542,6 +552,21 @@ export default function RoomManagement() {
             >
               Maintenance ({stats.maintenance})
             </button>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={fetchRooms}
+                disabled={loadingRooms}
+                title="Refresh"
+                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
+              >
+                {loadingRooms ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -703,12 +728,40 @@ export default function RoomManagement() {
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, floor: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
-                    <option>1st Floor</option>
-                    <option>2nd Floor</option>
-                    <option>3rd Floor</option>
-                    <option>4th Floor</option>
+                    {Array.from({ length: totalFloors }, (_, i) => {
+                      const floorVal = i + 1;
+                      const floorLabel = `${floorVal}${getOrdinalSuffix(floorVal)} Floor`;
+                      return (
+                        <option key={floorVal} value={floorLabel}>
+                          {floorLabel}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
+
+                {['dormitory', 'boardingHouse', 'bedSpacer'].includes(properties.find(p => p.id === selectedPropertyId)?.property_type) ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
+                    <select
+                      value={selectedRoom.genderRestriction}
+                      onChange={(e) => setSelectedRoom({ ...selectedRoom, genderRestriction: e.target.value })}
+                      disabled={propertyGender !== "mixed"}
+                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-70" : ""}`}
+                    >
+                      <option value="mixed">Mixed</option>
+                      <option value="male">Male Only</option>
+                      <option value="female">Female Only</option>
+                    </select>
+                    {propertyGender !== "mixed" && (
+                      <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                        * Property is restricted to {propertyGender} only.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="hidden"></div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -934,14 +987,14 @@ export default function RoomManagement() {
         room={selectedRoomDetails}
         isOpen={showRoomDetails}
         onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
-        onExtend={async ({ roomId, days, months, tenantId }) => {
+        onExtend={async ({ roomId, days, months, tenant_id }) => {
           if (!roomId) return;
           try {
             // prefer days if provided, otherwise months
             const payload = {};
             if (days) payload.days = days;
             if (months) payload.months = months;
-            if (tenantId) payload.tenant_id = tenantId;
+            if (tenant_id) payload.tenant_id = tenant_id;
             // call backend API - endpoint should be implemented server-side
             await api.post(`/rooms/${roomId}/extend`, payload);
 

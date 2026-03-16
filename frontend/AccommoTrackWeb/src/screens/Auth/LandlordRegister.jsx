@@ -703,17 +703,6 @@ const LandlordRegister = () => {
                         <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-400 dark:text-gray-500"}>
                           {
                             [
-                              { value: "Philippine Passport", label: "Philippine Passport" },
-                              { value: "Driver’s License", label: "Driver’s License" },
-                              { value: "PhilSys ID (National ID)", label: "PhilSys ID (National ID)" },
-                              { value: "UMID", label: "Unified Multi-Purpose ID (UMID)" },
-                              { value: "PRC ID", label: "Professional Regulation Commission (PRC) ID" },
-                              { value: "Postal ID", label: "Postal ID (Digitized)" },
-                              { value: "Voter’s ID", label: "Voter’s ID" },
-                              { value: "TIN ID", label: "Taxpayer Identification Number (TIN) ID" },
-                              { value: "PhilHealth ID", label: "PhilHealth ID" },
-                              { value: "Senior Citizen ID", label: "Senior Citizen ID" },
-                              { value: "OFW ID", label: "Overseas Workers Welfare Administration (OWWA) / OFW ID" },
                               ...idTypes.map(t => ({ value: t, label: t })),
                               { value: "other", label: "Other (specify below)" }
                             ].find(opt => opt.value === form.validIdType)?.label || "Select ID type"
@@ -730,17 +719,6 @@ const LandlordRegister = () => {
                           <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
                           <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
                             {[
-                              { value: "Philippine Passport", label: "Philippine Passport" },
-                              { value: "Driver’s License", label: "Driver’s License" },
-                              { value: "PhilSys ID (National ID)", label: "PhilSys ID (National ID)" },
-                              { value: "UMID", label: "Unified Multi-Purpose ID (UMID)" },
-                              { value: "PRC ID", label: "Professional Regulation Commission (PRC) ID" },
-                              { value: "Postal ID", label: "Postal ID (Digitized)" },
-                              { value: "Voter’s ID", label: "Voter’s ID" },
-                              { value: "TIN ID", label: "Taxpayer Identification Number (TIN) ID" },
-                              { value: "PhilHealth ID", label: "PhilHealth ID" },
-                              { value: "Senior Citizen ID", label: "Senior Citizen ID" },
-                              { value: "OFW ID", label: "Overseas Workers Welfare Administration (OWWA) / OFW ID" },
                               ...idTypes.map(t => ({ value: t, label: t })),
                               { value: "other", label: "Other (specify below)" }
                             ].map((option) => (

@@ -14,8 +14,6 @@ import {
   Save,
   GripVertical,
   Star,
-  Home,
-  Users,
   Video,
   Play,
 } from "lucide-react";
@@ -170,6 +168,7 @@ export default function DormProfileSettings({
         id: data.id,
         name: data.title,
         type: data.property_type,
+        gender_restriction: data.gender_restriction || "mixed",
         description: data.description || "",
         address: {
           street: data.street_address,
@@ -197,6 +196,12 @@ export default function DormProfileSettings({
           : [],
         status: data.current_status,
         nearbyLandmarks: data.nearby_landmarks || "",
+        max_occupants: data.max_occupants || 1,
+        number_of_bedrooms: data.number_of_bedrooms || 0,
+        number_of_bathrooms: data.number_of_bathrooms || 0,
+        floor_area: data.floor_area || 0,
+        floor_level: data.floor_level || "",
+        total_floors: data.total_floors || 1,
         latitude: data.latitude,
         longitude: data.longitude,
         images: images,
@@ -585,10 +590,13 @@ export default function DormProfileSettings({
         new Set([...amenitiesArray, ...customAmenities]),
       );
 
+      const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type);
+
       const updateData = {
         title: dormData.name,
         description: dormData.description,
         property_type: dormData.type,
+        gender_restriction: isGenderRestricted ? dormData.gender_restriction : 'mixed',
         street_address: dormData.address.street,
         barangay: dormData.address.barangay,
         city: dormData.address.city,
@@ -598,6 +606,12 @@ export default function DormProfileSettings({
         amenities: merged,
         property_rules: JSON.stringify(dormData.rules),
         nearby_landmarks: dormData.nearbyLandmarks,
+        max_occupants: parseInt(dormData.max_occupants) || 1,
+        number_of_bedrooms: parseInt(dormData.number_of_bedrooms) || 0,
+        number_of_bathrooms: parseInt(dormData.number_of_bathrooms) || 0,
+        floor_area: parseFloat(dormData.floor_area) || 0,
+        floor_level: dormData.floor_level,
+        total_floors: parseInt(dormData.total_floors) || 1,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         current_status: dormData.status,
@@ -686,11 +700,6 @@ export default function DormProfileSettings({
         // Append image order
         if (imageOrder.length > 0) {
           fd.append("image_order", JSON.stringify(imageOrder));
-        }
-
-        // Log form data entries for debugging (will print File objects too)
-        for (const entry of fd.entries()) {
-          console.log("FormData entry:", entry[0], entry[1]);
         }
 
         // Use POST with method override when sending multipart FormData because
@@ -1028,30 +1037,50 @@ export default function DormProfileSettings({
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={dormData.status}
-                    onChange={(e) =>
-                      handleInputChange("status", e.target.value)
-                    }
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
-                  >
-                    {dormData.status === 'pending' && (
-                      <option value="pending">Pending Approval</option>
-                    )}
-                    <option value="active" disabled={dormData.status === 'pending'}>Active</option>
-                    <option value="inactive" disabled={dormData.status === 'pending'}>Inactive</option>
-                    <option value="maintenance">Maintenance</option>
-                  </select>
-                  {isEditing && dormData.status === 'pending' && (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 italic">
-                      * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
-                    </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Gender Restriction
+                      </label>
+                      <select
+                        value={dormData.gender_restriction}
+                        onChange={(e) => handleInputChange("gender_restriction", e.target.value)}
+                        disabled={!isEditing}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white capitalize"
+                      >
+                        <option value="mixed">Mixed (Any Gender)</option>
+                        <option value="boys">Boys Only</option>
+                        <option value="girls">Girls Only</option>
+                      </select>
+                    </div>
                   )}
+
+                  <div className={['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type) ? "" : "col-span-full md:col-span-1"}>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={dormData.status}
+                      onChange={(e) =>
+                        handleInputChange("status", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
+                    >
+                      {dormData.status === 'pending' && (
+                        <option value="pending">Pending Approval</option>
+                      )}
+                      <option value="active" disabled={dormData.status === 'pending'}>Active</option>
+                      <option value="inactive" disabled={dormData.status === 'pending'}>Inactive</option>
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                    {isEditing && dormData.status === 'pending' && (
+                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 italic">
+                        * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -1067,6 +1096,91 @@ export default function DormProfileSettings({
                     rows={5}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.description ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                   />
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Property Specifications</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Max Occupants
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dormData.max_occupants}
+                        onChange={(e) => handleInputChange("max_occupants", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.maxOccupants ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Bedrooms
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={dormData.number_of_bedrooms}
+                        onChange={(e) => handleInputChange("number_of_bedrooms", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.bedrooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Bathrooms
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={dormData.number_of_bathrooms}
+                        onChange={(e) => handleInputChange("number_of_bathrooms", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.bathrooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Floor Area (sqm)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={dormData.floor_area}
+                        onChange={(e) => handleInputChange("floor_area", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.floor_area ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Floor Level
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., 2nd Floor"
+                        value={dormData.floor_level}
+                        onChange={(e) => handleInputChange("floor_level", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.floor_level ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Total Floors
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dormData.total_floors}
+                        onChange={(e) => handleInputChange("total_floors", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.totalFloors ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

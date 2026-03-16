@@ -20,15 +20,49 @@ class RoomResource extends JsonResource
             'room_number' => $this->room_number,
             'floor' => $this->floor,
             'room_type' => $this->room_type,
+            'gender_restriction' => $this->gender_restriction,
             'type_label' => $this->getRoomTypeLabel($this->room_type),
             'monthly_rate' => (string) $this->monthly_rate,
             'daily_rate' => isset($this->daily_rate) ? (string) $this->daily_rate : null,
             'unit_price' => (float) ($this->billing_policy === 'daily' ? ($this->daily_rate ?? ($this->monthly_rate / 30)) : $this->monthly_rate),
             'billing_policy' => $this->billing_policy ?? 'monthly',
+            'pricing_model' => $this->pricing_model ?? 'full_room',
             'capacity' => $this->capacity,
+            'occupied' => (int) $this->occupied,
             'occupied_count' => (int) $this->occupied,
             'available_slots' => (int) $this->available_slots,
             'tenant' => $this->tenant,
+            'tenants' => $this->whenLoaded('tenants', function() {
+                $list = $this->tenants->map(function($t) {
+                    return [
+                        'id' => $t->id,
+                        'name' => $t->first_name . ' ' . $t->last_name,
+                        'email' => $t->email,
+                        'phone' => $t->phone,
+                        'is_user' => true
+                    ];
+                })->toArray();
+
+                // Add confirmed walk-in guests
+                $walkins = \App\Models\Booking::where('room_id', $this->id)
+                    ->where('status', 'confirmed')
+                    ->whereNull('tenant_id')
+                    ->where('start_date', '<=', now())
+                    ->where('end_date', '>=', now())
+                    ->get()
+                    ->map(function($b) {
+                        return [
+                            'id' => null,
+                            'booking_id' => $b->id,
+                            'name' => $b->guest_name,
+                            'email' => null,
+                            'phone' => null,
+                            'is_user' => false
+                        ];
+                    })->toArray();
+
+                return array_merge($list, $walkins);
+            }),
             'status' => $this->status,
             'description' => $this->description,
             'rules' => $this->rules ?? [],

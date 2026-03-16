@@ -293,7 +293,62 @@ export default function PaymentMethods({ user, onUpdate }) {
                   onChange={(e) => handleDetailChange('gcash_info', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-green-500 focus:border-green-500 shadow-sm sm:text-sm"
                 />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">This info will be displayed to tenants during booking.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Bank Transfer Option */}
+          <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="flex items-start gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <input
+                type="checkbox"
+                id="pm_bank"
+                checked={allowed.includes('bank_transfer')}
+                onChange={() => handleToggle('bank_transfer')}
+                className="mt-1 w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded cursor-pointer"
+              />
+              <label htmlFor="pm_bank" className="flex-1 cursor-pointer">
+                <span className="block font-medium text-gray-900 dark:text-white">Bank Transfer</span>
+                <span className="block text-sm text-gray-500 dark:text-gray-400">Receive payments via direct bank deposit or transfer.</span>
+              </label>
+            </div>
+            {allowed.includes('bank_transfer') && (
+              <div className="px-4 pb-4 pl-12">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bank Account Details</label>
+                <textarea
+                  placeholder="e.g. BDO: Juan Cruz - 1234 5678 9012"
+                  value={details.bank_info || ''}
+                  onChange={(e) => handleDetailChange('bank_info', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-green-500 focus:border-green-500 shadow-sm sm:text-sm h-20"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Other Instructions */}
+          <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="flex items-start gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <input
+                type="checkbox"
+                id="pm_other"
+                checked={allowed.includes('other')}
+                onChange={() => handleToggle('other')}
+                className="mt-1 w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded cursor-pointer"
+              />
+              <label htmlFor="pm_other" className="flex-1 cursor-pointer">
+                <span className="block font-medium text-gray-900 dark:text-white">Other Instructions</span>
+                <span className="block text-sm text-gray-500 dark:text-gray-400">Provide custom instructions for other manual methods.</span>
+              </label>
+            </div>
+            {allowed.includes('other') && (
+              <div className="px-4 pb-4 pl-12">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Instructions</label>
+                <textarea
+                  placeholder="e.g. Pay at the main office lobby, 9 AM - 5 PM."
+                  value={details.other_info || ''}
+                  onChange={(e) => handleDetailChange('other_info', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-green-500 focus:border-green-500 shadow-sm sm:text-sm h-20"
+                />
               </div>
             )}
           </div>

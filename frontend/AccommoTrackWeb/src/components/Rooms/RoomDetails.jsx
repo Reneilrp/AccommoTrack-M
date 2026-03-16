@@ -1,20 +1,40 @@
-import React, { useState } from 'react';
-import { X, Users, List, CreditCard, CalendarDays } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Users, List, CreditCard, CalendarDays, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
 
 export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
   const [showActivity, setShowActivity] = useState(false);
+  const [activity, setActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   const [extensionValues, setExtensionValues] = useState({});
   const [extending, setExtending] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (isOpen && showActivity && room?.id) {
+      fetchRoomActivity();
+    }
+  }, [isOpen, showActivity, room?.id]);
+
+  const fetchRoomActivity = async () => {
+    setLoadingActivity(true);
+    try {
+      const res = await api.get(`/landlord/dashboard/recent-activities?room_id=${room.id}`);
+      setActivity(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch room activity', err);
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
   if (!isOpen || !room) return null;
 
   const payments = room.payments || [];
-  const tenants = room.tenant ? [room.tenant] : (room.tenants || []);
-  const activity = room.activity_logs || [];
-
-  const tenant = tenants[0] || null;
+  const tenants = (Array.isArray(room.tenants) && room.tenants.length > 0)
+    ? room.tenants
+    : (room.tenant ? (typeof room.tenant === 'string' ? [{ name: room.tenant }] : [room.tenant]) : []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
@@ -23,7 +43,18 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
       <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto z-10">
         <div className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                room.gender_restriction === 'male' 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                  : room.gender_restriction === 'female'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                  : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+              }`}>
+                {room.gender_restriction === 'male' ? 'Boys' : room.gender_restriction === 'female' ? 'Girls' : 'Mixed'}
+              </span>
+            </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">{room.type_label || room.room_type} {room.floor_label ? `• ${room.floor_label}` : ''}</p>
           </div>
 
@@ -194,15 +225,35 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
           {showActivity && (
             <div className="mb-4">
               <h4 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Activity Logs</h4>
-              {activity.length === 0 ? (
+              {loadingActivity ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-green-600" />
+                </div>
+              ) : activity.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No activity recorded for this room.</p>
               ) : (
                 <ul className="space-y-2">
                   {activity.map((a, i) => (
                     <li key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-100 dark:border-gray-700">
-                      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{a.title || a.action || 'Activity'}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{a.by || a.user || 'System'} — {a.created_at || a.time || ''}</div>
-                      {a.details && <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{a.details}</div>}
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="text-sm text-gray-800 dark:text-gray-200 font-bold">{a.action || a.title || 'Activity'}</div>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase">
+                          {new Date(a.timestamp || a.created_at || a.time).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{a.description || a.details}</div>
+                      {a.status && (
+                        <div className="mt-2">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            a.color === 'green' ? 'bg-green-100 text-green-700' :
+                            a.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                            a.color === 'red' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {a.status}
+                          </span>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

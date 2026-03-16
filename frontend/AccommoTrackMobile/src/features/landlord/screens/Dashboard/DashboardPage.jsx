@@ -68,7 +68,8 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-export default function LandlordDashboard({ navigation, user, onLogout }) {
+export default function LandlordDashboard({ navigation, user: initialUser, onLogout }) {
+  const [user, setUser] = useState(initialUser);
   const [dashboardData, setDashboardData] = useState({
     stats: null,
     activities: [],
@@ -89,17 +90,35 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
 
+  const isCaretaker = user?.role === 'caretaker';
+  const caretakerPermissions = user?.caretaker_permissions || {};
+
   const quickActions = [
-    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties' },
-    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement' },
-    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants' },
-    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings' },
-    { id: 5, title: 'Payments', icon: 'cash', color: '#16a34a', screen: 'Payments' },
-    { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics' },
-    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages' },
-    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests' },
-    { id: 9, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews' }
+    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties', show: !isCaretaker || caretakerPermissions.can_view_properties },
+    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement', show: !isCaretaker || caretakerPermissions.can_view_rooms },
+    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants', show: !isCaretaker || caretakerPermissions.can_view_tenants },
+    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || caretakerPermissions.can_view_bookings },
+    { id: 5, title: 'Payments', icon: 'cash', color: '#16a34a', screen: 'Payments', show: !isCaretaker },
+    { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics', show: !isCaretaker },
+    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || caretakerPermissions.can_view_messages },
+    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: true },
+    { id: 9, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews', show: !isCaretaker }
   ];
+
+  // Load user if not provided via props (happens in BottomTabNavigator)
+  useEffect(() => {
+    const loadUser = async () => {
+      if (!user) {
+        try {
+          const userString = await AsyncStorage.getItem('user');
+          if (userString) {
+            setUser(JSON.parse(userString));
+          }
+        } catch (e) {}
+      }
+    };
+    loadUser();
+  }, []);
 
   // Reset mounted ref on each mount
   useEffect(() => {
@@ -486,7 +505,7 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
         <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            {quickActions.map((action) => (
+            {quickActions.filter(a => a.show).map((action) => (
               <Button
                 key={action.id}
                 style={styles.actionCard}
@@ -583,31 +602,33 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
         </View>
 
         {/* Unpaid Bookings */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Unpaid Bookings</Text>
-            <Text style={styles.sectionHelper}>{unpaidBookings.length} pending</Text>
-          </View>
-          <View style={styles.cardContainer}>
-            {unpaidBookings.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="checkmark-circle-outline" size={36} color="#9CA3AF" />
-                <Text style={styles.emptyStateText}>All payments are up to date</Text>
-              </View>
-            ) : (
-              unpaidBookings.slice(0, 5).map((booking) => (
-                <View key={booking.id} style={[styles.listItem, { borderColor: '#F87171', backgroundColor: '#FEF2F2' }]}> 
-                  <View style={styles.listContent}>
-                    <Text style={styles.listTitle}>{booking.tenantName}</Text>
-                    <Text style={styles.listSubtitle}>{booking.propertyTitle} • Room {booking.roomNumber}</Text>
-                    <Text style={[styles.listMeta, { color: '#B91C1C' }]}>{booking.paymentStatus}</Text>
-                  </View>
-                  <Text style={styles.listAmount}>₱{booking.amount.toLocaleString()}</Text>
+        {!isCaretaker && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Unpaid Bookings</Text>
+              <Text style={styles.sectionHelper}>{unpaidBookings.length} pending</Text>
+            </View>
+            <View style={styles.cardContainer}>
+              {unpaidBookings.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="checkmark-circle-outline" size={36} color="#9CA3AF" />
+                  <Text style={styles.emptyStateText}>All payments are up to date</Text>
                 </View>
-              ))
-            )}
+              ) : (
+                unpaidBookings.slice(0, 5).map((booking) => (
+                  <View key={booking.id} style={[styles.listItem, { borderColor: '#F87171', backgroundColor: '#FEF2F2' }]}> 
+                    <View style={styles.listContent}>
+                      <Text style={styles.listTitle}>{booking.tenantName}</Text>
+                      <Text style={styles.listSubtitle}>{booking.propertyTitle} • Room {booking.roomNumber}</Text>
+                      <Text style={[styles.listMeta, { color: '#B91C1C' }]}>{booking.paymentStatus}</Text>
+                    </View>
+                    <Text style={styles.listAmount}>₱{booking.amount.toLocaleString()}</Text>
+                  </View>
+                ))
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Property Overview */}
         <View style={styles.section}>
@@ -687,10 +708,12 @@ export default function LandlordDashboard({ navigation, user, onLogout }) {
                       <Text style={styles.performanceStatLabel}>Occupied</Text>
                       <Text style={styles.performanceStatValue}>{property.occupiedRooms}/{property.totalRooms}</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.performanceStatLabel}>Revenue</Text>
-                      <Text style={styles.performanceStatValue}>₱{(property.actualRevenue ?? 0).toLocaleString()}</Text>
-                    </View>
+                    {!isCaretaker && (
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.performanceStatLabel}>Revenue</Text>
+                        <Text style={styles.performanceStatValue}>₱{(property.actualRevenue ?? 0).toLocaleString()}</Text>
+                      </View>
+                    )}
                     <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                   </View>
                 </TouchableOpacity>

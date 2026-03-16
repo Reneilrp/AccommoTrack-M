@@ -11,13 +11,15 @@ import {
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  ArrowLeftRight
 } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import { authService } from '../../services/authService';
 
 // Get base storage URL from environment
-const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://192.168.43.142:8000/storage';
+const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000/storage';
 
 // Normalize image URL to use frontend's configured base URL
 const normalizeImageUrl = (url) => {
@@ -120,6 +122,7 @@ export default function VerificationStatus() {
   const [showResubmitForm, setShowResubmitForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
 
   // Resubmission form state
@@ -134,6 +137,26 @@ export default function VerificationStatus() {
     fetchVerificationStatus();
     fetchIdTypes();
   }, []);
+
+  const handleSwitchToTenant = async () => {
+    if (!window.confirm('Are you sure you want to switch back to Tenant mode?')) return;
+    
+    try {
+      setIsSwitching(true);
+      const response = await authService.switchRole('tenant');
+      if (response.user) {
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        userData.role = 'tenant';
+        localStorage.setItem('userData', JSON.stringify(userData));
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      console.error('Failed to switch role:', err);
+      toast.error('Failed to switch to tenant mode');
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   const fetchVerificationStatus = async () => {
     try {
@@ -314,6 +337,23 @@ export default function VerificationStatus() {
                   day: 'numeric'
                 })}
               </p>
+            )}
+
+            {/* Switch back to Tenant option for pending/rejected landlords */}
+            {(verification?.status === 'pending' || verification?.status === 'rejected' || verification?.status === 'not_submitted') && (
+              <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  Want to go back to using the app as a tenant while waiting for verification?
+                </p>
+                <button
+                  onClick={handleSwitchToTenant}
+                  disabled={isSwitching}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {isSwitching ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
+                  Switch to Tenant Mode
+                </button>
+              </div>
             )}
           </div>
         </div>

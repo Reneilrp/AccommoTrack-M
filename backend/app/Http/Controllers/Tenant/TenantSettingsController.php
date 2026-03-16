@@ -23,7 +23,8 @@ class TenantSettingsController extends Controller
             // Get user directly
             $user = User::select([
                 'id', 'first_name', 'middle_name', 'last_name', 'email', 'phone', 
-                'profile_image', 'is_verified', 'is_active', 'notification_preferences'
+                'profile_image', 'is_verified', 'is_active', 'notification_preferences',
+                'date_of_birth', 'gender'
             ])->findOrFail($userId);
 
             // Get tenant profile directly
@@ -32,14 +33,14 @@ class TenantSettingsController extends Controller
                     'move_in_date', 'move_out_date', 'status', 'notes',
                     'emergency_contact_name', 'emergency_contact_phone', 
                     'emergency_contact_relationship', 'current_address', 
-                    'preference', 'date_of_birth', 'gender'
+                    'preference'
                 ])
                 ->first();
 
             // Calculate age manually (since accessor might not work in IDE)
             $age = null;
-            if ($tenantProfile && $tenantProfile->date_of_birth) {
-                $birthDate = \Carbon\Carbon::parse($tenantProfile->date_of_birth);
+            if ($user->date_of_birth) {
+                $birthDate = \Carbon\Carbon::parse($user->date_of_birth);
                 $age = $birthDate->diffInYears(\Carbon\Carbon::now());
             }
 
@@ -61,6 +62,8 @@ class TenantSettingsController extends Controller
                 'is_active'      => $user->is_active,
                 'notification_preferences' => $user->notification_preferences,
                 'age'            => $age,
+                'gender'         => $user->gender,
+                'date_of_birth'  => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
                 'tenant_profile' => $tenantProfile ? [
                     'move_in_date'                => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
                     'move_out_date'               => $tenantProfile->move_out_date ? $tenantProfile->move_out_date->format('Y-m-d') : null,
@@ -71,8 +74,6 @@ class TenantSettingsController extends Controller
                     'emergency_contact_relationship' => $tenantProfile->emergency_contact_relationship,
                     'current_address'             => $tenantProfile->current_address,
                     'preference'                  => $tenantProfile->preference,
-                    'date_of_birth'               => $tenantProfile->date_of_birth ? $tenantProfile->date_of_birth->format('Y-m-d') : null,
-                    'gender'                      => $tenantProfile->gender,
                 ] : null
             ], 200);
         } catch (\Exception $e) {
@@ -123,6 +124,8 @@ class TenantSettingsController extends Controller
             if ($request->has('last_name')) $userData['last_name'] = $validated['last_name'];
             if ($request->has('email')) $userData['email'] = $validated['email'];
             if ($request->has('phone')) $userData['phone'] = $validated['phone'];
+            if ($request->has('date_of_birth')) $userData['date_of_birth'] = $validated['date_of_birth'];
+            if ($request->has('gender')) $userData['gender'] = $validated['gender'];
             if ($request->has('notification_preferences')) {
                 $prefs = $validated['notification_preferences'];
                 // When sent as a JSON string via FormData, decode it first
@@ -156,7 +159,7 @@ class TenantSettingsController extends Controller
             $tenantProfile = TenantProfile::firstOrNew(['user_id' => $userId]);
             
             $profileFields = [
-                'date_of_birth', 'gender', 'emergency_contact_name', 'emergency_contact_phone',
+                'emergency_contact_name', 'emergency_contact_phone',
                 'emergency_contact_relationship', 'current_address', 'notes',
                 'move_in_date', 'move_out_date', 'status'
             ];

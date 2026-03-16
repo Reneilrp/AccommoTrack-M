@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3 } from 'lucide-react';
+import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
 import toast from 'react-hot-toast';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -29,6 +29,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [showAddBookingModal, setShowAddBookingModal] = useState(false);
   const [extensionRequests, setExtensionRequests] = useState([]);
   const [loadingExtensions, setLoadingExtensions] = useState(false);
+  const [transferRequests, setTransferRequests] = useState([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(false);
 
   const readOnlyGuard = () => {
     if (canManageBookings) return false;
@@ -38,10 +40,20 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      fetchBookings(),
+      fetchStats(),
+      fetchExtensions(),
+      fetchTransfers()
+    ]);
+  };
+
   useEffect(() => {
     fetchBookings();
     fetchStats();
     fetchExtensions();
+    fetchTransfers();
 
     const handleOpenAdd = () => setShowAddBookingModal(true);
     window.addEventListener('open-add-booking', handleOpenAdd);
@@ -80,6 +92,18 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     }
   };
 
+  const fetchTransfers = async () => {
+    try {
+      setLoadingTransfers(true);
+      const response = await api.get('/landlord/transfers');
+      setTransferRequests(response.data);
+    } catch (err) {
+      console.error('Error fetching transfers:', err);
+    } finally {
+      setLoadingTransfers(false);
+    }
+  };
+
   const handleHandleExtension = async (id, action, modifyData = null) => {
     if (readOnlyGuard()) return;
     const toastId = toast.loading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
@@ -94,6 +118,23 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     } catch (err) {
       console.error('Error handling extension:', err);
       toast.error(err.response?.data?.message || 'Failed to handle request', { id: toastId });
+    }
+  };
+
+  const handleHandleTransfer = async (id, action, transferData = null) => {
+    if (readOnlyGuard()) return;
+    const toastId = toast.loading(`${action === 'approve' ? 'Approving' : 'Rejecting'} transfer...`);
+    try {
+      await api.patch(`/landlord/transfers/${id}/handle`, {
+        action,
+        ...transferData
+      });
+      toast.success(`Transfer ${action}d successfully!`, { id: toastId });
+      fetchTransfers();
+      fetchBookings(); // Refresh bookings to reflect new room
+    } catch (err) {
+      console.error('Error handling transfer:', err);
+      toast.error(err.response?.data?.message || 'Failed to handle transfer', { id: toastId });
     }
   };
 
@@ -220,8 +261,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   return (
-    <>
-      <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
         {isCaretaker && !canManageBookings && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             You are viewing bookings as a caretaker. Management actions are disabled.
@@ -239,20 +280,48 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           {loading ? [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />) : (
             <>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Bookings</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Bookings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-gray-50 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </div>
+                </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Confirmed</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Confirmed</p>
+                    <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Completed</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Completed</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <Check className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -271,16 +340,31 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
-            {['all', 'confirmed', 'pending', 'completed', 'cancelled', 'extensions'].map((s) => (
+            {['all', 'confirmed', 'pending', 'completed', 'cancelled', 'extensions', 'transfers'].map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={`flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterStatus === s ? 'bg-green-600 text-white shadow-md shadow-green-500/20' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
-                {s === 'extensions' ? 'Extensions' : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'extensions' ? 'Extensions' : s === 'transfers' ? 'Transfers' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                title="Refresh"
+                className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
+            </div>
         </div>
 
         {/* Table / Extensions List */}
@@ -289,6 +373,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             requests={extensionRequests} 
             loading={loadingExtensions}
             onHandle={handleHandleExtension}
+          />
+        ) : filterStatus === 'transfers' ? (
+          <TransferRequestsList 
+            requests={transferRequests}
+            loading={loadingTransfers}
+            onHandle={handleHandleTransfer}
           />
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
@@ -713,7 +803,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -854,6 +944,145 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
                     Reject
                   </button>
                 </>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ==================== Transfer Requests List ====================
+const TransferRequestsList = ({ requests, loading, onHandle }) => {
+  const [approving, setApproving] = useState(null); // id of request being approved (to show form)
+  const [approvalData, setApprovalData] = useState({ damage_charge: '', damage_description: '', landlord_notes: '' });
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Loader2 className="w-10 h-10 text-green-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading transfer requests...</p>
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <Shuffle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">No Transfer Requests</h3>
+        <p className="text-gray-500 text-sm">When tenants want to move rooms, they will appear here.</p>
+      </div>
+    );
+  }
+
+  const startApprove = (req) => {
+    setApproving(req.id);
+    setApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {requests.map((req) => (
+        <div key={req.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name || (req.tenant?.first_name + ' ' + req.tenant?.last_name)}</h4>
+              <p className="text-xs text-gray-500">{req.requested_room?.property?.title}</p>
+            </div>
+            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+              req.status === 'approved' ? 'bg-green-100 text-green-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {req.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current Room</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Room {req.current_room?.room_number}</p>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-100 dark:border-amber-800">
+              <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1">Requested Room</p>
+              <p className="text-sm font-bold text-amber-900 dark:text-blue-200">Room {req.requested_room?.room_number}</p>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Reason for Transfer</p>
+            <div className="p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400 leading-relaxed">
+              "{req.reason}"
+            </div>
+          </div>
+
+          {req.status === 'pending' && (
+            <div className="space-y-4">
+              {approving === req.id ? (
+                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Damage Charge (Optional)</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="0.00"
+                        value={approvalData.damage_charge}
+                        onChange={e => setApprovalData({...approvalData, damage_charge: e.target.value})}
+                        className="flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 outline-none"
+                      />
+                      {parseFloat(approvalData.damage_charge) > 0 && (
+                        <input 
+                          type="text" 
+                          placeholder="What was damaged?"
+                          required
+                          value={approvalData.damage_description}
+                          onChange={e => setApprovalData({...approvalData, damage_description: e.target.value})}
+                          className="flex-[2] text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 outline-none"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Landlord Notes</label>
+                    <textarea 
+                      placeholder="Any notes for the tenant..."
+                      value={approvalData.landlord_notes}
+                      onChange={e => setApprovalData({...approvalData, landlord_notes: e.target.value})}
+                      className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 outline-none h-16 resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => onHandle(req.id, 'approve', approvalData)}
+                      className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20"
+                    >
+                      Confirm Transfer
+                    </button>
+                    <button 
+                      onClick={() => setApproving(null)}
+                      className="px-4 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-2 rounded-lg text-xs font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => startApprove(req)}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-1"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" /> Approve
+                  </button>
+                  <button 
+                    onClick={() => onHandle(req.id, 'reject')}
+                    className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </div>
               )}
             </div>
           )}

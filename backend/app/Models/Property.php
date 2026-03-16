@@ -105,6 +105,7 @@ class Property extends Model
         'title',
         'description',
         'property_type',
+        'gender_restriction',
         'current_status',
 
         // Location Details
@@ -130,6 +131,7 @@ class Property extends Model
         'number_of_bathrooms',
         'floor_area',
         'floor_level',
+        'total_floors',
         'max_occupants',
 
         // Room Management
@@ -150,6 +152,7 @@ class Property extends Model
         'number_of_bedrooms' => 'integer',
         'number_of_bathrooms' => 'integer',
         'floor_area' => 'decimal:2',
+        'total_floors' => 'integer',
         'max_occupants' => 'integer',
         'total_rooms' => 'integer',
         'available_rooms' => 'integer',
@@ -229,39 +232,6 @@ class Property extends Model
         ]);
 
         return implode(', ', $parts);
-    }
-
-    /**
-     * Accessor: Get property rules as array
-     */
-    public function getPropertyRulesAttribute($value)
-    {
-        if (is_null($value)) {
-            return [];
-        }
-
-        // If already an array, return it
-        if (is_array($value)) {
-            return $value;
-        }
-
-        // Try to decode JSON
-        $decoded = json_decode($value, true);
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    /**
-     * Mutator: Set property rules as JSON
-     */
-    public function setPropertyRulesAttribute($value)
-    {
-        if (is_null($value) || (is_array($value) && empty($value))) {
-            $this->attributes['property_rules'] = null;
-        } elseif (is_array($value)) {
-            $this->attributes['property_rules'] = json_encode($value);
-        } else {
-            $this->attributes['property_rules'] = $value;
-        }
     }
 
     /**

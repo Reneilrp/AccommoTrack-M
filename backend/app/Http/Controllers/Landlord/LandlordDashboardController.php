@@ -43,6 +43,8 @@ class LandlordDashboardController extends Controller
             $context = $this->resolveLandlordContext($request);
             $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
             $propertyId = $request->query('property_id');
+            $roomId = $request->query('room_id');
+
             if ($context['is_caretaker'] && $propertyId && !in_array((int)$propertyId, $assignedPropertyIds)) {
                 $propertyId = null;
             }
@@ -51,15 +53,19 @@ class LandlordDashboardController extends Controller
                 $context['landlord_id'],
                 $assignedPropertyIds,
                 $context['is_caretaker'],
-                $propertyId
+                $propertyId,
+                $roomId
             );
             // Transformation logic standardized for Mobile activity maps
             $formattedActivities = $activities->map(function ($item) {
+                if (is_array($item)) return $item; // already formatted
+
                 if ($item instanceof \App\Models\Booking) {
                     return [
                         'id' => $item->id, 'type' => 'booking',
                         'action' => 'New booking request',
                         'description' => ($item->tenant->first_name ?? 'Someone') . ' requested ' . ($item->property->title ?? 'Property') . ' - Room ' . ($item->room->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Someone') . ' ' . ($item->tenant->last_name ?? ''),
                         'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'calendar', 'color' => $item->status === 'pending' ? 'yellow' : 'green'
                     ];
                 }
@@ -69,6 +75,7 @@ class LandlordDashboardController extends Controller
                         'id' => $item->id, 'type' => 'room',
                         'action' => $isNew ? 'New Room Added' : 'Room Status Updated',
                         'description' => "Room {$item->room_number} in {$item->property->title} is now " . ucfirst($item->status),
+                        'by' => 'System',
                         'status' => $item->status, 'timestamp' => $item->updated_at, 'icon' => 'bed', 'color' => $item->status === 'occupied' ? 'blue' : ($item->status === 'available' ? 'green' : 'yellow')
                     ];
                 }
@@ -77,6 +84,7 @@ class LandlordDashboardController extends Controller
                         'id' => $item->id, 'type' => 'property',
                         'action' => 'Property Updated',
                         'description' => "Details for property '{$item->title}' were recently updated.",
+                        'by' => 'Landlord',
                         'status' => 'active', 'timestamp' => $item->updated_at, 'icon' => 'business', 'color' => 'blue'
                     ];
                 }
@@ -84,7 +92,8 @@ class LandlordDashboardController extends Controller
                     return [
                         'id' => $item->id, 'type' => 'payment',
                         'action' => 'New Invoice Generated',
-                        'description' => "Invoice #{$item->reference} created for room {$item->room_id}",
+                        'description' => "Invoice #{$item->reference} created for room " . ($item->booking->room->room_number ?? 'N/A'),
+                        'by' => 'System',
                         'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'gray'
                     ];
                 }
@@ -92,8 +101,19 @@ class LandlordDashboardController extends Controller
                     return [
                         'id' => $item->id, 'type' => 'payment',
                         'action' => 'Payment Received',
-                        'description' => "Received ₱" . number_format($item->amount_cents/100, 2) . " via " . ucfirst($item->method),
+                        'description' => "Received ₱" . number_format($item->amount_cents/100, 2) . " via " . ucfirst($item->method) . " for Room " . ($item->invoice->booking->room->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Tenant') . ' ' . ($item->tenant->last_name ?? ''),
                         'status' => 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'green'
+                    ];
+                }
+                if ($item instanceof \App\Models\MaintenanceRequest) {
+                    return [
+                        'id' => $item->id, 'type' => 'maintenance',
+                        'action' => 'Maintenance Request ' . ucfirst($item->status),
+                        'description' => "{$item->title} - Room " . ($item->booking->room->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Tenant') . ' ' . ($item->tenant->last_name ?? ''),
+                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'wrench', 
+                        'color' => $item->status === 'pending' ? 'red' : 'green'
                     ];
                 }
                 return (array) $item;

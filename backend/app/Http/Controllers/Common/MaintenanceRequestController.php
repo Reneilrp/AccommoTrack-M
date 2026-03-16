@@ -82,7 +82,7 @@ class MaintenanceRequestController extends Controller
     public function indexForLandlord(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
-        $this->ensureCaretakerCan($context, 'can_view_rooms'); // Re-using rooms permission for now or add new
+        $this->ensureCaretakerCan($context, 'can_manage_maintenance');
 
         $query = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
             ->with(['property:id,title', 'tenant:id,first_name,last_name', 'booking.room:id,room_number']);
@@ -111,6 +111,7 @@ class MaintenanceRequestController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_maintenance');
         
         $maintenanceRequest = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
             ->findOrFail($id);

@@ -258,6 +258,22 @@ export default function TenantsScreen({ navigation, route }) {
               </View>
 
               <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Personal Information</Text>
+                <View style={styles.detailList}>
+                  <Text style={styles.detailLabel}>Phone</Text>
+                  <Text style={styles.detailValue}>{detailTenant.phone || '—'}</Text>
+                  <Text style={styles.detailLabel}>Date of Birth</Text>
+                  <Text style={styles.detailValue}>
+                    {detailTenant.date_of_birth 
+                      ? new Date(detailTenant.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                      : '—'}
+                  </Text>
+                  <Text style={styles.detailLabel}>Gender</Text>
+                  <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>{detailTenant.gender || '—'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Room Assignment</Text>
                 {detailTenant.room ? (
                   <View style={styles.assignmentCard}>

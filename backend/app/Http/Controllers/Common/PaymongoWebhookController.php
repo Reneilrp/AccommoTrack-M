@@ -180,11 +180,18 @@ class PaymongoWebhookController extends Controller
     private function updateInvoiceAndBooking($invoiceId, $paidAmountCents)
     {
         if (!$invoiceId) return;
-        $invoice = Invoice::find($invoiceId);
+        $invoice = Invoice::with('transactions')->find($invoiceId);
         if (!$invoice) return;
 
         $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
-        if ($paidAmountCents >= $invoiceTotal) {
+
+        // Calculate total successful payments for this invoice, subtracting refunds
+        $totalPaidSoFar = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
+
+        if ($totalPaidSoFar >= $invoiceTotal) {
             $invoice->status = 'paid';
             $invoice->paid_at = now();
         } else {

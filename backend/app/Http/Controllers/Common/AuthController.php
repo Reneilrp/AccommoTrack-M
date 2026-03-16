@@ -57,12 +57,27 @@ class AuthController extends Controller
                                 'regex:/[A-Z]/',      // at least one uppercase letter
                                 'regex:/(.*[0-9]){2,}/', // at least two numbers
                                 'regex:{[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]}', // at least one special character
-                            ],                'role' => 'required|in:landlord,tenant',
+                            ],
+                'role' => 'required|in:landlord,tenant',
                 'phone' => 'nullable|string|max:20',
+                'date_of_birth' => 'required|date',
+                'gender' => ['required', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
             ], [
                 'email.unique' => 'This email is already taken. Please use a different email address.',
                 'email.email' => 'Email address is not valid or cannot receive mail.',
             ]);
+
+            // Role-based age validation
+            if (isset($validated['date_of_birth'])) {
+                $minAge = $validated['role'] === 'landlord' ? 20 : 18;
+                $birthDate = \Carbon\Carbon::parse($validated['date_of_birth']);
+                if ($birthDate->diffInYears(\Carbon\Carbon::now()) < $minAge) {
+                    return response()->json([
+                        'message' => 'Registration failed: You must be at least ' . $minAge . ' years old to register as a ' . $validated['role'] . '.',
+                        'errors' => ['date_of_birth' => ['Age restriction: Minimum ' . $minAge . ' years old required.']]
+                    ], 422);
+                }
+            }
 
             $result = $this->authService->register($validated);
             $user = $result['user'];
@@ -214,15 +229,28 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
+        $newRole = $request->role;
+
+        // Security Check: If switching TO landlord, must be verified/approved
+        if ($user->role === 'tenant' && $newRole === 'landlord') {
+            $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
+            
+            if (!$verification || $verification->status !== 'approved') {
+                return response()->json([
+                    'message' => 'Your landlord verification is not yet approved. Please complete verification first.',
+                    'status' => $verification ? $verification->status : 'not_submitted'
+                ], 403);
+            }
+        }
         
         // If they are switching to landlord, ensure they are verified (or at least have submitted verification)
         // For simplicity, we just change the role.
-        $user->role = $request->role;
+        $user->role = $newRole;
         $user->save();
 
         return response()->json([
             'user' => $user->fresh(),
-            'message' => 'Role switched to ' . $request->role,
+            'message' => 'Role switched to ' . $newRole,
         ]);
     }
 
@@ -237,6 +265,7 @@ class AuthController extends Controller
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'nullable|date',
+                'gender' => ['nullable', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
                 'payment_methods_settings' => 'nullable|array',
                 'payment_methods_settings.allowed' => 'nullable|array',
@@ -272,23 +301,33 @@ class AuthController extends Controller
                 }
             }
 
-            // Separate user data from tenant profile data
+            // Separate user data
             $userFields = [
                 'first_name', 'middle_name', 'last_name', 'phone', 'profile_image', 
-                'payment_methods_settings', 'notification_preferences'
+                'payment_methods_settings', 'notification_preferences',
+                'date_of_birth', 'gender'
             ];
-            $tenantProfileFields = ['date_of_birth', 'gender'];
 
             $userData = array_intersect_key($validated, array_flip($userFields));
-            $tenantData = array_intersect_key($validated, array_flip($tenantProfileFields));
 
             // Update the core user table
             if (!empty($userData)) {
                 $user->update($userData);
             }
 
-            // If the user is a tenant and there's tenant-specific data, update their profile
-            if ($user->role === 'tenant' && !empty($tenantData)) {
+            // Handle tenant_profile fields
+            $tenantProfileFields = [
+                'emergency_contact_name', 
+                'emergency_contact_phone', 
+                'emergency_contact_relationship',
+                'current_address',
+                'preference'
+            ];
+
+            // Manually check request for these fields since they aren't in the strict users validation rules
+            $tenantData = $request->only($tenantProfileFields);
+            
+            if (!empty($tenantData) && $user->role === 'tenant') {
                 $user->tenantProfile()->updateOrCreate(
                     ['user_id' => $user->id],
                     $tenantData

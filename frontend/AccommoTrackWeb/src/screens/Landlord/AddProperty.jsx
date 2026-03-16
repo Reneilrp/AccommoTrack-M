@@ -86,6 +86,7 @@ export default function AddProperty({ onBack, onSave }) {
     propertyName: '',
     propertyType: '',
     otherPropertyType: '',
+    genderRestriction: 'mixed',
     currentStatus: 'pending',
     streetAddress: '',
     city: '',
@@ -97,6 +98,11 @@ export default function AddProperty({ onBack, onSave }) {
     longitude: '',
     nearbyLandmarks: '',
     maxTenants: '',
+    number_of_bedrooms: '',
+    number_of_bathrooms: '',
+    floor_area: '',
+    floor_level: '',
+    total_floors: '1',
     totalRooms: '',
     amenities: [],
     rules: [],
@@ -356,10 +362,13 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const mapPropertyToBackend = (isDraft = false) => {
+    const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(formData.propertyType);
+
     return {
       title: formData.propertyName,
       description: formData.description || null,
       property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
+      gender_restriction: isGenderRestricted ? formData.genderRestriction : 'mixed',
       // If saving as draft, mark draft; otherwise default to pending
       current_status: isDraft ? 'draft' : 'pending',
       street_address: formData.streetAddress,
@@ -372,6 +381,11 @@ export default function AddProperty({ onBack, onSave }) {
       longitude: parseFloat(formData.longitude) || null,
       nearby_landmarks: formData.nearbyLandmarks || null,
       max_occupants: parseInt(formData.maxTenants) || 1,
+      number_of_bedrooms: parseInt(formData.number_of_bedrooms) || 0,
+      number_of_bathrooms: parseInt(formData.number_of_bathrooms) || 0,
+      floor_area: parseFloat(formData.floor_area) || 0,
+      floor_level: formData.floor_level || null,
+      total_floors: parseInt(formData.total_floors) || 1,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
       is_available: false,
@@ -619,6 +633,25 @@ export default function AddProperty({ onBack, onSave }) {
                 )}
               </div>
 
+              {(['dormitory', 'boardingHouse', 'bedSpacer'].includes(formData.propertyType)) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Gender Restriction <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.genderRestriction}
+                      onChange={(e) => handleInputChange('genderRestriction', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="mixed">Mixed (Any Gender)</option>
+                      <option value="boys">Boys Only</option>
+                      <option value="girls">Girls Only</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
@@ -630,6 +663,90 @@ export default function AddProperty({ onBack, onSave }) {
                   rows={6}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                 />
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Property Specifications</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Max Tenants
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 4"
+                      value={formData.maxTenants}
+                      onChange={(e) => handleInputChange('maxTenants', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Bedrooms
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 2"
+                      value={formData.number_of_bedrooms}
+                      onChange={(e) => handleInputChange('number_of_bedrooms', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Bathrooms
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 1"
+                      value={formData.number_of_bathrooms}
+                      onChange={(e) => handleInputChange('number_of_bathrooms', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Floor Area (sqm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g., 50.5"
+                      value={formData.floor_area}
+                      onChange={(e) => handleInputChange('floor_area', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Floor Level
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., 2nd Floor"
+                      value={formData.floor_level}
+                      onChange={(e) => handleInputChange('floor_level', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Floors
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 3"
+                      value={formData.total_floors}
+                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

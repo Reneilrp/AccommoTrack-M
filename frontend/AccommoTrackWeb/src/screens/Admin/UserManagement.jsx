@@ -278,6 +278,12 @@ const UserManagement = () => {
                     <p className="font-semibold text-gray-900 dark:text-white">{selectedUser.phone || 'N/A'}</p>
                   </div>
                   <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Date of Birth</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {selectedUser.date_of_birth ? new Date(selectedUser.date_of_birth).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Registered On</p>
                     <p className="font-semibold text-gray-900 dark:text-white">
                       {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : 'N/A'}

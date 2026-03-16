@@ -1,9 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CreditCard, MessageSquare, Inbox, ArrowLeft, Calendar } from 'lucide-react';
+import { 
+  Loader2, 
+  CreditCard, 
+  MessageSquare, 
+  Inbox, 
+  ArrowLeft, 
+  Calendar, 
+  History, 
+  Wrench, 
+  Sparkles, 
+  CalendarDays,
+  Home,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ExternalLink,
+  Shuffle
+} from 'lucide-react';
 import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
+import PriceRow from '../../components/Shared/PriceRow';
 
 export default function TenantLogs() {
   const { id } = useParams();
@@ -21,9 +39,11 @@ export default function TenantLogs() {
   const [previousPayments, setPreviousPayments] = useState(cachedData?.previousPayments || []);
   const [dueAmount, setDueAmount] = useState(cachedData?.dueAmount || 0);
   const [currentRoom, setCurrentRoom] = useState(cachedData?.currentRoom || null);
+  const [historyData, setHistoryData] = useState(cachedData?.historyData || { bookings: [], maintenance: [], addons: [], transfers: [] });
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState(null);
   
+  const [activeTab, setActiveTab] = useState('payments'); // 'payments', 'bookings', 'maintenance', 'addons'
   const [paymentFilter, setPaymentFilter] = useState('all'); 
   const [paymentSort, setPaymentSort] = useState({ key: 'date', dir: 'desc' });
   const [paymentGroup, setPaymentGroup] = useState('none'); 
@@ -60,14 +80,17 @@ export default function TenantLogs() {
           return;
         }
 
-        let tenantData = null;
-        try {
-          const tRes = await api.get(`/landlord/tenants/${tenantId}`);
-          tenantData = tRes.data || null;
-          setTenant(tenantData);
-        } catch (e) {
-          tenantData = { id: tenantId, name: searchParam || `Tenant ${tenantId}` };
-          setTenant(tenantData);
+        // Fetch Detailed Tenant Data
+        const tRes = await api.get(`/landlord/tenants/${tenantId}`);
+        const tenantData = tRes.data || null;
+        setTenant(tenantData);
+        if (tenantData.history) {
+          setHistoryData({
+            bookings: tenantData.history.bookings || [],
+            maintenance: tenantData.history.maintenance || [],
+            addons: tenantData.history.addons || [],
+            transfers: tenantData.history.transfers || [],
+          });
         }
 
         let payList = [];
@@ -112,7 +135,8 @@ export default function TenantLogs() {
           payments: payList, 
           previousPayments: paid, 
           dueAmount: dueSumCents / 100, 
-          currentRoom: tenantData?.room || null 
+          currentRoom: tenantData?.room || null,
+          historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [] }
         };
         updateData(cacheKey, combined);
         cacheManager.set(cacheKey, combined);
@@ -175,6 +199,7 @@ export default function TenantLogs() {
   }
 
   function formatDate(d) {
+    if (!d) return '—';
     try { return new Date(d).toLocaleDateString(); } catch (e) { return d; }
   }
 
@@ -201,6 +226,46 @@ export default function TenantLogs() {
   const allDue = (payments || []).filter(inv => !(inv.status === 'paid' || inv.paid_at));
   const displayedItems = [...(paymentFilter === 'due' ? [] : allPaid), ...(paymentFilter === 'paid' ? [] : allDue)].sort(sortFn);
   const groupedData = groupPayments(displayedItems, paymentGroup);
+  
+  // Defer tab definition until data is available
+  const tabs = tenant ? [
+    { id: 'payments', label: 'Payments', icon: CreditCard, count: (payments || []).length },
+    { id: 'bookings', label: 'Bookings', icon: History, count: (historyData?.bookings || []).length },
+    { id: 'transfers', label: 'Transfers', icon: Shuffle, count: (historyData?.transfers || []).length },
+    { id: 'maintenance', label: 'Maintenance', icon: Wrench, count: (historyData?.maintenance || []).length },
+    { id: 'addons', label: 'Add-ons', icon: Sparkles, count: (historyData?.addons || []).length },
+  ] : [];
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-green-600 animate-spin mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-300">Loading tenant logs...</p>
+      </div>
+    </div>
+  );
+
+  if (!tenant && !loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-yellow-100 dark:border-yellow-900">
+          <p className="text-yellow-700 dark:text-yellow-400 font-medium">Tenant Not Found</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error || 'The requested tenant could not be found or you may not have access.'}</p>
+          <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
+        <p className="text-red-700 dark:text-red-400 font-medium">Error</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
+        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded">Back</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 space-y-6 pb-10">
@@ -210,128 +275,338 @@ export default function TenantLogs() {
           <button onClick={() => navigate(-1)} className="p-2 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="text-sm font-bold text-gray-700 dark:text-white">
-            Activity Logs: {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant'}
+          <span className="text-sm font-bold text-gray-700 dark:text-white uppercase tracking-tight">
+            Detailed History: {tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant'}
           </span>
         </div>
       </div>
 
       <div className="px-4 md:px-0">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Column 1: Profile */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
-            <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold text-lg">
-                {tenant?.first_name?.charAt(0) || tenant?.name?.charAt(0) || '?'}
-              </div>
-              <div>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{tenant?.email || 'No email provided'}</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Current Room</p>
-                <p className="font-bold text-sm text-gray-900 dark:text-gray-200">
-                  {currentRoom ? `Room ${currentRoom.room_number} • ${currentRoom.type_label || 'Active'}` : 'No active room'}
-                </p>
+          {/* Column 1: Profile & Quick Stats */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
+              <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold text-xl">
+                  {tenant?.first_name?.charAt(0) || tenant?.name?.charAt(0) || '?'}
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">{tenant?.email || 'No email provided'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{tenant?.phone || 'No phone'}</p>
+                </div>
               </div>
 
-              <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
-                <p className="text-[10px] font-bold text-red-400 uppercase mb-1">Total Outstanding</p>
-                <p className="font-bold text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
+              <div className="border-t dark:border-gray-700 pt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Date of Birth</p>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-200">
+                    {tenant?.date_of_birth ? formatDate(tenant.date_of_birth) : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Gender</p>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-200 capitalize">
+                    {tenant?.gender || '—'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 pt-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Current Room</p>
+                  <p className="font-bold text-sm text-gray-900 dark:text-gray-200">
+                    {currentRoom ? `Room ${currentRoom.room_number} • ${currentRoom.type_label || 'Active'}` : 'No active room'}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
+                  <p className="text-[10px] font-bold text-red-400 uppercase mb-1">Total Outstanding</p>
+                  <p className="font-bold text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
+                </div>
               </div>
             </div>
+
+            {/* Room Transfer Log Extract from profile notes */}
+            {tenant?.tenantProfile?.notes && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-4 border-b dark:border-gray-700 pb-2">Internal Notes & History</h3>
+                <div className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
+                  {tenant.tenantProfile.notes}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Column 2-3: Ledger */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-            <div className="flex items-center justify-between mb-6 border-b dark:border-gray-700 pb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-green-500" /> Payment Ledger
-              </h3>
-              <select
-                value={paymentGroup}
-                onChange={(e) => setPaymentGroup(e.target.value)}
-                className="text-xs font-bold uppercase p-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-white"
-              >
-                <option value="none">No Grouping</option>
-                <option value="monthly">By Month</option>
-                <option value="yearly">By Year</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar">
-              {['all', 'paid', 'due'].map(f => (
+          {/* Column 2-3: Main Detailed History Container */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+            {/* Tab Navigation */}
+            <div className="flex border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 overflow-x-auto no-scrollbar">
+              {tabs.map(tab => (
                 <button
-                  key={f}
-                  onClick={() => setPaymentFilter(f)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${
+                    activeTab === tab.id 
+                      ? 'border-green-600 text-green-600 bg-white dark:bg-gray-800 shadow-[0_-4px_0_0_inset_#16a34a]' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 >
-                  {f}
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                    {tab.count}
+                  </span>
                 </button>
               ))}
             </div>
 
-            <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin">
-              {payments.length === 0 ? (
-                <div className="text-center py-12">
-                  <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                  <p className="text-gray-400 dark:text-gray-500 font-medium">No transaction records found</p>
-                </div>
-              ) : (
-                groupedData.map((group) => (
-                  <div key={group.key} className="space-y-3">
-                    {group.label && (
-                      <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> {group.label}
-                      </h4>
-                    )}
-                    {group.items.map((inv, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">₱{formatAmount(inv)}</p>
-                          <p className="text-[10px] text-gray-500 uppercase">{formatDate(inv.paid_at || inv.due_date || inv.created_at)}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {(inv.status === 'paid' || inv.paid_at) ? 'PAID' : 'DUE'}
-                        </span>
-                      </div>
-                    ))}
+            {/* Tab Content */}
+            <div className="p-6 flex-1 overflow-y-auto max-h-[700px] scrollbar-thin">
+              {activeTab === 'payments' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex gap-2">
+                      {['all', 'paid', 'due'].map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setPaymentFilter(f)}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                    <select
+                      value={paymentGroup}
+                      onChange={(e) => setPaymentGroup(e.target.value)}
+                      className="text-[10px] font-bold uppercase p-1.5 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-white outline-none"
+                    >
+                      <option value="none">No Grouping</option>
+                      <option value="monthly">Monthly View</option>
+                      <option value="yearly">Yearly View</option>
+                    </select>
                   </div>
-                ))
+
+                  {payments.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                      <p className="text-gray-400 dark:text-gray-500 font-medium">No transaction records found</p>
+                    </div>
+                  ) : (
+                    groupedData.map((group) => (
+                      <div key={group.key} className="space-y-3">
+                        {group.label && (
+                          <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2 mt-4 first:mt-0">
+                            <Calendar className="w-3 h-3" /> {group.label}
+                          </h4>
+                        )}
+                        {group.items.map((inv, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-900/50 transition-colors group">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">₱{formatAmount(inv)}</p>
+                                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">#{inv.reference || inv.id}</span>
+                              </div>
+                              <p className="text-[10px] text-gray-500 uppercase mt-0.5">{formatDate(inv.paid_at || inv.due_date || inv.created_at)}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {(inv.status === 'paid' || inv.paid_at) ? 'PAID' : 'DUE'}
+                              </span>
+                              <button onClick={() => navigate('/payments')} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white dark:hover:bg-gray-800 rounded-lg text-gray-400 transition-all">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'bookings' && (
+                <div className="space-y-4">
+                  {historyData.bookings.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                      <p className="text-gray-400 font-medium">No booking history</p>
+                    </div>
+                  ) : (
+                    historyData.bookings.map((booking) => (
+                      <div key={booking.id} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-gray-900 dark:text-white">{booking.room?.property?.title || 'Property'}</h4>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
+                                booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                                booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {booking.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 font-medium mt-0.5">Room {booking.room?.room_number} • {booking.booking_reference}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">₱{parseFloat(booking.total_amount).toLocaleString()}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">{booking.payment_status}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-3 border-t dark:border-gray-700">
+                          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>In: {formatDate(booking.start_date)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Out: {formatDate(booking.end_date)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'transfers' && (
+                <div className="space-y-4">
+                  {historyData.transfers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Shuffle className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                      <p className="text-gray-400 font-medium">No transfer history</p>
+                    </div>
+                  ) : (
+                    historyData.transfers.map((req) => (
+                      <div key={req.id} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 shadow-sm">
+                              <span className="text-xs font-bold text-gray-500 mr-2">FROM</span>
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">Room {req.current_room?.room_number}</span>
+                            </div>
+                            <Shuffle className="w-4 h-4 text-gray-400" />
+                            <div className="flex items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg px-3 py-1.5 shadow-sm">
+                              <span className="text-xs font-bold text-amber-600 mr-2">TO</span>
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">Room {req.requested_room?.room_number}</span>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            req.status === 'approved' ? 'bg-green-100 text-green-700' : 
+                            req.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                            req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg text-xs text-gray-600 dark:text-gray-400 italic mb-2">
+                          "{req.reason}"
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
+                          <span>Requested: {formatDate(req.created_at)}</span>
+                          {req.handled_at && <span>Handled: {formatDate(req.handled_at)}</span>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'maintenance' && (
+                <div className="space-y-4">
+                  {historyData.maintenance.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Wrench className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                      <p className="text-gray-400 font-medium">No maintenance history</p>
+                    </div>
+                  ) : (
+                    historyData.maintenance.map((req) => (
+                      <div key={req.id} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white">{req.title}</h4>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{req.description}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            req.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                            req.status === 'pending' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {req.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
+                          <span>Reported: {formatDate(req.created_at)}</span>
+                          <span>Priority: {req.priority}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'addons' && (
+                <div className="space-y-4">
+                  {historyData.addons.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                      <p className="text-gray-400 font-medium">No add-on requests</p>
+                    </div>
+                  ) : (
+                    historyData.addons.map((addon, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">{addon.addon_name}</p>
+                            <p className="text-[10px] text-gray-500 font-medium">{addon.booking_reference} • {addon.price_type}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-green-600">₱{parseFloat(addon.price).toLocaleString()}</p>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            addon.status === 'active' ? 'bg-green-100 text-green-700' : 
+                            addon.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {addon.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Messages / Search Results Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-green-500"/> Messages / Search Results
-          </h3>
-          {searchResults.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No alternate tenant matches or messages found.</p>
-          ) : (
-            <ul className="space-y-2">
+        {/* Search Results fallback (if accessed via search query) */}
+        {searchResults.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm mt-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-green-500"/> Alternate Tenant Matches
+            </h3>
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {searchResults.map((m) => {
                 const tenantId = m.id || m.tenant_id || m.tenantId || (m.user && m.user.id);
                 const displayName = m.first_name ? `${m.first_name} ${m.last_name || ''}` : (m.name || m.email || 'Unknown');
                 return (
-                  <li key={tenantId} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 flex justify-between items-center">
+                  <li key={tenantId} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 flex justify-between items-center hover:border-green-500 transition-colors">
                     <div>
-                      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{displayName}</div>
+                      <div className="text-sm text-gray-800 dark:text-gray-200 font-bold">{displayName}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{m.email || 'No email'}</div>
                     </div>
-                    <button onClick={() => navigate(`/tenants/${tenantId}`)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-bold">Open</button>
+                    <button onClick={() => navigate(`/tenants/${tenantId}`)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold shadow-md shadow-green-500/20 active:scale-95 transition-all">View History</button>
                   </li>
                 );
               })}
             </ul>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

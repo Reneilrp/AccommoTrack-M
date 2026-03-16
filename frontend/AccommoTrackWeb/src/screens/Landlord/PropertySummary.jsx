@@ -567,12 +567,13 @@ export default function PropertySummary() {
             setShowRoomDetails(false);
             setSelectedRoomDetails(null);
           }}
-          onExtend={async ({ roomId, days, months }) => {
+          onExtend={async ({ roomId, days, months, tenant_id }) => {
             if (!roomId) return;
             try {
               const payload = {};
               if (days) payload.days = days;
               if (months) payload.months = months;
+              if (tenant_id) payload.tenant_id = tenant_id;
               await api.post(`/rooms/${roomId}/extend`, payload);
               // refresh rooms list on this property summary
               const res = await api.get(`/rooms/property/${id}`);

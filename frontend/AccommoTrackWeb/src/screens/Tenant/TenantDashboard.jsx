@@ -85,10 +85,12 @@ const TenantDashboard = () => {
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900/30 mb-2">
             <Home className="w-5 h-5 text-green-600 dark:text-green-400" />
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {stayData?.hasActiveStay ? (stayData.room?.room_number || stayData.room?.roomNumber || 'N/A') : 'None'}
+          <p className="text-2xl font-bold text-gray-900 dark:text-white truncate">
+            {hasActiveStays 
+              ? stayData.stays.map(s => s.room?.roomNumber || s.room?.room_number).join(', ')
+              : 'None'}
           </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Current Room</p>
+          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Current Room(s)</p>
         </div>
 
         {/* Days Stayed Card */}
@@ -108,9 +110,9 @@ const TenantDashboard = () => {
             <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" />
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {formatCurrency(stayData?.hasActiveStay ? (stayData.booking?.monthly_rent || stayData.booking?.monthlyRent || 0) : 0)}
+            {formatCurrency(totalMonthlyRent)}
           </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Monthly Rent</p>
+          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Total Monthly Rent</p>
         </div>
 
         {/* Outstanding Due Card */}

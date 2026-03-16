@@ -41,18 +41,29 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           <div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">{room.type_label || room.room_type} {room.floor_label ? `• ${room.floor_label}` : ''}</p>
-            <div className="mt-2">
-              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
                 {room.pricing_model === 'per_bed' ? 'Per Bed' : (room.capacity > 1 ? 'Full Room (split)' : 'Full Room')}
+              </span>
+              <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                room.gender_restriction === 'male' 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                  : room.gender_restriction === 'female'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                  : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+              }`}>
+                {room.gender_restriction === 'male' ? 'Boys Only' : room.gender_restriction === 'female' ? 'Girls Only' : 'Mixed Gender'}
               </span>
             </div>
           </div>
 
           <div className="text-right">
             <p className="text-xl font-bold text-green-600 dark:text-green-400">
-              ₱{room.monthly_rate?.toLocaleString?.()}
+              ₱{(room.billing_policy === 'daily' ? (parseFloat(room.daily_rate) || 0) : (parseFloat(room.monthly_rate) || 0)).toLocaleString()}
             </p>
-            <span className="text-[10px] block text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">per month</span>
+            <span className="text-[10px] block text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">
+              {room.billing_policy === 'daily' ? 'per day' : 'per month'}
+            </span>
           </div>
         </div>
 
@@ -66,7 +77,18 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           </span>
         </div>
 
-        {room.tenant ? (
+        {room.tenants && room.tenants.length > 0 ? (
+          <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 mb-3 border border-gray-200 dark:border-gray-700">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Current Occupants</p>
+            <div className="flex flex-wrap gap-1.5">
+              {room.tenants.map((t, idx) => (
+                <span key={t.id || idx} className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-semibold text-gray-700 dark:text-gray-200">
+                  {t.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : room.tenant ? (
           <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 mb-3 border border-gray-200 dark:border-gray-700">
             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Current Occupant(s)</p>
             <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{room.tenant}</p>

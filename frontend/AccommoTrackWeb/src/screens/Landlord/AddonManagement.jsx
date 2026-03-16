@@ -11,8 +11,8 @@ import {
   X,
   Sparkles,
   BellRing,
-  DollarSign,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 
 const AddonManagement = ({ propertyId }) => {
@@ -228,6 +228,21 @@ const AddonManagement = ({ propertyId }) => {
               )}
             </button>
           ))}
+
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              title="Refresh"
+              className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

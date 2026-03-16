@@ -11,7 +11,8 @@ import {
   X, 
   ChevronDown, 
   ChevronUp, 
-  ArrowLeft 
+  ArrowLeft,
+  RefreshCw 
 } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -152,6 +153,21 @@ export default function LandlordReviews() {
               <Star className={`w-3.5 h-3.5 ${ratingFilter === String(star) ? 'fill-white text-white' : 'fill-yellow-400 text-yellow-400'}`} />
             </button>
           ))}
+
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={fetchReviews}
+              disabled={loading}
+              title="Refresh"
+              className="p-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
       <div className="grid grid-cols-1 gap-6">

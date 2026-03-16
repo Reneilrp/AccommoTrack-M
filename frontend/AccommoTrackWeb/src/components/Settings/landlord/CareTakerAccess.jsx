@@ -113,6 +113,18 @@ export default function CareTakerAccess({
       description: 'View and manage property details.',
       icon: <Shield className="w-4 h-4" />,
     },
+    {
+      key: 'maintenance',
+      label: 'Maintenance',
+      description: 'Handle repairs and upkeep requests.',
+      icon: <Shield className="w-4 h-4" />,
+    },
+    {
+      key: 'payments',
+      label: 'Payments',
+      description: 'Track and verify rental transactions.',
+      icon: <Users className="w-4 h-4" />,
+    },
   ];
   const resetCreationForm = () => {
     if (setCaretakerForm) setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
@@ -138,6 +150,8 @@ export default function CareTakerAccess({
         tenants: !!c.permissions.tenants,
         rooms: !!c.permissions.rooms,
         properties: !!c.permissions.properties,
+        maintenance: !!c.permissions.maintenance,
+        payments: !!c.permissions.payments,
       },
       property_ids: (c.assigned_properties || []).map(p => p.id)
     });
@@ -199,7 +213,9 @@ export default function CareTakerAccess({
         can_view_messages: !!editFormData.permissions.messages,
         can_view_tenants: !!editFormData.permissions.tenants,
         can_view_rooms: !!editFormData.permissions.rooms,
-        can_view_properties: !!editFormData.permissions.properties
+        can_view_properties: !!editFormData.permissions.properties,
+        can_manage_maintenance: !!editFormData.permissions.maintenance,
+        can_manage_payments: !!editFormData.permissions.payments
       };
 
       const updateData = {

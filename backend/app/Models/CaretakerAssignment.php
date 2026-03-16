@@ -46,6 +46,8 @@ class CaretakerAssignment extends Model
         'can_view_tenants',
         'can_view_rooms',
         'can_view_properties',
+        'can_manage_maintenance',
+        'can_manage_payments',
     ];
 
     protected $casts = [
@@ -54,6 +56,8 @@ class CaretakerAssignment extends Model
         'can_view_tenants' => 'boolean',
         'can_view_rooms' => 'boolean',
         'can_view_properties' => 'boolean',
+        'can_manage_maintenance' => 'boolean',
+        'can_manage_payments' => 'boolean',
     ];
 
     public function landlord(): BelongsTo

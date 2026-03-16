@@ -59,14 +59,11 @@ class TenantProfile extends Model
         'emergency_contact_relationship',
         'current_address',
         'preference',
-        'date_of_birth',
-        'gender',
     ];
 
     protected $casts = [
         'move_in_date' => 'date',
         'move_out_date' => 'date',
-        'date_of_birth' => 'date',
         'preference' => 'array',
     ];
 

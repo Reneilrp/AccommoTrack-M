@@ -4,12 +4,13 @@ import {
   Home,
   Calendar,
   Building2,
-  Users,
+  AlertCircle,
+  Clock,
   Wrench,
   PlusCircle,
-  Clock,
-  ArrowRight,
-  AlertCircle,
+  FileWarning,
+  ShieldAlert,
+  XCircle,
   Loader2,
 } from 'lucide-react';
 import api from '../../utils/api';
@@ -25,12 +26,25 @@ export default function CaretakerDashboard({ user }) {
   const [activities, setActivities] = useState(cachedData?.activities || []);
   const [upcomingCheckouts, setUpcomingCheckouts] = useState(cachedData?.upcomingCheckouts || []);
   const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
+  const [verificationStatus, setVerificationStatus] = useState(null);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
+    fetchVerificationStatus();
   }, []);
+
+  const fetchVerificationStatus = async () => {
+    try {
+      const res = await api.get('/landlord/my-verification');
+      setVerificationStatus(res.data);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setVerificationStatus({ status: 'not_submitted' });
+      }
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -76,20 +90,92 @@ export default function CaretakerDashboard({ user }) {
     switch (type) {
       case 'booking': return <Calendar className="w-5 h-5" />;
       case 'room': return <Home className="w-5 h-5" />;
+      case 'maintenance': return <Wrench className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
+    }
+  };
+
+  const getActivityColor = (color) => {
+    switch (color) {
+      case 'green': return 'bg-green-100 text-green-600';
+      case 'blue': return 'bg-blue-100 text-blue-600';
+      case 'yellow': return 'bg-yellow-100 text-yellow-600';
+      case 'red': return 'bg-red-100 text-red-600';
+      case 'gray': return 'bg-gray-100 text-gray-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const getUrgencyColor = (urgency) => {
+    switch (urgency) {
+      case 'high': return 'bg-red-100 text-red-800 border-red-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'low': return 'bg-green-100 text-green-800 border-green-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
   };
 
   if (loading && !stats) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 text-green-600 animate-spin mb-4" />
-        <p className="text-gray-500 font-medium">Syncing your dashboard...</p>
+      <div className="max-w-7xl mx-auto py-8 animate-pulse">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 h-32 flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                <div className="w-16 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+              <div className="space-y-2">
+                <div className="w-24 h-8 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96 flex flex-col gap-4">
+            <div className="w-48 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+            {[...Array(5)].map((_, j) => (
+              <div key={j} className="flex gap-4">
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-3/4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                  <div className="w-1/2 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96 flex flex-col gap-4">
+            <div className="w-40 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+            {[...Array(4)].map((_, k) => (
+              <div key={k} className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !stats) {
+    return (
+      <div className="max-w-7xl mx-auto py-20 text-center">
+        <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+        <p className="text-red-600 text-lg font-semibold mb-2">Error loading dashboard</p>
+        <button onClick={fetchDashboardData} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Retry</button>
       </div>
     );
   }
@@ -109,93 +195,83 @@ export default function CaretakerDashboard({ user }) {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-green-200 dark:shadow-none">
-        <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.first_name}!</h1>
-        <p className="text-green-50 text-sm opacity-90">Here is what's happening at your assigned properties today.</p>
-      </div>
+    <div className="space-y-6">
+      {/* Verification Status Banner (Landlord Status) */}
+      {verificationStatus && verificationStatus.status !== 'approved' && (
+        <div className={`rounded-xl border p-4 ${
+          verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
+          verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {verificationStatus.status === 'rejected' ? <FileWarning className="w-6 h-6 text-red-600" /> : 
+               verificationStatus.status === 'pending' ? <Clock className="w-6 h-6 text-yellow-600" /> : <ShieldAlert className="w-6 h-6 text-orange-600" />}
+              <div>
+                <h3 className="font-semibold text-gray-900">Landlord Account Status: {verificationStatus.status.replace('_', ' ').toUpperCase()}</h3>
+                <p className="text-sm text-gray-600">The landlord's account is currently being verified. Some features may be restricted.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mb-4">
-            <Building2 className="w-6 h-6 text-blue-600" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-blue-600" /></div>
+            <span className="text-xs text-green-600 font-medium">{stats?.properties.active}/{stats?.properties.total} Active</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.properties?.total || 0}</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Properties Managed</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.properties.total}</p>
+          <p className="text-sm text-gray-500">Assigned Properties</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-2xl flex items-center justify-center mb-4">
-            <Home className="w-6 h-6 text-green-600" />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Home className="w-6 h-6 text-green-600" /></div>
+            <span className="text-xs text-blue-600 font-medium">{stats?.rooms.occupancyRate}% Occupied</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.rooms?.occupancyRate}%</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Current Occupancy</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.rooms.total}</p>
+          <p className="text-sm text-gray-500">{stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-4">
-            <Calendar className="w-6 h-6 text-amber-600" />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"><Calendar className="w-6 h-6 text-purple-600" /></div>
+            {stats?.bookings.pending > 0 && <span className="text-xs text-yellow-600 font-medium">{stats?.bookings.pending} Pending</span>}
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.bookings?.pending || 0}</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Pending Bookings</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center mb-4">
-            <Wrench className="w-6 h-6 text-purple-600" />
-          </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.requests?.maintenance || 0}</p>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">Maintenance Requests</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
+          <p className="text-sm text-gray-500">Bookings (Confirmed & Pending)</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activities */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Activities</h2>
-            <Link to="/bookings" className="text-xs font-bold text-green-600 hover:underline flex items-center gap-1">
-              View All <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-            {activities.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 font-medium italic">No recent activities to show</div>
-            ) : (
-              <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                {activities.slice(0, 5).map((activity, idx) => (
-                  <div key={idx} className="p-6 flex items-start gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{activity.action}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">{activity.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Clock className="w-3 h-3 text-gray-300" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">{formatDate(activity.timestamp)}</span>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase">
-                      {activity.status}
-                    </span>
+      {/* Activities and Sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-400/50 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
+          <div className="space-y-4">
+            {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> : 
+              activities.slice(0, 6).map((activity, index) => (
+                <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity.color)}`}>{getActivityIcon(activity.type)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{activity.description}</p>
+                    <p className="text-xs text-gray-400 mt-1">{formatDate(activity.timestamp)}</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${getActivityColor(activity.color)}`}>{activity.status}</span>
+                </div>
+              ))
+            }
           </div>
         </div>
 
-        {/* Sidebar Alerts */}
-        <div className="space-y-8">
-          {/* Addon Requests Section */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white px-2">Operational Alerts</h2>
-            <div className="bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800">
+        <div className="space-y-6">
+          {/* Operational Alerts */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Operational Alerts</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-600 rounded-lg text-white"><PlusCircle className="w-4 h-4" /></div>
                   <span className="text-sm font-bold text-purple-900 dark:text-purple-300">Addon Requests</span>
@@ -203,39 +279,46 @@ export default function CaretakerDashboard({ user }) {
                 <span className="text-lg font-bold text-purple-600">{stats?.requests?.addons || 0}</span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-800">
+              <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-600 rounded-lg text-white"><Clock className="w-4 h-4" /></div>
-                  <span className="text-sm font-bold text-red-900 dark:text-red-300">Upcoming Checkouts</span>
+                  <div className="p-2 bg-orange-600 rounded-lg text-white"><Wrench className="w-4 h-4" /></div>
+                  <span className="text-sm font-bold text-orange-900 dark:text-orange-300">Maintenance</span>
                 </div>
-                <span className="text-lg font-bold text-red-600">{upcomingCheckouts.length}</span>
+                <span className="text-lg font-bold text-orange-600">{stats?.requests?.maintenance || 0}</span>
               </div>
             </div>
           </div>
 
-          {/* Quick Property Overview */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white px-2">Property Status</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
             <div className="space-y-3">
-              {propertyPerformance.slice(0, 3).map((p) => (
-                <div key={p.id} className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-bold text-gray-900 dark:text-white truncate pr-2">{p.title}</span>
-                    <span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span>
+              {upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
+                upcomingCheckouts.slice(0, 4).map((c) => (
+                  <div key={c.id} className={`p-3 rounded-lg border ${getUrgencyColor(c.urgency)}`}>
+                    <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{c.tenantName}</span><span>{c.daysLeft}d</span></div>
+                    <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">{c.propertyTitle} - Room {c.roomNumber}</p>
                   </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-green-600 h-full rounded-full transition-all duration-1000" 
-                      style={{ width: `${p.occupancyRate}%` }} 
-                    />
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wider">
-                    {p.occupiedRooms} / {p.totalRooms} Rooms Occupied
-                  </p>
-                </div>
-              ))}
+                ))
+              }
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Property Performance */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Status Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {propertyPerformance.map((p) => (
+            <div key={p.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+              <div className="flex justify-between mb-3"><h3 className="font-semibold text-gray-900 dark:text-white">{p.title}</h3><span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span></div>
+              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${p.occupancyRate}%` }} /></div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Rooms: {p.occupiedRooms}/{p.totalRooms}</span>
+                <span className="capitalize">{p.status}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

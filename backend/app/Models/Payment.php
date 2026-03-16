@@ -88,4 +88,14 @@ class Payment extends Model
     {
         return $this->belongsTo(Booking::class);
     }
+
+    /**
+     * Scope: Filter by landlord
+     */
+    public function scopeForLandlord($query, int $landlordId)
+    {
+        return $query->whereHas('booking', function ($q) use ($landlordId) {
+            $q->where('landlord_id', $landlordId);
+        });
+    }
 }

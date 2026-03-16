@@ -30,6 +30,7 @@ export default function AddRoomModal({
   const [formData, setFormData] = useState({
     roomNumber: "",
     roomType: initialRoomType,
+    genderRestriction: "mixed",
     floor: "1",
     monthlyRate: "",
     // new billing related fields
@@ -49,8 +50,6 @@ export default function AddRoomModal({
 
   const [previewImages, setPreviewImages] = useState([]);
   const [showPricingHelp, setShowPricingHelp] = useState(false);
-  const [replaceIndex, setReplaceIndex] = useState(null);
-  const replaceInputRef = useState(null)[0];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
@@ -69,6 +68,9 @@ export default function AddRoomModal({
   const [localAmenities, setLocalAmenities] = useState(
     Array.isArray(propertyAmenities) ? propertyAmenities : [],
   );
+
+  const [totalFloors, setTotalFloors] = useState(1);
+  const [propertyGender, setPropertyGender] = useState("mixed");
 
   // Sync amenities list when prop changes (e.g. parent refreshes after onAmenityAdded)
   useEffect(() => {
@@ -90,6 +92,16 @@ export default function AddRoomModal({
         if (mounted) {
           setPropertyRules(Array.isArray(rules) ? rules : []);
           setLocalAmenities(Array.isArray(amenities) ? amenities : []);
+          setTotalFloors(p.total_floors || 1);
+          const pGender = p.gender_restriction || "mixed";
+          setPropertyGender(pGender);
+
+          // Auto-set room gender if property is restricted
+          if (pGender === "boys") {
+            setFormData((prev) => ({ ...prev, genderRestriction: "male" }));
+          } else if (pGender === "girls") {
+            setFormData((prev) => ({ ...prev, genderRestriction: "female" }));
+          }
         }
       } catch (err) {
         // ignore
@@ -146,14 +158,11 @@ export default function AddRoomModal({
       return allRoomTypes.filter((rt) => rt.value !== "bedSpacer");
     if (isBedSpacerProperty)
       return allRoomTypes.filter((rt) => rt.value === "bedSpacer");
-    if (isDormitory || isBoarding)
-      return allRoomTypes.filter(
-        (rt) => rt.value === "single" || rt.value === "bedSpacer",
-      );
-    return allRoomTypes.filter((rt) => rt.value !== "bedSpacer");
+    // For Dormitory, Boarding House, and others, allow all types.
+    return allRoomTypes;
   })();
 
-  const floors = Array.from({ length: 10 }, (_, i) => ({
+  const floors = Array.from({ length: totalFloors }, (_, i) => ({
     value: i + 1,
     label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
   }));
@@ -447,7 +456,6 @@ export default function AddRoomModal({
   };
 
   const handleReplaceClick = (index) => {
-    setReplaceIndex(index);
     // create and trigger a temporary input
     const input = document.createElement("input");
     input.type = "file";
@@ -531,9 +539,12 @@ export default function AddRoomModal({
       const bp = formData.billingPolicy || "monthly";
 
       // Append non-file fields
+      const isGenderRestricted = isDormitory || isBoarding || isBedSpacerProperty;
+
       payload.append("property_id", propertyId);
       payload.append("room_number", formData.roomNumber);
       payload.append("room_type", formData.roomType);
+      payload.append("gender_restriction", isGenderRestricted ? formData.genderRestriction : 'mixed');
       payload.append("floor", parseInt(formData.floor));
       if (bp === "monthly" || bp === "monthly_with_daily") {
         const monthlyVal = parseFloat(formData.monthlyRate);
@@ -684,8 +695,8 @@ export default function AddRoomModal({
               )}
             </div>
 
-            {/* Row 2: Room Number | Floor | Room Type */}
-            <div className="grid grid-cols-3 gap-4">
+            {/* Row 2: Room Number | Floor | Room Type | Gender */}
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Room Number <span className="text-red-500">*</span>
@@ -738,6 +749,31 @@ export default function AddRoomModal({
                   ))}
                 </select>
               </div>
+
+              { (isDormitory || isBoarding || isBedSpacerProperty) ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.genderRestriction}
+                    onChange={(e) => handleInputChange("genderRestriction", e.target.value)}
+                    disabled={propertyGender !== "mixed"}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-600 cursor-not-allowed" : ""}`}
+                  >
+                    <option value="mixed">Mixed</option>
+                    <option value="male">Male Only</option>
+                    <option value="female">Female Only</option>
+                  </select>
+                  {propertyGender !== "mixed" && (
+                    <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                      * Property is restricted to {propertyGender} only.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="hidden"></div>
+              )}
             </div>
 
             {/* Row 2: Billing Policy | Monthly Rate | Daily Rate */}
@@ -918,7 +954,7 @@ export default function AddRoomModal({
                       <p className="text-xs text-gray-600 dark:text-gray-400">
                         {formData.capacity > 1 ? (
                           <span>
-                            ic Tenants divide{" "}
+                            Tenants divide{" "}
                             <PriceRow
                               amount={parseFloat(formData.monthlyRate) || 0}
                             />{" "}

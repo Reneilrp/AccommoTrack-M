@@ -25,8 +25,7 @@ class AdminController extends Controller
                 // For landlords: their properties and verification
                 'properties:id,landlord_id,title',
                 'landlordVerification:id,user_id,status',
-                // For tenants: their bookings with property and room info, and profile
-                'tenantProfile:user_id,gender',
+                // For tenants: their bookings with property and room info
                 'bookings' => function ($query) {
                     $query->where('status', 'confirmed')
                         ->orWhere('status', 'active')
@@ -60,8 +59,6 @@ class AdminController extends Controller
 
                 // Add property/room info for tenants
                 if ($user->role === 'tenant') {
-                    $userData['gender'] = $user->tenantProfile->gender ?? null;
-                    
                     $currentProperty = null;
 
                     // First check bookings (confirmed/active)

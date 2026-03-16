@@ -40,6 +40,7 @@ export default function ProfilePage() {
     age: "",
     phone: "",
     bio: "",
+    gender: "",
     dateOfBirth: "",
     currentAddress: "",
     emergencyContactName: "",
@@ -69,9 +70,9 @@ export default function ProfilePage() {
 
         // Calculate age from DOB if age is missing but DOB exists
         let calculatedAge = data.age ? String(data.age) : "";
-        if (!calculatedAge && data.tenant_profile?.date_of_birth) {
+        if (!calculatedAge && data.date_of_birth) {
           calculatedAge = String(
-            calculateAge(new Date(data.tenant_profile.date_of_birth)),
+            calculateAge(new Date(data.date_of_birth)),
           );
         }
 
@@ -82,8 +83,9 @@ export default function ProfilePage() {
           lastName: data.last_name || "",
           email: data.email || "",
           phone: data.phone || "",
+          gender: data.gender || "",
           age: calculatedAge,
-          dateOfBirth: data.tenant_profile?.date_of_birth || "",
+          dateOfBirth: data.date_of_birth || "",
           bio: data.tenant_profile?.notes || "",
           currentAddress: data.tenant_profile?.current_address || "",
           emergencyContactName:
@@ -185,6 +187,7 @@ export default function ProfilePage() {
         last_name: profileData.lastName.trim(),
         phone: profileData.phone?.trim() || "",
         notes: profileData.bio?.trim() || "",
+        gender: profileData.gender || null,
         preference: profileData.preferences,
         date_of_birth: profileData.dateOfBirth || null,
         current_address: profileData.currentAddress?.trim() || null,
@@ -208,8 +211,9 @@ export default function ProfilePage() {
           middleName: u.middle_name || "",
           lastName: u.last_name || "",
           phone: u.phone || "",
+          gender: u.gender || "",
           bio: tp.notes || "",
-          dateOfBirth: tp.date_of_birth || "",
+          dateOfBirth: u.date_of_birth || "",
           preferences: (() => {
             const raw = tp.preference;
             if (!raw) return prev.preferences;
@@ -602,6 +606,52 @@ export default function ProfilePage() {
                 placeholderTextColor={theme.colors.textTertiary}
               />
             </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Gender
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (!isEditing) return;
+                Alert.alert("Select Gender", "Choose your gender", [
+                  { text: "Male", onPress: () => handleInputChange("gender", "male") },
+                  { text: "Female", onPress: () => handleInputChange("gender", "female") },
+                  { text: "Other", onPress: () => handleInputChange("gender", "other") },
+                  { text: "Prefer not to say", onPress: () => handleInputChange("gender", "prefer_not_to_say") },
+                  { text: "Cancel", style: "cancel" },
+                ]);
+              }}
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+                !isEditing && styles.inputDisabled,
+              ]}
+              disabled={!isEditing}
+            >
+              <Ionicons
+                name="transgender-outline"
+                size={20}
+                color={theme.colors.textSecondary}
+                style={styles.inputIcon}
+              />
+              <Text
+                style={[
+                  styles.input,
+                  {
+                    color: theme.colors.text,
+                    paddingTop: 4,
+                    textTransform: "capitalize",
+                  },
+                ]}
+              >
+                {profileData.gender || "Select Gender"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon } from 'lucide-react';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
-import { Skeleton, SkeletonStatCard, SkeletonTableRow } from '../../components/Shared/Skeleton';
+import TenantCard from './TenantCard';
+import { Skeleton, SkeletonTableRow } from '../../components/Shared/Skeleton';
 
 export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const { uiState, updateData } = useUIState();
@@ -31,8 +32,15 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
   const [tenants, setTenants] = useState(cachedTenants || []);
   const [viewingTenant, setViewingTenant] = useState(null);
+  const [transferringTenant, setTransferringTenant] = useState(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [loadingRoomsForTransfer, setLoadingRoomsForTransfer] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferData, setTransferData] = useState({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(selectedPropertyId && !cachedTenants);
 
   const normalizedRole = accessRole || user?.role || 'landlord';
@@ -82,10 +90,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
       const res = await api.get(`/landlord/tenants?property_id=${selectedPropertyId}&t=${Date.now()}`);
       const data = res.data;
       
-      if (data.error) {
-        throw new Error(data.message || data.error);
-      }
-      
       const list = Array.isArray(data) ? data : [];
       setTenants(list);
       
@@ -124,6 +128,46 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     setViewingTenant(tenant);
   };
 
+  const handleTransferInitiate = async (tenant) => {
+    setTransferringTenant(tenant);
+    setTransferData({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
+    setShowTransferModal(true);
+    setLoadingRoomsForTransfer(true);
+    try {
+      const propertyId = tenant.room?.property_id;
+      if (!propertyId) throw new Error("Tenant has no assigned property");
+      
+      const res = await api.get(`/rooms/property/${propertyId}`);
+      const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+      // Filter for available rooms, excluding current one
+      setAvailableRooms(list.filter(r => r.status === 'available' && r.id !== tenant.room?.id));
+    } catch (err) {
+      setError("Failed to load available rooms for transfer");
+    } finally {
+      setLoadingRoomsForTransfer(false);
+    }
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (!transferData.new_room_id || !transferData.reason) {
+      toast.error("Please select a room and provide a reason");
+      return;
+    }
+
+    setIsTransferring(true);
+    try {
+      await api.post(`/landlord/tenants/${transferringTenant.id}/transfer-room`, transferData);
+      toast.success("Room transfer completed successfully");
+      setShowTransferModal(false);
+      loadTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || "Failed to transfer room");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
   const refresh = () => {
     loadTenants();
   };
@@ -156,16 +200,27 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     const email = (tenant.email || '').toLowerCase();
     const roomNumber = tenant.room?.room_number || '';
     const q = (searchQuery || '').toLowerCase();
-    if (!q) return true;
-    return fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
+    
+    const matchesSearch = !q || fullName.includes(q) || email.includes(q) || roomNumber.includes(q);
+    if (!matchesSearch) return false;
+
+    if (filter === 'all') return true;
+    if (filter === 'active') return tenant.tenantProfile?.status === 'active';
+    if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid';
+    if (filter === 'unpaid') return tenant.latestBooking?.payment_status === 'unpaid';
+    if (filter === 'overdue') return tenant.latestBooking?.payment_status === 'overdue';
+    
+    return true;
   });
 
+  const safeTenants = Array.isArray(tenants) ? tenants : [];
+
   const stats = {
-    total: tenants.length,
-    active: tenants.filter(t => t.tenantProfile?.status === 'active').length,
-    paid: tenants.filter(t => t.latestBooking?.payment_status === 'paid').length,
-    pending: tenants.filter(t => t.latestBooking?.payment_status === 'unpaid').length,
-    overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
+    total: safeTenants.length,
+    active: safeTenants.filter(t => t.tenantProfile?.status === 'active').length,
+    paid: safeTenants.filter(t => t.latestBooking?.payment_status === 'paid').length,
+    pending: safeTenants.filter(t => t.latestBooking?.payment_status === 'unpaid').length,
+    overdue: safeTenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
   };
 
   // Show Skeleton loading state
@@ -187,10 +242,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           {/* Stats Cards Skeleton */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700 animate-pulse">
-                <Skeleton className="h-8 w-12 mb-2" />
-                <Skeleton className="h-3 w-20" />
-              </div>
+              <SkeletonStatCard key={i} />
             ))}
           </div>
 
@@ -269,60 +321,108 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Tenants</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
+              </div>
+              <div className="w-10 h-10 bg-gray-50 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Active</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{stats.active}</p>
+              </div>
+              <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.paid}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Paid</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Paid</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.paid}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+              </div>
+              <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.overdue}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Overdue</p>
+                <p className="text-2xl font-bold text-red-600 mt-1">{stats.overdue}</p>
+              </div>
+              <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <AlertOctagon className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Search and Filter Bar */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div className="relative w-full lg:max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            <div className="relative w-full lg:w-[28rem]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search by name, room or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none text-sm"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm"
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="flex-1 lg:flex-none px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-bold text-sm"
-              >
-                <Search className="w-4 h-4" />
-                <span>Search</span>
-              </button>
+            <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
+              {[
+                { label: 'All', value: 'all' },
+                { label: 'Active', value: 'active' },
+                { label: 'Paid', value: 'paid' },
+                { label: 'Unpaid', value: 'unpaid' },
+                { label: 'Overdue', value: 'overdue' }
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${
+                    filter === f.value 
+                      ? "bg-green-600 text-white shadow-md shadow-green-500/20" 
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
+            <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={refresh}
                 disabled={loading}
-                className="flex-1 lg:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-bold text-sm shadow-md shadow-blue-500/20"
+                title="Refresh"
+                className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                <span>{loading ? 'Loading...' : 'Refresh'}</span>
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -337,112 +437,20 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           </div>
         )}
 
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-300 dark:border-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tenant</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Rent</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredTenants.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                      <p className="text-lg font-medium">No tenants yet</p>
-                      <p className="text-sm mt-1">Tenants will appear here when they're assigned to rooms</p>
-                      <p className="text-sm mt-1 text-blue-600 dark:text-blue-400">Go to Room Management to assign tenants to rooms</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredTenants.map(tenant => (
-                  <tr key={tenant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
-                          {tenant.first_name[0]}{tenant.last_name[0]}
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">{tenant.first_name} {tenant.last_name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{tenant.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {tenant.room ? (
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">Room {tenant.room.room_number}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{tenant.room.type_label}</p>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-amber-600 dark:text-amber-400 italic font-medium">No room assigned</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-900 dark:text-gray-300 font-medium">{tenant.phone || 'N/A'}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">
-                        {tenant.room ? <PriceRow amount={tenant.room.monthly_rate} /> : '—'}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {tenant.latestBooking ? (
-                        <>
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full capitalize ${
-                            tenant.latestBooking.payment_status === 'paid' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : tenant.latestBooking.payment_status === 'partial'
-                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          }`}>
-                            {tenant.latestBooking.payment_status || 'unpaid'}
-                          </span>
-                          {tenant.latestBooking.payment_status === 'paid' && (
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 font-medium">
-                              Paid {new Date(tenant.latestBooking.updated_at).toLocaleDateString()}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <span className="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                          No booking
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full capitalize
-                        ${tenant.tenantProfile?.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                          tenant.tenantProfile?.status === 'inactive' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                          'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
-                        {tenant.tenantProfile?.status || 'active'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleView(tenant)}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {/* Grid of Tenant Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTenants.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+              <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
+              <p className="text-sm mt-1 text-gray-400 dark:text-gray-500">
+                {searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}
+              </p>
+            </div>
+          ) : (
+            filteredTenants.map(tenant => (
+              <TenantCard key={tenant.id} tenant={tenant} />
+            ))
+          )}
         </div>
 
         {/* View Tenant Details Modal */}
@@ -473,10 +481,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date of Birth</p>
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {viewingTenant.tenantProfile?.date_of_birth 
-                        ? new Date(viewingTenant.tenantProfile.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                      {viewingTenant.date_of_birth 
+                        ? new Date(viewingTenant.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                         : '—'}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Gender</p>
+                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{viewingTenant.gender || '—'}</p>
                   </div>
                 </div>
 
@@ -562,8 +574,114 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             </div>
           </div>
         )}
+
+        {/* Transfer Room Modal */}
+        {showTransferModal && transferringTenant && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Shuffle className="w-5 h-5 text-amber-500" />
+                  Transfer Room
+                </h2>
+                <button onClick={() => setShowTransferModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <form onSubmit={handleTransferSubmit} className="p-6 space-y-5">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+                  Transferring <strong>{transferringTenant.first_name} {transferringTenant.last_name}</strong> from <strong>Room {transferringTenant.room?.room_number}</strong>.
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">New Room *</label>
+                  <select
+                    required
+                    className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                    value={transferData.new_room_id}
+                    onChange={e => setTransferData({ ...transferData, new_room_id: e.target.value })}
+                    disabled={loadingRoomsForTransfer}
+                  >
+                    <option value="">{loadingRoomsForTransfer ? 'Loading rooms...' : 'Select New Room'}</option>
+                    {availableRooms.map(r => (
+                      <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
+                    ))}
+                  </select>
+                  {availableRooms.length === 0 && !loadingRoomsForTransfer && (
+                    <p className="text-[10px] text-red-500 mt-1 font-bold italic">No other available rooms in this property.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Reason for Transfer *</label>
+                  <textarea
+                    required
+                    className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none"
+                    value={transferData.reason}
+                    onChange={e => setTransferData({ ...transferData, reason: e.target.value })}
+                    placeholder="e.g., Room maintenance required, tenant requested a larger room..."
+                  />
+                </div>
+
+                <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Damage Charges (Optional)</p>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Charge Amount (₱)</label>
+                      <input
+                        type="number"
+                        className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white"
+                        value={transferData.damage_charge}
+                        onChange={e => setTransferData({ ...transferData, damage_charge: e.target.value })}
+                        placeholder="0.00"
+                        min="0"
+                      />
+                    </div>
+                    {parseFloat(transferData.damage_charge) > 0 && (
+                      <div className="animate-in slide-in-from-top-1">
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Charge Description *</label>
+                        <input
+                          type="text"
+                          required={parseFloat(transferData.damage_charge) > 0}
+                          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white"
+                          value={transferData.damage_description}
+                          onChange={e => setTransferData({ ...transferData, damage_description: e.target.value })}
+                          placeholder="e.g., Broken window blind, wall scratches..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowTransferModal(false)}
+                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isTransferring || availableRooms.length === 0}
+                    className="flex-1 px-4 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isTransferring ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Transferring...
+                      </>
+                    ) : (
+                      'Execute Transfer'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  </div>
   );
 }

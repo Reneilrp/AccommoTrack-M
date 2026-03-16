@@ -76,9 +76,17 @@ class LandlordBookingController extends Controller
         try {
             Log::info('Booking request received', $request->validated());
 
+            $user = $request->user();
+            $tenantId = $request->input('tenant_id');
+
+            // If a tenant is logged in and creating a booking, use their ID
+            if (!$tenantId && $user && $user->role === 'tenant') {
+                $tenantId = $user->id;
+            }
+
             $booking = $this->bookingService->createBooking(
                 $request->validated(),
-                Auth::id()
+                $tenantId
             );
 
             return response()->json([
@@ -124,6 +132,8 @@ class LandlordBookingController extends Controller
                 ->forLandlord($context['landlord_id'])
                 ->findOrFail($id);
 
+            $this->checkPropertyAccess($context, $booking->property_id);
+
             $result = $this->bookingService->updateStatus(
                 $booking,
                 $request->validated()
@@ -159,6 +169,7 @@ class LandlordBookingController extends Controller
             $this->ensureCaretakerCan($context, 'can_view_bookings');
 
             $booking = Booking::forLandlord($context['landlord_id'])->findOrFail($id);
+            $this->checkPropertyAccess($context, $booking->property_id);
 
             $result = $this->bookingService->updatePaymentStatus(
                 $booking,

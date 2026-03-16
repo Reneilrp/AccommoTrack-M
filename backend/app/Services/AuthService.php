@@ -30,6 +30,8 @@ class AuthService
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
             'phone' => $data['phone'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'gender' => $data['gender'] ?? null,
             'is_verified' => false, // User is not verified until OTP is confirmed
             'is_active' => true,
             'email_otp_code' => Hash::make($otp),

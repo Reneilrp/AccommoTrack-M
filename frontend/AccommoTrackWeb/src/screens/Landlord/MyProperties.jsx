@@ -9,7 +9,10 @@ import {
   Filter,
   MapPin,
   Building2,
-  ShieldAlert
+  ShieldAlert,
+  Loader2,
+  RefreshCw,
+  MessageSquare,
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -265,7 +268,7 @@ export default function MyProperties({ user }) {
       )}
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Message */}
         {error && (
           <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -280,21 +283,49 @@ export default function MyProperties({ user }) {
             [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
           ) : (
             <>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Active Listings</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.activeListings}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Active Listings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.activeListings}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <Home className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Inactive Listings</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.inactiveListings}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Inactive Listings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.inactiveListings}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-gray-50 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+                    <ShieldAlert className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Rooms</p>
-                <p className="text-3xl font-bold text-green-600">{stats.totalRooms}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Rooms</p>
+                    <p className="text-2xl font-bold text-green-600 mt-1">{stats.totalRooms}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-300 dark:border-gray-700 shadow-sm">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Inquiries</p>
-                <p className="text-3xl font-bold text-orange-500">{stats.totalInquiries.toLocaleString()}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Inquiries</p>
+                    <p className="text-2xl font-bold text-orange-500 mt-1">{stats.totalInquiries.toLocaleString()}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -326,6 +357,20 @@ export default function MyProperties({ user }) {
                 {/* Filter Button */}
                 <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex-shrink-0">
                   <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </button>
+
+                {/* Refresh Button */}
+                <button
+                  onClick={fetchProperties}
+                  disabled={loading}
+                  title="Refresh"
+                  className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20 flex-shrink-0"
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-5 h-5" />
+                  )}
                 </button>
               </div>
 

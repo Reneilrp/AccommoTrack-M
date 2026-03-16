@@ -46,6 +46,7 @@ class StoreRoomRequest extends FormRequest
                     }
                 }
             ],
+            'gender_restriction' => 'nullable|in:male,female,mixed',
             'floor' => 'required|integer|min:1',
             'billing_policy' => 'required|string|in:monthly,monthly_with_daily,daily',
             'monthly_rate' => 'required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',

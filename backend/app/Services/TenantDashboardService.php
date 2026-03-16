@@ -55,9 +55,7 @@ class TenantDashboardService
             'unread' => $unreadNotifications
         ];
 
-        return [
-            compact('bookings', 'payments', 'notifications')
-        ];
+        return compact('bookings', 'payments', 'notifications');
     }
     // private function getBookingConfirmed($bookings){
     //     return  $bookings['status'] === 'confirmed';
@@ -131,8 +129,8 @@ class TenantDashboardService
             ->where(function ($query) {
                 // Bookings that are strictly in the past
                 $query->where('end_date', '<', now())
-                      // OR bookings that were cancelled or rejected (even if they would have been active now)
-                      ->orWhereIn('status', ['cancelled', 'rejected']);
+                      // OR bookings that were cancelled, rejected, or explicitly marked as completed
+                      ->orWhereIn('status', ['cancelled', 'rejected', 'completed', 'partial-completed']);
             })
             ->with(['room', 'property', 'landlord', 'addons' => fn($q) => $q->wherePivotIn('status', ['active', 'completed']), 'payments', 'invoices.transactions', 'review'])
             ->orderBy('created_at', 'desc')

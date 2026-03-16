@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
-import { Loader2, Search, Calendar, Receipt, X, RotateCcw } from "lucide-react";
+import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import PriceRow from "../../components/Shared/PriceRow";
+import { SkeletonStatCard } from "../../components/Shared/Skeleton";
 import { useUIState } from "../../contexts/UIStateContext";
 import { cacheManager } from "../../utils/cache";
 
@@ -36,10 +37,24 @@ export default function Payments() {
 
   useEffect(() => {
     if (selectedInvoice) {
+      const total = selectedInvoice.amount_cents
+        ? selectedInvoice.amount_cents / 100
+        : Number(selectedInvoice.amount || 0);
+      const paid =
+        selectedInvoice.transactions
+          ?.filter(tx => ["succeeded", "paid", "partially_refunded"].includes(tx.status))
+          .reduce(
+            (sum, tx) => {
+              const txAmt = tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0);
+              const txRef = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+              return sum + (txAmt - txRef);
+            },
+            0,
+          ) || 0;
+      const remaining = Math.max(0, total - paid);
+
       setRecordData({
-        amount: selectedInvoice.amount_cents
-          ? (selectedInvoice.amount_cents / 100).toString()
-          : (selectedInvoice.amount || "").toString(),
+        amount: remaining > 0 ? remaining.toString() : "",
         method: "cash",
         reference: "",
         notes: "",
@@ -48,22 +63,63 @@ export default function Payments() {
   }, [selectedInvoice]);
 
   const getInvoiceStatus = useCallback((inv) => {
-    const booking = inv.booking_id ? bookingsMap[inv.booking_id] : inv.booking;
-    const bookingPayStatus = (booking?.payment_status || "").toLowerCase();
     const invStatus = (inv.status || "").toLowerCase();
 
-    if (bookingPayStatus === "refunded") return "refunded";
-    if (bookingPayStatus === "cancelled") return "cancelled";
-    if (invStatus) return invStatus;
-    if (bookingPayStatus) return bookingPayStatus;
-    return "unpaid";
-  }, [bookingsMap]);
+    if (invStatus === "paid" || invStatus === "refunded" || invStatus === "cancelled") {
+      return invStatus;
+    }
+    
+    // Check for overdue status
+    if (inv.due_date && new Date(inv.due_date) < new Date()) {
+      return "overdue";
+    }
+
+    return invStatus || "pending";
+  }, []);
+
+  const stats = useMemo(() => {
+    const s = {
+      totalPaid: 0,
+      totalBalance: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+      overdueCount: 0,
+      pendingCount: 0,
+    };
+
+    invoices.forEach((inv) => {
+      const status = getInvoiceStatus(inv);
+      const total = inv.amount_cents
+        ? inv.amount_cents / 100
+        : Number(inv.amount || 0);
+      
+      const paid =
+        inv.transactions
+          ?.filter((tx) => ["succeeded", "paid", "partially_refunded"].includes(tx.status))
+          .reduce(
+            (sum, tx) => {
+              const txAmt = tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0);
+              const txRef = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+              return sum + (txAmt - txRef);
+            },
+            0,
+          ) || 0;
+
+      s.totalPaid += paid;
+      s.totalBalance += Math.max(0, total - paid);
+
+      if (status === "paid") s.paidCount++;
+      else if (status === "pending" || status === "unpaid" || status === "partial") s.pendingCount++;
+      else if (status === "overdue") s.overdueCount++;
+    });
+
+    return s;
+  }, [invoices, getInvoiceStatus]);
 
   const invalidateAnalyticsCache = useCallback(() => {
     // Clear both global state and persistent local cache for analytics
     updateData("landlord_analytics", null);
     cacheManager.invalidate("landlord_analytics");
-    console.log("Analytics cache invalidated due to payment action");
   }, [updateData]);
 
   const loadInvoices = async () => {
@@ -513,6 +569,13 @@ export default function Payments() {
         </header>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <SkeletonStatCard key={i} />
+            ))}
+          </div>
+
           {/* Search & Filters Skeleton */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-6 animate-pulse">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -588,6 +651,73 @@ export default function Payments() {
           </div>
         )}
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Paid</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">
+                  <PriceRow amount={stats.totalPaid} />
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <PhilippinePeso className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Balance</p>
+                <p className="text-2xl font-bold text-red-600 mt-1">
+                  <PriceRow amount={stats.totalBalance} />
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <PhilippinePeso className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Paid</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.paidCount}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pendingCount}</p>
+              </div>
+              <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Overdue</p>
+                <p className="text-2xl font-bold text-orange-600 mt-1">{stats.overdueCount}</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="relative w-full lg:w-[28rem]">
@@ -618,6 +748,21 @@ export default function Payments() {
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
+            </div>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={loadInvoices}
+                disabled={loading}
+                title="Refresh"
+                className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -714,13 +859,13 @@ export default function Payments() {
                     : Number(selectedInvoice.amount || 0);
                   const selPaid =
                     selectedInvoice.transactions
-                      ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+                      ?.filter(tx => ["succeeded", "paid", "partially_refunded"].includes(tx.status))
                       .reduce(
-                        (sum, tx) =>
-                          sum +
-                          (tx.amount_cents
-                            ? tx.amount_cents / 100
-                            : Number(tx.amount || 0)),
+                        (sum, tx) => {
+                          const txAmt = tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0);
+                          const txRef = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+                          return sum + (txAmt - txRef);
+                        },
                         0,
                       ) || 0;
                   const selRemaining = Math.max(0, selTotal - selPaid);
@@ -926,10 +1071,13 @@ export default function Payments() {
                         {selectedInvoice.transactions
                           .filter((tx) => tx.amount_cents > 0)
                           .map((tx) => {
+                            const txAmtCents = tx.amount_cents - (tx.refunded_amount_cents ?? 0);
                             const alreadyRefunded =
                               tx.status === "refunded" ||
                               (tx.refunded_amount_cents ?? 0) >=
                                 tx.amount_cents;
+                            const isPartiallyRefunded = !alreadyRefunded && (tx.refunded_amount_cents ?? 0) > 0;
+
                             return (
                               <div
                                 key={tx.id}
@@ -937,8 +1085,13 @@ export default function Payments() {
                               >
                                 <div>
                                   <p className="text-xs font-bold text-gray-700 dark:text-gray-200">
-                                    ₱{(tx.amount_cents / 100).toLocaleString()}{" "}
+                                    ₱{(txAmtCents / 100).toLocaleString()}{" "}
                                     — {(tx.method || "cash").replace("_", " ")}
+                                    {isPartiallyRefunded && (
+                                      <span className="ml-2 text-[10px] text-purple-600 dark:text-purple-400 font-normal">
+                                        (Net after refund)
+                                      </span>
+                                    )}
                                   </p>
                                   <p className="text-[10px] text-gray-400 mt-0.5">
                                     {tx.created_at

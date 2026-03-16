@@ -38,11 +38,20 @@ class TenantPaymentController extends Controller
                     // Use the latest transaction for method/reference info
                     $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
 
+                    $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
+                    $paidCents = $invoice->transactions
+                        ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                        ->sum(function($tx) {
+                            return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
+                        });
+                    $remainingCents = max(0, $totalCents - $paidCents);
+
                     return [
                         'id' => $invoice->id,
                         'propertyName' => $propertyName,
                         'roomNumber' => $roomNumber,
-                        'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
+                        'amount' => (float) $totalCents / 100,
+                        'remainingBalance' => (float) $remainingCents / 100,
                         'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
                         'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : '—',
                         'status' => ucfirst($invoice->status),
@@ -102,10 +111,20 @@ class TenantPaymentController extends Controller
                 ->orderBy('due_date', 'asc')
                 ->first();
 
-            // Total outstanding balance
-            $pendingAmountCents = Invoice::where('tenant_id', $tenantId)
+            // Total outstanding balance - calculate by summing (amount_cents - successful transactions' sum)
+            $pendingInvoices = Invoice::with('transactions')
+                ->where('tenant_id', $tenantId)
                 ->whereIn('status', ['pending', 'partial', 'unpaid', 'overdue'])
-                ->sum(DB::raw('amount_cents - paid_amount_cents'));
+                ->get();
+
+            $pendingAmountCents = 0;
+            foreach ($pendingInvoices as $inv) {
+                $totalPaid = $inv->transactions()
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                    ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+                    ->value('net_cents') ?? 0;
+                $pendingAmountCents += max(0, ($inv->total_cents ?? $inv->amount_cents) - $totalPaid);
+            }
 
             return response()->json([
                 'totalPaidThisMonth' => (float) $totalPaidThisMonthCents / 100,

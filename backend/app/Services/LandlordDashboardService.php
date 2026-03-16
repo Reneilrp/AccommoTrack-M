@@ -80,12 +80,13 @@ class LandlordDashboardService
         return $response;
     }
 
-    public function getRecentActivities(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker, ?int $propertyId): \Illuminate\Support\Collection
+    public function getRecentActivities(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker, ?int $propertyId, ?int $roomId = null): \Illuminate\Support\Collection
     {
         $activities = collect();
         
         $recentBookingsQuery = Booking::where('landlord_id', $landlordId)->with(['tenant', 'property', 'room'])->orderBy('created_at', 'desc');
-        if ($propertyId) $recentBookingsQuery->where('property_id', $propertyId);
+        if ($roomId) $recentBookingsQuery->where('room_id', $roomId);
+        elseif ($propertyId) $recentBookingsQuery->where('property_id', $propertyId);
         elseif ($assignedPropertyIds) $recentBookingsQuery->whereIn('property_id', $assignedPropertyIds);
         $activities = $activities->merge($recentBookingsQuery->limit(20)->get());
 
@@ -94,24 +95,85 @@ class LandlordDashboardService
             if ($propertyId) $query->where('id', $propertyId);
             elseif ($assignedPropertyIds) $query->whereIn('id', $assignedPropertyIds);
         });
+        if ($roomId) $roomsQuery->where('id', $roomId);
 
         $activities = $activities->merge((clone $roomsQuery)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'currentTenant'])->orderBy('updated_at', 'desc')->limit(10)->get());
         $activities = $activities->merge((clone $roomsQuery)->where('created_at', '>=', now()->subDays(10))->with(['property'])->orderBy('created_at', 'desc')->limit(10)->get());
 
         if (!$isCaretaker) {
-            $propertyUpdatesQuery = Property::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->orderBy('updated_at', 'desc');
-            if ($propertyId) $propertyUpdatesQuery->where('id', $propertyId);
-            $activities = $activities->merge($propertyUpdatesQuery->limit(5)->get());
+            if (!$roomId) {
+                $propertyUpdatesQuery = Property::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->orderBy('updated_at', 'desc');
+                if ($propertyId) $propertyUpdatesQuery->where('id', $propertyId);
+                $activities = $activities->merge($propertyUpdatesQuery->limit(5)->get());
+            }
 
-            $invoiceQuery = \App\Models\Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with('property')->orderBy('updated_at', 'desc');
-            if ($propertyId) $invoiceQuery->where('property_id', $propertyId);
+            $invoiceQuery = \App\Models\Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'booking.room'])->orderBy('updated_at', 'desc');
+            if ($roomId) {
+                $invoiceQuery->whereHas('booking', function($q) use ($roomId) {
+                    $q->where('room_id', $roomId);
+                });
+            } elseif ($propertyId) {
+                $invoiceQuery->where('property_id', $propertyId);
+            }
             $activities = $activities->merge($invoiceQuery->limit(10)->get());
             
-            $paymentsQuery = \App\Models\PaymentTransaction::whereHas('invoice', function ($q) use ($landlordId, $propertyId) {
+            $paymentsQuery = \App\Models\PaymentTransaction::whereHas('invoice', function ($q) use ($landlordId, $propertyId, $roomId) {
                 $q->where('landlord_id', $landlordId);
-                if ($propertyId) $q->where('property_id', $propertyId);
-            })->with(['invoice','tenant'])->orderBy('created_at', 'desc');
+                if ($roomId) {
+                    $q->whereHas('booking', function($bq) use ($roomId) {
+                        $bq->where('room_id', $roomId);
+                    });
+                } elseif ($propertyId) {
+                    $q->where('property_id', $propertyId);
+                }
+            })->with(['invoice.booking.room','tenant'])->orderBy('created_at', 'desc');
             $activities = $activities->merge($paymentsQuery->limit(15)->get());
+
+            // Add Maintenance Requests
+            $maintenanceQuery = \App\Models\MaintenanceRequest::where('landlord_id', $landlordId)->with(['property', 'tenant', 'booking.room'])->orderBy('created_at', 'desc');
+            if ($roomId) {
+                $maintenanceQuery->whereHas('booking', function($q) use ($roomId) {
+                    $q->where('room_id', $roomId);
+                });
+            } elseif ($propertyId) {
+                $maintenanceQuery->where('property_id', $propertyId);
+            }
+            $activities = $activities->merge($maintenanceQuery->limit(10)->get());
+
+            // Add Addon Requests (from booking_addons)
+            $addonQuery = DB::table('booking_addons')
+                ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
+                ->join('bookings', 'booking_addons.booking_id', '=', 'bookings.id')
+                ->join('users', 'bookings.tenant_id', '=', 'users.id')
+                ->where('addons.property_id', '>', 0) // dummy where
+                ->select([
+                    'booking_addons.*',
+                    'addons.name as addon_name',
+                    'users.first_name',
+                    'users.last_name',
+                    'bookings.room_id'
+                ]);
+            
+            if ($roomId) {
+                $addonQuery->where('bookings.room_id', $roomId);
+            } elseif ($propertyId) {
+                $addonQuery->where('addons.property_id', $propertyId);
+            }
+
+            $addons = $addonQuery->orderBy('booking_addons.created_at', 'desc')->limit(10)->get();
+            foreach ($addons as $addon) {
+                $activities->push([
+                    'id' => $addon->id,
+                    'type' => 'addon',
+                    'action' => 'Add-on Request ' . ucfirst($addon->status),
+                    'description' => "{$addon->first_name} requested {$addon->addon_name}",
+                    'status' => $addon->status,
+                    'timestamp' => $addon->created_at,
+                    'created_at' => $addon->created_at,
+                    'icon' => 'sparkles',
+                    'color' => $addon->status === 'pending' ? 'yellow' : 'green'
+                ]);
+            }
         }
 
         return $activities->sortByDesc('created_at')->values();

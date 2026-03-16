@@ -73,6 +73,7 @@ class Room extends Model
         'property_id',
         'room_number',
         'room_type',
+        'gender_restriction',
         'floor',
         'monthly_rate',
         'daily_rate',
@@ -152,15 +153,26 @@ class Room extends Model
      */
     public function getOccupiedAttribute()
     {
-        // Sum bed_count for all active tenants in this room
-        $occupiedBeds = (int) $this->tenants()->sum('room_tenant_assignments.bed_count');
+        // 1. Sum bed_count for all active tenants in this room (registered users)
+        $occupiedByTenants = (int) $this->tenants()->sum('room_tenant_assignments.bed_count');
+        
+        // 2. Add beds from confirmed walk-in guests (who don't have a tenant_id/user account yet)
+        // These are currently staying (start_date <= today <= end_date)
+        $occupiedByWalkins = (int) Booking::where('room_id', $this->id)
+            ->where('status', 'confirmed')
+            ->whereNull('tenant_id')
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->sum('bed_count');
+
+        $totalOccupied = $occupiedByTenants + $occupiedByWalkins;
         
         // If no active assignments but room has legacy current_tenant_id
-        if ($occupiedBeds === 0 && $this->current_tenant_id) {
+        if ($totalOccupied === 0 && $this->current_tenant_id) {
             return 1;
         }
         
-        return $occupiedBeds;
+        return $totalOccupied;
     }
 
     /**
@@ -168,12 +180,25 @@ class Room extends Model
      */
     public function getTenantAttribute()
     {
-        $activeTenants = $this->tenants;
+        $names = collect();
+
+        // Add registered tenants
+        $this->tenants->each(function ($tenant) use ($names) {
+            $names->push($tenant->first_name . ' ' . $tenant->last_name);
+        });
+
+        // Add walk-in guests (confirmed active bookings with no tenant_id)
+        $walkins = Booking::where('room_id', $this->id)
+            ->where('status', 'confirmed')
+            ->whereNull('tenant_id')
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->pluck('guest_name');
         
-        if ($activeTenants->count() > 0) {
-            return $activeTenants->map(function ($tenant) {
-                return $tenant->first_name . ' ' . $tenant->last_name;
-            })->implode(', ');
+        $names = $names->merge($walkins)->filter()->unique();
+
+        if ($names->count() > 0) {
+            return $names->implode(', ');
         }
         
         // Fallback to current_tenant_id for legacy support
@@ -316,7 +341,8 @@ class Room extends Model
         $requestedBeds = (int) ($bedCount ?: 1);
 
         // Check if room has physical space for more active tenants/beds
-        if ($this->occupied + $requestedBeds > $this->capacity) {
+        $currentOccupied = $this->occupied;
+        if ($currentOccupied + $requestedBeds > $this->capacity) {
             throw new \Exception('Room has insufficient available beds');
         }
         
@@ -331,7 +357,8 @@ class Room extends Model
         ]);
         
         // Update room status and current_tenant_id (for legacy compatibility)
-        $updateData = ['status' => 'occupied'];
+        $isFull = ($currentOccupied + $requestedBeds) >= $this->capacity;
+        $updateData = ['status' => $isFull ? 'occupied' : 'available'];
         if (!$this->current_tenant_id) {
             $updateData['current_tenant_id'] = $tenantId;
         }
@@ -375,8 +402,8 @@ class Room extends Model
             $this->update(['current_tenant_id' => null]);
         }
         
-        // Update room status if no active tenants remain
-        if ($this->occupied === 0) {
+        // Update room status if beds are now available
+        if ($this->occupied < $this->capacity && $this->status === 'occupied') {
             $this->update(['status' => 'available']);
         }
         

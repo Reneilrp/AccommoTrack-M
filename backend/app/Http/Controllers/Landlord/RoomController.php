@@ -36,20 +36,16 @@ class RoomController extends Controller
 
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_rooms');
+            $this->checkPropertyAccess($context, (int) $propertyId);
 
-            $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($propertyId);
-            if ($context['is_caretaker'] && !in_array($property->id, $context['assignment']->getAssignedPropertyIds())) {
-                throw new \Illuminate\Database\Eloquent\ModelNotFoundException;
-            }
-
-            $rooms = Room::where('property_id', $property->id)
+            $rooms = Room::where('property_id', $propertyId)
                 ->with('tenants', 'amenities', 'images')
                 ->orderBy('room_number')
                 ->get();
 
             return response()->json(RoomResource::collection($rooms)->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Property not found or access denied'], 404);
+            return response()->json(['message' => 'Property not found'], 404);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch rooms', 'error' => $e->getMessage()], 500);
         }
@@ -58,7 +54,12 @@ class RoomController extends Controller
     public function store(StoreRoomRequest $request)
     {
         try {
-            $property = Property::findOrFail($request->validated()['property_id']);
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+
+            $property = Property::where('landlord_id', $context['landlord_id'])
+                ->findOrFail($request->validated()['property_id']);
+
             $room = $this->roomService->createRoom($request->validated(), $property);
             return response()->json((new RoomResource($room->fresh(['tenants', 'amenities', 'images'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -112,10 +113,8 @@ class RoomController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_rooms');
 
-            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
-            if ($context['is_caretaker'] && !in_array($room->property_id, $context['assignment']->getAssignedPropertyIds())) {
-                 return response()->json(['message' => 'Unauthorized access to this property'], 403);
-            }
+            $room = Room::findOrFail($id);
+            $this->checkPropertyAccess($context, $room->property_id);
 
             $validated = $request->validate(['status' => 'required|in:available,occupied,maintenance']);
             
@@ -123,7 +122,7 @@ class RoomController extends Controller
 
             return response()->json((new RoomResource($updatedRoom->load('tenants')))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Room not found or unauthorized'], 404);
+            return response()->json(['message' => 'Room not found'], 404);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to update room status', 'error' => $e->getMessage()], 500);
         }
@@ -134,11 +133,7 @@ class RoomController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->ensureCaretakerCan($context, 'can_view_rooms');
-
-            $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($propertyId);
-            if ($context['is_caretaker'] && !in_array($property->id, $context['assignment']->getAssignedPropertyIds())) {
-                throw new \Illuminate\Database\Eloquent\ModelNotFoundException;
-            }
+            $this->checkPropertyAccess($context, (int) $propertyId);
 
             return response()->json([
                 'total' => Room::where('property_id', $propertyId)->count(),
@@ -147,7 +142,9 @@ class RoomController extends Controller
                 'maintenance' => Room::where('property_id', $propertyId)->where('status', 'maintenance')->count(),
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Property not found or access denied'], 404);
+            return response()->json(['message' => 'Property not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch stats', 'error' => $e->getMessage()], 500);
         }
     }
     

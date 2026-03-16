@@ -46,9 +46,9 @@ class BookingService
             $today = Carbon::today();
             
             if ($room->billing_policy === 'daily') {
-                // For daily rooms, check-in must be tomorrow or later
-                if ($startDate->lessThanOrEqualTo($today)) {
-                    throw new \Exception('For daily rentals, check-in must be at least one day after today.');
+                // For daily rooms, check-in must be today or later
+                if ($startDate->lessThan($today)) {
+                    throw new \Exception('Check-in date cannot be in the past.');
                 }
             } else {
                 // For monthly/others, check-in can be today

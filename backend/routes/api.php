@@ -168,6 +168,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Tenant: Resubmit verification documents after rejection
         Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
+
+        // Tenant: room transfer requests
+        Route::get('/transfers', [\App\Http\Controllers\Tenant\TransferController::class, 'index']);
+        Route::post('/transfers', [\App\Http\Controllers\Tenant\TransferController::class, 'store']);
+        Route::patch('/transfers/{id}/cancel', [\App\Http\Controllers\Tenant\TransferController::class, 'cancel']);
     });
 
     // ===== LANDLORD ROUTES =====
@@ -253,6 +258,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Landlord: Extension requests handling
         Route::get('/extensions', [\App\Http\Controllers\Landlord\ExtensionController::class, 'index']);
         Route::patch('/extensions/{id}/handle', [\App\Http\Controllers\Landlord\ExtensionController::class, 'handle']);
+
+        // Landlord: Transfer requests handling
+        Route::get('/transfers', [\App\Http\Controllers\Landlord\TransferController::class, 'index']);
+        Route::patch('/transfers/{id}/handle', [\App\Http\Controllers\Landlord\TransferController::class, 'handle']);
     });
 
     // ===== SHARED BOOKINGS =====

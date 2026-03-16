@@ -123,15 +123,17 @@ class PropertyController extends Controller
 
     public function getAccessibleProperties(Request $request)
     {
-        $user = $request->user();
-        if ($user->role === 'caretaker') {
-            $assignment = $user->caretakerAssignment;
-            if (!$assignment) return response()->json([], 200);
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_view_properties');
+
+        if ($context['is_caretaker']) {
+            $assignment = $context['assignment'];
             $propertyIds = $assignment->properties()->pluck('properties.id')->toArray();
             $properties = Property::whereIn('id', $propertyIds);
         } else {
-            $properties = Property::where('landlord_id', $user->id);
+            $properties = Property::where('landlord_id', $context['landlord_id']);
         }
+
         $data = $properties->withCount(['rooms', 'rooms as available_rooms_count' => fn($q) => $q->where('status', 'available')])
             ->with(['images', 'amenities', 'credentials', 'rooms'])
             ->orderBy('created_at', 'desc')
@@ -171,10 +173,13 @@ class PropertyController extends Controller
         }
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $property = Property::where('landlord_id', Auth::id())
-            ->with(['rooms', 'images', 'amenities', 'credentials'])
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_view_properties');
+        $this->checkPropertyAccess($context, (int) $id);
+
+        $property = Property::with(['rooms', 'images', 'amenities', 'credentials'])
             ->findOrFail($id);
         
         return response()->json((new PropertyResource($property))->resolve());

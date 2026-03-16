@@ -21,16 +21,29 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
+
+        $landlordId = $context['landlord_id'];
+
+        // If caretaker, restrict which properties they can see invoices for
+        $allowedPropertyIds = null;
+        if ($context['is_caretaker']) {
+            $allowedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+        }
 
         // Auto-generate missing invoices for confirmed bookings for this landlord
-        // This ensures that the payments list is always up-to-date with current occupancy
-        $uninvoicedBookings = \App\Models\Booking::where('landlord_id', $context['landlord_id'])
+        $uninvoicedBookingsQuery = \App\Models\Booking::where('landlord_id', $landlordId)
             ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-            ->whereDoesntHave('invoices')
-            ->get();
+            ->whereDoesntHave('invoices');
+        
+        if ($allowedPropertyIds) {
+            $uninvoicedBookingsQuery->whereIn('property_id', $allowedPropertyIds);
+        }
+
+        $uninvoicedBookings = $uninvoicedBookingsQuery->get();
 
         foreach ($uninvoicedBookings as $booking) {
+            // ... (rest of auto-generation logic remains same) ...
             try {
                 $reference = 'INV-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
                 $roomAmountCents = (int) round($booking->total_amount * 100);
@@ -76,7 +89,6 @@ class InvoiceController extends Controller
                     'metadata' => ['addons' => $addonMetadata]
                 ]);
 
-                // Link these addons to the new invoice so we know they've been billed for this cycle
                 foreach ($activeMonthlyAddons as $addon) {
                     $booking->addons()->updateExistingPivot($addon->id, [
                         'invoice_id' => $invoice->id,
@@ -84,11 +96,15 @@ class InvoiceController extends Controller
                     ]);
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to auto-generate bundled invoice for booking ' . $booking->id . ': ' . $e->getMessage());
+                \Log::error('Failed auto-generate bundled invoice: ' . $e->getMessage());
             }
         }
 
-        $query = Invoice::query()->where('landlord_id', $context['landlord_id']);
+        $query = Invoice::query()->where('landlord_id', $landlordId);
+
+        if ($allowedPropertyIds) {
+            $query->whereIn('property_id', $allowedPropertyIds);
+        }
 
         if ($request->has('status')) $query->where('status', $request->query('status'));
         if ($request->has('tenant_id')) $query->where('tenant_id', $request->query('tenant_id'));
@@ -106,17 +122,20 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
 
         $validated = $request->validate([
             'booking_id' => 'nullable|integer',
             'tenant_id' => 'nullable|integer',
-            'property_id' => 'nullable|integer',
+            'property_id' => 'required|integer|exists:properties,id',
             'description' => 'nullable|string',
             'amount_cents' => 'required|integer|min:0',
             'currency' => 'nullable|string|size:3',
             'due_date' => 'nullable|date',
             'metadata' => 'nullable|array'
         ]);
+
+        $this->checkPropertyAccess($context, (int) $validated['property_id']);
 
         $invoice = null;
         DB::beginTransaction();
@@ -145,10 +164,15 @@ class InvoiceController extends Controller
     public function show(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
+
         $invoice = Invoice::with('transactions')->findOrFail($id);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
+        $this->checkPropertyAccess($context, $invoice->property_id);
+
         return response()->json($invoice, 200);
     }
 
@@ -158,12 +182,14 @@ class InvoiceController extends Controller
     public function charge(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
-        $this->assertNotCaretaker($context);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
         
         $invoice = Invoice::findOrFail($id);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
+        $this->checkPropertyAccess($context, $invoice->property_id);
 
         $validated = $request->validate([
             'method' => 'required|string',
@@ -189,7 +215,7 @@ class InvoiceController extends Controller
                 'idempotency_key' => $validated['idempotency_key'] ?? null,
             ]);
 
-            // Update invoice status (simple logic)
+            // Use Paymongo logic or similar to update invoice/booking
             $invoice->paid_at = now();
             $invoice->status = 'paid';
             $invoice->save();
@@ -208,10 +234,14 @@ class InvoiceController extends Controller
     public function recordOffline(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
+
         $invoice = Invoice::findOrFail($id);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
+        $this->checkPropertyAccess($context, $invoice->property_id);
 
         $validated = $request->validate([
             'amount_cents' => 'required|integer|min:0',
@@ -235,14 +265,23 @@ class InvoiceController extends Controller
                 'idempotency_key' => null,
             ]);
 
-            // Mark invoice as paid if full
-            if ($validated['amount_cents'] >= $invoice->amount_cents) {
+            // Mark invoice as paid if full (respecting existing sum)
+            $totalPaid = $invoice->transactions()->whereIn('status', ['succeeded', 'paid'])->sum('amount_cents');
+            $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+
+            if ($totalPaid >= $invoiceTotal) {
                 $invoice->status = 'paid';
                 $invoice->paid_at = now();
-                $invoice->save();
             } else {
                 $invoice->status = 'partial';
-                $invoice->save();
+            }
+            $invoice->save();
+
+            // Also update the associated booking's payment status
+            if ($invoice->booking_id) {
+                $booking = $invoice->booking;
+                $booking->payment_status = $invoice->status;
+                $booking->save();
             }
 
             DB::commit();

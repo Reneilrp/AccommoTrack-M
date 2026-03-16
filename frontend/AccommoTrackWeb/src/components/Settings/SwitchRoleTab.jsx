@@ -39,6 +39,14 @@ export default function SwitchRoleTab() {
   }, [currentRole]);
 
   const handleSwitchRole = async () => {
+    // If we're already a landlord, we can ALWAYS switch back to tenant
+    if (currentRole === 'landlord' && newRole === 'tenant') {
+      if (window.confirm(`Are you sure you want to switch to Tenant mode?`)) {
+        await performRoleSwitch();
+      }
+      return;
+    }
+
     if (currentRole === 'tenant' && newRole === 'landlord') {
       if (verificationStatus === 'approved') {
         if (window.confirm(`Are you sure you want to switch to Landlord mode?`)) {
@@ -63,6 +71,11 @@ export default function SwitchRoleTab() {
     try {
       const response = await authService.switchRole(newRole);
       if (response.user) {
+        // Update user data in localStorage to keep UI in sync
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        userData.role = newRole;
+        localStorage.setItem('userData', JSON.stringify(userData));
+
         window.location.href = '/dashboard';
       }
     } catch (error) {
@@ -78,7 +91,7 @@ export default function SwitchRoleTab() {
       case 'approved':
         return { icon: <ShieldCheck className="w-5 h-5 text-green-500" />, text: 'You are a verified landlord. You can switch to landlord mode anytime.' };
       case 'pending':
-        return { icon: <Clock className="w-5 h-5 text-yellow-500" />, text: 'Your landlord verification is pending review.' };
+        return { icon: <Clock className="w-5 h-5 text-yellow-500" />, text: 'Your landlord verification is currently under review. This process typically takes 2-3 working days.' };
       case 'rejected':
         return { icon: <ShieldAlert className="w-5 h-5 text-red-500" />, text: 'Your previous landlord verification was rejected. You will need to resubmit.' };
       default:

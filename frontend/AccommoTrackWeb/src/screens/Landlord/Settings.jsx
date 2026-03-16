@@ -21,7 +21,9 @@ const createCaretakerPermissionDefaults = () => ({
   tenants: false,
   messages: false,
   rooms: false,
-  properties: false
+  properties: false,
+  maintenance: false,
+  payments: false
 });
 
 export default function Settings({ user, accessRole = 'landlord', onUserUpdate }) {
@@ -218,7 +220,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_messages: !!caretakerPermissions.messages,
         can_view_tenants: !!caretakerPermissions.tenants,
         can_view_rooms: !!caretakerPermissions.rooms,
-        can_view_properties: !!caretakerPermissions.properties
+        can_view_properties: !!caretakerPermissions.properties,
+        can_manage_maintenance: !!caretakerPermissions.maintenance,
+        can_manage_payments: !!caretakerPermissions.payments
       };
 
       const response = await api.post('/landlord/caretakers', {
@@ -270,7 +274,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         can_view_messages: !!caretakerPermissions.messages,
         can_view_tenants: !!caretakerPermissions.tenants,
         can_view_rooms: !!caretakerPermissions.rooms,
-        can_view_properties: !!caretakerPermissions.properties
+        can_view_properties: !!caretakerPermissions.properties,
+        can_manage_maintenance: !!caretakerPermissions.maintenance,
+        can_manage_payments: !!caretakerPermissions.payments
       };
 
       const response = await api.patch(`/landlord/caretakers/${id}`, {

@@ -25,7 +25,13 @@ class PropertyService
 
             if ($isVerified) {
                 $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);
-                $isPublished = $validated['is_published'] ?? false;
+                // New properties (Draft/Pending) should NOT be published or available initially
+                $isPublished = false;
+                $isAvailable = false;
+            }
+
+            if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
+                $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
             }
 
             $property = Property::create([
@@ -33,6 +39,7 @@ class PropertyService
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'property_type' => $validated['property_type'],
+                'gender_restriction' => $validated['gender_restriction'] ?? 'mixed',
                 'current_status' => $currentStatus,
                 'street_address' => $validated['street_address'],
                 'city' => $validated['city'],
@@ -42,11 +49,17 @@ class PropertyService
                 'latitude' => $validated['latitude'] ?? null,
                 'longitude' => $validated['longitude'] ?? null,
                 'nearby_landmarks' => $validated['nearby_landmarks'] ?? null,
+                'max_occupants' => $validated['max_occupants'] ?? 1,
+                'number_of_bedrooms' => $validated['number_of_bedrooms'] ?? null,
+                'number_of_bathrooms' => $validated['number_of_bathrooms'] ?? null,
+                'floor_area' => $validated['floor_area'] ?? null,
+                'floor_level' => $validated['floor_level'] ?? null,
+                'total_floors' => $validated['total_floors'] ?? 1,
                 'property_rules' => $validated['property_rules'] ?? null,
                 'total_rooms' => 0,
                 'available_rooms' => 0,
                 'is_published' => $isPublished,
-                'is_available' => $validated['is_available'] ?? false,
+                'is_available' => $isAvailable,
                 'is_eligible' => $validated['is_eligible'] ?? false,
                 'accepted_payments' => $validated['accepted_payments'] ?? null,
             ]);
@@ -81,6 +94,21 @@ class PropertyService
                 if (in_array($validated['current_status'], [Property::STATUS_ACTIVE, Property::STATUS_INACTIVE])) {
                     unset($validated['current_status']);
                 }
+            }
+
+            // Automatically handle visibility based on status
+            if (isset($validated['current_status'])) {
+                if ($validated['current_status'] === Property::STATUS_MAINTENANCE || $validated['current_status'] === Property::STATUS_INACTIVE) {
+                    $validated['is_published'] = false;
+                    $validated['is_available'] = false;
+                } elseif ($validated['current_status'] === Property::STATUS_ACTIVE) {
+                    $validated['is_published'] = true;
+                    $validated['is_available'] = true;
+                }
+            }
+
+            if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
+                $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
             }
 
             $property->update($validated);

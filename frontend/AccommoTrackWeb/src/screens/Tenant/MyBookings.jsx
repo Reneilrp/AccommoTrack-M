@@ -29,7 +29,8 @@ import {
   DoorOpen,
   Banknote,
   CalendarDays,
-  CreditCard
+  CreditCard,
+  Shuffle
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 
@@ -53,8 +54,10 @@ const MyBookings = () => {
   const [error, setError] = useState(null);
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [requestingAddon, setRequestingAddon] = useState(null);
   const [extendingStay, setExtendingStay] = useState(false);
+  const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
 
   // ... (inside CurrentStayTab component props) ...
@@ -68,6 +71,7 @@ const MyBookings = () => {
     onCancelAddon, 
     onCancelBooking, 
     onRequestExtension,
+    onRequestTransfer,
     isCancelling, 
     onReview, 
     onReport, 
@@ -89,6 +93,22 @@ const MyBookings = () => {
       toast.error(err.response?.data?.message || 'Failed to request extension');
     } finally {
       setExtendingStay(false);
+    }
+  };
+
+  // Handle Transfer Request
+  const handleRequestTransfer = async (payload) => {
+    setRequestingTransfer(true);
+    try {
+      await api.post('/transfers', payload);
+      toast.success('Room transfer request sent to landlord');
+      fetchData();
+      setShowTransferModal(false);
+    } catch (err) {
+      console.error('Failed to request transfer:', err);
+      toast.error(err.response?.data?.message || 'Failed to request transfer');
+    } finally {
+      setRequestingTransfer(false);
     }
   };
   
@@ -259,6 +279,8 @@ const MyBookings = () => {
               onCancelAddon={handleCancelAddonRequest}
               onCancelBooking={handleCancelBooking}
               isCancelling={cancellingBooking}
+              onRequestExtension={() => setShowExtensionModal(true)}
+              onRequestTransfer={() => setShowTransferModal(true)}
               onReview={handleReview}
               onReport={handleReport}
               navigate={navigate}
@@ -293,6 +315,17 @@ const MyBookings = () => {
           onClose={() => setShowExtensionModal(false)}
           onSubmit={handleRequestExtension}
           loading={extendingStay}
+        />
+      )}
+
+      {/* Transfer Request Modal */}
+      {showTransferModal && activeStays[selectedStayIndex] && (
+        <TransferRequestModal
+          booking={activeStays[selectedStayIndex].booking}
+          property={activeStays[selectedStayIndex].property}
+          onClose={() => setShowTransferModal(false)}
+          onSubmit={handleRequestTransfer}
+          loading={requestingTransfer}
         />
       )}
 
@@ -636,6 +669,13 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             }
                             return null;
                           })()}
+                          <button
+                            onClick={onRequestTransfer}
+                            className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-500/20 transition-all active:scale-95"
+                          >
+                            <Shuffle className="w-4 h-4" />
+                            Transfer
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -873,13 +913,13 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
             {financials?.billing_policy === 'daily' ? 'Daily Add-ons' : 'Monthly Add-ons'}
           </p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{financials?.monthlyAddons?.toLocaleString() || 0}</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{(financials?.monthlyAddons || 0).toLocaleString()}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
             {financials?.billing_policy === 'daily' ? 'Total Due/day' : 'Total Due/mo'}
           </p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{financials?.monthlyTotal?.toLocaleString() || 0}</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{(financials?.monthlyTotal || 0).toLocaleString()}</p>
         </div>
       </div>
 
@@ -1452,6 +1492,97 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
               className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Send Request'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading }) => {
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [formData, setFormData] = useState({ requested_room_id: '', reason: '' });
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await api.get(`/rooms/property/${property.id}`);
+        const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+        setAvailableRooms(list.filter(r => r.status === 'available' && r.id !== booking.room_id));
+      } catch (err) {
+        console.error('Failed to load rooms for transfer', err);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+    fetchRooms();
+  }, [property.id, booking.room_id]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.requested_room_id || !formData.reason) {
+      toast.error('Please select a room and provide a reason');
+      return;
+    }
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Room Transfer</h3>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+              <X className="w-6 h-6 text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+            Requesting a transfer from your current room in <strong>{property.title}</strong>.
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Select New Room *</label>
+            <select
+              required
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={formData.requested_room_id}
+              onChange={e => setFormData({ ...formData, requested_room_id: e.target.value })}
+              disabled={loadingRooms}
+            >
+              <option value="">{loadingRooms ? 'Loading available rooms...' : 'Select a Room'}</option>
+              {availableRooms.map(r => (
+                <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
+              ))}
+            </select>
+            {availableRooms.length === 0 && !loadingRooms && (
+              <p className="text-[10px] text-red-500 mt-1 font-bold italic">No other available rooms in this property at the moment.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Reason for Transfer *</label>
+            <textarea
+              required
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm"
+              value={formData.reason}
+              onChange={e => setFormData({ ...formData, reason: e.target.value })}
+              placeholder="e.g., I need a room with a better view, or my roommate is too loud..."
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={loading || availableRooms.length === 0}
+              className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Send Request'}
             </button>
           </div>
         </form>

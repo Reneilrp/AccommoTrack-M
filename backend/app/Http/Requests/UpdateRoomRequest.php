@@ -39,6 +39,7 @@ class UpdateRoomRequest extends FormRequest
                     }
                 }
             ],
+            'gender_restriction' => 'nullable|in:male,female,mixed',
             'floor' => 'sometimes|integer|min:1',
             'monthly_rate' => 'sometimes|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
             'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',

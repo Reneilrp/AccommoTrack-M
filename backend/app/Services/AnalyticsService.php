@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Property;
 use App\Models\Room;
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\TenantProfile;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,7 @@ class AnalyticsService
         $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange, $timeRange);
         $payments = $this->calculatePaymentAnalytics($landlordId, $propertyId);
         $tenants = $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange);
-        $properties = $this->calculatePropertyComparison($landlordId);
+        $properties = $this->calculatePropertyComparison($landlordId, $propertyId);
 
         return [
             'overview' => $overview,
@@ -74,8 +75,11 @@ class AnalyticsService
                 'monthly_trend' => [],
             ],
             'occupancy' => [
-                'current_rate' => 0,
-                'trend' => [],
+                'total_slots' => 0,
+                'occupied_slots' => 0,
+                'available_rooms' => 0,
+                'maintenance_rooms' => 0,
+                'occupancy_rate' => 0,
             ],
             'roomTypes' => [],
             'properties' => [],
@@ -96,6 +100,7 @@ class AnalyticsService
                 'total' => 0,
                 'pending' => 0,
                 'confirmed' => 0,
+                'completed' => 0,
                 'cancelled' => 0,
             ],
         ];
@@ -128,12 +133,15 @@ class AnalyticsService
             $query->where('id', $propertyId);
         }
 
-        $properties = $query->with('rooms')->get();
+        $properties = $query->with(['rooms' => function($q) {
+            $q->withCount('tenants');
+        }])->get();
 
         $totalRooms = $properties->sum('total_rooms');
-        $occupiedRooms = $properties->sum(fn($property) => $property->rooms->where('status', 'occupied')->count());
+        // Sum the actual number of tenants from withCount results
+        $occupiedSlots = (int) $properties->sum(fn($property) => $property->rooms->sum('tenants_count'));
         $availableRooms = $properties->sum('available_rooms');
-        $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0;
+        $occupancyRate = $totalRooms > 0 ? round(($occupiedSlots / $totalRooms) * 100, 1) : 0;
 
         // Revenue calculation
         $bookingsQuery = Booking::forLandlord($landlordId)->confirmed();
@@ -155,7 +163,7 @@ class AnalyticsService
         return [
             'total_properties' => $properties->count(),
             'total_rooms' => $totalRooms,
-            'occupied_rooms' => $occupiedRooms,
+            'occupied_rooms' => $occupiedSlots,
             'available_rooms' => $availableRooms,
             'occupancy_rate' => $occupancyRate,
             'total_revenue' => round($totalRevenue, 2),
@@ -233,9 +241,14 @@ class AnalyticsService
             ? round(($actualMonthly / $expectedMonthly) * 100, 1)
             : 0;
 
+        $totalRevenueQuery = Booking::forLandlord($landlordId)->confirmed();
+        if ($propertyId) {
+            $totalRevenueQuery->where('property_id', $propertyId);
+        }
+
         return [
             'monthly_trend' => $trend,
-            'total_revenue' => round(Booking::forLandlord($landlordId)->confirmed()->sum('total_amount'), 2),
+            'total_revenue' => round($totalRevenueQuery->sum('total_amount'), 2),
             'expected_monthly' => round($expectedMonthly, 2),
             'actual_monthly' => round($actualMonthly, 2),
             'collection_rate' => $collectionRate,
@@ -255,22 +268,24 @@ class AnalyticsService
 
         $stats = $roomsQuery
             ->select(
-                DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN status = "occupied" THEN 1 ELSE 0 END) as occupied'),
-                DB::raw('SUM(CASE WHEN status = "available" THEN 1 ELSE 0 END) as available'),
-                DB::raw('SUM(CASE WHEN status = "maintenance" THEN 1 ELSE 0 END) as maintenance')
+                DB::raw('SUM(capacity) as total_slots'),
+                DB::raw('SUM((SELECT COUNT(*) FROM room_tenant_assignments WHERE room_tenant_assignments.room_id = rooms.id AND room_tenant_assignments.status = "active")) as occupied_slots'),
+                DB::raw('SUM(CASE WHEN status = "available" THEN 1 ELSE 0 END) as available_rooms'),
+                DB::raw('SUM(CASE WHEN status = "maintenance" THEN 1 ELSE 0 END) as maintenance_rooms')
             )
             ->first();
 
-        $total = $stats->total ?? 0;
-        $occupied = $stats->occupied ?? 0;
+        $totalSlots = (int) ($stats->total_slots ?? 0);
+        $occupiedSlots = (int) ($stats->occupied_slots ?? 0);
+        $availableRooms = (int) ($stats->available_rooms ?? 0);
+        $maintenanceRooms = (int) ($stats->maintenance_rooms ?? 0);
 
         return [
-            'total_rooms' => $total,
-            'occupied' => $occupied,
-            'available' => $stats->available ?? 0,
-            'maintenance' => $stats->maintenance ?? 0,
-            'occupancy_rate' => $total > 0 ? round(($occupied / $total) * 100, 1) : 0,
+            'total_slots' => $totalSlots,
+            'occupied_slots' => $occupiedSlots,
+            'available_rooms' => $availableRooms,
+            'maintenance_rooms' => $maintenanceRooms,
+            'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
         ];
     }
 
@@ -289,18 +304,20 @@ class AnalyticsService
             ->select(
                 'room_type',
                 DB::raw('COUNT(*) as count'),
-                DB::raw('AVG(monthly_rate) as avg_rate'),
-                DB::raw('SUM(CASE WHEN status = "occupied" THEN 1 ELSE 0 END) as occupied')
+                DB::raw('SUM(capacity) as total_slots'),
+                DB::raw('SUM((SELECT COUNT(*) FROM room_tenant_assignments WHERE room_tenant_assignments.room_id = rooms.id AND room_tenant_assignments.status = "active")) as occupied_slots'),
+                DB::raw('AVG(monthly_rate) as avg_rate')
             )
             ->groupBy('room_type')
             ->get()
             ->map(fn($item) => [
                 'type' => $item->room_type,
                 'label' => $this->getRoomTypeLabel($item->room_type),
-                'count' => $item->count,
+                'room_count' => (int) $item->count,
+                'total_slots' => (int) $item->total_slots,
+                'occupied_slots' => (int) $item->occupied_slots,
                 'avg_rate' => round($item->avg_rate, 2),
-                'occupied' => $item->occupied,
-                'occupancy_rate' => $item->count > 0 ? round(($item->occupied / $item->count) * 100, 1) : 0,
+                'occupancy_rate' => $item->total_slots > 0 ? round(($item->occupied_slots / $item->total_slots) * 100, 1) : 0,
             ])
             ->toArray();
     }
@@ -308,33 +325,47 @@ class AnalyticsService
     /**
      * Calculate Property Comparison
      */
-    public function calculatePropertyComparison(int $landlordId): array
+    public function calculatePropertyComparison(int $landlordId, ?int $propertyId = null): array
     {
         $currentMonth = now()->month;
         $currentYear = now()->year;
 
-        return Property::where('landlord_id', $landlordId)
+        $query = Property::where('landlord_id', $landlordId);
+
+        if ($propertyId) {
+            $query->where('id', $propertyId);
+        }
+
+        return $query
             ->withCount([
                 'rooms',
-                'rooms as occupied_rooms' => fn($q) => $q->where('status', 'occupied'),
-                'rooms as available_rooms' => fn($q) => $q->where('status', 'available'),
             ])
+            ->with(['rooms' => function($q) {
+                $q->withCount('tenants');
+            }])
             ->withSum(['bookings as total_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])], 'total_amount')
             ->withSum(['bookings as monthly_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
                 ->whereMonth('created_at', $currentMonth)->whereYear('created_at', $currentYear)], 'total_amount')
             ->get()
-            ->map(fn($property) => [
-                'id' => $property->id,
-                'name' => $property->title,
-                'title' => $property->title,
-                'total_rooms' => $property->rooms_count,
-                'occupied_rooms' => $property->occupied_rooms,
-                'available_rooms' => $property->available_rooms,
-                'occupancy_rate' => $property->rooms_count > 0
-                    ? round(($property->occupied_rooms / $property->rooms_count) * 100, 1) : 0,
-                'monthly_revenue' => round($property->monthly_revenue ?? 0, 2),
-                'total_revenue' => round($property->total_revenue ?? 0, 2),
-            ])
+            ->map(function($property) {
+                // We need to get total slots and available rooms separately as they can't be done in one go with withCount
+                $totalSlots = (int) $property->rooms->sum('capacity');
+                $occupiedSlots = (int) $property->rooms->sum('tenants_count');
+                $availableRooms = (int) $property->rooms->where('status', 'available')->count();
+
+                return [
+                    'id' => $property->id,
+                    'name' => $property->title,
+                    'title' => $property->title,
+                    'total_rooms' => (int) $property->rooms_count,
+                    'total_slots' => $totalSlots,
+                    'occupied_slots' => $occupiedSlots,
+                    'available_rooms' => $availableRooms,
+                    'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
+                    'monthly_revenue' => round($property->monthly_revenue ?? 0, 2),
+                    'total_revenue' => round($property->total_revenue ?? 0, 2),
+                ];
+            })
             ->toArray();
     }
 
@@ -372,34 +403,39 @@ class AnalyticsService
      */
     public function calculatePaymentAnalytics(int $landlordId, ?int $propertyId = null): array
     {
-        $query = Booking::forLandlord($landlordId);
+        $query = Payment::forLandlord($landlordId);
 
         if ($propertyId) {
-            $query->where('property_id', $propertyId);
+            $query->whereHas('booking', function ($q) use ($propertyId) {
+                $q->where('property_id', $propertyId);
+            });
         }
 
         $stats = $query
             ->select(
                 DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN payment_status = "paid" THEN 1 ELSE 0 END) as paid'),
-                DB::raw('SUM(CASE WHEN payment_status = "partial" THEN 1 ELSE 0 END) as partial'),
-                DB::raw('SUM(CASE WHEN payment_status = "unpaid" THEN 1 ELSE 0 END) as unpaid'),
-                DB::raw('SUM(CASE WHEN payment_status = "paid" THEN total_amount ELSE 0 END) as collected'),
-                DB::raw('SUM(CASE WHEN payment_status IN ("unpaid", "partial") THEN total_amount ELSE 0 END) as outstanding')
+                DB::raw('SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid'),
+                DB::raw('SUM(CASE WHEN status = "partial" THEN 1 ELSE 0 END) as partial'),
+                DB::raw('SUM(CASE WHEN status = "overdue" OR (status = "pending" AND due_date < NOW()) THEN 1 ELSE 0 END) as overdue'),
+                DB::raw('SUM(CASE WHEN status = "pending" AND due_date >= NOW() THEN 1 ELSE 0 END) as pending'),
+                DB::raw('SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as collected'),
+                DB::raw('SUM(CASE WHEN status IN ("pending", "partial", "overdue") THEN amount ELSE 0 END) as outstanding')
             )
             ->first();
 
         $total = (int) ($stats->total ?? 0);
         $paid = (int) ($stats->paid ?? 0);
-        $unpaid = (int) ($stats->unpaid ?? 0);
+        $pending = (int) ($stats->pending ?? 0);
         $partial = (int) ($stats->partial ?? 0);
+        $overdue = (int) ($stats->overdue ?? 0);
+        
         $paymentRate = $total > 0 ? round(($paid / $total) * 100, 1) : 0;
 
         return [
             'paid' => $paid,
-            'unpaid' => $unpaid,
+            'unpaid' => $pending, // Mapping 'pending' to 'unpaid' for frontend compatibility
             'partial' => $partial,
-            'overdue' => 0, // Can be extended later with due-date check
+            'overdue' => $overdue,
             'payment_rate' => $paymentRate,
         ];
     }
@@ -526,12 +562,12 @@ class AnalyticsService
             $query->where('property_id', $propertyId);
         }
 
-        return $query
+        return (float) ($query
             ->select(DB::raw('SUM(CASE
                 WHEN billing_policy = "daily" THEN COALESCE(daily_rate, monthly_rate / 30) * 30
                 ELSE monthly_rate
             END) as revenue'))
-            ->value('revenue') ?? 0;
+            ->value('revenue') ?? 0);
     }
 
     /**

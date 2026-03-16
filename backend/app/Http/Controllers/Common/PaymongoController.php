@@ -38,11 +38,24 @@ class PaymongoController extends Controller
         $method = $validated['method'];
         $returnUrl = $validated['return_url'] ?? config('app.url') . '/payments/return';
 
-        // amount to charge in cents
-        $amount = $invoice->total_cents ?? $invoice->amount_cents;
-        if (!$amount) {
+        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+        if (!$invoiceTotalCents) {
             return response()->json(['message' => 'Invoice has no amount set'], 422);
         }
+
+        // Calculate total successful payments for this invoice, subtracting refunds
+        $paidAmountCents = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
+            
+        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+
+        if ($remainingBalanceCents <= 0) {
+            return response()->json(['message' => 'This invoice is already fully paid.'], 422);
+        }
+
+        $amountToPayCents = $remainingBalanceCents;
 
         DB::beginTransaction();
         try {
@@ -50,7 +63,7 @@ class PaymongoController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $invoice->tenant_id,
-                'amount_cents' => $amount,
+                'amount_cents' => $amountToPayCents,
                 'currency' => $invoice->currency ?? 'PHP',
                 'status' => 'pending',
                 'method' => 'paymongo_' . $method,
@@ -75,7 +88,7 @@ class PaymongoController extends Controller
             $payload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => intval($amount),
+                        'amount' => intval($amountToPayCents),
                             'currency' => strtoupper($invoice->currency ?? 'PHP'),
                         'type' => $method,
                         'redirect' => [
@@ -142,10 +155,11 @@ class PaymongoController extends Controller
             return response()->json(['message' => 'Invoice has no amount set'], 422);
         }
 
-        // Calculate actual paid amount from succeeded transactions
+        // Calculate total successful payments for this invoice, subtracting refunds
         $paidAmountCents = $invoice->transactions()
-            ->whereIn('status', ['succeeded', 'paid'])
-            ->sum('amount_cents');
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
             
         $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
 
@@ -252,8 +266,22 @@ class PaymongoController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $amount = $invoice->total_cents ?? $invoice->amount_cents;
-        if (!$amount) return response()->json(['message' => 'Invoice has no amount set'], 422);
+        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+        if (!$invoiceTotalCents) return response()->json(['message' => 'Invoice has no amount set'], 422);
+
+        // Calculate total successful payments for this invoice, subtracting refunds
+        $paidAmountCents = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
+            
+        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+
+        if ($remainingBalanceCents <= 0) {
+            return response()->json(['message' => 'This invoice is already fully paid.'], 422);
+        }
+
+        $amountToPayCents = $remainingBalanceCents;
 
         DB::beginTransaction();
         try {
@@ -275,7 +303,7 @@ class PaymongoController extends Controller
             $paymentPayload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => intval($amount),
+                        'amount' => intval($amountToPayCents),
                             'currency' => strtoupper($invoice->currency ?? 'PHP'),
                     ]
                 ]
@@ -293,7 +321,7 @@ class PaymongoController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $invoice->tenant_id,
-                'amount_cents' => $amount,
+                'amount_cents' => $amountToPayCents,
                 'currency' => $invoice->currency ?? 'PHP',
                 'status' => 'pending',
                 'method' => 'paymongo_payment',
@@ -313,7 +341,7 @@ class PaymongoController extends Controller
             $tx->status = 'succeeded'; // If /payments succeeds, it's paid
             $tx->save();
 
-            $this->updateInvoiceAndBooking($invoice->id, $amount);
+            $this->updateInvoiceAndBooking($invoice->id, $amountToPayCents);
 
             DB::commit();
             return response()->json(['transaction' => $tx, 'payment' => $body], 200);
@@ -345,8 +373,22 @@ class PaymongoController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $amount = $invoice->total_cents ?? $invoice->amount_cents;
-        if (!$amount) return response()->json(['message' => 'Invoice has no amount set'], 422);
+        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+        if (!$invoiceTotalCents) return response()->json(['message' => 'Invoice has no amount set'], 422);
+
+        // Calculate total successful payments for this invoice, subtracting refunds
+        $paidAmountCents = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
+            
+        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+
+        if ($remainingBalanceCents <= 0) {
+            return response()->json(['message' => 'This invoice is already fully paid.'], 422);
+        }
+
+        $amountToPayCents = $remainingBalanceCents;
 
         DB::beginTransaction();
         try {
@@ -368,7 +410,7 @@ class PaymongoController extends Controller
             $paymentPayload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => intval($amount),
+                        'amount' => intval($amountToPayCents),
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                     ]
                 ]
@@ -385,7 +427,7 @@ class PaymongoController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $invoice->tenant_id,
-                'amount_cents' => $amount,
+                'amount_cents' => $amountToPayCents,
                 'currency' => $invoice->currency ?? 'PHP',
                 'status' => 'pending',
                 'method' => 'paymongo_payment',
@@ -405,7 +447,7 @@ class PaymongoController extends Controller
             $tx->status = 'succeeded'; // If /payments succeeds, it's paid
             $tx->save();
 
-            $this->updateInvoiceAndBooking($invoice->id, $amount);
+            $this->updateInvoiceAndBooking($invoice->id, $amountToPayCents);
 
             DB::commit();
             return response()->json(['transaction' => $tx, 'payment' => $body], 200);
@@ -497,8 +539,8 @@ class PaymongoController extends Controller
                             $tx->save();
                             $updated = true;
                         }
-                    } elseif (in_array($status, ['succeeded', 'paid'])) {
-                        $tx->status = 'succeeded';
+                    } elseif (in_array($status, ['succeeded', 'paid', 'partially_refunded'])) {
+                        $tx->status = $status;
                         $tx->gateway_response = $body;
                         $tx->save();
                         $updated = true;
@@ -576,11 +618,18 @@ class PaymongoController extends Controller
      */
     private function updateInvoiceAndBooking($invoiceId, $paidAmountCents)
     {
-        $invoice = Invoice::find($invoiceId);
+        $invoice = Invoice::with('transactions')->find($invoiceId);
         if (!$invoice) return;
 
         $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
-        if ($paidAmountCents >= $invoiceTotal) {
+        
+        // Calculate total successful payments for this invoice, subtracting refunds
+        $totalPaidSoFar = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
+
+        if ($totalPaidSoFar >= $invoiceTotal) {
             $invoice->status = 'paid';
             $invoice->paid_at = now();
         } else {

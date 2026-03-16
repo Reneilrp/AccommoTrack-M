@@ -160,7 +160,8 @@ export default function PaymentsScreen() {
           Alert.alert('Payment', 'No checkout URL returned.');
         }
       } else {
-        const amountCents = Math.round((paymentItem.amount || 0) * 100);
+        const amountToPay = paymentItem.remainingBalance !== undefined ? paymentItem.remainingBalance : (paymentItem.amount || 0);
+        const amountCents = Math.round(amountToPay * 100);
         const resp = await PaymentService.createOfflineRecord(invoiceId, { 
           amount_cents: amountCents, 
           method: 'cash_on_site', 
@@ -519,8 +520,15 @@ export default function PaymentsScreen() {
             {checkoutItem ? (
               <View style={styles.checkoutInfo}>
                 <Text style={[styles.checkoutPropName, { color: theme.colors.text }]}>{checkoutItem.propertyName || checkoutItem.description || `Payment #${checkoutItem.id}`}</Text>
-                <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary }]}>{checkoutItem.roomId ? `Room ${checkoutItem.roomId}` : ''}</Text>
-                <Text style={[styles.checkoutAmount, { color: theme.colors.text }]}>₱{Number(checkoutItem.amount || 0).toLocaleString()}</Text>
+                <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary }]}>{checkoutItem.roomNumber ? `Room ${checkoutItem.roomNumber}` : ''}</Text>
+                <Text style={[styles.checkoutAmount, { color: theme.colors.text }]}>
+                  ₱{Number(checkoutItem.remainingBalance !== undefined ? checkoutItem.remainingBalance : checkoutItem.amount || 0).toLocaleString()}
+                </Text>
+                {checkoutItem.remainingBalance !== undefined && checkoutItem.remainingBalance < checkoutItem.amount && (
+                  <Text style={[styles.checkoutRoom, { color: theme.colors.textSecondary, fontSize: 12 }]}>
+                    Remaining balance of ₱{Number(checkoutItem.amount).toLocaleString()}
+                  </Text>
+                )}
               </View>
             ) : null}
 

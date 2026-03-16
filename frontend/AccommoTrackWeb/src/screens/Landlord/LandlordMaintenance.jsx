@@ -8,13 +8,10 @@ import {
   AlertCircle, 
   X, 
   Loader2,
-  ChevronRight,
-  Filter,
-  Search,
   Building2,
   User,
   ArrowLeft,
-  ArrowRight
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../../utils/api';
@@ -193,6 +190,21 @@ export default function LandlordMaintenance() {
               </button>
 
             ))}
+
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={fetchRequests}
+                disabled={loading}
+                title="Refresh"
+                className="p-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
           </div>
 
