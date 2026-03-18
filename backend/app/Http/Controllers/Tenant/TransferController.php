@@ -25,7 +25,14 @@ class TransferController extends Controller
             ], 401);
         }
 
-        $activeBooking = Booking::where('tenant_id', $tenantId)
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:bookings,id',
+            'property_id' => 'required|integer|exists:properties,id',
+        ]);
+
+        $activeBooking = Booking::where('id', $validated['booking_id'])
+            ->where('tenant_id', $tenantId)
+            ->where('property_id', $validated['property_id'])
             ->whereIn('status', ['confirmed', 'active'])
             ->with('room')
             ->first();
@@ -74,28 +81,35 @@ class TransferController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
         
-        // Find active room assignment or confirmed booking
-        $activeBooking = Booking::where('tenant_id', $tenantId)
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:bookings,id',
+            'property_id' => 'required|integer|exists:properties,id',
+            'requested_room_id' => 'required|exists:rooms,id',
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $activeBooking = Booking::where('id', $validated['booking_id'])
+            ->where('tenant_id', $tenantId)
+            ->where('property_id', $validated['property_id'])
             ->whereIn('status', ['confirmed', 'active'])
             ->with('room')
             ->first();
 
         if (!$activeBooking) {
-            return response()->json(['message' => 'No active booking found to transfer from.'], 422);
+            return response()->json(['message' => 'No active booking found for the selected property.'], 422);
         }
 
         if (!$this->hasTransferEligibleGender($tenant)) {
             return response()->json(['message' => 'Please complete your profile gender before requesting a room transfer.'], 422);
         }
 
-        $validated = $request->validate([
-            'requested_room_id' => 'required|exists:rooms,id',
-            'reason' => 'required|string|max:500'
-        ]);
-
         $requestedRoom = Room::findOrFail($validated['requested_room_id']);
 
         // Basic validation: must be same property (usually) and available
+        if ((int) $requestedRoom->property_id !== (int) $validated['property_id']) {
+            return response()->json(['message' => 'Requested room does not belong to the selected property.'], 422);
+        }
+
         if ($requestedRoom->property_id !== $activeBooking->property_id) {
             return response()->json(['message' => 'You can only request transfers within the same property.'], 422);
         }

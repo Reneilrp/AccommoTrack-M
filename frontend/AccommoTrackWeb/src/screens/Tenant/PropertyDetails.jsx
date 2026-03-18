@@ -67,6 +67,56 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
+  const parseMoney = (value, fallback = 0) => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+    if (typeof value === "string") {
+      const sanitized = value.replace(/[^\d.-]/g, "");
+      const parsed = parseFloat(sanitized);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+  };
+
+  const getRoomPriceDisplay = (room) => {
+    const billingPolicy = String(room?.billing_policy || "monthly").toLowerCase();
+    const monthlyRate = parseMoney(room?.monthly_rate ?? room?.price, 0);
+    const dailyRate = parseMoney(
+      room?.daily_rate,
+      monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0,
+    );
+
+    const amount = billingPolicy === "daily" ? dailyRate : monthlyRate;
+    const suffix = billingPolicy === "daily" ? "/day" : "/month";
+
+    return {
+      amount,
+      suffix,
+    };
+  };
+
+  const getGenderBadge = (restriction) => {
+    const normalized = String(restriction || "mixed").toLowerCase().trim();
+
+    if (normalized === "male" || normalized === "boy" || normalized === "boys") {
+      return {
+        label: "Boys Only",
+        className: "bg-blue-50 text-blue-700 border border-blue-100",
+      };
+    }
+
+    if (normalized === "female" || normalized === "girl" || normalized === "girls") {
+      return {
+        label: "Girls Only",
+        className: "bg-rose-50 text-rose-700 border border-rose-100",
+      };
+    }
+
+    return {
+      label: "Mixed",
+      className: "bg-gray-100 text-gray-700 border border-gray-200",
+    };
+  };
+
   const openFullGallery = (targetItemIndex = 0) => {
     if (!property) return;
 
@@ -330,7 +380,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
         {filteredRooms.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredRooms.map((room) => (
+            {filteredRooms.map((room) => {
+              const genderBadge = getGenderBadge(room.gender_restriction);
+              return (
               <div
                 key={room.id}
                 className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-shadow flex flex-col"
@@ -346,7 +398,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   ) : (
                     <ImagePlaceholder className="w-full h-full" />
                   )}
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
                     {room.reserved_by_me ? (
                       <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                         Reserved by you (Pending)
@@ -373,6 +425,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
                           (room.status || "").toString().slice(1)}
                       </span>
                     )}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
+                    >
+                      {genderBadge.label}
+                    </span>
                   </div>
                 </div>
                 <div className="p-5 flex-1 flex flex-col">
@@ -403,15 +460,19 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       </div>
                     </div>
                     <div className="text-right">
+                      {(() => {
+                        const pricing = getRoomPriceDisplay(room);
+                        return (
+                          <>
                       <span className="block text-xl font-bold text-green-600">
-                        ₱
-                        {Number(
-                          room.monthly_rate || room.price,
-                        ).toLocaleString()}
+                        ₱{pricing.amount.toLocaleString()}
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        /month
+                        {pricing.suffix}
                       </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -463,7 +524,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">

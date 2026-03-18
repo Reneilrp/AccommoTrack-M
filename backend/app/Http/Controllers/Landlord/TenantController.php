@@ -184,6 +184,12 @@ class TenantController extends Controller
         $latestBooking = $tenant->bookings->whereIn('status', $confirmedStatuses)->first();
         $room = $latestBooking?->room ?? $tenant->room;
 
+        $bookings = \App\Models\Booking::where('tenant_id', $tenant->id)
+            ->where('landlord_id', $landlordId)
+            ->with(['room.property'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $maintenanceRequests = \App\Models\MaintenanceRequest::where('tenant_id', $tenant->id)
             ->where('landlord_id', $landlordId)
             ->with(['property', 'booking.room'])
@@ -198,14 +204,22 @@ class TenantController extends Controller
             ->select(['booking_addons.*', 'addons.name as addon_name', 'bookings.booking_reference'])
             ->get();
 
+        $transferRequests = \App\Models\TransferRequest::where('tenant_id', $tenant->id)
+            ->where('landlord_id', $landlordId)
+            ->with(['currentRoom', 'requestedRoom.property'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return response()->json([
             'id' => $tenant->id,
             'full_name' => $tenant->first_name . ' ' . $tenant->last_name,
             'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property->title] : null,
             'tenantProfile' => $tenant->tenantProfile,
             'history' => [
+                'bookings' => $bookings,
                 'maintenance' => $maintenanceRequests,
-                'addons' => $addonRequests
+                'addons' => $addonRequests,
+                'transfers' => $transferRequests,
             ]
         ]);
     }

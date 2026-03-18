@@ -22,6 +22,7 @@ import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import PriceRow from '../../components/Shared/PriceRow';
+import toast from 'react-hot-toast';
 
 export default function TenantLogs() {
   const { id } = useParams();
@@ -45,8 +46,76 @@ export default function TenantLogs() {
   
   const [activeTab, setActiveTab] = useState('payments'); // 'payments', 'bookings', 'maintenance', 'addons'
   const [paymentFilter, setPaymentFilter] = useState('all'); 
-  const [paymentSort, setPaymentSort] = useState({ key: 'date', dir: 'desc' });
+  const [paymentSort] = useState({ key: 'date', dir: 'desc' });
   const [paymentGroup, setPaymentGroup] = useState('none'); 
+  const [handlingTransferId, setHandlingTransferId] = useState(null);
+  const [transferForms, setTransferForms] = useState({});
+
+  const updateTransferForm = (transferId, patch) => {
+    setTransferForms((prev) => ({
+      ...prev,
+      [transferId]: {
+        ...(prev[transferId] || {
+          damage_charge: '',
+          damage_description: '',
+          landlord_notes: '',
+        }),
+        ...patch,
+      },
+    }));
+  };
+
+  const getTransferForm = (transferId) => {
+    return transferForms[transferId] || {
+      damage_charge: '',
+      damage_description: '',
+      landlord_notes: '',
+    };
+  };
+
+  const handleTransferAction = async (transfer, action) => {
+    const form = getTransferForm(transfer.id);
+    const damageCharge = Number(form.damage_charge || 0);
+
+    if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
+      toast.error('Damage description is required when damage charge is set.');
+      return;
+    }
+
+    const payload = {
+      action,
+      landlord_notes: String(form.landlord_notes || '').trim() || undefined,
+      damage_charge: damageCharge > 0 ? damageCharge : undefined,
+      damage_description:
+        damageCharge > 0 ? String(form.damage_description || '').trim() : undefined,
+    };
+
+    setHandlingTransferId(transfer.id);
+    try {
+      await api.patch(`/landlord/transfers/${transfer.id}/handle`, payload);
+
+      const nextStatus = action === 'approve' ? 'approved' : 'rejected';
+      setHistoryData((prev) => ({
+        ...prev,
+        transfers: (prev.transfers || []).map((item) =>
+          item.id === transfer.id
+            ? {
+                ...item,
+                status: nextStatus,
+                handled_at: new Date().toISOString(),
+                landlord_notes: payload.landlord_notes || item.landlord_notes || null,
+              }
+            : item,
+        ),
+      }));
+
+      toast.success(`Transfer ${nextStatus} successfully.`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update transfer request.');
+    } finally {
+      setHandlingTransferId(null);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -123,10 +192,10 @@ export default function TenantLogs() {
                     id: booking.room.id
                   });
                 }
-              } catch (e) { /* ignore */ }
+              } catch { /* ignore */ }
             }
           }
-        } catch (e) {
+        } catch {
           setPayments([]);
         }
 
@@ -136,7 +205,7 @@ export default function TenantLogs() {
           previousPayments: paid, 
           dueAmount: dueSumCents / 100, 
           currentRoom: tenantData?.room || null,
-          historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [] }
+          historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [], transfers: [] }
         };
         updateData(cacheKey, combined);
         cacheManager.set(cacheKey, combined);
@@ -200,7 +269,7 @@ export default function TenantLogs() {
 
   function formatDate(d) {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString(); } catch (e) { return d; }
+    try { return new Date(d).toLocaleDateString(); } catch { return d; }
   }
 
   if (loading) return (
@@ -505,6 +574,53 @@ export default function TenantLogs() {
                         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg text-xs text-gray-600 dark:text-gray-400 italic mb-2">
                           "{req.reason}"
                         </div>
+                        {req.status === 'pending' && (
+                          <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 space-y-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={getTransferForm(req.id).damage_charge}
+                                onChange={(e) => updateTransferForm(req.id, { damage_charge: e.target.value })}
+                                placeholder="Damage charge (optional)"
+                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                              />
+                              <input
+                                type="text"
+                                value={getTransferForm(req.id).damage_description}
+                                onChange={(e) => updateTransferForm(req.id, { damage_description: e.target.value })}
+                                placeholder="Damage description"
+                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                              />
+                            </div>
+                            <textarea
+                              value={getTransferForm(req.id).landlord_notes}
+                              onChange={(e) => updateTransferForm(req.id, { landlord_notes: e.target.value })}
+                              placeholder="Landlord notes (optional)"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-20 resize-none"
+                            />
+
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleTransferAction(req, 'reject')}
+                                disabled={handlingTransferId === req.id}
+                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Reject
+                              </button>
+                              <button
+                                onClick={() => handleTransferAction(req, 'approve')}
+                                disabled={handlingTransferId === req.id}
+                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Approve
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
                           <span>Requested: {formatDate(req.created_at)}</span>
                           {req.handled_at && <span>Handled: {formatDate(req.handled_at)}</span>}

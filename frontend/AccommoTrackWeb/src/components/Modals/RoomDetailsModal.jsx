@@ -29,6 +29,36 @@ export default function RoomDetailsModal({
 }) {
   if (!room) return null;
 
+  const toMoneyNumber = (value, fallback = 0) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : fallback;
+    }
+    if (typeof value === "string") {
+      const sanitized = value.replace(/[^\d.-]/g, "");
+      const parsed = parseFloat(sanitized);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+  };
+
+  const formatMoney = (value) => {
+    const amount = toMoneyNumber(value, 0);
+    return `₱${amount.toLocaleString()}`;
+  };
+
+  const billingPolicy = String(room.billing_policy || "monthly").toLowerCase();
+  const monthlyRate = toMoneyNumber(
+    room.monthly_rate ?? room.monthlyRate ?? room.price,
+    0,
+  );
+  const dailyRate = toMoneyNumber(
+    room.daily_rate ?? room.dailyRate,
+    monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0,
+  );
+
+  const primaryRate = billingPolicy === "daily" ? dailyRate : monthlyRate;
+  const primaryRateLabel = billingPolicy === "daily" ? "Daily Rate" : "Monthly Rate";
+
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [bedCount, setBedCount] = useState(1);
@@ -146,9 +176,9 @@ export default function RoomDetailsModal({
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    const monthly = Number(room.monthly_rate) || 0;
-    const daily = Number(room.daily_rate) || Math.round(monthly / 30) || 0;
-    const policy = room.billing_policy || "monthly";
+    const monthly = monthlyRate;
+    const daily = dailyRate;
+    const policy = billingPolicy;
 
     const months = Math.floor(diffDays / 30);
     const extraDays = diffDays % 30;
@@ -299,6 +329,38 @@ export default function RoomDetailsModal({
     return typeMap[room.room_type] || (room.room_type ? room.room_type.charAt(0).toUpperCase() + room.room_type.slice(1) : 'Room');
   };
 
+  const getGenderRestrictionMeta = (restriction) => {
+    const normalized = String(restriction || "mixed").toLowerCase().trim();
+
+    if (normalized === "male" || normalized === "boy" || normalized === "boys") {
+      return {
+        label: "Boys Only",
+        className:
+          "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800",
+      };
+    }
+
+    if (
+      normalized === "female" ||
+      normalized === "girl" ||
+      normalized === "girls"
+    ) {
+      return {
+        label: "Girls Only",
+        className:
+          "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-800",
+      };
+    }
+
+    return {
+      label: "Mixed",
+      className:
+        "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600",
+    };
+  };
+
+  const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
+
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -390,6 +452,10 @@ export default function RoomDetailsModal({
                           Billing
                         </span>
                       </div>
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-sm ${genderMeta.className}`}>
+                        <Info className="w-4 h-4" />
+                        <span>{genderMeta.label}</span>
+                      </div>
                     </div>
 
                     <div>
@@ -468,9 +534,9 @@ export default function RoomDetailsModal({
             {/* Sticky Action Footer */}
             <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shrink-0 flex justify-between items-center">
               <div className="text-gray-900 dark:text-white">
-                <p className="text-sm font-medium">Monthly Rate</p>
+                <p className="text-sm font-medium">{primaryRateLabel}</p>
                 <p className="text-xl font-bold text-green-700 dark:text-green-400">
-                  ₱{Number(room.monthly_rate).toLocaleString()}
+                  {formatMoney(primaryRate)}
                 </p>
               </div>
               {isAuthenticated ? (
@@ -588,19 +654,19 @@ export default function RoomDetailsModal({
                     <div className="flex justify-between items-end">
                       <div>
                         <p className="text-sm text-green-800 dark:text-green-300 font-medium">
-                          Monthly Rate
+                          {primaryRateLabel}
                         </p>
                         <p className="text-2xl font-bold text-green-700 dark:text-green-400">
-                          ₱{Number(room.monthly_rate).toLocaleString()}
+                          {formatMoney(primaryRate)}
                         </p>
                       </div>
-                      {room.daily_rate && (
+                      {billingPolicy !== "daily" && dailyRate > 0 && (
                         <div className="text-right">
                           <p className="text-xs text-green-600 dark:text-green-400">
                             Daily Rate
                           </p>
                           <p className="text-lg font-semibold text-green-700 dark:text-green-300">
-                            ₱{Number(room.daily_rate).toLocaleString()}
+                            {formatMoney(dailyRate)}
                           </p>
                         </div>
                       )}

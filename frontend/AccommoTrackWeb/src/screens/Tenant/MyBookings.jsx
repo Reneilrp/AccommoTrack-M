@@ -1541,7 +1541,20 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [roomsMessage, setRoomsMessage] = useState('');
-  const [formData, setFormData] = useState({ requested_room_id: '', reason: '' });
+  const [formData, setFormData] = useState({
+    requested_room_id: '',
+    reason: '',
+    booking_id: booking?.id || '',
+    property_id: property?.id || '',
+  });
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      booking_id: booking?.id || '',
+      property_id: property?.id || '',
+    }));
+  }, [booking?.id, property?.id]);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -1549,7 +1562,10 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
       setRoomsMessage('');
       try {
         const res = await api.get('/tenant/transfers/options', {
-          params: { property_id: property.id }
+          params: {
+            property_id: property.id,
+            booking_id: booking.id,
+          }
         });
         const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
         setAvailableRooms(list.filter(r => r.id !== booking.room_id));
@@ -1565,11 +1581,11 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
       }
     };
     fetchRooms();
-  }, [property.id, booking.room_id]);
+  }, [property.id, booking.id, booking.room_id]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.requested_room_id || !formData.reason) {
+    if (!formData.requested_room_id || !formData.reason || !formData.booking_id || !formData.property_id) {
       toast.error('Please select a room and provide a reason');
       return;
     }

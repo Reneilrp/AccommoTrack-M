@@ -11,7 +11,7 @@ export const mapRoom = (room) => {
     try {
       const parsed = JSON.parse(room.amenities);
       if (Array.isArray(parsed)) parsedAmenities = parsed;
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   const status = (room.status || 'available').toString().trim().toLowerCase();
@@ -20,6 +20,7 @@ export const mapRoom = (room) => {
     id: room.id,
     name: room.room_type || room.type_label || 'Room',
     room_number: room.room_number,
+    gender_restriction: room.gender_restriction || room.genderRestriction || 'mixed',
     floor: room.floor,
     floor_label: room.floor_label,
     raw_capacity: room.capacity,
