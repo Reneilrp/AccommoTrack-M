@@ -97,7 +97,7 @@ class TenantDashboardController extends Controller
             }
 
             $stays = $bookings->map(function ($booking) use ($tenantId) {
-                $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')->whereIn('pivot.status', ['active'])->sum(fn ($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
+                $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')->whereIn('pivot.status', ['active', 'approved'])->sum(fn ($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
                 
                 // For multiple stays, we might want to fetch available addons per property
                 // But for now let's use the standard service call which finds the "first" active booking context

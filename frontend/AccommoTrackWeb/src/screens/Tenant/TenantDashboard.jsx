@@ -62,11 +62,13 @@ const TenantDashboard = () => {
     window.addEventListener('focus', handleFocusRefresh);
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
     window.addEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+    const interval = setInterval(fetchDashboardData, 30000);
 
     return () => {
       window.removeEventListener('focus', handleFocusRefresh);
       document.removeEventListener('visibilitychange', handleVisibilityRefresh);
       window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+      clearInterval(interval);
     };
   }, []);
 

@@ -949,7 +949,7 @@ export default function Payments() {
         {/* Manage Payment Modal */}
         {showInvoiceModal && selectedInvoice && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
               <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
                 <div>
                   <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">
@@ -1058,6 +1058,11 @@ export default function Payments() {
                         <p className="font-bold text-gray-900 dark:text-white">₱{(REFUND_FIXED_PENALTY_CENTS / 100).toLocaleString()}</p>
                       </div>
                     </div>
+                    {selectedStayProgress.refundableDays > 0 && (
+                      <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                        Refundable days show stay eligibility. Final refundable amount still depends on prior refunds and fixed penalty.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -1228,7 +1233,6 @@ export default function Payments() {
                               (tx.refunded_amount_cents ?? 0) >=
                                 tx.amount_cents;
                             const isPartiallyRefunded = !alreadyRefunded && (tx.refunded_amount_cents ?? 0) > 0;
-                            const noRefundLeft = Number(preview?.maxRefundableCents || 0) <= 0;
 
                             return (
                               <div
@@ -1257,7 +1261,7 @@ export default function Payments() {
                                   </p>
                                   {!alreadyRefunded && (
                                     <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                      Max refundable now: ₱{((preview?.maxRefundableCents || 0) / 100).toLocaleString()}
+                                      Estimated refundable now: ₱{((preview?.maxRefundableCents || 0) / 100).toLocaleString()}
                                     </p>
                                   )}
                                 </div>
@@ -1268,7 +1272,7 @@ export default function Payments() {
                                 ) : (
                                   <button
                                     onClick={() => openRefundConfirm(tx)}
-                                    disabled={isRefunding === tx.id || noRefundLeft}
+                                    disabled={isRefunding === tx.id}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
                                   >
                                     {isRefunding === tx.id ? (
@@ -1276,7 +1280,7 @@ export default function Payments() {
                                     ) : (
                                       <RotateCcw className="w-3 h-3" />
                                     )}
-                                    {noRefundLeft ? "No Refund Left" : "Refund"}
+                                    Refund
                                   </button>
                                 )}
                               </div>
@@ -1336,6 +1340,10 @@ export default function Payments() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-700">
               {(() => {
+                const txRemainingCents = Math.max(
+                  0,
+                  Number(refundConfirmTx?.amount_cents || 0) - Number(refundConfirmTx?.refunded_amount_cents || 0),
+                );
                 const maxRefundableCents = Number(
                   refundConfirmTx?.refund_preview?.maxRefundableCents || 0,
                 );
@@ -1343,7 +1351,7 @@ export default function Payments() {
                 const isInvalidAmount =
                   Number.isNaN(requestedCents) ||
                   requestedCents <= 0 ||
-                  requestedCents > maxRefundableCents;
+                  requestedCents > txRemainingCents;
 
                 return (
                   <>
@@ -1356,7 +1364,7 @@ export default function Payments() {
                     Confirm Refund
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Enter an amount up to the current refundable cap.
+                    Enter an amount to refund for this transaction.
                   </p>
                 </div>
               </div>
@@ -1377,13 +1385,16 @@ export default function Payments() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Max refundable now: <span className="font-bold text-gray-900 dark:text-white">₱{(maxRefundableCents / 100).toLocaleString()}</span>
+                  Estimated refundable now: <span className="font-bold text-gray-900 dark:text-white">₱{(maxRefundableCents / 100).toLocaleString()}</span>
                 </p>
                 {isInvalidAmount && (
                   <p className="text-xs text-red-600 dark:text-red-400">
-                    Enter an amount greater than 0 and not higher than the max refundable value.
+                    Enter an amount greater than 0 and not higher than the remaining transaction amount.
                   </p>
                 )}
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Final validation is enforced by backend refund policy.
+                </p>
               </div>
 
               <div className="flex gap-3">

@@ -192,14 +192,18 @@ const MyBookings = () => {
       }
     };
 
+    const hasLiveStayTab = activeTab === 'current' || activeTab === 'financials';
+
     window.addEventListener('focus', handleFocusRefresh);
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
     window.addEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+    const interval = hasLiveStayTab ? setInterval(fetchData, 30000) : null;
 
     return () => {
       window.removeEventListener('focus', handleFocusRefresh);
       document.removeEventListener('visibilitychange', handleVisibilityRefresh);
       window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+      if (interval) clearInterval(interval);
     };
   }, [activeTab, invalidateTenantStayCache]);
 
@@ -1535,16 +1539,26 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
 const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading }) => {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
+  const [roomsMessage, setRoomsMessage] = useState('');
   const [formData, setFormData] = useState({ requested_room_id: '', reason: '' });
 
   useEffect(() => {
     const fetchRooms = async () => {
+      setLoadingRooms(true);
+      setRoomsMessage('');
       try {
-        const res = await api.get(`/rooms/property/${property.id}`);
+        const res = await api.get('/tenant/transfers/options', {
+          params: { property_id: property.id }
+        });
         const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
-        setAvailableRooms(list.filter(r => r.status === 'available' && r.id !== booking.room_id));
+        setAvailableRooms(list.filter(r => r.id !== booking.room_id));
+        if (list.length === 0 && res.data?.message) {
+          setRoomsMessage(res.data.message);
+        }
       } catch (err) {
         console.error('Failed to load rooms for transfer', err);
+        setAvailableRooms([]);
+        setRoomsMessage(err.response?.data?.message || 'Unable to load transfer room options right now.');
       } finally {
         setLoadingRooms(false);
       }
@@ -1593,7 +1607,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
               ))}
             </select>
             {availableRooms.length === 0 && !loadingRooms && (
-              <p className="text-[10px] text-red-500 mt-1 font-bold italic">No other available rooms in this property at the moment.</p>
+              <p className="text-[10px] text-red-500 mt-1 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
             )}
           </div>
 

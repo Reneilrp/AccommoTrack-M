@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\RoomResource;
 use App\Models\Booking;
 use App\Models\TransferRequest;
 use App\Models\Room;
@@ -11,9 +12,67 @@ use Illuminate\Support\Facades\Auth;
 
 class TransferController extends Controller
 {
+    public function options(Request $request)
+    {
+        $tenant = Auth::user();
+        $tenantId = $tenant?->id;
+
+        if (!$tenantId) {
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $activeBooking = Booking::where('tenant_id', $tenantId)
+            ->whereIn('status', ['confirmed', 'active'])
+            ->with('room')
+            ->first();
+
+        if (!$activeBooking) {
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'message' => 'No active booking found to transfer from.',
+            ], 422);
+        }
+
+        if (!$this->hasTransferEligibleGender($tenant)) {
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'message' => 'Please complete your profile gender before requesting a room transfer.',
+            ], 422);
+        }
+
+        $rooms = Room::where('property_id', $activeBooking->property_id)
+            ->where('id', '!=', $activeBooking->room_id)
+            ->with('tenants', 'amenities', 'images')
+            ->orderBy('room_number')
+            ->get()
+            ->filter(function (Room $room) use ($tenant) {
+                return $room->status === 'available'
+                    && $room->available_slots > 0
+                    && $this->isRoomGenderCompatible($room, $tenant);
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => RoomResource::collection($rooms)->resolve(),
+            'message' => 'Eligible transfer rooms fetched successfully.',
+        ]);
+    }
+
     public function store(Request $request)
     {
-        $tenantId = Auth::id();
+        $tenant = Auth::user();
+        $tenantId = $tenant?->id;
+
+        if (!$tenantId) {
+            return response()->json(['message' => 'Unauthorized.'], 401);
+        }
         
         // Find active room assignment or confirmed booking
         $activeBooking = Booking::where('tenant_id', $tenantId)
@@ -23,6 +82,10 @@ class TransferController extends Controller
 
         if (!$activeBooking) {
             return response()->json(['message' => 'No active booking found to transfer from.'], 422);
+        }
+
+        if (!$this->hasTransferEligibleGender($tenant)) {
+            return response()->json(['message' => 'Please complete your profile gender before requesting a room transfer.'], 422);
         }
 
         $validated = $request->validate([
@@ -39,6 +102,10 @@ class TransferController extends Controller
 
         if (!$requestedRoom->isAvailable() || $requestedRoom->available_slots <= 0) {
             return response()->json(['message' => 'The requested room is not available.'], 422);
+        }
+
+        if (!$this->isRoomGenderCompatible($requestedRoom, $tenant)) {
+            return response()->json(['message' => 'The requested room is not compatible with your gender restriction.'], 422);
         }
 
         // Check for existing pending request
@@ -60,6 +127,43 @@ class TransferController extends Controller
         ]);
 
         return response()->json($transferRequest, 201);
+    }
+
+    private function hasTransferEligibleGender($tenant): bool
+    {
+        $gender = $this->normalizeTenantGender($tenant?->gender);
+        return in_array($gender, ['male', 'female'], true);
+    }
+
+    private function normalizeTenantGender(?string $gender): ?string
+    {
+        if (!$gender) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($gender));
+
+        return match ($normalized) {
+            'male', 'boy', 'boys' => 'male',
+            'female', 'girl', 'girls' => 'female',
+            default => null,
+        };
+    }
+
+    private function isRoomGenderCompatible(Room $room, $tenant): bool
+    {
+        $tenantGender = $this->normalizeTenantGender($tenant?->gender);
+        $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
+
+        if (!$tenantGender) {
+            return false;
+        }
+
+        if ($roomRestriction === 'mixed') {
+            return true;
+        }
+
+        return $roomRestriction === $tenantGender;
     }
 
     public function index()
