@@ -107,6 +107,9 @@ const TenantDashboard = () => {
     ? stayData.stays.reduce((total, stay) => total + (stay.addons?.monthlyTotal || stay.addons?.monthly_total || 0), 0)
     : 0;
   const totalMonthlySummary = totalMonthlyRent + totalMonthlyAddons;
+  const totalDaysStayed = hasActiveStays
+    ? stayData.stays.reduce((total, stay) => total + (stay.booking?.daysStayed || stay.booking?.days_stayed || 0), 0)
+    : 0;
 
   return (
     <div className="space-y-6 font-sans max-w-6xl mx-auto">
@@ -131,7 +134,7 @@ const TenantDashboard = () => {
             <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {stayData?.hasActiveStay ? (stayData.booking?.daysStayed ?? 0) : '0'}
+            {totalDaysStayed}
           </p>
           <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Days Stayed</p>
         </div>

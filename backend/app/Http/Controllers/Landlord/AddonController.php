@@ -332,7 +332,7 @@ class AddonController extends Controller
                 ->join('rooms', 'bookings.room_id', '=', 'rooms.id')
                 ->where('addons.property_id', $propertyId)
                 ->whereIn('booking_addons.status', ['active', 'approved'])
-                ->where('bookings.status', 'confirmed')
+                ->whereIn('bookings.status', ['confirmed', 'completed', 'partial-completed'])
                 ->select([
                     'booking_addons.id as request_id',
                     'booking_addons.booking_id',

@@ -28,6 +28,7 @@ const AddonManagement = ({ propertyId }) => {
     cachedData?.activeAddons || { activeAddons: [], summary: {} },
   );
   const [loading, setLoading] = useState(!cachedData);
+  const [togglingAddonId, setTogglingAddonId] = useState(null);
   const [activeTab, setActiveTab] = useState("manage"); // 'manage', 'requests', 'active'
   const [showModal, setShowModal] = useState(false);
   const [editingAddon, setEditingAddon] = useState(null);
@@ -109,6 +110,23 @@ const AddonManagement = ({ propertyId }) => {
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete addon");
+    }
+  };
+
+  const handleToggleActive = async (addon) => {
+    setTogglingAddonId(addon.id);
+    try {
+      await addonService.updateAddon(propertyId, addon.id, {
+        is_active: !addon.isActive,
+      });
+      toast.success(
+        addon.isActive ? "Add-on deactivated" : "Add-on activated",
+      );
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update add-on");
+    } finally {
+      setTogglingAddonId(null);
     }
   };
 
@@ -253,6 +271,8 @@ const AddonManagement = ({ propertyId }) => {
             addons={addons}
             onEdit={openEditModal}
             onDelete={handleDelete}
+            onToggleActive={handleToggleActive}
+            togglingAddonId={togglingAddonId}
           />
         )}
         {activeTab === "requests" && (
@@ -279,7 +299,7 @@ const AddonManagement = ({ propertyId }) => {
 };
 
 // ==================== Manage Tab ====================
-const ManageTab = ({ addons, onEdit, onDelete }) => {
+const ManageTab = ({ addons, onEdit, onDelete, onToggleActive, togglingAddonId }) => {
   if (addons.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -351,6 +371,24 @@ const ManageTab = ({ addons, onEdit, onDelete }) => {
               )}
             </div>
             <div className="flex gap-1 ml-2">
+              <button
+                onClick={() => onToggleActive(addon)}
+                disabled={togglingAddonId === addon.id}
+                title={addon.isActive ? "Deactivate add-on" : "Activate add-on"}
+                className={`p-2 rounded-lg transition-colors disabled:opacity-60 ${
+                  addon.isActive
+                    ? "text-gray-400 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                    : "text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                }`}
+              >
+                {togglingAddonId === addon.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : addon.isActive ? (
+                  <X className="w-4 h-4" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+              </button>
               <button
                 onClick={() => onEdit(addon)}
                 className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"

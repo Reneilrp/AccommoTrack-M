@@ -579,6 +579,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
           {(() => {
             const data = stays[selectedIndex] || stays[0];
             const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
+            const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -772,12 +773,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       </div>
                     )}
 
-                    {addons.monthlyTotal > 0 && (
+                    {addonMonthlyTotal > 0 && (
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
                         <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
                           {booking.billing_policy === 'daily' ? 'Daily Add-on Fees' : 'Monthly Add-on Fees'}
                         </span>
-                        <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addons.monthlyTotal.toLocaleString()}</span>
+                        <span className="text-lg font-bold text-green-600 dark:text-green-400">+₱{addonMonthlyTotal.toLocaleString()}</span>
                       </div>
                     )}
                   </div>
@@ -833,14 +834,14 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <span className="text-gray-500 dark:text-gray-400">
                           {booking.billing_policy === 'daily' ? 'Daily Add-ons' : 'Monthly Add-ons'}
                         </span>
-                        <span className="font-bold text-gray-900 dark:text-white">₱{addons.monthlyTotal.toLocaleString()}</span>
+                        <span className="font-bold text-gray-900 dark:text-white">₱{addonMonthlyTotal.toLocaleString()}</span>
                       </div>
                       <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
                         <span className="font-bold text-gray-900 dark:text-white">
                           {booking.billing_policy === 'daily' ? 'Daily Total' : 'Monthly Total'}
                         </span>
                         <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                          ₱{((booking.unit_price || booking.monthlyRent || 0) + addons.monthlyTotal).toLocaleString()}
+                          ₱{((booking.unit_price || booking.monthlyRent || 0) + addonMonthlyTotal).toLocaleString()}
                         </span>
                       </div>
                     </div>
