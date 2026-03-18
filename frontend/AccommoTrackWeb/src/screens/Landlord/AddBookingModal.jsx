@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Calendar, Building2, Home, Loader2, Info } from 'lucide-react';
+import { X, Calendar, Building2, Home, Loader2, Info, UserSearch } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -12,8 +12,16 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     const [rooms, setRooms] = useState([]);
     const [pricingPreview, setPricingPreview] = useState(null);
 
+    // --- Guest Search State ---
+    const [guestSearch, setGuestSearch] = useState('');
+    const [isSearchingGuests, setIsSearchingGuests] = useState(false);
+    const [guestResults, setGuestResults] = useState([]);
+    const [selectedGuest, setSelectedGuest] = useState(null);
+    const [isGuestInputFocused, setIsGuestInputFocused] = useState(false);
+
     const [formData, setFormData] = useState({
-      guestName: '',
+      guestName: '', // For new, non-registered guests
+      guestId: null, // For existing, registered tenants
       propertyId: '',
       roomId: '',
       checkIn: '',
@@ -30,6 +38,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         // Reset form when closed
         setFormData({
           guestName: '',
+          guestId: null,
           propertyId: '',
           roomId: '',
           checkIn: '',
@@ -39,8 +48,43 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           notes: ''
         });
         setPricingPreview(null);
+        setGuestSearch('');
+        setGuestResults([]);
+        setSelectedGuest(null);
+        setIsGuestInputFocused(false);
       }
     }, [isOpen]);
+
+    // Debounced search for guests
+    useEffect(() => {
+        if (!guestSearch || guestSearch.trim().length < 2) {
+            setGuestResults([]);
+            return;
+        }
+
+        const searchGuests = async () => {
+            setIsSearchingGuests(true);
+            try {
+                // Assuming an endpoint exists to search for users
+                const res = await api.get('/users/search', { params: { query: guestSearch } });
+                setGuestResults(res.data.users || []);
+            } catch (err) {
+                console.error('Failed to search for guests', err);
+                setGuestResults([]); // Clear results on error
+            } finally {
+                setIsSearchingGuests(false);
+            }
+        };
+
+        const debounceTimeout = setTimeout(() => {
+            if (!selectedGuest) { // Don't search if a guest has been selected
+                searchGuests();
+            }
+        }, 300);
+
+        return () => clearTimeout(debounceTimeout);
+    }, [guestSearch, selectedGuest]);
+
 
     const loadProperties = async () => {
       try {
@@ -109,7 +153,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       e.preventDefault();
       setError('');
       
-      if (!formData.guestName || !formData.roomId || !formData.checkIn || !formData.checkOut) {
+      if ((!selectedGuest && !formData.guestName) || !formData.roomId || !formData.checkIn || !formData.checkOut) {
         setError('Please fill in all required fields.');
         return;
       }
@@ -127,13 +171,20 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
       setLoading(true);
       try {
-        await api.post('/bookings', {
+        const payload = {
           room_id: formData.roomId,
-          guest_name: formData.guestName,
           start_date: formData.checkIn,
           end_date: formData.checkOut,
           notes: formData.notes,
-        });
+        };
+
+        if (selectedGuest) {
+          payload.guest_id = selectedGuest.id;
+        } else {
+          payload.guest_name = formData.guestName;
+        }
+        
+        await api.post('/bookings', payload);
         
         toast.success('Booking added successfully!');
         if (onBookingAdded) onBookingAdded();
@@ -180,14 +231,45 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
           <div>
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Guest / Tenant Name</label>
-            <input
-              type="text"
-              required
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all"
-              value={formData.guestName}
-              onChange={e => setFormData({ ...formData, guestName: e.target.value })}
-              placeholder="e.g. John Doe"
-            />
+            <div className="relative">
+              <UserSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                required
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all"
+                value={guestSearch}
+                onChange={e => {
+                  setGuestSearch(e.target.value);
+                  setSelectedGuest(null); // Clear selection on manual change
+                  setFormData(prev => ({...prev, guestName: e.target.value, guestId: null}));
+                }}
+                onFocus={() => setIsGuestInputFocused(true)}
+                onBlur={() => setTimeout(() => setIsGuestInputFocused(false), 150)} // Delay to allow click on results
+                placeholder="Search existing tenant or enter new name"
+              />
+              {isSearchingGuests && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-gray-400" />}
+              
+              {isGuestInputFocused && guestResults.length > 0 && !selectedGuest && (
+                <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {guestResults.map(user => (
+                    <li
+                      key={user.id}
+                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-50 dark:border-gray-600/50 last:border-0"
+                      onClick={() => {
+                        setSelectedGuest(user);
+                        setGuestSearch(user.name);
+                        setFormData({ ...formData, guestName: user.name, guestId: user.id });
+                        setGuestResults([]);
+                        setIsGuestInputFocused(false);
+                      }}
+                    >
+                      <p className="font-semibold text-gray-800 dark:text-white">{user.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

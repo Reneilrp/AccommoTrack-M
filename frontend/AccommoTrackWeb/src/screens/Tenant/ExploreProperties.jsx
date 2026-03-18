@@ -14,6 +14,7 @@ import {
   Filter,
   Map,
   Play,
+  SlidersHorizontal,
 } from "lucide-react";
 import api, { getImageUrl } from "../../utils/api";
 import { Skeleton } from "../../components/Shared/Skeleton";
@@ -46,6 +47,15 @@ const ExploreProperties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [debouncedSearch, setDebouncedSearch] = useState(search || "");
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    priceMin: "",
+    priceMax: "",
+    availabilityOnly: false,
+    amenities: [],
+    rating: 0,
+  });
 
   // Search & Pagination helpers
   const pageSize = 5;
@@ -86,6 +96,12 @@ const ExploreProperties = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+
+  const activeFilterCount =
+    (advancedFilters.priceMin || advancedFilters.priceMax ? 1 : 0) +
+    (advancedFilters.availabilityOnly ? 1 : 0) +
+    (advancedFilters.rating > 0 ? 1 : 0) +
+    (advancedFilters.amenities.length > 0 ? 1 : 0);
 
   const openFullGallery = (property) => {
     if (!property) return;
@@ -147,12 +163,30 @@ const ExploreProperties = () => {
     fetchPropertyReviews(property.id);
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search || "");
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Fetch properties from backend
   useEffect(() => {
     const fetchProperties = async () => {
       setLoading(true);
       try {
-        const data = await propertyService.getAllProperties();
+        const params = {
+          search: debouncedSearch,
+          type: selectedType === "All" ? "" : selectedType,
+          price_min: advancedFilters.priceMin || undefined,
+          price_max: advancedFilters.priceMax || undefined,
+          availability: advancedFilters.availabilityOnly ? "1" : undefined,
+          min_rating: advancedFilters.rating > 0 ? advancedFilters.rating : undefined,
+          amenities: advancedFilters.amenities,
+        };
+
+        const data = await propertyService.getAllProperties(params);
         setProperties(data);
       } catch (err) {
         console.error("Error fetching properties:", err?.response?.data || err);
@@ -163,30 +197,22 @@ const ExploreProperties = () => {
     };
 
     fetchProperties();
-  }, []);
+  }, [debouncedSearch, selectedType, advancedFilters]);
 
   const safeProperties = Array.isArray(properties) ? properties : [];
 
   const mapDisplayProperties = safeProperties.map(mapProperty).filter(Boolean);
 
-  // Filtering
-  const filteredProperties = mapDisplayProperties.filter((p) => {
-    // Type Filter (Case Insensitive)
-    if (
-      selectedType !== "All" &&
-      p.type.toLowerCase() !== selectedType.toLowerCase()
-    ) {
-      return false;
-    }
+  // Filtering is handled by backend query params.
+  const filteredProperties = mapDisplayProperties;
 
-    // Search Filter
-    const term = search.toLowerCase();
-    const inName = p.name.toLowerCase().includes(term);
-    const inType = p.type.toLowerCase().includes(term);
-    const inLocation = p.location.toLowerCase().includes(term);
-    const inRooms = p.rooms.some((r) => r.name.toLowerCase().includes(term));
-    return inName || inType || inLocation || inRooms;
-  });
+  const availableAmenities = Array.from(
+    new Set(
+      safeProperties.flatMap((property) =>
+        Array.isArray(property.amenities_list) ? property.amenities_list : [],
+      ),
+    ),
+  );
 
   // Type-ahead Suggestions
   const searchSuggestions =
@@ -352,6 +378,19 @@ const ExploreProperties = () => {
               </div>
 
               <button
+                onClick={() => setShowFilterModal(true)}
+                className="relative p-2.5 md:p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
+                aria-label="Open Filters"
+              >
+                <SlidersHorizontal className="w-5 h-5 md:w-6 md:h-6 group-hover:text-green-600 transition-colors" />
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={() =>
                   updateScreenState("explore", { showMapModal: true })
                 }
@@ -441,13 +480,26 @@ const ExploreProperties = () => {
         {!loading && filteredProperties.length === 0 && (
           <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md">
             <p className="text-gray-400 dark:text-gray-500 text-lg font-medium">
-              No properties found matching your search.
+              No properties found matching your filters.
             </p>
             <button
-              onClick={() => updateScreenState("explore", { search: "" })}
+              onClick={() => {
+                updateScreenState("explore", {
+                  search: "",
+                  selectedType: "All",
+                  currentPage: 1,
+                });
+                setAdvancedFilters({
+                  priceMin: "",
+                  priceMax: "",
+                  availabilityOnly: false,
+                  amenities: [],
+                  rating: 0,
+                });
+              }}
               className="mt-4 text-green-600 dark:text-green-500 font-bold hover:underline"
             >
-              Clear search
+              Clear all filters
             </button>
           </div>
         )}
@@ -1240,7 +1292,207 @@ const ExploreProperties = () => {
         </div>
       )}
 
+      {showFilterModal && (
+        <FilterModal
+          filters={advancedFilters}
+          amenities={availableAmenities}
+          onApply={(nextFilters) => {
+            setAdvancedFilters(nextFilters);
+            updateScreenState("explore", { currentPage: 1 });
+            setShowFilterModal(false);
+          }}
+          onClose={() => setShowFilterModal(false)}
+        />
+      )}
+
       <Footer />
+    </div>
+  );
+};
+
+const FilterModal = ({ filters, amenities, onApply, onClose }) => {
+  const [localFilters, setLocalFilters] = useState(filters);
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
+
+  const fallbackAmenities = [
+    "WiFi",
+    "Air Conditioning",
+    "Parking",
+    "Kitchen",
+    "Balcony",
+    "Security",
+  ];
+
+  const amenityOptions =
+    Array.isArray(amenities) && amenities.length > 0
+      ? amenities
+      : fallbackAmenities;
+
+  const toggleAmenity = (amenity) => {
+    setLocalFilters((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter((item) => item !== amenity)
+        : [...prev.amenities, amenity],
+    }));
+  };
+
+  const clearAll = () => {
+    const cleared = {
+      priceMin: "",
+      priceMax: "",
+      availabilityOnly: false,
+      amenities: [],
+      rating: 0,
+    };
+    setLocalFilters(cleared);
+    onApply(cleared);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Filter Properties
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          <div>
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+              Price Range (Monthly)
+            </h3>
+            <div className="flex items-center gap-4">
+              <input
+                type="number"
+                min="0"
+                placeholder="Min"
+                value={localFilters.priceMin}
+                onChange={(e) =>
+                  setLocalFilters((prev) => ({
+                    ...prev,
+                    priceMin: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+              />
+              <span className="text-gray-400">-</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="Max"
+                value={localFilters.priceMax}
+                onChange={(e) =>
+                  setLocalFilters((prev) => ({
+                    ...prev,
+                    priceMax: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+              Availability
+            </h3>
+            <button
+              type="button"
+              onClick={() =>
+                setLocalFilters((prev) => ({
+                  ...prev,
+                  availabilityOnly: !prev.availabilityOnly,
+                }))
+              }
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+                localFilters.availabilityOnly
+                  ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                  : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              <span className="font-semibold">Show only available rooms</span>
+              {localFilters.availabilityOnly && <Check className="w-5 h-5" />}
+            </button>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+              Minimum Rating
+            </h3>
+            <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() =>
+                    setLocalFilters((prev) => ({
+                      ...prev,
+                      rating: prev.rating === star ? 0 : star,
+                    }))
+                  }
+                >
+                  <Star
+                    className={`w-8 h-8 transition-colors ${
+                      star <= localFilters.rating
+                        ? "text-yellow-400 fill-current"
+                        : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+              Amenities
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {amenityOptions.map((amenity) => (
+                <button
+                  key={amenity}
+                  type="button"
+                  onClick={() => toggleAmenity(amenity)}
+                  className={`px-4 py-3 rounded-lg text-sm font-medium border-2 transition-all ${
+                    localFilters.amenities.includes(amenity)
+                      ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                      : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {amenity}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 flex gap-3">
+          <button
+            onClick={clearAll}
+            className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+          >
+            Clear All
+          </button>
+          <button
+            onClick={() => onApply(localFilters)}
+            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
+          >
+            Apply Filters
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -171,6 +171,30 @@ class PropertyService
             });
         }
 
+        if ($request->boolean('availability')) {
+            $query->whereHas('rooms', function ($q) {
+                $q->where('status', 'available');
+            });
+        }
+
+        $amenities = $request->input('amenities', []);
+        if (is_string($amenities)) {
+            $amenities = array_filter(array_map('trim', explode(',', $amenities)));
+        }
+        if (is_array($amenities) && count($amenities) > 0) {
+            $query->whereHas('amenities', function ($q) use ($amenities) {
+                $q->whereIn('name', $amenities);
+            });
+        }
+
+        if ($request->filled('min_rating')) {
+            $minRating = (float) $request->input('min_rating');
+            $query->whereRaw(
+                '(select coalesce(avg(reviews.rating), 0) from reviews where reviews.property_id = properties.id and reviews.is_published = 1) >= ?',
+                [$minRating]
+            );
+        }
+
         return $query->with([
                 'rooms.images', 'rooms.amenities', 'images', 'landlord:id,first_name,last_name',
                 'reviews' => function($q) { $q->where('is_published', true); }

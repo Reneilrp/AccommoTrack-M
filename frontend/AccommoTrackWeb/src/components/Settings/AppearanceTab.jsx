@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { Type, Check, Sun, Moon, Monitor } from 'lucide-react';
 import { SkeletonAppearanceTab } from '../../components/Shared/Skeleton';
+import toast from 'react-hot-toast';
+import api from '../../utils/api';
 
-export default function AppearanceTab({ loading = false }) {
+export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
   const {
     fontSize,
     setFontSize,
@@ -12,6 +14,43 @@ export default function AppearanceTab({ loading = false }) {
     setTheme,
     resetPreferences,
   } = usePreferences();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const persistedAppearance = (user?.preferences && typeof user.preferences === 'object' && user.preferences.appearance)
+    ? user.preferences.appearance
+    : {};
+  const savedTheme = persistedAppearance?.theme || 'system';
+  const savedFontSize = persistedAppearance?.fontSize || 'medium';
+  const hasUnsavedChanges = theme !== savedTheme || fontSize !== savedFontSize;
+
+  const handleSavePreferences = async () => {
+    if (!hasUnsavedChanges) return;
+
+    setIsSaving(true);
+    try {
+      const currentPreferences = (user?.preferences && typeof user.preferences === 'object')
+        ? user.preferences
+        : {};
+
+      const nextPreferences = {
+        ...currentPreferences,
+        appearance: {
+          theme,
+          fontSize
+        }
+      };
+
+      const response = await api.put('/me', { preferences: nextPreferences });
+      const nextUser = response.data?.user || { ...user, preferences: nextPreferences };
+      if (onUserUpdate) onUserUpdate(nextUser);
+
+      toast.success('Appearance preferences saved');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save appearance preferences');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const themeOptions = [
     { value: 'light', label: 'Light', icon: Sun, description: 'Always use light theme' },
@@ -37,7 +76,7 @@ export default function AppearanceTab({ loading = false }) {
             Appearance Settings
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Customize how AccommoTrack looks for you. These settings are saved locally on this device.
+            Customize how AccommoTrack looks for you. Click Save Preferences to sync this to your account.
           </p>
         </div>
 
@@ -136,12 +175,19 @@ export default function AppearanceTab({ loading = false }) {
         </div>
 
         {/* Reset Button */}
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
           <button
             onClick={resetPreferences}
             className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
           >
             Reset to Defaults
+          </button>
+          <button
+            onClick={handleSavePreferences}
+            disabled={isSaving || !hasUnsavedChanges}
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSaving ? 'Saving...' : 'Save Preferences'}
           </button>
         </div>
       </div>

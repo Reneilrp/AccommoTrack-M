@@ -41,10 +41,17 @@ export function PreferencesProvider({ children }) {
     // Load from localStorage on initial render
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...DEFAULT_PREFERENCES, ...parsed };
-      }
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const backendAppearance = userData?.preferences?.appearance;
+
+      const base = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+      
+      // Merge: backend sync takes precedence if available
+      return { 
+        ...DEFAULT_PREFERENCES, 
+        ...base,
+        ...(backendAppearance || {})
+      };
     } catch (error) {
       console.error('Error loading preferences:', error);
     }

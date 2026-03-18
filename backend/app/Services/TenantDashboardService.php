@@ -39,6 +39,11 @@ class TenantDashboardService
             ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
             ->value('net_cents') ?? 0;
         
+        $latestUnpaidInvoice = Invoice::where('tenant_id', $tenantId)
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('due_date', 'asc')
+            ->first();
+
         $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
 
         $bookings = [
@@ -49,7 +54,8 @@ class TenantDashboardService
         $payments = [
             'monthlyDue' => (float)($monthlyDueCents/100), 
             'totalDue' => (float)($totalDueCents/100), 
-            'totalPaid' => (float)($totalPaidCents/100)
+            'totalPaid' => (float)($totalPaidCents/100),
+            'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null
         ];
         $notifications = [
             'unread' => $unreadNotifications

@@ -37,6 +37,7 @@ class TenantController extends Controller
             $this->ensureCaretakerCan($context, 'can_view_tenants');
 
             $propertyId = $request->query('property_id');
+            $search = trim((string) $request->query('search', ''));
             $landlordId = $context['landlord_id'];
 
             // If caretaker, ensure they only see tenants from assigned properties
@@ -85,6 +86,18 @@ class TenantController extends Controller
                 $query->where(function ($q) use ($propertyId) {
                     $q->whereHas('room', fn($q2) => $q2->where('property_id', $propertyId))
                       ->orWhereHas('bookings', fn($q2) => $q2->where('property_id', $propertyId));
+                });
+            }
+
+            if ($search !== '') {
+                $searchTerm = '%' . $search . '%';
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('first_name', 'like', $searchTerm)
+                      ->orWhere('last_name', 'like', $searchTerm)
+                      ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm])
+                      ->orWhere('email', 'like', $searchTerm)
+                      ->orWhereHas('room', fn($roomQuery) => $roomQuery->where('room_number', 'like', $searchTerm))
+                      ->orWhereHas('bookings.room', fn($roomQuery) => $roomQuery->where('room_number', 'like', $searchTerm));
                 });
             }
 

@@ -82,6 +82,7 @@ class PropertyResource extends JsonResource
             'landlord_id' => $this->landlord_id,
             'landlord' => $this->whenLoaded('landlord', fn() => [
                 'id' => $this->landlord->id,
+                'name' => $this->landlord->full_name,
                 'first_name' => $this->landlord->first_name,
                 'last_name' => $this->landlord->last_name,
                 'email' => $this->landlord->email,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { maintenanceService } from '../../services/maintenanceService';
 import { 
@@ -28,86 +28,63 @@ export default function LandlordMaintenance() {
   const [loading, setLoading] = useState(!cachedData);
   const [filterStatus, setFilterStatus] = useState(savedState.filterStatus || 'all');
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [updating, setUpdating] = useState(false);
+
+  const fetchRequests = useCallback(async (statusToLoad) => {
+    try {
+      setLoading(true);
+      const response = await maintenanceService.getLandlordRequests({ status: statusToLoad });
+      const list = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : [];
+
+      setRequests(list);
+      const nextCache = { requests: list };
+      updateData('landlord_maintenance', nextCache);
+      cacheManager.set('landlord_maintenance', nextCache);
+      return true;
+    } catch (err) {
+      console.error('Failed to fetch maintenance requests', err);
+      toast.error('Failed to load maintenance records');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [updateData]);
 
   useEffect(() => {
-    fetchRequests();
-  }, [filterStatus]);
+    fetchRequests(filterStatus);
+  }, [fetchRequests]);
 
-  const handleFilterChange = (status) => {
+  const handleFilterChange = async (status) => {
+    if (status === filterStatus || loading) return;
+    const success = await fetchRequests(status);
+    if (!success) return;
+
     setFilterStatus(status);
     updateScreenState('maintenance', { filterStatus: status });
   };
 
-    const fetchRequests = async () => {
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      await maintenanceService.updateStatus(id, newStatus);
+      toast.success(`Request marked as ${newStatus.replace('_', ' ')}`);
 
-      try {
-
-        setLoading(true);
-
-        const res = await maintenanceService.getLandlordRequests({ status: filterStatus });
-
-        setRequests(res.data || res.data?.data || []);
-
-      } catch (err) {
-
-        console.error('Failed to fetch maintenance requests', err);
-
-        toast.error('Failed to load maintenance records');
-
-      } finally {
-
-        setLoading(false);
-
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+      if (selectedRequest?.id === id) {
+        setSelectedRequest(prev => ({ ...prev, status: newStatus }));
       }
 
-    };
-
-  
-
-    const handleUpdateStatus = async (id, newStatus) => {
-
-      setUpdating(true);
-
-      try {
-
-        await maintenanceService.updateStatus(id, newStatus);
-
-        toast.success(`Request marked as ${newStatus.replace('_', ' ')}`);
-
-  
-
-        // Update local state
-
-        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
-
-        if (selectedRequest?.id === id) {
-
-          setSelectedRequest(prev => ({ ...prev, status: newStatus }));
-
-        }
-
-  
-
-        // If we're filtering, we might need to re-fetch
-
-        if (filterStatus !== 'all') fetchRequests();
-
-      } catch (err) {
-
-        toast.error('Failed to update status');
-
-      } finally {
-
-        setUpdating(false);
-
+      if (filterStatus !== 'all') {
+        await fetchRequests(filterStatus);
       }
+    } catch {
+      toast.error('Failed to update status');
+    }
+  };
 
-    };
-
-  
-
-    return (
+  return (
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 
@@ -174,6 +151,7 @@ export default function LandlordMaintenance() {
                 type="button"
 
                 onClick={() => handleFilterChange(s)}
+                disabled={loading}
 
                 className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all whitespace-nowrap ${filterStatus === s
 
@@ -181,7 +159,7 @@ export default function LandlordMaintenance() {
 
                     : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-700 hover:bg-gray-50'
 
-                  }`}
+                  } disabled:opacity-60 disabled:cursor-not-allowed`}
 
               >
 
@@ -193,7 +171,7 @@ export default function LandlordMaintenance() {
 
             <div className="flex items-center gap-2 ml-auto">
               <button
-                onClick={fetchRequests}
+                onClick={() => fetchRequests(filterStatus)}
                 disabled={loading}
                 title="Refresh"
                 className="p-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md"

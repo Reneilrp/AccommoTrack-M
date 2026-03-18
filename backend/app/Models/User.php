@@ -83,6 +83,7 @@ class User extends Authenticatable
         'is_active',
         'payment_methods_settings',
         'notification_preferences',
+        'preferences',
         'is_blocked',
         'paymongo_child_id',
         'paymongo_verification_status',
@@ -102,12 +103,14 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'payment_methods_settings' => 'array',
         'notification_preferences' => 'array',
+        'preferences' => 'array',
         'is_blocked' => 'boolean',
         'date_of_birth' => 'date',
     ];
 
     protected $appends = [
         'caretaker_permissions',
+        'name',
     ];
 
     /**
@@ -241,6 +244,14 @@ class User extends Authenticatable
     public function getFullNameAttribute()
     {
         return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+    }
+
+    /**
+     * Get name attribute as alias for full_name
+     */
+    public function getNameAttribute()
+    {
+        return $this->full_name;
     }
 
     /**

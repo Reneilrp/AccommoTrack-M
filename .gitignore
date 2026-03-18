@@ -3,3 +3,6 @@ node_modules/
 .env
 /vendor
 Diagrams
+.idea/
+repomix-output.xml
+AGENTS.md

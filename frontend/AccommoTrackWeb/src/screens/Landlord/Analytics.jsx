@@ -29,8 +29,9 @@ import { SkeletonStatCard, SkeletonChart, Skeleton } from '../../components/Shar
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import toast from 'react-hot-toast';
 
-export default function Analytics({ user }) {
+export default function Analytics() {
   const { effectiveTheme } = usePreferences();
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_analytics || cacheManager.get('landlord_analytics');
@@ -102,8 +103,42 @@ export default function Analytics({ user }) {
   }, [timeRange, selectedProperty]);
 
   // Download analytics as CSV
-  const downloadAnalyticsCSV = () => {
+  const downloadAnalyticsCSV = async () => {
     if (!analytics) return;
+
+    const defaultFilename = `AccommoTrack_Detailed_Analytics_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`;
+    const triggerCsvDownload = (blob, filename = defaultFilename) => {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    };
+
+    // Prefer server-side export when backend route exists.
+    try {
+      const params = {
+        time_range: timeRange,
+        ...(selectedProperty !== 'all' ? { property_id: selectedProperty } : {})
+      };
+      const response = await api.get('/landlord/analytics/export-csv', {
+        params,
+        responseType: 'blob'
+      });
+
+      const blob = response?.data;
+      if (blob && blob.size > 0) {
+        const disposition = response.headers?.['content-disposition'] || '';
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+        const filename = match ? match[1].replace(/['"]/g, '') : defaultFilename;
+        triggerCsvDownload(blob, filename);
+        return;
+      }
+    } catch (error) {
+      if (error.response?.status && error.response.status !== 404) {
+        toast.error('Server export unavailable. Downloading local report instead.');
+      }
+    }
     
     const formatCurrency = (amount) => `PHP ${Number(amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
     const formatPercent = (val) => `${Number(val || 0).toFixed(1)}%`;
@@ -172,11 +207,7 @@ export default function Analytics({ user }) {
 
     const BOM = '\uFEFF';
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `AccommoTrack_Detailed_Analytics_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    triggerCsvDownload(blob, defaultFilename);
   };
 
   const COLORS = { primary: '#10b981', secondary: '#3b82f6', warning: '#f59e0b', danger: '#ef4444' };

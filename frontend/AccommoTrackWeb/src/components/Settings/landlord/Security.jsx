@@ -9,7 +9,10 @@ export default function Security({
   security,
   setSecurity,
   isEditingSecurity,
-  setIsEditingSecurity
+  setIsEditingSecurity,
+  handleCancelSecurityEdit,
+  handleUpdateSecurity,
+  isSavingSecurity
 }) {
   return (
     <div className="space-y-6">
@@ -86,10 +89,7 @@ export default function Security({
                 Cancel
               </button>
               <button 
-                onClick={() => {
-                  handleUpdatePassword();
-                  setIsEditingPassword(false);
-                }}
+                onClick={handleUpdatePassword}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 Save Changes
@@ -185,19 +185,17 @@ export default function Security({
         {isEditingSecurity && (
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
             <button
-              onClick={() => setIsEditingSecurity(false)}
+              onClick={handleCancelSecurityEdit}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={() => {
-                // Save security settings (you can add API call here)
-                setIsEditingSecurity(false);
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              onClick={handleUpdateSecurity}
+              disabled={isSavingSecurity}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Save Changes
+              {isSavingSecurity ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         )}

@@ -21,8 +21,20 @@ export const propertyService = {
             const params = new URLSearchParams();
             if (filters.search) params.append('search', filters.search);
             if (filters.type) params.append('type', filters.type);
-            if (filters.minPrice) params.append('min_price', filters.minPrice);
-            if (filters.maxPrice) params.append('max_price', filters.maxPrice);
+            if (filters.minPrice || filters.price_min) {
+                params.append('min_price', filters.minPrice ?? filters.price_min);
+            }
+            if (filters.maxPrice || filters.price_max) {
+                params.append('max_price', filters.maxPrice ?? filters.price_max);
+            }
+            if (filters.availability) params.append('availability', filters.availability);
+            if (filters.min_rating) params.append('min_rating', filters.min_rating);
+
+            if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
+                filters.amenities.forEach((amenity) => {
+                    if (amenity) params.append('amenities[]', amenity);
+                });
+            }
 
             const queryString = params.toString();
             // Use public route for general browsing if it's for guests/explore

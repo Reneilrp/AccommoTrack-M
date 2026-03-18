@@ -271,6 +271,7 @@ class AuthController extends Controller
                 'payment_methods_settings.allowed' => 'nullable|array',
                 'payment_methods_settings.details' => 'nullable|array',
                 'notification_preferences' => 'nullable|array',
+                'preferences' => 'nullable|array',
             ];
 
             // Add role-based age validation
@@ -304,7 +305,7 @@ class AuthController extends Controller
             // Separate user data
             $userFields = [
                 'first_name', 'middle_name', 'last_name', 'phone', 'profile_image', 
-                'payment_methods_settings', 'notification_preferences',
+                'payment_methods_settings', 'notification_preferences', 'preferences',
                 'date_of_birth', 'gender'
             ];
 

@@ -8,6 +8,102 @@ import { SkeletonStatCard } from "../../components/Shared/Skeleton";
 import { useUIState } from "../../contexts/UIStateContext";
 import { cacheManager } from "../../utils/cache";
 
+const REFUND_FIXED_PENALTY_CENTS = Number(
+  import.meta.env.VITE_REFUND_FIXED_PENALTY_CENTS || 0,
+);
+
+const REFUND_ELIGIBLE_STATUSES = [
+  "succeeded",
+  "paid",
+  "partially_refunded",
+  "refunded",
+];
+
+const toDateOnly = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getStayProgress = (booking) => {
+  const start = toDateOnly(booking?.start_date || booking?.checkIn);
+  const end = toDateOnly(booking?.end_date || booking?.checkOut);
+  if (!start || !end || end < start) return null;
+
+  const today = toDateOnly(new Date());
+  const totalDays = Math.max(1, Math.floor((end - start) / 86400000) + 1);
+
+  let stayedDays = 0;
+  if (today >= start && today <= end) {
+    stayedDays = Math.floor((today - start) / 86400000) + 1;
+  } else if (today > end) {
+    stayedDays = totalDays;
+  }
+
+  const refundableDays = Math.max(0, totalDays - stayedDays);
+  const refundableRatio = totalDays > 0 ? refundableDays / totalDays : 0;
+
+  return {
+    totalDays,
+    stayedDays,
+    refundableDays,
+    refundableRatio,
+  };
+};
+
+const getTransactionRefundPreview = (invoice, tx, booking) => {
+  if (!tx || !invoice) return null;
+
+  const txAmountCents = Math.max(0, Number(tx.amount_cents || 0));
+  const txRefundedCents = Math.max(0, Number(tx.refunded_amount_cents || 0));
+  const txRemainingCents = Math.max(0, txAmountCents - txRefundedCents);
+  if (txRemainingCents <= 0) {
+    return {
+      maxRefundableCents: 0,
+      txRemainingCents: 0,
+      fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS,
+      stayProgress: getStayProgress(booking),
+    };
+  }
+
+  const stayProgress = getStayProgress(booking);
+  if (!stayProgress) {
+    return {
+      maxRefundableCents: txRemainingCents,
+      txRemainingCents,
+      fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS,
+      stayProgress: null,
+    };
+  }
+
+  const paidBaseCents = (invoice.transactions || [])
+    .filter((line) => Number(line.amount_cents || 0) > 0)
+    .filter((line) => REFUND_ELIGIBLE_STATUSES.includes((line.status || "").toLowerCase()))
+    .reduce((sum, line) => sum + Math.max(0, Number(line.amount_cents || 0)), 0);
+
+  const alreadyRefundedCents = (invoice.transactions || [])
+    .filter((line) => Number(line.amount_cents || 0) > 0)
+    .reduce((sum, line) => sum + Math.max(0, Number(line.refunded_amount_cents || 0)), 0);
+
+  const proratedCents = Math.floor(
+    (paidBaseCents * stayProgress.refundableDays) / stayProgress.totalDays,
+  );
+
+  const invoiceCapCents = Math.max(
+    0,
+    proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents,
+  );
+
+  return {
+    maxRefundableCents: Math.min(txRemainingCents, invoiceCapCents),
+    txRemainingCents,
+    fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS,
+    stayProgress,
+  };
+};
+
 export default function Payments() {
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_payments;
@@ -22,6 +118,7 @@ export default function Payments() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [refundConfirmTx, setRefundConfirmTx] = useState(null);
+  const [refundAmount, setRefundAmount] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isRefunding, setIsRefunding] = useState(null);
   const [recordData, setRecordData] = useState({
@@ -116,6 +213,18 @@ export default function Payments() {
     return s;
   }, [invoices, getInvoiceStatus]);
 
+  const selectedBooking = useMemo(() => {
+    if (!selectedInvoice) return null;
+    if (selectedInvoice.booking_id && bookingsMap[selectedInvoice.booking_id]) {
+      return bookingsMap[selectedInvoice.booking_id];
+    }
+    return selectedInvoice.booking || null;
+  }, [selectedInvoice, bookingsMap]);
+
+  const selectedStayProgress = useMemo(() => {
+    return getStayProgress(selectedBooking);
+  }, [selectedBooking]);
+
   const invalidateAnalyticsCache = useCallback(() => {
     // Clear both global state and persistent local cache for analytics
     updateData("landlord_analytics", null);
@@ -195,18 +304,18 @@ export default function Payments() {
     }
   };
 
-  const handleRefundTransaction = async (tx) => {
+  const handleRefundTransaction = async (tx, amountCents) => {
     if (!tx) return;
     setIsRefunding(tx.id);
     try {
       await api.post(`/transactions/${tx.id}/refund`, {
-        amount_cents: tx.amount_cents,
+        amount_cents: amountCents,
       });
       if (selectedInvoice.booking_id) {
         await updateBookingPayment(selectedInvoice.booking_id, "refunded");
       }
       toast.success(
-        `Refund of ₱${(tx.amount_cents / 100).toLocaleString()} processed successfully`,
+        `Refund of ₱${(amountCents / 100).toLocaleString()} processed successfully`,
       );
       setShowInvoiceModal(false);
       invalidateAnalyticsCache();
@@ -216,7 +325,15 @@ export default function Payments() {
       toast.error(e.response?.data?.message || "Failed to process refund");
     } finally {
       setIsRefunding(null);
+      setRefundAmount("");
     }
+  };
+
+  const openRefundConfirm = (tx) => {
+    const preview = getTransactionRefundPreview(selectedInvoice, tx, selectedBooking);
+    const suggested = Math.max(0, Number(preview?.maxRefundableCents || 0));
+    setRefundConfirmTx({ ...tx, refund_preview: preview });
+    setRefundAmount((suggested / 100).toFixed(2));
   };
 
   const loadBookingDetails = async (bookingIds = []) => {
@@ -911,6 +1028,39 @@ export default function Payments() {
                   );
                 })()}
 
+                {selectedStayProgress && (
+                  <div className="p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/70 dark:bg-blue-900/10 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide">
+                      <span className="text-blue-700 dark:text-blue-300">
+                        Refundable Stay Window
+                      </span>
+                      <span className="text-blue-700 dark:text-blue-300">
+                        {selectedStayProgress.refundableDays}/{selectedStayProgress.totalDays} days refundable
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full bg-blue-100 dark:bg-blue-950 overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${selectedStayProgress.refundableRatio > 0.5 ? "bg-green-500" : selectedStayProgress.refundableRatio > 0.25 ? "bg-yellow-500" : "bg-red-500"}`}
+                        style={{ width: `${Math.max(0, Math.min(100, selectedStayProgress.refundableRatio * 100))}%` }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                      <div className="p-2 rounded-md bg-white/70 dark:bg-gray-800/60">
+                        <p className="text-gray-500 dark:text-gray-400 uppercase font-bold">Stayed</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{selectedStayProgress.stayedDays} days</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-white/70 dark:bg-gray-800/60">
+                        <p className="text-gray-500 dark:text-gray-400 uppercase font-bold">Refundable</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{selectedStayProgress.refundableDays} days</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-white/70 dark:bg-gray-800/60">
+                        <p className="text-gray-500 dark:text-gray-400 uppercase font-bold">Fixed Penalty</p>
+                        <p className="font-bold text-gray-900 dark:text-white">₱{(REFUND_FIXED_PENALTY_CENTS / 100).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {!["paid", "refunded", "cancelled"].includes(
                   getInvoiceStatus(selectedInvoice),
                 ) && (
@@ -1071,12 +1221,14 @@ export default function Payments() {
                         {selectedInvoice.transactions
                           .filter((tx) => tx.amount_cents > 0)
                           .map((tx) => {
+                            const preview = getTransactionRefundPreview(selectedInvoice, tx, selectedBooking);
                             const txAmtCents = tx.amount_cents - (tx.refunded_amount_cents ?? 0);
                             const alreadyRefunded =
                               tx.status === "refunded" ||
                               (tx.refunded_amount_cents ?? 0) >=
                                 tx.amount_cents;
                             const isPartiallyRefunded = !alreadyRefunded && (tx.refunded_amount_cents ?? 0) > 0;
+                            const noRefundLeft = Number(preview?.maxRefundableCents || 0) <= 0;
 
                             return (
                               <div
@@ -1103,6 +1255,11 @@ export default function Payments() {
                                       ? ` · ${tx.gateway_reference}`
                                       : ""}
                                   </p>
+                                  {!alreadyRefunded && (
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                      Max refundable now: ₱{((preview?.maxRefundableCents || 0) / 100).toLocaleString()}
+                                    </p>
+                                  )}
                                 </div>
                                 {alreadyRefunded ? (
                                   <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-md">
@@ -1110,8 +1267,8 @@ export default function Payments() {
                                   </span>
                                 ) : (
                                   <button
-                                    onClick={() => setRefundConfirmTx(tx)}
-                                    disabled={isRefunding === tx.id}
+                                    onClick={() => openRefundConfirm(tx)}
+                                    disabled={isRefunding === tx.id || noRefundLeft}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
                                   >
                                     {isRefunding === tx.id ? (
@@ -1119,7 +1276,7 @@ export default function Payments() {
                                     ) : (
                                       <RotateCcw className="w-3 h-3" />
                                     )}
-                                    Refund
+                                    {noRefundLeft ? "No Refund Left" : "Refund"}
                                   </button>
                                 )}
                               </div>
@@ -1178,6 +1335,18 @@ export default function Payments() {
         {refundConfirmTx && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-700">
+              {(() => {
+                const maxRefundableCents = Number(
+                  refundConfirmTx?.refund_preview?.maxRefundableCents || 0,
+                );
+                const requestedCents = Math.round(Number(refundAmount || 0) * 100);
+                const isInvalidAmount =
+                  Number.isNaN(requestedCents) ||
+                  requestedCents <= 0 ||
+                  requestedCents > maxRefundableCents;
+
+                return (
+                  <>
               <div className="flex flex-col items-center text-center space-y-3">
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-full text-red-600 dark:text-red-400">
                   <RotateCcw className="w-8 h-8" />
@@ -1187,21 +1356,42 @@ export default function Payments() {
                     Confirm Refund
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Are you sure you want to refund{" "}
-                    <span className="font-bold text-gray-900 dark:text-white">
-                      ₱
-                      {(
-                        refundConfirmTx.amount_cents / 100
-                      ).toLocaleString()}
-                    </span>
-                    ? This action cannot be undone.
+                    Enter an amount up to the current refundable cap.
                   </p>
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Refund Amount (₱)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Max refundable now: <span className="font-bold text-gray-900 dark:text-white">₱{(maxRefundableCents / 100).toLocaleString()}</span>
+                </p>
+                {isInvalidAmount && (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    Enter an amount greater than 0 and not higher than the max refundable value.
+                  </p>
+                )}
+              </div>
+
               <div className="flex gap-3">
                 <button
-                  onClick={() => setRefundConfirmTx(null)}
+                  onClick={() => {
+                    setRefundConfirmTx(null);
+                    setRefundAmount("");
+                  }}
                   className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all text-sm"
                 >
                   Cancel
@@ -1210,9 +1400,9 @@ export default function Payments() {
                   onClick={async () => {
                     const txToRefund = refundConfirmTx;
                     setRefundConfirmTx(null);
-                    await handleRefundTransaction(txToRefund);
+                    await handleRefundTransaction(txToRefund, requestedCents);
                   }}
-                  disabled={isRefunding === refundConfirmTx.id}
+                  disabled={isRefunding === refundConfirmTx.id || isInvalidAmount}
                   className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
                 >
                   {isRefunding === refundConfirmTx.id ? (
@@ -1222,6 +1412,9 @@ export default function Payments() {
                   )}
                 </button>
               </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}

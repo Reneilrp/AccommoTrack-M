@@ -26,6 +26,21 @@ const createCaretakerPermissionDefaults = () => ({
   payments: false
 });
 
+const DEFAULT_SECURITY_PREFERENCES = {
+  twoFactorAuth: false,
+  loginAlerts: true
+};
+
+const getSecurityPreferences = (preferences) => {
+  const source = preferences?.security;
+  if (!source || typeof source !== 'object') return DEFAULT_SECURITY_PREFERENCES;
+
+  return {
+    twoFactorAuth: Boolean(source.twoFactorAuth),
+    loginAlerts: source.loginAlerts === undefined ? true : Boolean(source.loginAlerts)
+  };
+};
+
 export default function Settings({ user, accessRole = 'landlord', onUserUpdate }) {
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_settings;
@@ -84,7 +99,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [isEditingSecurity, setIsEditingSecurity] = useState(false);
-  const [security, setSecurity] = useState({ twoFactorAuth: false, loginAlerts: true });
+  const [security, setSecurity] = useState(() => getSecurityPreferences(user?.preferences));
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   // --- Caretaker State ---
   const [caretakers, setCaretakers] = useState(() => Array.isArray(cachedData?.caretakers) ? cachedData.caretakers : []);
@@ -138,7 +154,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       setProfilePhoto(null);
       onUserUpdate({ ...user, profile_image: null });
       toast.success('Photo removed');
-    } catch (e) {
+    } catch {
       toast.error('Failed to remove photo');
     }
   };
@@ -183,9 +199,47 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     }
   };
 
-  const handleUpdateSecurity = () => {
-    toast.success('Security settings updated!');
+  useEffect(() => {
+    if (!isEditingSecurity) {
+      setSecurity(getSecurityPreferences(user?.preferences));
+    }
+  }, [user, isEditingSecurity]);
+
+  const persistUserPreferences = async (nextPreferences) => {
+    const response = await api.put('/me', { preferences: nextPreferences });
+    const nextUser = response.data?.user || { ...user, preferences: nextPreferences };
+    if (onUserUpdate) onUserUpdate(nextUser);
+    return nextUser;
+  };
+
+  const handleCancelSecurityEdit = () => {
+    setSecurity(getSecurityPreferences(user?.preferences));
     setIsEditingSecurity(false);
+  };
+
+  const handleUpdateSecurity = async () => {
+    setIsSavingSecurity(true);
+    try {
+      const currentPreferences = (user?.preferences && typeof user.preferences === 'object')
+        ? user.preferences
+        : {};
+
+      const nextPreferences = {
+        ...currentPreferences,
+        security: {
+          twoFactorAuth: Boolean(security.twoFactorAuth),
+          loginAlerts: Boolean(security.loginAlerts)
+        }
+      };
+
+      await persistUserPreferences(nextPreferences);
+      toast.success('Security settings updated!');
+      setIsEditingSecurity(false);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to save security settings');
+    } finally {
+      setIsSavingSecurity(false);
+    }
   };
 
   // --- Caretaker Handlers ---
@@ -319,7 +373,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       await api.delete(`/landlord/caretakers/${id}`, { data: { reason } });
       fetchCaretakers();
       toast.success('Access revoked');
-    } catch (e) {
+    } catch {
       toast.error('Revocation failed');
     }
   };
@@ -376,7 +430,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
               setSecurity={setSecurity}
               isEditingSecurity={isEditingSecurity}
               setIsEditingSecurity={setIsEditingSecurity}
+              handleCancelSecurityEdit={handleCancelSecurityEdit}
               handleUpdateSecurity={handleUpdateSecurity}
+              isSavingSecurity={isSavingSecurity}
             />
           )}
           {activeTab === 'caretaker' && (
@@ -402,7 +458,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
           )}
           {activeTab === 'payments' && <PaymentMethods />}
           {activeTab === 'verification' && <VerificationStatus />}
-          {activeTab === 'appearance' && <AppearanceTab />}
+          {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
           {activeTab === 'switch-role' && <SwitchRoleTab />}
         </div>
       </div>

@@ -229,7 +229,13 @@ const TenantDashboard = () => {
                 </div>
               </div>
               <button 
-                onClick={() => navigate('/payments')}
+                onClick={() => {
+                  if (stats?.payments?.latestUnpaidInvoiceId) {
+                    navigate(`/checkout/${stats.payments.latestUnpaidInvoiceId}`);
+                  } else {
+                    navigate('/payments');
+                  }
+                }}
                 className="text-xs bg-white dark:bg-gray-800 text-red-700 dark:text-red-300 font-bold px-4 py-2 rounded-lg shadow-sm border border-red-100 dark:border-red-800 hover:bg-red-50 transition-colors"
               >
                 Pay Now

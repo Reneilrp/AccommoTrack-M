@@ -14,6 +14,8 @@ const withTimeout = (promise, ms = 15000) => {
     ]);
 };
 
+// Change the Timeout logic
+
 const LandlordDashboardService = {
     async fetchDashboard() {
         try {
