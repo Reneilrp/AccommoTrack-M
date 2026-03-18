@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Room;
 use App\Models\Property;
+use App\Models\Room;
 use App\Models\RoomImage;
+use Illuminate\Database\Seeder;
 
 class RoomSeeder extends Seeder
 {
@@ -25,7 +25,7 @@ class RoomSeeder extends Seeder
             for ($i = 1; $i <= 10; $i++) {
                 $room = Room::create([
                     'property_id' => $property->id,
-                    'room_number' => 'R' . str_pad($i, 2, '0', STR_PAD_LEFT),
+                    'room_number' => 'R'.str_pad($i, 2, '0', STR_PAD_LEFT),
                     'room_type' => 'single',
                     'floor' => 1,
                     'monthly_rate' => 5000 + ($i * 100),
@@ -33,7 +33,7 @@ class RoomSeeder extends Seeder
                     'capacity' => 1,
                     'pricing_model' => 'full_room',
                     'status' => 'available',
-                    'description' => 'Room ' . $i . ' in ' . $property->title,
+                    'description' => 'Room '.$i.' in '.$property->title,
                 ]);
                 // Add room image
                 RoomImage::create([

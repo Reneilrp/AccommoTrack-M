@@ -51,6 +51,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Review> $reviews
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Room> $rooms
  * @property-read int|null $rooms_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property available()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property forLandlord(int $landlordId)
@@ -85,6 +86,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereTotalRooms($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Property whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Property extends Model
@@ -93,9 +95,13 @@ class Property extends Model
 
     // Status Constants
     const STATUS_DRAFT = 'draft';
+
     const STATUS_PENDING = 'pending';
+
     const STATUS_ACTIVE = 'active';
+
     const STATUS_INACTIVE = 'inactive';
+
     const STATUS_MAINTENANCE = 'maintenance';
 
     protected $fillable = [
@@ -207,6 +213,7 @@ class Property extends Model
     public function getAverageRatingAttribute()
     {
         $avg = $this->reviews()->where('is_published', true)->avg('rating');
+
         return $avg ? round($avg, 1) : null;
     }
 
@@ -228,7 +235,7 @@ class Property extends Model
             $this->barangay,
             $this->city,
             $this->province,
-            $this->postal_code
+            $this->postal_code,
         ]);
 
         return implode(', ', $parts);
@@ -270,22 +277,26 @@ class Property extends Model
     {
         return $this->hasMany(PropertyImage::class);
     }
+
     public function credentials()
     {
         return $this->hasMany(PropertyCredential::class);
     }
+
     public function getImageUrlAttribute()
     {
         $firstImage = $this->images()->where('media_type', 'image')->first();
-        return $firstImage ? asset('storage/' . $firstImage->image_url) : null;
+
+        return $firstImage ? asset('storage/'.$firstImage->image_url) : null;
     }
+
     /**
      * Relationship: Property has many amenities (many-to-many)
      */
     public function amenities()
     {
         return $this->belongsToMany(Amenity::class, 'property_amenities', 'property_id', 'amenity_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     /**
@@ -341,7 +352,7 @@ class Property extends Model
      */
     public function isPublished()
     {
-        return (bool)$this->is_published === true;
+        return (bool) $this->is_published === true;
     }
 
     /**
@@ -349,7 +360,7 @@ class Property extends Model
      */
     public function isAvailable()
     {
-        return (bool)$this->is_available === true && $this->available_rooms > 0 && $this->isActive();
+        return (bool) $this->is_available === true && $this->available_rooms > 0 && $this->isActive();
     }
 
     /**
@@ -386,11 +397,11 @@ class Property extends Model
         $this->available_rooms = $this->rooms()
             ->where('status', 'available')
             ->get()
-            ->filter(function($room) {
-                 return $room->isAvailable();
+            ->filter(function ($room) {
+                return $room->isAvailable();
             })
             ->count();
-            
+
         $this->save();
     }
 
@@ -438,11 +449,11 @@ class Property extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
-              ->orWhere('description', 'like', "%{$search}%")
-              ->orWhere('street_address', 'like', "%{$search}%")
-              ->orWhere('barangay', 'like', "%{$search}%")
-              ->orWhere('city', 'like', "%{$search}%")
-              ->orWhere('province', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('street_address', 'like', "%{$search}%")
+                ->orWhere('barangay', 'like', "%{$search}%")
+                ->orWhere('city', 'like', "%{$search}%")
+                ->orWhere('province', 'like', "%{$search}%");
         });
     }
 

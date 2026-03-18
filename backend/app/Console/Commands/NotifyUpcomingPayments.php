@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Invoice;
 use App\Notifications\UpcomingPaymentNotification;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class NotifyUpcomingPayments extends Command
 {
@@ -35,13 +35,13 @@ class NotifyUpcomingPayments extends Command
         $count = 0;
         foreach ($invoices as $invoice) {
             $metadata = $invoice->metadata ?? [];
-            if (!isset($metadata['upcoming_notified_at']) && $invoice->tenant) {
+            if (! isset($metadata['upcoming_notified_at']) && $invoice->tenant) {
                 $invoice->tenant->notify(new UpcomingPaymentNotification($invoice));
-                
+
                 $metadata['upcoming_notified_at'] = Carbon::now()->toISOString();
                 $invoice->metadata = $metadata;
                 $invoice->save();
-                
+
                 $count++;
             }
         }

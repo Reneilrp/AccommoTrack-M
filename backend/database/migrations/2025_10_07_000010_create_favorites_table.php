@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('tenant_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreignId('property_id')->constrained()->onDelete('cascade');
             $table->timestamps();
-            
+
             $table->unique(['tenant_id', 'property_id']);
             $table->index('tenant_id');
         });

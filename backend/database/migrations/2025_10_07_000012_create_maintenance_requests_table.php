@@ -21,7 +21,7 @@ return new class extends Migration
             $table->text('images')->nullable();
             $table->timestamp('resolved_at')->nullable();
             $table->timestamps();
-            
+
             $table->index('property_id');
             $table->index('status');
             $table->index('landlord_id');

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Addon;
 use App\Models\Booking;
-use App\Models\Property;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,6 +18,7 @@ class AddonService
     public function updateAddon(Addon $addon, array $data): Addon
     {
         $addon->update($data);
+
         return $addon;
     }
 
@@ -44,14 +44,14 @@ class AddonService
             ->wherePivot('status', 'pending')
             ->first();
 
-        if (!$addonRequest) {
+        if (! $addonRequest) {
             throw new \Exception('No pending request found for this addon');
         }
 
         $addon = Addon::findOrFail($addonId);
 
         if ($action === 'approve') {
-            if ($addon->addon_type === 'rental' && !$addon->hasStock()) {
+            if ($addon->addon_type === 'rental' && ! $addon->hasStock()) {
                 throw new \Exception('Cannot approve - addon is out of stock');
             }
 
@@ -64,10 +64,10 @@ class AddonService
                     'response_note' => $note,
                     'approved_at' => now(),
                     'approved_by' => $userId,
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
 
-                if ($addon->addon_type === 'rental' && !is_null($addon->stock)) {
+                if ($addon->addon_type === 'rental' && ! is_null($addon->stock)) {
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
@@ -82,9 +82,9 @@ class AddonService
                 if ($latestInvoice) {
                     // Append to existing pending invoice
                     $latestInvoice->amount_cents += $amountCents;
-                    
+
                     $new_metadata = $latestInvoice->metadata ?? [];
-                    if (!isset($new_metadata['addons'])) {
+                    if (! isset($new_metadata['addons'])) {
                         $new_metadata['addons'] = [];
                     }
                     $new_metadata['addons'][] = [
@@ -94,30 +94,30 @@ class AddonService
                         'price' => $amountCents,
                         'price_type' => $addon->price_type,
                     ];
-                    
+
                     $latestInvoice->metadata = $new_metadata;
-                    
-                    if (!str_contains($latestInvoice->description, 'Includes Add-ons')) {
-                         $latestInvoice->description .= "\n+ Includes Add-ons";
+
+                    if (! str_contains($latestInvoice->description, 'Includes Add-ons')) {
+                        $latestInvoice->description .= "\n+ Includes Add-ons";
                     }
 
                     $latestInvoice->save();
-                    
+
                     $booking->addons()->updateExistingPivot($addonId, [
                         'invoice_id' => $latestInvoice->id,
                         'invoiced_at' => now(),
                     ]);
                 } else {
                     // Create a separate invoice for this immediate addon request
-                    $reference = 'INV-ADD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
-                    
+                    $reference = 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6));
+
                     $invoice = Invoice::create([
                         'reference' => $reference,
                         'landlord_id' => $booking->landlord_id,
                         'property_id' => $booking->property_id,
                         'booking_id' => $booking->id,
                         'tenant_id' => $booking->tenant_id,
-                        'description' => "Add-on: {$addon->name} (" . ($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee') . ")",
+                        'description' => "Add-on: {$addon->name} (".($addon->price_type === 'monthly' ? 'Monthly recurring' : 'One-time fee').')',
                         'amount_cents' => $amountCents,
                         'currency' => 'PHP',
                         'status' => 'pending',
@@ -131,9 +131,9 @@ class AddonService
                                     'quantity' => $addonRequest->pivot->quantity ?? 1,
                                     'price' => $amountCents,
                                     'price_type' => $addon->price_type,
-                                ]
-                            ]
-                        ]
+                                ],
+                            ],
+                        ],
                     ]);
 
                     // Link invoice back to the addon request
@@ -144,6 +144,7 @@ class AddonService
                 }
 
                 DB::commit();
+
                 return ['status' => $newStatus, 'message' => 'Addon request approved and invoice updated successfully'];
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -153,7 +154,7 @@ class AddonService
             $booking->addons()->updateExistingPivot($addonId, [
                 'status' => 'rejected',
                 'response_note' => $note,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             return ['status' => 'rejected', 'message' => 'Addon request rejected'];

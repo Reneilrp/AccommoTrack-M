@@ -23,7 +23,7 @@ return new class extends Migration
                 'active',    // Currently active (for monthly recurring)
                 'rejected',  // Landlord rejected the request
                 'completed', // One-time addon has been invoiced/paid
-                'cancelled'  // Tenant or landlord cancelled
+                'cancelled',  // Tenant or landlord cancelled
             ])->default('pending');
             $table->text('request_note')->nullable(); // Tenant's note when requesting
             $table->text('response_note')->nullable(); // Landlord's note when approving/rejecting

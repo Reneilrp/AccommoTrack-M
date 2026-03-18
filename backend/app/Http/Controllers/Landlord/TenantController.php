@@ -3,16 +3,15 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
-use App\Models\User;
-use App\Models\Room;
 use App\Models\Invoice;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
+use App\Models\Room;
+use App\Models\User;
 use App\Services\BookingService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class TenantController extends Controller
@@ -44,9 +43,9 @@ class TenantController extends Controller
             $allowedPropertyIds = null;
             if ($context['is_caretaker']) {
                 $allowedPropertyIds = $context['assignment']->properties()->pluck('properties.id')->toArray();
-                
+
                 // If filtering by property, ensure caretaker is assigned to it
-                if ($propertyId && !in_array($propertyId, $allowedPropertyIds)) {
+                if ($propertyId && ! in_array($propertyId, $allowedPropertyIds)) {
                     return response()->json([], 200);
                 }
             }
@@ -59,45 +58,49 @@ class TenantController extends Controller
                     'room.property',
                     'bookings' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId)
-                          ->with('room.property')
-                          ->orderBy('created_at', 'desc');
+                            ->with('room.property')
+                            ->orderBy('created_at', 'desc');
                     },
                 ])
                 ->where(function ($q) use ($landlordId, $allowedPropertyIds) {
                     $q->whereHas('room', function ($q2) use ($landlordId, $allowedPropertyIds) {
                         $q2->whereHas('property', function ($q3) use ($landlordId, $allowedPropertyIds) {
                             $q3->where('landlord_id', $landlordId);
-                            if ($allowedPropertyIds) $q3->whereIn('id', $allowedPropertyIds);
+                            if ($allowedPropertyIds) {
+                                $q3->whereIn('id', $allowedPropertyIds);
+                            }
                         });
                     })
-                    ->orWhereHas('bookings', function ($q2) use ($landlordId, $allowedPropertyIds) {
-                        $q2->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-                           ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
-                               $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
-                                   $q4->where('landlord_id', $landlordId);
-                                   if ($allowedPropertyIds) $q4->whereIn('id', $allowedPropertyIds);
-                               });
-                           });
-                    });
+                        ->orWhereHas('bookings', function ($q2) use ($landlordId, $allowedPropertyIds) {
+                            $q2->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                                ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
+                                    $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
+                                        $q4->where('landlord_id', $landlordId);
+                                        if ($allowedPropertyIds) {
+                                            $q4->whereIn('id', $allowedPropertyIds);
+                                        }
+                                    });
+                                });
+                        });
                 });
 
             // Filter by specific property if provided
             if ($propertyId) {
                 $query->where(function ($q) use ($propertyId) {
-                    $q->whereHas('room', fn($q2) => $q2->where('property_id', $propertyId))
-                      ->orWhereHas('bookings', fn($q2) => $q2->where('property_id', $propertyId));
+                    $q->whereHas('room', fn ($q2) => $q2->where('property_id', $propertyId))
+                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId));
                 });
             }
 
             if ($search !== '') {
-                $searchTerm = '%' . $search . '%';
+                $searchTerm = '%'.$search.'%';
                 $query->where(function ($q) use ($searchTerm) {
                     $q->where('first_name', 'like', $searchTerm)
-                      ->orWhere('last_name', 'like', $searchTerm)
-                      ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm])
-                      ->orWhere('email', 'like', $searchTerm)
-                      ->orWhereHas('room', fn($roomQuery) => $roomQuery->where('room_number', 'like', $searchTerm))
-                      ->orWhereHas('bookings.room', fn($roomQuery) => $roomQuery->where('room_number', 'like', $searchTerm));
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm])
+                        ->orWhere('email', 'like', $searchTerm)
+                        ->orWhereHas('room', fn ($roomQuery) => $roomQuery->where('room_number', 'like', $searchTerm))
+                        ->orWhereHas('bookings.room', fn ($roomQuery) => $roomQuery->where('room_number', 'like', $searchTerm));
                 });
             }
 
@@ -108,7 +111,7 @@ class TenantController extends Controller
                     ? $tenant->bookings->where('property_id', $propertyId)->first()
                     : $tenant->bookings->first();
                 $bookingRoom = $latestBooking?->room;
-                $room = ($legacyRoom && (!$propertyId || (string) $legacyRoom->property_id === (string) $propertyId))
+                $room = ($legacyRoom && (! $propertyId || (string) $legacyRoom->property_id === (string) $propertyId))
                     ? $legacyRoom : $bookingRoom;
 
                 $hasOverdue = Invoice::where('tenant_id', $tenant->id)->where('status', 'pending')->where('due_date', '<', now())->exists();
@@ -117,7 +120,7 @@ class TenantController extends Controller
                     'id' => $tenant->id,
                     'first_name' => $tenant->first_name,
                     'last_name' => $tenant->last_name,
-                    'full_name' => $tenant->first_name . ' ' . $tenant->last_name,
+                    'full_name' => $tenant->first_name.' '.$tenant->last_name,
                     'email' => $tenant->email,
                     'phone' => $tenant->phone,
                     'is_active' => $tenant->is_active,
@@ -128,7 +131,7 @@ class TenantController extends Controller
                         'property_id' => $room->property_id,
                     ] : null,
                     'tenantProfile' => $tenant->tenantProfile,
-                    'latestBooking' => $latestBooking
+                    'latestBooking' => $latestBooking,
                 ];
             });
 
@@ -152,7 +155,7 @@ class TenantController extends Controller
             $tenantRoom = $tenant->room;
             $hasValidBooking = $tenant->bookings()->where('landlord_id', $landlordId)->exists();
 
-            if (!$tenantRoom && !$hasValidBooking) {
+            if (! $tenantRoom && ! $hasValidBooking) {
                 throw new AccessDeniedHttpException('This tenant is not associated with your properties.');
             }
 
@@ -163,8 +166,10 @@ class TenantController extends Controller
                     ->pluck('property_id')
                     ->unique()
                     ->toArray();
-                
-                if ($tenantRoom) $tenantPropertyIds[] = $tenantRoom->property_id;
+
+                if ($tenantRoom) {
+                    $tenantPropertyIds[] = $tenantRoom->property_id;
+                }
 
                 if (empty(array_intersect($allowedPropertyIds, $tenantPropertyIds))) {
                     throw new AccessDeniedHttpException('You do not have permission to view this tenant.');
@@ -212,7 +217,7 @@ class TenantController extends Controller
 
         return response()->json([
             'id' => $tenant->id,
-            'full_name' => $tenant->first_name . ' ' . $tenant->last_name,
+            'full_name' => $tenant->first_name.' '.$tenant->last_name,
             'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property->title] : null,
             'tenantProfile' => $tenant->tenantProfile,
             'history' => [
@@ -220,7 +225,7 @@ class TenantController extends Controller
                 'maintenance' => $maintenanceRequests,
                 'addons' => $addonRequests,
                 'transfers' => $transferRequests,
-            ]
+            ],
         ]);
     }
 
@@ -298,7 +303,7 @@ class TenantController extends Controller
         ]);
 
         $userFields = array_intersect_key($validated, array_flip(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'date_of_birth', 'gender']));
-        if (!empty($userFields)) {
+        if (! empty($userFields)) {
             $user->update($userFields);
         }
 
@@ -307,10 +312,10 @@ class TenantController extends Controller
             'emergency_contact_phone',
             'emergency_contact_relationship',
             'current_address',
-            'preference'
+            'preference',
         ]));
 
-        if (!empty($profileFields)) {
+        if (! empty($profileFields)) {
             $user->tenantProfile()->updateOrCreate(
                 ['user_id' => $user->id],
                 $profileFields
@@ -333,11 +338,12 @@ class TenantController extends Controller
         // Check if tenant is currently assigned to a room in landlord's property
         if ($user->room && $user->room->property->landlord_id === $context['landlord_id']) {
             return response()->json([
-                'error' => 'Cannot delete tenant who is currently occupying a room. Please unassign them first.'
+                'error' => 'Cannot delete tenant who is currently occupying a room. Please unassign them first.',
             ], 400);
         }
 
         $user->delete();
+
         return response()->json(null, 204);
     }
 
@@ -364,12 +370,12 @@ class TenantController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        if (!$room->isAvailable() || $room->available_slots <= 0) {
+        if (! $room->isAvailable() || $room->available_slots <= 0) {
             return response()->json([
                 'error' => 'Room not available',
                 'occupied_slots' => $room->occupied,
                 'total_capacity' => $room->capacity,
-                'available_slots' => $room->available_slots
+                'available_slots' => $room->available_slots,
             ], 400);
         }
 
@@ -396,11 +402,11 @@ class TenantController extends Controller
             return response()->json($tenant->load(['tenantProfile', 'room']));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Manual room assignment failed: ' . $e->getMessage());
+            Log::error('Manual room assignment failed: '.$e->getMessage());
+
             return response()->json(['error' => 'Failed to assign room', 'message' => $e->getMessage()], 500);
         }
     }
-
 
     /**
      * Unassign tenant from room
@@ -412,7 +418,7 @@ class TenantController extends Controller
 
         $tenant = User::where('role', 'tenant')->with('room.property')->findOrFail($id);
 
-        if (!$tenant->room) {
+        if (! $tenant->room) {
             return response()->json(['error' => 'Tenant is not assigned to any room'], 400);
         }
 
@@ -439,7 +445,7 @@ class TenantController extends Controller
         return response()->json($tenant->load(['tenantProfile', 'room']));
     }
 
-        /**
+    /**
      * Transfer tenant to a new room
      */
     public function transferRoom(Request $request, string $id): JsonResponse
@@ -464,7 +470,7 @@ class TenantController extends Controller
         }
 
         // Verify new room availability
-        if (!$newRoom->isAvailable() || $newRoom->available_slots <= 0) {
+        if (! $newRoom->isAvailable() || $newRoom->available_slots <= 0) {
             return response()->json(['error' => 'New room is not available'], 400);
         }
 
@@ -472,14 +478,14 @@ class TenantController extends Controller
             \Illuminate\Support\Facades\DB::beginTransaction();
 
             // 1. Handle damage charges if provided
-            if (!empty($validated['damage_charge']) && $validated['damage_charge'] > 0) {
-                $reference = 'DMG-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+            if (! empty($validated['damage_charge']) && $validated['damage_charge'] > 0) {
+                $reference = 'DMG-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
                 Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $context['landlord_id'],
                     'property_id' => $oldRoom->property_id,
                     'tenant_id' => $tenant->id,
-                    'description' => 'Damage charge during transfer from ' . ($oldRoom ? $oldRoom->room_number : 'previous room') . ': ' . $validated['damage_description'],
+                    'description' => 'Damage charge during transfer from '.($oldRoom ? $oldRoom->room_number : 'previous room').': '.$validated['damage_description'],
                     'amount_cents' => (int) round($validated['damage_charge'] * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
@@ -511,7 +517,7 @@ class TenantController extends Controller
                 'room_id' => $newRoom->id,
                 'start_date' => $moveInDate,
                 'end_date' => $endDate,
-                'notes' => 'Transferred from ' . ($oldRoom ? $oldRoom->room_number : 'previous room') . '. Reason: ' . $validated['reason'],
+                'notes' => 'Transferred from '.($oldRoom ? $oldRoom->room_number : 'previous room').'. Reason: '.$validated['reason'],
             ], $tenant->id);
 
             // Confirm the booking immediately
@@ -520,9 +526,9 @@ class TenantController extends Controller
             // 4. Update tenant profile notes
             if ($tenant->tenantProfile) {
                 $currentNotes = $tenant->tenantProfile->notes ?? '';
-                $transferLog = "\n[" . now()->toDateString() . "] Room Transfer: " . ($oldRoom ? $oldRoom->room_number : 'N/A') . " -> " . $newRoom->room_number . ". Reason: " . $validated['reason'];
+                $transferLog = "\n[".now()->toDateString().'] Room Transfer: '.($oldRoom ? $oldRoom->room_number : 'N/A').' -> '.$newRoom->room_number.'. Reason: '.$validated['reason'];
                 $tenant->tenantProfile->update([
-                    'notes' => $currentNotes . $transferLog
+                    'notes' => $currentNotes.$transferLog,
                 ]);
             }
 
@@ -530,19 +536,20 @@ class TenantController extends Controller
 
             return response()->json([
                 'message' => 'Room transfer successful',
-                'tenant' => $tenant->load(['tenantProfile', 'room'])
+                'tenant' => $tenant->load(['tenantProfile', 'room']),
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Room transfer failed: ' . $e->getMessage());
+            Log::error('Room transfer failed: '.$e->getMessage());
+
             return response()->json(['error' => 'Failed to transfer room', 'message' => $e->getMessage()], 500);
         }
     }
 
     protected function assertNotCaretaker(array $context): void
-        {
-            if ($context['is_caretaker']) {
-                throw new AccessDeniedHttpException('Caretaker accounts are read-only for tenants.');
-            }
+    {
+        if ($context['is_caretaker']) {
+            throw new AccessDeniedHttpException('Caretaker accounts are read-only for tenants.');
         }
+    }
 }

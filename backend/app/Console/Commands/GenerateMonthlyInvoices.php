@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Booking;
 use App\Models\Invoice;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -70,16 +70,16 @@ class GenerateMonthlyInvoices extends Command
                     ->whereMonth('due_date', $billingDateForLoop->month)
                     ->exists();
 
-                if (!$invoiceExists) {
+                if (! $invoiceExists) {
                     // Create the missing invoice for this billing period
-                    $reference = 'INV-' . $billingDateForLoop->format('Ym') . '-' . strtoupper(Str::random(6));
+                    $reference = 'INV-'.$billingDateForLoop->format('Ym').'-'.strtoupper(Str::random(6));
                     Invoice::create([
                         'reference' => $reference,
                         'landlord_id' => $booking->landlord_id,
                         'property_id' => $booking->property_id,
                         'booking_id' => $booking->id,
                         'tenant_id' => $booking->tenant_id,
-                        'description' => 'Monthly Rent and Services for ' . $billingDateForLoop->format('F Y'),
+                        'description' => 'Monthly Rent and Services for '.$billingDateForLoop->format('F Y'),
                         'amount_cents' => (int) round($baseInvoiceAmount * 100),
                         'currency' => 'PHP',
                         'status' => 'pending',
@@ -88,7 +88,7 @@ class GenerateMonthlyInvoices extends Command
                         'metadata' => [
                             'generated_by' => 'system',
                             'billing_period' => $billingDateForLoop->format('Y-m'),
-                        ]
+                        ],
                     ]);
                     $generatedCount++;
                     Log::info("Generated invoice for booking #{$booking->id} for period {$billingDateForLoop->format('Y-m')}");

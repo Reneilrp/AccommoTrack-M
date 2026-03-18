@@ -42,6 +42,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \App\Models\TenantProfile|null $tenantProfile
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
  * @property-read int|null $tokens_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User landlords()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
@@ -62,6 +63,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRole($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class User extends Authenticatable
@@ -136,8 +138,8 @@ class User extends Authenticatable
     public function roomAssignments()
     {
         return $this->belongsToMany(Room::class, 'room_tenant_assignments', 'tenant_id', 'room_id')
-                    ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
-                    ->wherePivot('status', 'active');
+            ->withPivot('start_date', 'end_date', 'status', 'monthly_rent')
+            ->wherePivot('status', 'active');
     }
 
     /**
@@ -243,7 +245,7 @@ class User extends Authenticatable
      */
     public function getFullNameAttribute()
     {
-        return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+        return trim($this->first_name.' '.$this->middle_name.' '.$this->last_name);
     }
 
     /**
@@ -272,7 +274,7 @@ class User extends Authenticatable
 
     public function getCaretakerPermissionsAttribute(): array
     {
-        if (!$this->isCaretaker()) {
+        if (! $this->isCaretaker()) {
             return [
                 'bookings' => true,
                 'messages' => true,
@@ -283,7 +285,7 @@ class User extends Authenticatable
         }
 
         // Load the assignment if not already loaded
-        if (!$this->relationLoaded('caretakerAssignment')) {
+        if (! $this->relationLoaded('caretakerAssignment')) {
             $this->load('caretakerAssignment');
         }
 

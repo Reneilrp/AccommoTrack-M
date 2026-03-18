@@ -36,11 +36,11 @@ class LandlordRejectedNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $loginUrl = config('app.frontend_url', 'https://accommotrack.me') . '/login';
+        $loginUrl = config('app.frontend_url', 'https://accommotrack.me').'/login';
 
         return (new MailMessage)
             ->subject('Update on Your Landlord Registration')
-            ->greeting('Hello, ' . $notifiable->first_name . '!')
+            ->greeting('Hello, '.$notifiable->first_name.'!')
             ->line('We have reviewed your landlord registration application for AccommoTrack.')
             ->line('Unfortunately, we were unable to approve your application at this time.')
             ->line('**Reason for rejection:**')

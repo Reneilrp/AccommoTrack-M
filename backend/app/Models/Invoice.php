@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\User|null $tenant
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PaymentTransaction> $transactions
  * @property-read int|null $transactions_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Invoice newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Invoice newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Invoice query()
@@ -53,6 +54,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Invoice whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Invoice whereTotalCents($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Invoice whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Invoice extends Model
@@ -64,7 +66,7 @@ class Invoice extends Model
     protected $fillable = [
         'reference', 'landlord_id', 'property_id', 'booking_id', 'tenant_id', 'description',
         'amount_cents', 'currency', 'status', 'due_date', 'issued_at', 'paid_at', 'metadata',
-        'subtotal_cents', 'tax_cents', 'total_cents', 'tax_percent'
+        'subtotal_cents', 'tax_cents', 'total_cents', 'tax_percent',
     ];
 
     protected $casts = [

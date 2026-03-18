@@ -15,7 +15,7 @@ class Report extends Model
         'reason',
         'description',
         'status',
-        'admin_notes'
+        'admin_notes',
     ];
 
     public function reporter()

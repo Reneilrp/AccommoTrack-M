@@ -2,10 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Channels\DatabaseChannel;
 use App\Models\Booking;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-use App\Channels\DatabaseChannel;
 
 class NewBookingNotification extends Notification
 {
@@ -33,16 +33,16 @@ class NewBookingNotification extends Notification
     {
         $tenantName = $this->booking->guest_name;
         if (! $tenantName && $this->booking->tenant) {
-            $tenantName = trim($this->booking->tenant->first_name . ' ' . $this->booking->tenant->last_name);
+            $tenantName = trim($this->booking->tenant->first_name.' '.$this->booking->tenant->last_name);
         }
         $tenantName = $tenantName ?: 'A tenant';
 
         return [
-            'type'       => 'booking',
-            'title'      => 'New Booking Request',
-            'message'    => "{$tenantName} has submitted a booking request for room #{$this->booking->room_id}.",
+            'type' => 'booking',
+            'title' => 'New Booking Request',
+            'message' => "{$tenantName} has submitted a booking request for room #{$this->booking->room_id}.",
             'booking_id' => $this->booking->id,
-            'reference'  => $this->booking->booking_reference,
+            'reference' => $this->booking->booking_reference,
         ];
     }
 
@@ -52,11 +52,12 @@ class NewBookingNotification extends Notification
     public function toDatabase(object $notifiable): array
     {
         $data = $this->toArray($notifiable);
+
         return [
-            'type'    => $data['type'],
-            'title'   => $data['title'],
+            'type' => $data['type'],
+            'title' => $data['title'],
             'message' => $data['message'],
-            'data'    => $data,
+            'data' => $data,
         ];
     }
 }

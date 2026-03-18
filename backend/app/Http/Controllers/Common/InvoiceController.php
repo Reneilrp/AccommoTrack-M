@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Models\Invoice;
+use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\Invoice;
-use App\Models\PaymentTransaction;
 
 class InvoiceController extends Controller
 {
@@ -35,7 +34,7 @@ class InvoiceController extends Controller
         $uninvoicedBookingsQuery = \App\Models\Booking::where('landlord_id', $landlordId)
             ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->whereDoesntHave('invoices');
-        
+
         if ($allowedPropertyIds) {
             $uninvoicedBookingsQuery->whereIn('property_id', $allowedPropertyIds);
         }
@@ -45,15 +44,15 @@ class InvoiceController extends Controller
         foreach ($uninvoicedBookings as $booking) {
             // ... (rest of auto-generation logic remains same) ...
             try {
-                $reference = 'INV-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+                $reference = 'INV-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
                 $roomAmountCents = (int) round($booking->total_amount * 100);
-                
+
                 // Bundle active monthly addons
                 $activeMonthlyAddons = $booking->addons()
                     ->wherePivot('status', 'active')
                     ->where('price_type', 'monthly')
                     ->get();
-                
+
                 $addonsTotalCents = 0;
                 $addonMetadata = [];
                 foreach ($activeMonthlyAddons as $addon) {
@@ -69,7 +68,7 @@ class InvoiceController extends Controller
                 }
 
                 $totalAmountCents = $roomAmountCents + $addonsTotalCents;
-                $description = 'Monthly invoice for booking ' . $booking->booking_reference;
+                $description = 'Monthly invoice for booking '.$booking->booking_reference;
                 if ($addonsTotalCents > 0) {
                     $description .= "\n+ Includes active Add-ons";
                 }
@@ -86,7 +85,7 @@ class InvoiceController extends Controller
                     'status' => 'pending',
                     'issued_at' => $booking->created_at,
                     'due_date' => \Carbon\Carbon::parse($booking->start_date)->addDays(3),
-                    'metadata' => ['addons' => $addonMetadata]
+                    'metadata' => ['addons' => $addonMetadata],
                 ]);
 
                 foreach ($activeMonthlyAddons as $addon) {
@@ -96,7 +95,7 @@ class InvoiceController extends Controller
                     ]);
                 }
             } catch (\Exception $e) {
-                \Log::error('Failed auto-generate bundled invoice: ' . $e->getMessage());
+                \Log::error('Failed auto-generate bundled invoice: '.$e->getMessage());
             }
         }
 
@@ -106,13 +105,20 @@ class InvoiceController extends Controller
             $query->whereIn('property_id', $allowedPropertyIds);
         }
 
-        if ($request->has('status')) $query->where('status', $request->query('status'));
-        if ($request->has('tenant_id')) $query->where('tenant_id', $request->query('tenant_id'));
-        if ($request->has('property_id')) $query->where('property_id', $request->query('property_id'));
+        if ($request->has('status')) {
+            $query->where('status', $request->query('status'));
+        }
+        if ($request->has('tenant_id')) {
+            $query->where('tenant_id', $request->query('tenant_id'));
+        }
+        if ($request->has('property_id')) {
+            $query->where('property_id', $request->query('property_id'));
+        }
 
         $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])
             ->orderBy('created_at', 'desc')
             ->paginate(50);
+
         return response()->json($invoices, 200);
     }
 
@@ -132,7 +138,7 @@ class InvoiceController extends Controller
             'amount_cents' => 'required|integer|min:0',
             'currency' => 'nullable|string|size:3',
             'due_date' => 'nullable|date',
-            'metadata' => 'nullable|array'
+            'metadata' => 'nullable|array',
         ]);
 
         $this->checkPropertyAccess($context, (int) $validated['property_id']);
@@ -140,7 +146,7 @@ class InvoiceController extends Controller
         $invoice = null;
         DB::beginTransaction();
         try {
-            $reference = 'INV-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)),0,6));
+            $reference = 'INV-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
 
             $invoice = Invoice::create(array_merge($validated, [
                 'reference' => $reference,
@@ -151,9 +157,11 @@ class InvoiceController extends Controller
             ]));
 
             DB::commit();
+
             return response()->json($invoice->load('transactions'), 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Failed to create invoice', 'error' => $e->getMessage()], 500);
         }
     }
@@ -183,7 +191,7 @@ class InvoiceController extends Controller
     {
         $context = $this->resolveLandlordContext($request);
         $this->ensureCaretakerCan($context, 'can_manage_payments');
-        
+
         $invoice = Invoice::findOrFail($id);
         if ($invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
@@ -195,7 +203,7 @@ class InvoiceController extends Controller
             'method' => 'required|string',
             'amount_cents' => 'nullable|integer|min:0',
             'payment_method_id' => 'nullable|integer',
-            'idempotency_key' => 'nullable|string'
+            'idempotency_key' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -221,9 +229,11 @@ class InvoiceController extends Controller
             $invoice->save();
 
             DB::commit();
+
             return response()->json($tx->fresh(), 200);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Charge failed', 'error' => $e->getMessage()], 500);
         }
     }
@@ -248,7 +258,7 @@ class InvoiceController extends Controller
             'method' => 'required|string',
             'reference' => 'nullable|string',
             'received_at' => 'nullable|date',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -285,9 +295,11 @@ class InvoiceController extends Controller
             }
 
             DB::commit();
+
             return response()->json($tx->fresh(), 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Failed to record payment', 'error' => $e->getMessage()], 500);
         }
     }
@@ -309,7 +321,7 @@ class InvoiceController extends Controller
             'amount_cents' => 'required|integer|min:0',
             'method' => 'required|string',
             'reference' => 'nullable|string',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -326,9 +338,11 @@ class InvoiceController extends Controller
             ]);
 
             DB::commit();
+
             return response()->json(['success' => true, 'transaction' => $tx], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Failed to record offline payment', 'error' => $e->getMessage()], 500);
         }
     }
@@ -336,13 +350,13 @@ class InvoiceController extends Controller
     public function generateCashInvoice(\App\Models\Room $room)
     {
         $tenantId = Auth::id();
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
         DB::beginTransaction();
         try {
-            $reference = 'CASH-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+            $reference = 'CASH-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
 
             $invoice = Invoice::create([
                 'reference' => $reference,
@@ -350,7 +364,7 @@ class InvoiceController extends Controller
                 'property_id' => $room->property_id,
                 'booking_id' => null, // No booking yet
                 'tenant_id' => $tenantId,
-                'description' => 'Cash Payment for ' . $room->property->title . ' - Room ' . $room->room_number,
+                'description' => 'Cash Payment for '.$room->property->title.' - Room '.$room->room_number,
                 'amount_cents' => (int) round($room->monthly_rate * 100),
                 'currency' => 'PHP',
                 'status' => 'pending',
@@ -359,9 +373,11 @@ class InvoiceController extends Controller
             ]);
 
             DB::commit();
+
             return response()->json($invoice, 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Failed to create cash invoice', 'error' => $e->getMessage()], 500);
         }
     }

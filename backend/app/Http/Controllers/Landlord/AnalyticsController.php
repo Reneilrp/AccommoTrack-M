@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class AnalyticsController extends Controller
@@ -42,9 +40,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getDashboardAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -68,9 +67,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getOverviewStats error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch overview stats',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -97,9 +97,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getRevenueAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch revenue analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -123,9 +124,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getOccupancyAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch occupancy analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -149,9 +151,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getRoomTypeAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch room type analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -170,9 +173,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getPropertyComparison error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch property comparison',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -199,9 +203,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getTenantAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch tenant analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -225,9 +230,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getPaymentAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch payment analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -254,9 +260,10 @@ class AnalyticsController extends Controller
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getBookingAnalytics error', ['exception' => $e]);
+
             return response()->json([
                 'message' => 'Failed to fetch booking analytics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

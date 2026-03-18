@@ -1,38 +1,38 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Landlord\AnalyticsController;
 use App\Http\Controllers\Common\AuthController;
-use App\Http\Controllers\Landlord\LandlordBookingController;
-use App\Http\Controllers\Landlord\CaretakerController;
-use App\Http\Controllers\Landlord\LandlordDashboardController;
+use App\Http\Controllers\Common\ForgotPasswordController;
 use App\Http\Controllers\Common\GeocodeController;
+use App\Http\Controllers\Common\InquiryController;
+use App\Http\Controllers\Common\InvoiceController;
+use App\Http\Controllers\Common\MaintenanceRequestController;
 use App\Http\Controllers\Common\MessageController;
+use App\Http\Controllers\Common\NotificationController;
+use App\Http\Controllers\Common\PaymentController;
+use App\Http\Controllers\Common\PaymongoController;
+use App\Http\Controllers\Common\PaymongoWebhookController;
+use App\Http\Controllers\Common\ReportController;
+use App\Http\Controllers\Common\ReviewController;
+use App\Http\Controllers\Common\TransactionController;
+use App\Http\Controllers\Landlord\AddonController;
+use App\Http\Controllers\Landlord\AnalyticsController;
+use App\Http\Controllers\Landlord\CaretakerController;
+use App\Http\Controllers\Landlord\LandlordBookingController;
+use App\Http\Controllers\Landlord\LandlordController;
+use App\Http\Controllers\Landlord\LandlordDashboardController;
+use App\Http\Controllers\Landlord\LandlordVerificationController;
 use App\Http\Controllers\Landlord\PropertyController;
 use App\Http\Controllers\Landlord\RoomController;
-use App\Http\Controllers\Tenant\TenantBookingController;
 use App\Http\Controllers\Landlord\TenantController;
+use App\Http\Controllers\Tenant\TenantBookingController;
 use App\Http\Controllers\Tenant\TenantDashboardController;
 use App\Http\Controllers\Tenant\TenantPaymentController;
 use App\Http\Controllers\Tenant\TenantSettingsController;
-use App\Http\Controllers\Common\InvoiceController;
-use App\Http\Controllers\Common\TransactionController;
-use App\Http\Controllers\Common\PaymongoController;
-use App\Http\Controllers\Common\PaymongoWebhookController;
-use App\Http\Controllers\Landlord\LandlordVerificationController;
-use App\Http\Controllers\Landlord\AddonController;
-use App\Http\Controllers\Common\ReviewController;
-use App\Http\Controllers\Common\MaintenanceRequestController;
-use App\Http\Controllers\Common\InquiryController;
-use App\Http\Controllers\Landlord\LandlordController;
-use App\Http\Controllers\Common\PaymentController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsLandlord;
-use App\Http\Controllers\Common\ForgotPasswordController;
-use App\Http\Controllers\Common\NotificationController;
-use App\Http\Controllers\Common\ReportController;
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Route;
 
 // ====================================
 // PUBLIC ROUTES (No authentication)
@@ -76,13 +76,12 @@ Route::delete('/rooms/{id}', [RoomController::class, 'destroy'])->middleware('au
 Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
 // ----------------------------------------
 
-
 // ====================================
 // PROTECTED ROUTES (Authentication required)
 // ====================================
 Route::middleware('auth:sanctum')->group(function () {
     Broadcast::routes(['middleware' => ['auth:sanctum']]);
-    
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/switch-role', [AuthController::class, 'switchRole']);
@@ -113,11 +112,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/stats', [TenantDashboardController::class, 'getStats']);
         Route::get('/dashboard/activities', [TenantDashboardController::class, 'getRecentActivities']);
         Route::get('/dashboard/upcoming', [TenantDashboardController::class, 'getUpcomingPayments']);
-        
+
         // Tenant Dashboard - Current Stay & History
         Route::get('/current-stay', [TenantDashboardController::class, 'getCurrentStay']);
         Route::get('/history', [TenantDashboardController::class, 'getHistory']);
-        
+
         // Tenant Addon Requests
         Route::post('/addons/request', [TenantDashboardController::class, 'requestAddon']);
         Route::delete('/addons/{addonId}/cancel', [TenantDashboardController::class, 'cancelAddonRequest']);
@@ -125,7 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/addons/available', [TenantDashboardController::class, 'getAvailableAddons']);
         // Tenant: list current booking addon requests (active/pending)
         Route::get('/addons/requests', [TenantDashboardController::class, 'getAddonRequests']);
-        
+
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);
         Route::post('/bookings/{id}/invoice', [TenantBookingController::class, 'createInvoice']);
@@ -146,9 +145,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tenant: Reviews
         Route::post('/reviews', [ReviewController::class, 'store']);
         Route::get('/reviews', [ReviewController::class, 'getTenantReviews']);
-        
+
         // --- Aliases for Mobile Frontend (using /tenant/reviews prefix) ---
-        Route::prefix('reviews')->group(function() {
+        Route::prefix('reviews')->group(function () {
             Route::post('/', [ReviewController::class, 'store']);
             Route::get('/', [ReviewController::class, 'getTenantReviews']);
             Route::put('/{id}', [ReviewController::class, 'update']);
@@ -183,7 +182,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Landlord Verification Status & Resubmission
         Route::get('/verification-history', [LandlordVerificationController::class, 'getVerificationHistory']);
         Route::post('/resubmit-verification', [LandlordVerificationController::class, 'resubmit']);
-        
+
         // Landlord: Reviews
         Route::get('/reviews', [ReviewController::class, 'getLandlordReviews']);
         Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
@@ -194,7 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Landlord: PayMongo Onboarding
         Route::get('/paymongo/onboarding', [LandlordController::class, 'getOnboardingUrl']);
-        
+
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
         Route::post('/properties/verify-password', [PropertyController::class, 'verifyPassword']);
@@ -225,12 +224,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/tenants', [AnalyticsController::class, 'getTenantAnalytics']);
         Route::get('/analytics/payments', [AnalyticsController::class, 'getPaymentAnalytics']);
         Route::get('/analytics/bookings', [AnalyticsController::class, 'getBookingAnalytics']);
-            
+
         // Reports (Tenant)
         Route::post('/reports', [ReportController::class, 'store']);
-        
+
         Route::post('/tenants', [TenantController::class, 'store']);
-        Route::put('/tenants/{id}', [TenantController::class, 'update']);        
+        Route::put('/tenants/{id}', [TenantController::class, 'update']);
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         Route::post('/tenants/{id}/assign-room', [TenantController::class, 'assignRoom']);
         Route::post('/tenants/{id}/transfer-room', [TenantController::class, 'transferRoom']);
@@ -240,7 +239,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/caretakers/{assignmentId}', [CaretakerController::class, 'update']);
         Route::delete('/caretakers/{assignmentId}', [CaretakerController::class, 'destroy']);
         Route::post('/caretakers/{assignmentId}/reset-password', [CaretakerController::class, 'resetPassword']);
-        
+
         // Landlord Addon Management
         Route::get('/properties/{propertyId}/addons', [AddonController::class, 'index']);
         Route::post('/properties/{propertyId}/addons', [AddonController::class, 'store']);
@@ -338,7 +337,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Admin: Reports
         Route::get('/reports', [ReportController::class, 'index']);
         Route::patch('/reports/{id}', [ReportController::class, 'update']);
- });
+    });
 
     Route::prefix('messages')->group(function () {
         Route::get('/conversations', [MessageController::class, 'getConversations']);

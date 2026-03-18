@@ -25,8 +25,8 @@ class AddonResource extends JsonResource
             'addonType' => $this->addon_type,
             'addonTypeLabel' => $this->addon_type_label,
             'stock' => $this->stock,
-            'is_active' => (bool)$this->is_active,
-            'isActive' => (bool)$this->is_active,
+            'is_active' => (bool) $this->is_active,
+            'isActive' => (bool) $this->is_active,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

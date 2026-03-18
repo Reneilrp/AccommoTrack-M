@@ -3,14 +3,11 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\MaintenanceRequest;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Booking;
-use App\Models\Property;
+use App\Models\MaintenanceRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 
 class MaintenanceRequestController extends Controller
 {
@@ -50,13 +47,13 @@ class MaintenanceRequestController extends Controller
             'description' => $request->description,
             'priority' => $request->priority,
             'status' => 'pending',
-            'images' => !empty($imagePaths) ? $imagePaths : null,
+            'images' => ! empty($imagePaths) ? $imagePaths : null,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Maintenance request submitted successfully',
-            'data' => $maintenanceRequest
+            'data' => $maintenanceRequest,
         ], 201);
     }
 
@@ -72,7 +69,7 @@ class MaintenanceRequestController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $requests
+            'data' => $requests,
         ]);
     }
 
@@ -112,19 +109,19 @@ class MaintenanceRequestController extends Controller
     {
         $context = $this->resolveLandlordContext($request);
         $this->ensureCaretakerCan($context, 'can_manage_maintenance');
-        
+
         $maintenanceRequest = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
             ->findOrFail($id);
 
         if ($context['is_caretaker'] && $context['assignment']) {
             $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
-            if (!in_array($maintenanceRequest->property_id, $assignedPropertyIds)) {
+            if (! in_array($maintenanceRequest->property_id, $assignedPropertyIds)) {
                 return response()->json(['message' => 'Unauthorized access to this property'], 403);
             }
         }
 
         $request->validate([
-            'status' => 'required|in:pending,in_progress,completed,cancelled'
+            'status' => 'required|in:pending,in_progress,completed,cancelled',
         ]);
 
         $maintenanceRequest->status = $request->status;
@@ -136,7 +133,7 @@ class MaintenanceRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Maintenance request status updated',
-            'data' => $maintenanceRequest
+            'data' => $maintenanceRequest,
         ]);
     }
 }

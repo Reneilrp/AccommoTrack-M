@@ -24,7 +24,7 @@ return [
         '127.0.0.1',
         '127.0.0.1:8000',
         parse_url(env('APP_URL', 'http://localhost:8000'), PHP_URL_HOST),
-        'beta.' . parse_url(env('APP_URL', 'http://localhost:8000'), PHP_URL_HOST),
+        'beta.'.parse_url(env('APP_URL', 'http://localhost:8000'), PHP_URL_HOST),
     ])))),
 
     /*

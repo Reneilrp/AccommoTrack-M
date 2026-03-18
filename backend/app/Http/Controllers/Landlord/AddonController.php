@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
-use Illuminate\Http\Request;
+use App\Http\Resources\AddonResource;
 use App\Models\Addon;
 use App\Models\Booking;
 use App\Models\Property;
-use App\Http\Resources\AddonResource;
 use App\Services\AddonService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +28,7 @@ class AddonController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // Verify ownership or caretaker access
             $property = Property::where('id', $propertyId)
                 ->where(function ($query) use ($user) {
@@ -37,9 +36,9 @@ class AddonController extends Controller
                 })
                 ->first();
 
-            if (!$property) {
+            if (! $property) {
                 return response()->json([
-                    'message' => 'Property not found or access denied'
+                    'message' => 'Property not found or access denied',
                 ], 404);
             }
 
@@ -48,12 +47,12 @@ class AddonController extends Controller
                 ->get();
 
             return response()->json([
-                'addons' => AddonResource::collection($addons)->resolve()
+                'addons' => AddonResource::collection($addons)->resolve(),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch addons',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -71,9 +70,9 @@ class AddonController extends Controller
                 ->where('landlord_id', $user->id)
                 ->first();
 
-            if (!$property) {
+            if (! $property) {
                 return response()->json([
-                    'message' => 'Property not found or access denied'
+                    'message' => 'Property not found or access denied',
                 ], 404);
             }
 
@@ -84,24 +83,24 @@ class AddonController extends Controller
                 'price_type' => 'required|in:one_time,monthly',
                 'addon_type' => 'required|in:rental,fee',
                 'stock' => 'nullable|integer|min:0',
-                'is_active' => 'boolean'
+                'is_active' => 'boolean',
             ]);
 
             $addon = $this->addonService->createAddon($propertyId, $validated);
 
             return response()->json([
                 'message' => 'Addon created successfully',
-                'addon' => (new AddonResource($addon))->resolve()
+                'addon' => (new AddonResource($addon))->resolve(),
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create addon',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -119,9 +118,9 @@ class AddonController extends Controller
                 ->where('landlord_id', $user->id)
                 ->first();
 
-            if (!$property) {
+            if (! $property) {
                 return response()->json([
-                    'message' => 'Property not found or access denied'
+                    'message' => 'Property not found or access denied',
                 ], 404);
             }
 
@@ -136,24 +135,24 @@ class AddonController extends Controller
                 'price_type' => 'in:one_time,monthly',
                 'addon_type' => 'in:rental,fee',
                 'stock' => 'nullable|integer|min:0',
-                'is_active' => 'boolean'
+                'is_active' => 'boolean',
             ]);
 
             $addon = $this->addonService->updateAddon($addon, $validated);
 
             return response()->json([
                 'message' => 'Addon updated successfully',
-                'addon' => (new AddonResource($addon))->resolve()
+                'addon' => (new AddonResource($addon))->resolve(),
             ], 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update addon',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -171,9 +170,9 @@ class AddonController extends Controller
                 ->where('landlord_id', $user->id)
                 ->first();
 
-            if (!$property) {
+            if (! $property) {
                 return response()->json([
-                    'message' => 'Property not found or access denied'
+                    'message' => 'Property not found or access denied',
                 ], 404);
             }
 
@@ -184,12 +183,12 @@ class AddonController extends Controller
             $this->addonService->deleteAddon($addon);
 
             return response()->json([
-                'message' => 'Addon deleted successfully'
+                'message' => 'Addon deleted successfully',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete addon',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -207,9 +206,9 @@ class AddonController extends Controller
                 ->where('landlord_id', $user->id)
                 ->first();
 
-            if (!$property) {
+            if (! $property) {
                 return response()->json([
-                    'message' => 'Property not found or access denied'
+                    'message' => 'Property not found or access denied',
                 ], 404);
             }
 
@@ -235,7 +234,7 @@ class AddonController extends Controller
                     'users.first_name as tenant_first_name',
                     'users.last_name as tenant_last_name',
                     'users.email as tenant_email',
-                    'rooms.room_number'
+                    'rooms.room_number',
                 ])
                 ->orderBy('booking_addons.created_at', 'asc')
                 ->get();
@@ -255,17 +254,17 @@ class AddonController extends Controller
                         'requestNote' => $request->request_note,
                         'requestedAt' => $request->requested_at,
                         'tenant' => [
-                            'name' => $request->tenant_first_name . ' ' . $request->tenant_last_name,
-                            'email' => $request->tenant_email
+                            'name' => $request->tenant_first_name.' '.$request->tenant_last_name,
+                            'email' => $request->tenant_email,
                         ],
-                        'roomNumber' => $request->room_number
+                        'roomNumber' => $request->room_number,
                     ];
-                })
+                }),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch pending requests',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -280,7 +279,7 @@ class AddonController extends Controller
 
             $validated = $request->validate([
                 'action' => 'required|in:approve,reject',
-                'note' => 'nullable|string|max:500'
+                'note' => 'nullable|string|max:500',
             ]);
 
             // Get booking and verify access
@@ -296,12 +295,12 @@ class AddonController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to handle addon request',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -319,9 +318,9 @@ class AddonController extends Controller
                 ->where('landlord_id', $user->id)
                 ->first();
 
-            if (!$property) {
+            if (! $property) {
                 return response()->json([
-                    'message' => 'Property not found or access denied'
+                    'message' => 'Property not found or access denied',
                 ], 404);
             }
 
@@ -344,7 +343,7 @@ class AddonController extends Controller
                     'addons.price_type',
                     'addons.addon_type',
                     DB::raw("CONCAT(users.first_name, ' ', users.last_name) as tenant_name"),
-                    'rooms.room_number'
+                    'rooms.room_number',
                 ])
                 ->orderBy('booking_addons.approved_at', 'desc')
                 ->get();
@@ -369,18 +368,18 @@ class AddonController extends Controller
                         'status' => $item->status,
                         'approvedAt' => $item->approved_at,
                         'tenantName' => $item->tenant_name,
-                        'roomNumber' => $item->room_number
+                        'roomNumber' => $item->room_number,
                     ];
                 }),
                 'summary' => [
                     'totalActive' => $activeAddons->count(),
-                    'monthlyRevenue' => (float) $monthlyRevenue
-                ]
+                    'monthlyRevenue' => (float) $monthlyRevenue,
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch active addons',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

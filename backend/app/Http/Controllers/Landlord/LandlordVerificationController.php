@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\LandlordVerification;
 use App\Models\LandlordVerificationHistory;
 use App\Models\User;
 use App\Notifications\LandlordResubmittedNotification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class LandlordVerificationController extends Controller
 {
@@ -76,16 +75,20 @@ class LandlordVerificationController extends Controller
             return response()->json([
                 'message' => 'Registration successful. Please wait for verification.',
                 'user' => $user,
-                'verification' => $verification
+                'verification' => $verification,
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
             // Delete uploaded files if transaction failed
-            if (isset($validIdPath)) Storage::disk('public')->delete($validIdPath);
-            if (isset($permitPath)) Storage::disk('public')->delete($permitPath);
-            
-            return response()->json(['message' => 'Registration failed: ' . $e->getMessage()], 500);
+            if (isset($validIdPath)) {
+                Storage::disk('public')->delete($validIdPath);
+            }
+            if (isset($permitPath)) {
+                Storage::disk('public')->delete($permitPath);
+            }
+
+            return response()->json(['message' => 'Registration failed: '.$e->getMessage()], 500);
         }
     }
 
@@ -93,24 +96,26 @@ class LandlordVerificationController extends Controller
     {
         // For admin: list all landlord verifications with user info
         $verifications = LandlordVerification::with('user')->orderBy('created_at', 'desc')->get();
+
         return response()->json($verifications);
     }
 
     public function getValidIdTypes()
     {
         $types = [
-            "Philippine Passport",
+            'Philippine Passport',
             "Driver's License",
-            "PhilSys ID (National ID)",
-            "Unified Multi-Purpose ID (UMID)",
-            "Professional Regulation Commission (PRC) ID",
-            "Postal ID (Digitized)",
+            'PhilSys ID (National ID)',
+            'Unified Multi-Purpose ID (UMID)',
+            'Professional Regulation Commission (PRC) ID',
+            'Postal ID (Digitized)',
             "Voter's ID",
-            "Taxpayer Identification Number (TIN) ID",
-            "PhilHealth ID",
-            "Senior Citizen ID",
-            "Overseas Workers Welfare Administration (OWWA) / OFW ID"
+            'Taxpayer Identification Number (TIN) ID',
+            'PhilHealth ID',
+            'Senior Citizen ID',
+            'Overseas Workers Welfare Administration (OWWA) / OFW ID',
         ];
+
         return response()->json($types);
     }
 
@@ -118,17 +123,17 @@ class LandlordVerificationController extends Controller
     public function getMyVerification()
     {
         $user = Auth::user();
-        
-        $verification = LandlordVerification::with(['history' => function($query) {
+
+        $verification = LandlordVerification::with(['history' => function ($query) {
             $query->orderBy('created_at', 'desc');
         }, 'reviewer:id,first_name,last_name'])
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$verification) {
+        if (! $verification) {
             return response()->json([
                 'message' => 'No verification record found',
-                'status' => 'not_submitted'
+                'status' => 'not_submitted',
             ], 404);
         }
 
@@ -139,15 +144,15 @@ class LandlordVerificationController extends Controller
             'status' => $verification->status,
             'rejection_reason' => $verification->rejection_reason,
             'valid_id_type' => $verification->valid_id_type,
-            'valid_id_path' => $verification->valid_id_path ? asset('storage/' . $verification->valid_id_path) : null,
-            'permit_path' => $verification->permit_path ? asset('storage/' . $verification->permit_path) : null,
+            'valid_id_path' => $verification->valid_id_path ? asset('storage/'.$verification->valid_id_path) : null,
+            'permit_path' => $verification->permit_path ? asset('storage/'.$verification->permit_path) : null,
             'reviewed_at' => $verification->reviewed_at,
             'reviewer' => $verification->reviewer ? [
-                'name' => trim($verification->reviewer->first_name . ' ' . $verification->reviewer->last_name)
+                'name' => trim($verification->reviewer->first_name.' '.$verification->reviewer->last_name),
             ] : null,
             'created_at' => $verification->created_at,
             'updated_at' => $verification->updated_at,
-            'history' => $verification->history->map(function($h) {
+            'history' => $verification->history->map(function ($h) {
                 return [
                     'id' => $h->id,
                     'status' => $h->status,
@@ -159,7 +164,7 @@ class LandlordVerificationController extends Controller
             }),
             'user' => [
                 'is_verified' => $landlord->is_verified ?? false,
-            ]
+            ],
         ]);
     }
 
@@ -169,10 +174,10 @@ class LandlordVerificationController extends Controller
     public function getVerificationHistory()
     {
         $user = Auth::user();
-        
+
         $verification = LandlordVerification::where('user_id', $user->id)->first();
-        
-        if (!$verification) {
+
+        if (! $verification) {
             return response()->json([]);
         }
 
@@ -180,17 +185,17 @@ class LandlordVerificationController extends Controller
             ->with('reviewer:id,first_name,last_name')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function($h) {
+            ->map(function ($h) {
                 return [
                     'id' => $h->id,
                     'status' => $h->status,
                     'rejection_reason' => $h->rejection_reason,
                     'valid_id_type' => $h->valid_id_type,
-                    'valid_id_path' => $h->valid_id_path ? asset('storage/' . $h->valid_id_path) : null,
-                    'permit_path' => $h->permit_path ? asset('storage/' . $h->permit_path) : null,
+                    'valid_id_path' => $h->valid_id_path ? asset('storage/'.$h->valid_id_path) : null,
+                    'permit_path' => $h->permit_path ? asset('storage/'.$h->permit_path) : null,
                     'submitted_at' => $h->submitted_at,
                     'reviewed_at' => $h->reviewed_at,
-                    'reviewer' => $h->reviewer ? trim($h->reviewer->first_name . ' ' . $h->reviewer->last_name) : null,
+                    'reviewer' => $h->reviewer ? trim($h->reviewer->first_name.' '.$h->reviewer->last_name) : null,
                 ];
             });
 
@@ -203,13 +208,13 @@ class LandlordVerificationController extends Controller
     public function resubmit(Request $request)
     {
         $user = Auth::user();
-        
+
         $verification = LandlordVerification::where('user_id', $user->id)->first();
-        
+
         // If it exists, check if it's rejected. If it doesn't exist, we'll create it.
         if ($verification && $verification->status !== 'rejected') {
             return response()->json([
-                'message' => 'You can only resubmit after your application has been rejected'
+                'message' => 'You can only resubmit after your application has been rejected',
             ], 400);
         }
 
@@ -223,7 +228,7 @@ class LandlordVerificationController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'message' => $validator->errors()->first(),
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -270,7 +275,7 @@ class LandlordVerificationController extends Controller
                     $admin->notify(new LandlordResubmittedNotification($user));
                 }
             } catch (\Exception $e) {
-                \Log::error('Failed to send resubmission notification to admins: ' . $e->getMessage());
+                \Log::error('Failed to send resubmission notification to admins: '.$e->getMessage());
             }
 
             return response()->json([
@@ -280,16 +285,20 @@ class LandlordVerificationController extends Controller
                     'status' => $verification->status,
                     'valid_id_type' => $verification->valid_id_type,
                     'updated_at' => $verification->updated_at,
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             // Delete uploaded files if transaction failed
-            if (isset($validIdPath)) Storage::disk('public')->delete($validIdPath);
-            if (isset($permitPath)) Storage::disk('public')->delete($permitPath);
-            
-            return response()->json(['message' => 'Resubmission failed: ' . $e->getMessage()], 500);
+            if (isset($validIdPath)) {
+                Storage::disk('public')->delete($validIdPath);
+            }
+            if (isset($permitPath)) {
+                Storage::disk('public')->delete($permitPath);
+            }
+
+            return response()->json(['message' => 'Resubmission failed: '.$e->getMessage()], 500);
         }
     }
 }

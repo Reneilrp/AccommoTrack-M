@@ -21,7 +21,7 @@ class ExtensionController extends Controller
             ->with(['tenant', 'booking.room.property'])
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return response()->json($requests);
     }
 
@@ -34,14 +34,14 @@ class ExtensionController extends Controller
             'action' => 'required|in:approve,reject,modify',
             'requested_end_date' => 'nullable|date|after:today',
             'proposed_amount' => 'nullable|numeric|min:0',
-            'landlord_notes' => 'nullable|string|max:500'
+            'landlord_notes' => 'nullable|string|max:500',
         ]);
 
         if ($ext->status !== 'pending') {
             return response()->json(['message' => 'Request already handled'], 422);
         }
 
-        return DB::transaction(function() use ($ext, $validated) {
+        return DB::transaction(function () use ($ext, $validated) {
             $action = $validated['action'];
             $ext->status = $action === 'modify' ? 'modified' : ($action === 'approve' ? 'approved' : 'rejected');
             $ext->landlord_notes = $validated['landlord_notes'] ?? null;
@@ -57,14 +57,14 @@ class ExtensionController extends Controller
                 $booking->save();
 
                 // 2. Create Invoice for the extension
-                $reference = 'INV-EXT-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+                $reference = 'INV-EXT-'.date('Ymd').'-'.strtoupper(Str::random(6));
                 Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $ext->landlord_id,
                     'property_id' => $booking->property_id,
                     'booking_id' => $booking->id,
                     'tenant_id' => $ext->tenant_id,
-                    'description' => "Stay Extension until {$finalDate} (" . ($ext->extension_type) . ")",
+                    'description' => "Stay Extension until {$finalDate} (".($ext->extension_type).')',
                     'amount_cents' => (int) round($finalAmount * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
@@ -73,12 +73,13 @@ class ExtensionController extends Controller
                     'metadata' => [
                         'extension_request_id' => $ext->id,
                         'type' => $ext->extension_type,
-                        'days' => \Carbon\Carbon::parse($ext->current_end_date)->diffInDays(\Carbon\Carbon::parse($finalDate))
-                    ]
+                        'days' => \Carbon\Carbon::parse($ext->current_end_date)->diffInDays(\Carbon\Carbon::parse($finalDate)),
+                    ],
                 ]);
             }
 
             $ext->save();
+
             return response()->json($ext->load('booking'));
         });
     }

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\CaretakerAssignment;
 use App\Models\Property;
@@ -11,7 +10,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class CaretakerController extends Controller
 {
@@ -26,7 +24,7 @@ class CaretakerController extends Controller
         $landlordProperties = Property::where('landlord_id', $context['landlord_id'])
             ->select('id', 'title')
             ->get()
-            ->map(fn($p) => ['id' => $p->id, 'name' => $p->title]);
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->title]);
 
         $assignments = CaretakerAssignment::with(['caretaker', 'properties:id,title'])
             ->where('landlord_id', $context['landlord_id'])
@@ -52,9 +50,9 @@ class CaretakerController extends Controller
                         'maintenance' => $assignment->can_manage_maintenance,
                         'payments' => $assignment->can_manage_payments,
                     ],
-                    'assigned_properties' => $assignment->properties->map(fn($p) => [
+                    'assigned_properties' => $assignment->properties->map(fn ($p) => [
                         'id' => $p->id,
-                        'name' => $p->title
+                        'name' => $p->title,
                     ])->toArray(),
                     'assigned_property_ids' => $assignment->properties->pluck('id')->toArray(),
                     'created_at' => $assignment->created_at,
@@ -63,7 +61,7 @@ class CaretakerController extends Controller
 
         return response()->json([
             'caretakers' => $assignments,
-            'landlord_properties' => $landlordProperties
+            'landlord_properties' => $landlordProperties,
         ]);
     }
 
@@ -125,7 +123,7 @@ class CaretakerController extends Controller
         ));
 
         // Assign properties if provided
-        if (!empty($validated['property_ids'])) {
+        if (! empty($validated['property_ids'])) {
             $assignment->syncProperties($validated['property_ids']);
         }
 
@@ -146,9 +144,9 @@ class CaretakerController extends Controller
                     'rooms' => $permissions['can_view_rooms'],
                     'properties' => $permissions['can_view_properties'],
                 ],
-                'assigned_properties' => $assignment->properties->map(fn($p) => [
+                'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,
-                    'name' => $p->title
+                    'name' => $p->title,
                 ])->toArray(),
             ],
             'temporary_password' => $temporaryPassword,
@@ -168,7 +166,7 @@ class CaretakerController extends Controller
             'first_name' => 'sometimes|string|max:255',
             'middle_name' => 'sometimes|nullable|string|max:255',
             'last_name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|max:255|unique:users,email,' . $assignment->caretaker_id,
+            'email' => 'sometimes|email|max:255|unique:users,email,'.$assignment->caretaker_id,
             'phone' => 'sometimes|nullable|string|max:20',
             'date_of_birth' => 'sometimes|nullable|date',
             'password' => 'sometimes|nullable|string|min:6|confirmed',
@@ -241,9 +239,9 @@ class CaretakerController extends Controller
                     'maintenance' => $assignment->can_manage_maintenance,
                     'payments' => $assignment->can_manage_payments,
                 ],
-                'assigned_properties' => $assignment->properties->map(fn($p) => [
+                'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,
-                    'name' => $p->title
+                    'name' => $p->title,
                 ])->toArray(),
             ],
         ]);

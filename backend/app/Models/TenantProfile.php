@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $user
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantProfile active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantProfile inactive()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantProfile newModelQuery()
@@ -42,6 +43,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantProfile whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantProfile whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantProfile whereUserId($value)
+ *
  * @mixin \Eloquent
  */
 class TenantProfile extends Model

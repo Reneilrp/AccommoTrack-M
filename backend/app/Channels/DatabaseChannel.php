@@ -2,8 +2,8 @@
 
 namespace App\Channels;
 
-use Illuminate\Notifications\Notification;
 use App\Models\Notification as NotificationModel;
+use Illuminate\Notifications\Notification;
 
 class DatabaseChannel
 {
@@ -11,7 +11,6 @@ class DatabaseChannel
      * Send the given notification.
      *
      * @param  mixed  $notifiable
-     * @param  \Illuminate\Notifications\Notification  $notification
      * @return void
      */
     public function send($notifiable, Notification $notification)
@@ -20,10 +19,10 @@ class DatabaseChannel
 
         return NotificationModel::create([
             'user_id' => $notifiable->id,
-            'type'    => $data['type'] ?? 'general',
-            'title'   => $data['title'] ?? 'New Notification',
+            'type' => $data['type'] ?? 'general',
+            'title' => $data['title'] ?? 'New Notification',
             'message' => $data['message'] ?? '',
-            'data'    => $data['data'] ?? $data,
+            'data' => $data['data'] ?? $data,
             'is_read' => false,
         ]);
     }

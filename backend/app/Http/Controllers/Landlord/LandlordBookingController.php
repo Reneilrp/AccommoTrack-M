@@ -3,16 +3,14 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Http\Requests\Booking\StoreBookingRequest;
-use App\Http\Requests\Booking\UpdateStatusRequest;
 use App\Http\Requests\Booking\UpdatePaymentStatusRequest;
+use App\Http\Requests\Booking\UpdateStatusRequest;
 use App\Http\Resources\BookingResource;
+use App\Models\Booking;
 use App\Services\BookingService;
 use Illuminate\Http\Request;
-use App\Models\Booking;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class LandlordBookingController extends Controller
@@ -44,7 +42,7 @@ class LandlordBookingController extends Controller
                 Log::info('Caretaker booking filter', [
                     'caretaker_id' => $context['user']->id,
                     'assigned_property_ids' => $assignedPropertyIds,
-                    'landlord_id' => $context['landlord_id']
+                    'landlord_id' => $context['landlord_id'],
                 ]);
                 $query->whereIn('property_id', $assignedPropertyIds);
             }
@@ -63,7 +61,7 @@ class LandlordBookingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch bookings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -80,7 +78,7 @@ class LandlordBookingController extends Controller
             $tenantId = $request->input('tenant_id');
 
             // If a tenant is logged in and creating a booking, use their ID
-            if (!$tenantId && $user && $user->role === 'tenant') {
+            if (! $tenantId && $user && $user->role === 'tenant') {
                 $tenantId = $user->id;
             }
 
@@ -91,28 +89,31 @@ class LandlordBookingController extends Controller
 
             return response()->json([
                 'message' => 'Booking created successfully',
-                'booking' => (new BookingResource($booking->load(['property', 'tenant', 'room'])))->resolve()
+                'booking' => (new BookingResource($booking->load(['property', 'tenant', 'room'])))->resolve(),
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed', ['errors' => $e->errors()]);
+
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Room not found', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Room not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         } catch (\Exception $e) {
             Log::error('Failed to create booking', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'message' => 'Failed to create booking',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -143,17 +144,17 @@ class LandlordBookingController extends Controller
                 'message' => 'Booking status updated successfully',
                 'booking' => (new BookingResource($result['booking']))->resolve(),
                 'room_updated' => $result['room_updated'],
-                'tenant_name' => $result['tenant_name']
+                'tenant_name' => $result['tenant_name'],
             ], 200);
         } catch (\Exception $e) {
             Log::error('Failed to update booking status', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Failed to update booking status',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -177,16 +178,16 @@ class LandlordBookingController extends Controller
             );
 
             return response()->json([
-                'message' => $result['status_upgraded'] 
-                    ? 'Payment updated and booking upgraded to completed!' 
+                'message' => $result['status_upgraded']
+                    ? 'Payment updated and booking upgraded to completed!'
                     : 'Payment status updated successfully',
                 'booking' => (new BookingResource($result['booking']))->resolve(),
-                'status_upgraded' => $result['status_upgraded']
+                'status_upgraded' => $result['status_upgraded'],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update payment status',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -214,7 +215,7 @@ class LandlordBookingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch stats',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -243,7 +244,7 @@ class LandlordBookingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Booking not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }

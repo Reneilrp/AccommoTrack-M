@@ -15,7 +15,7 @@ return new class extends Migration
             $table->text('rejection_reason')->nullable()->after('status');
             $table->timestamp('reviewed_at')->nullable()->after('rejection_reason');
             $table->unsignedBigInteger('reviewed_by')->nullable()->after('reviewed_at');
-            
+
             $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
         });
     }

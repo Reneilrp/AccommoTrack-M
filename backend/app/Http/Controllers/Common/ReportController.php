@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Report;
 use App\Models\Booking;
+use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -31,9 +30,9 @@ class ReportController extends Controller
             ->whereIn('status', ['confirmed', 'completed', 'cancelled']) // Allow even cancelled if they had a bad experience
             ->exists();
 
-        if (!$hasBooking) {
+        if (! $hasBooking) {
             return response()->json([
-                'message' => 'You can only report properties you have booked.'
+                'message' => 'You can only report properties you have booked.',
             ], 403);
         }
 
@@ -45,7 +44,7 @@ class ReportController extends Controller
 
         if ($existing) {
             return response()->json([
-                'message' => 'You already have a pending report for this property.'
+                'message' => 'You already have a pending report for this property.',
             ], 429);
         }
 
@@ -54,12 +53,12 @@ class ReportController extends Controller
             'property_id' => $request->property_id,
             'reason' => $request->reason,
             'description' => $request->description,
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
         return response()->json([
             'message' => 'Report submitted successfully. Admins will review it shortly.',
-            'report' => $report
+            'report' => $report,
         ], 201);
     }
 
@@ -86,19 +85,19 @@ class ReportController extends Controller
     {
         $request->validate([
             'status' => 'required|in:pending,resolved,dismissed',
-            'admin_notes' => 'nullable|string'
+            'admin_notes' => 'nullable|string',
         ]);
 
         $report = Report::findOrFail($id);
-        
+
         $report->update([
             'status' => $request->status,
-            'admin_notes' => $request->admin_notes
+            'admin_notes' => $request->admin_notes,
         ]);
 
         return response()->json([
             'message' => 'Report updated',
-            'report' => $report
+            'report' => $report,
         ]);
     }
 }

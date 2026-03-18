@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers\Common;
 
-use App\Http\Controllers\Controller;
-
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Validation\Rule;
-use App\Services\AuthService;
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
+use App\Http\Controllers\Controller;
 use App\Mail\EmailOtpMail;
-use Illuminate\Support\Facades\Mail;
+use App\Models\User;
+use App\Services\AuthService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -34,11 +33,13 @@ class AuthController extends Controller
             'email' => 'required|email:rfc',
         ]);
         $exists = User::where('email', $request->email)->exists();
+
         return response()->json([
-            'available' => !$exists,
-            'message' => $exists ? 'Email is already in use.' : 'Email is available.'
+            'available' => ! $exists,
+            'message' => $exists ? 'Email is already in use.' : 'Email is available.',
         ]);
     }
+
     public function register(Request $request)
     {
         try {
@@ -48,16 +49,16 @@ class AuthController extends Controller
                 'last_name' => 'required|string|max:100',
                 // Require RFC syntax during registration
                 'email' => 'required|string|email:rfc|max:255|unique:users',
-                            'password' => [
-                                'required',
-                                'string',
-                                'min:8',
-                                'confirmed',
-                                'regex:/[a-z]/',      // at least one lowercase letter
-                                'regex:/[A-Z]/',      // at least one uppercase letter
-                                'regex:/(.*[0-9]){2,}/', // at least two numbers
-                                'regex:{[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]}', // at least one special character
-                            ],
+                'password' => [
+                    'required',
+                    'string',
+                    'min:8',
+                    'confirmed',
+                    'regex:/[a-z]/',      // at least one lowercase letter
+                    'regex:/[A-Z]/',      // at least one uppercase letter
+                    'regex:/(.*[0-9]){2,}/', // at least two numbers
+                    'regex:{[!@#$%^&*(),.?":{}|<>\[\]\\\/~`_+=;\'\-]}', // at least one special character
+                ],
                 'role' => 'required|in:landlord,tenant',
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'required|date',
@@ -73,8 +74,8 @@ class AuthController extends Controller
                 $birthDate = \Carbon\Carbon::parse($validated['date_of_birth']);
                 if ($birthDate->diffInYears(\Carbon\Carbon::now()) < $minAge) {
                     return response()->json([
-                        'message' => 'Registration failed: You must be at least ' . $minAge . ' years old to register as a ' . $validated['role'] . '.',
-                        'errors' => ['date_of_birth' => ['Age restriction: Minimum ' . $minAge . ' years old required.']]
+                        'message' => 'Registration failed: You must be at least '.$minAge.' years old to register as a '.$validated['role'].'.',
+                        'errors' => ['date_of_birth' => ['Age restriction: Minimum '.$minAge.' years old required.']],
                     ], 422);
                 }
             }
@@ -87,14 +88,14 @@ class AuthController extends Controller
             Mail::to($user->email)->send(new EmailOtpMail($otp));
 
             return response()->json([
-                'message' => 'Registration successful. An OTP has been sent to your email address for verification.'
+                'message' => 'Registration successful. An OTP has been sent to your email address for verification.',
             ], 201);
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Registration failed: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Registration failed: '.$e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -108,7 +109,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !$user->email_otp_code) {
+        if (! $user || ! $user->email_otp_code) {
             return response()->json(['message' => 'Verification code not found.'], 404);
         }
 
@@ -116,7 +117,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Verification code has expired.'], 422);
         }
 
-        if (!Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
+        if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
             return response()->json(['message' => 'Invalid verification code.'], 422);
         }
 
@@ -132,7 +133,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token,
-            'message' => 'Email verified successfully. You are now logged in.'
+            'message' => 'Email verified successfully. You are now logged in.',
         ]);
     }
 
@@ -172,7 +173,7 @@ class AuthController extends Controller
             $responseData = [
                 'user' => $user,
                 'token' => $token,
-                'message' => 'Login successful'
+                'message' => 'Login successful',
             ];
 
             // Add verification info for landlords on successful login
@@ -189,12 +190,12 @@ class AuthController extends Controller
         } catch (AccountBlockedException $e) {
             return response()->json([
                 'status' => 'blocked',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 403);
         } catch (PendingVerificationException $e) {
             return response()->json([
                 'status' => 'pending_verification',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 403);
         }
     }
@@ -204,14 +205,14 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Logged out successfully'
+            'message' => 'Logged out successfully',
         ]);
     }
 
     public function me(Request $request)
     {
         $user = $request->user();
-        
+
         // Load caretaker assignment if user is a caretaker
         if ($user->role === 'caretaker') {
             $user->load('caretakerAssignment');
@@ -234,15 +235,15 @@ class AuthController extends Controller
         // Security Check: If switching TO landlord, must be verified/approved
         if ($user->role === 'tenant' && $newRole === 'landlord') {
             $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
-            
-            if (!$verification || $verification->status !== 'approved') {
+
+            if (! $verification || $verification->status !== 'approved') {
                 return response()->json([
                     'message' => 'Your landlord verification is not yet approved. Please complete verification first.',
-                    'status' => $verification ? $verification->status : 'not_submitted'
+                    'status' => $verification ? $verification->status : 'not_submitted',
                 ], 403);
             }
         }
-        
+
         // If they are switching to landlord, ensure they are verified (or at least have submitted verification)
         // For simplicity, we just change the role.
         $user->role = $newRole;
@@ -250,7 +251,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user->fresh(),
-            'message' => 'Role switched to ' . $newRole,
+            'message' => 'Role switched to '.$newRole,
         ]);
     }
 
@@ -280,20 +281,20 @@ class AuthController extends Controller
                 $rules['date_of_birth'] = [
                     'nullable',
                     'date',
-                    'before_or_equal:' . now()->subYears($minAge)->format('Y-m-d')
+                    'before_or_equal:'.now()->subYears($minAge)->format('Y-m-d'),
                 ];
             }
 
             $validated = $request->validate($rules, [
-                'date_of_birth.before_or_equal' => 'User must be at least ' . ($user->role === 'landlord' ? '20' : '18') . ' years old.'
+                'date_of_birth.before_or_equal' => 'User must be at least '.($user->role === 'landlord' ? '20' : '18').' years old.',
             ]);
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {
                 $image = $request->file('profile_image');
-                $filename = 'profile_' . $user->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                $filename = 'profile_'.$user->id.'_'.time().'.'.$image->getClientOriginalExtension();
                 $path = $image->storeAs('profile-images', $filename, 'public');
-                $validated['profile_image'] = '/storage/' . $path;
+                $validated['profile_image'] = '/storage/'.$path;
 
                 // Delete old profile image if exists
                 if ($user->profile_image) {
@@ -304,31 +305,31 @@ class AuthController extends Controller
 
             // Separate user data
             $userFields = [
-                'first_name', 'middle_name', 'last_name', 'phone', 'profile_image', 
+                'first_name', 'middle_name', 'last_name', 'phone', 'profile_image',
                 'payment_methods_settings', 'notification_preferences', 'preferences',
-                'date_of_birth', 'gender'
+                'date_of_birth', 'gender',
             ];
 
             $userData = array_intersect_key($validated, array_flip($userFields));
 
             // Update the core user table
-            if (!empty($userData)) {
+            if (! empty($userData)) {
                 $user->update($userData);
             }
 
             // Handle tenant_profile fields
             $tenantProfileFields = [
-                'emergency_contact_name', 
-                'emergency_contact_phone', 
+                'emergency_contact_name',
+                'emergency_contact_phone',
                 'emergency_contact_relationship',
                 'current_address',
-                'preference'
+                'preference',
             ];
 
             // Manually check request for these fields since they aren't in the strict users validation rules
             $tenantData = $request->only($tenantProfileFields);
-            
-            if (!empty($tenantData) && $user->role === 'tenant') {
+
+            if (! empty($tenantData) && $user->role === 'tenant') {
                 $user->tenantProfile()->updateOrCreate(
                     ['user_id' => $user->id],
                     $tenantData
@@ -337,12 +338,12 @@ class AuthController extends Controller
 
             return response()->json([
                 'user' => $user->fresh()->load('tenantProfile'),
-                'message' => 'Profile updated successfully'
+                'message' => 'Profile updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update profile',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -353,9 +354,9 @@ class AuthController extends Controller
             $validated = $request->validate([
                 'current_password' => 'required|string',
                 'new_password' => [
-                    'required', 
-                    'string', 
-                    'min:8', 
+                    'required',
+                    'string',
+                    'min:8',
                     'confirmed',
                     'regex:/[a-z]/',      // at least one lowercase letter
                     'regex:/[A-Z]/',      // at least one uppercase letter
@@ -368,23 +369,23 @@ class AuthController extends Controller
 
             $user = $request->user();
 
-            if (!Hash::check($validated['current_password'], $user->password)) {
+            if (! Hash::check($validated['current_password'], $user->password)) {
                 return response()->json([
-                    'message' => 'Current password is incorrect'
+                    'message' => 'Current password is incorrect',
                 ], 422);
             }
 
             $user->update([
-                'password' => Hash::make($validated['new_password'])
+                'password' => Hash::make($validated['new_password']),
             ]);
 
             return response()->json([
-                'message' => 'Password changed successfully'
+                'message' => 'Password changed successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to change password',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -405,12 +406,12 @@ class AuthController extends Controller
 
             return response()->json([
                 'user' => $user->fresh(),
-                'message' => 'Profile image removed successfully'
+                'message' => 'Profile image removed successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to remove profile image',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

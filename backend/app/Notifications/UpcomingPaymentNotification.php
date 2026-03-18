@@ -2,12 +2,12 @@
 
 namespace App\Notifications;
 
+use App\Channels\DatabaseChannel;
+use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Channels\DatabaseChannel;
-use App\Models\Invoice;
 
 class UpcomingPaymentNotification extends Notification implements ShouldQueue
 {
@@ -38,10 +38,10 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Upcoming Payment Due')
-            ->line('Your payment for ' . $this->invoice->reference . ' is due soon.')
-            ->line('Due Date: ' . $this->invoice->due_date->format('F d, Y'))
-            ->line('Amount: ' . $this->invoice->currency . ' ' . number_format($this->invoice->amount_cents / 100, 2))
-            ->action('View Invoice', url('/tenant/payments/' . $this->invoice->id))
+            ->line('Your payment for '.$this->invoice->reference.' is due soon.')
+            ->line('Due Date: '.$this->invoice->due_date->format('F d, Y'))
+            ->line('Amount: '.$this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2))
+            ->action('View Invoice', url('/tenant/payments/'.$this->invoice->id))
             ->line('Thank you for using AccommoTrack!');
     }
 
@@ -53,8 +53,8 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
         return [
             'type' => 'upcoming_payment',
             'title' => 'Upcoming Payment Due',
-            'message' => 'Your payment of ' . $this->invoice->currency . ' ' . number_format($this->invoice->amount_cents / 100, 2) . ' is due on ' . $this->invoice->due_date->format('M d, Y'),
-            'url' => '/tenant/payments/' . $this->invoice->id,
+            'message' => 'Your payment of '.$this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2).' is due on '.$this->invoice->due_date->format('M d, Y'),
+            'url' => '/tenant/payments/'.$this->invoice->id,
             'invoice_id' => $this->invoice->id,
         ];
     }
@@ -65,11 +65,12 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         $data = $this->toArray($notifiable);
+
         return [
-            'type'    => $data['type'] ?? 'notification',
-            'title'   => $data['title'],
+            'type' => $data['type'] ?? 'notification',
+            'title' => $data['title'],
             'message' => $data['message'],
-            'data'    => $data,
+            'data' => $data,
         ];
     }
 }

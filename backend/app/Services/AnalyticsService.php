@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\Property;
-use App\Models\Room;
 use App\Models\Booking;
 use App\Models\Payment;
-use App\Models\User;
+use App\Models\Property;
+use App\Models\Room;
 use App\Models\TenantProfile;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
@@ -23,7 +23,7 @@ class AnalyticsService
         // Check if landlord has any properties first
         $hasProperties = Property::where('landlord_id', $landlordId)->exists();
 
-        if (!$hasProperties) {
+        if (! $hasProperties) {
             // Return empty/default analytics structure
             return $this->getEmptyAnalytics();
         }
@@ -133,13 +133,13 @@ class AnalyticsService
             $query->where('id', $propertyId);
         }
 
-        $properties = $query->with(['rooms' => function($q) {
+        $properties = $query->with(['rooms' => function ($q) {
             $q->withCount('tenants');
         }])->get();
 
         $totalRooms = $properties->sum('total_rooms');
         // Sum the actual number of tenants from withCount results
-        $occupiedSlots = (int) $properties->sum(fn($property) => $property->rooms->sum('tenants_count'));
+        $occupiedSlots = (int) $properties->sum(fn ($property) => $property->rooms->sum('tenants_count'));
         $availableRooms = $properties->sum('available_rooms');
         $occupancyRate = $totalRooms > 0 ? round(($occupiedSlots / $totalRooms) * 100, 1) : 0;
 
@@ -222,7 +222,7 @@ class AnalyticsService
             }
         } elseif ($timeRange === 'year') {
             for ($m = 1; $m <= 12; $m++) {
-                $monthKey = now()->year . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
+                $monthKey = now()->year.'-'.str_pad($m, 2, '0', STR_PAD_LEFT);
                 $trend[] = ['month' => $monthKey, 'revenue' => (float) ($results[$monthKey] ?? 0)];
             }
         }
@@ -310,7 +310,7 @@ class AnalyticsService
             )
             ->groupBy('room_type')
             ->get()
-            ->map(fn($item) => [
+            ->map(fn ($item) => [
                 'type' => $item->room_type,
                 'label' => $this->getRoomTypeLabel($item->room_type),
                 'room_count' => (int) $item->count,
@@ -340,14 +340,14 @@ class AnalyticsService
             ->withCount([
                 'rooms',
             ])
-            ->with(['rooms' => function($q) {
+            ->with(['rooms' => function ($q) {
                 $q->withCount('tenants');
             }])
-            ->withSum(['bookings as total_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])], 'total_amount')
-            ->withSum(['bookings as monthly_revenue' => fn($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            ->withSum(['bookings as total_revenue' => fn ($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])], 'total_amount')
+            ->withSum(['bookings as monthly_revenue' => fn ($q) => $q->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
                 ->whereMonth('created_at', $currentMonth)->whereYear('created_at', $currentYear)], 'total_amount')
             ->get()
-            ->map(function($property) {
+            ->map(function ($property) {
                 // We need to get total slots and available rooms separately as they can't be done in one go with withCount
                 $totalSlots = (int) $property->rooms->sum('capacity');
                 $occupiedSlots = (int) $property->rooms->sum('tenants_count');
@@ -381,7 +381,7 @@ class AnalyticsService
         $avgStayDuration = DB::table('tenant_profiles')
             ->join('bookings', 'tenant_profiles.booking_id', '=', 'bookings.id')
             ->where('bookings.landlord_id', $landlordId)
-            ->when($propertyId, fn($q) => $q->where('bookings.property_id', $propertyId))
+            ->when($propertyId, fn ($q) => $q->where('bookings.property_id', $propertyId))
             ->whereNotNull('tenant_profiles.move_in_date')
             ->whereNotNull('tenant_profiles.move_out_date')
             ->selectRaw('AVG(TIMESTAMPDIFF(MONTH, tenant_profiles.move_in_date, tenant_profiles.move_out_date)) as avg_months')
@@ -428,7 +428,7 @@ class AnalyticsService
         $pending = (int) ($stats->pending ?? 0);
         $partial = (int) ($stats->partial ?? 0);
         $overdue = (int) ($stats->overdue ?? 0);
-        
+
         $paymentRate = $total > 0 ? round(($paid / $total) * 100, 1) : 0;
 
         return [
@@ -529,6 +529,7 @@ class AnalyticsService
         if ($propertyId) {
             $q->where('bookings.property_id', $propertyId);
         }
+
         return $q->count();
     }
 
@@ -548,6 +549,7 @@ class AnalyticsService
         if ($propertyId) {
             $q->where('bookings.property_id', $propertyId);
         }
+
         return $q->count();
     }
 

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $display_order
  * @property string|null $created_at
  * @property string|null $updated_at
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyImage newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyImage newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyImage query()
@@ -22,11 +23,14 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyImage whereIsPrimary($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyImage wherePropertyId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PropertyImage whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class PropertyImage extends Model
 {
     protected $table = 'property_images';
+
     protected $fillable = ['property_id', 'image_url', 'is_primary', 'display_order', 'media_type'];
+
     public $timestamps = false;
 }

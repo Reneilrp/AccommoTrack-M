@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -26,16 +25,17 @@ class LandlordController extends Controller
         } catch (\Exception $e) {
             Log::error('PayMongo onboarding — context resolution failed', [
                 'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
-            return response()->json(['message' => 'Could not resolve landlord context: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Could not resolve landlord context: '.$e->getMessage()], 500);
         }
 
         $secretKey = config('services.paymongo.secret_key');
 
-        if (!$secretKey) {
+        if (! $secretKey) {
             return response()->json([
-                'message' => 'PayMongo is not configured on this server.'
+                'message' => 'PayMongo is not configured on this server.',
             ], 503);
         }
 
@@ -45,13 +45,15 @@ class LandlordController extends Controller
             $verify = $verifyEnv;
         } else {
             $verify = filter_var($verifyEnv, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if (is_null($verify)) $verify = true;
+            if (is_null($verify)) {
+                $verify = true;
+            }
         }
 
         // Initialize Http request with headers
         $pendingRequest = Http::withHeaders([
-            'Authorization' => 'Basic ' . base64_encode($secretKey . ':'),
-            'Content-Type'  => 'application/json',
+            'Authorization' => 'Basic '.base64_encode($secretKey.':'),
+            'Content-Type' => 'application/json',
         ]);
 
         // Apply SSL verification options
@@ -63,7 +65,7 @@ class LandlordController extends Controller
 
         try {
             $landlord = $context['user'];
-            $businessName = trim(($landlord->first_name ?? '') . ' ' . ($landlord->last_name ?? ''));
+            $businessName = trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? ''));
 
             // Make the POST request to PayMongo
             /** @var \Illuminate\Http\Client\Response $response */
@@ -71,39 +73,39 @@ class LandlordController extends Controller
                 'data' => [
                     'attributes' => [
                         'accepted_terms_and_conditions' => true,
-                        'email'         => $landlord->email,
-                        'country'       => 'PH',
+                        'email' => $landlord->email,
+                        'country' => 'PH',
                         'business_name' => $businessName ?: 'Landlord',
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
             $res = $response->json();
 
             Log::info('PayMongo onboarding response', [
                 'status' => $response->status(),
-                'body'   => $res,
+                'body' => $res,
             ]);
 
             // Handle failed response or missing data
-            if ($response->failed() || !is_array($res) || empty($res['data']['id'])) {
+            if ($response->failed() || ! is_array($res) || empty($res['data']['id'])) {
                 $errorDetail = 'Unknown error from PayMongo.';
-                
-                if (is_array($res) && isset($res['errors']) && is_array($res['errors']) && !empty($res['errors'])) {
-                    $errorDetail = $res['errors'][0]['detail'] 
-                        ?? $res['errors'][0]['code'] 
+
+                if (is_array($res) && isset($res['errors']) && is_array($res['errors']) && ! empty($res['errors'])) {
+                    $errorDetail = $res['errors'][0]['detail']
+                        ?? $res['errors'][0]['code']
                         ?? $errorDetail;
                 } elseif (is_array($res) && isset($res['message'])) {
                     $errorDetail = $res['message'];
                 }
 
                 Log::error('PayMongo onboarding failed', [
-                    'response' => $res, 
-                    'status'   => $response->status()
+                    'response' => $res,
+                    'status' => $response->status(),
                 ]);
 
                 return response()->json([
-                    'message' => 'PayMongo onboarding failed: ' . $errorDetail,
+                    'message' => 'PayMongo onboarding failed: '.$errorDetail,
                     'paymongo_response' => $res,
                 ], 422);
             }
@@ -111,7 +113,7 @@ class LandlordController extends Controller
             // Save the Child ID and update status on the landlord's user record
             $user = $context['user'];
             $user->update([
-                'paymongo_child_id'            => $res['data']['id'],
+                'paymongo_child_id' => $res['data']['id'],
                 'paymongo_verification_status' => 'pending',
             ]);
 
@@ -122,12 +124,12 @@ class LandlordController extends Controller
         } catch (\Exception $e) {
             Log::error('PayMongo onboarding exception', [
                 'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'An unexpected error occurred during PayMongo onboarding.',
-                'error'   => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

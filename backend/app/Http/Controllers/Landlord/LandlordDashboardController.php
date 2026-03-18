@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Services\LandlordDashboardService;
 use Illuminate\Http\Request;
@@ -24,7 +23,7 @@ class LandlordDashboardController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
-            
+
             $stats = $this->dashboardService->getStats(
                 $context['landlord_id'],
                 $assignedPropertyIds,
@@ -45,7 +44,7 @@ class LandlordDashboardController extends Controller
             $propertyId = $request->query('property_id');
             $roomId = $request->query('room_id');
 
-            if ($context['is_caretaker'] && $propertyId && !in_array((int)$propertyId, $assignedPropertyIds)) {
+            if ($context['is_caretaker'] && $propertyId && ! in_array((int) $propertyId, $assignedPropertyIds)) {
                 $propertyId = null;
             }
 
@@ -58,25 +57,28 @@ class LandlordDashboardController extends Controller
             );
             // Transformation logic standardized for Mobile activity maps
             $formattedActivities = $activities->map(function ($item) {
-                if (is_array($item)) return $item; // already formatted
+                if (is_array($item)) {
+                    return $item;
+                } // already formatted
 
                 if ($item instanceof \App\Models\Booking) {
                     return [
                         'id' => $item->id, 'type' => 'booking',
                         'action' => 'New booking request',
-                        'description' => ($item->tenant->first_name ?? 'Someone') . ' requested ' . ($item->property->title ?? 'Property') . ' - Room ' . ($item->room->room_number ?? 'N/A'),
-                        'by' => ($item->tenant->first_name ?? 'Someone') . ' ' . ($item->tenant->last_name ?? ''),
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'calendar', 'color' => $item->status === 'pending' ? 'yellow' : 'green'
+                        'description' => ($item->tenant->first_name ?? 'Someone').' requested '.($item->property->title ?? 'Property').' - Room '.($item->room->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Someone').' '.($item->tenant->last_name ?? ''),
+                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'calendar', 'color' => $item->status === 'pending' ? 'yellow' : 'green',
                     ];
                 }
                 if ($item instanceof \App\Models\Room) {
                     $isNew = $item->created_at->diffInMinutes($item->updated_at) < 5;
+
                     return [
                         'id' => $item->id, 'type' => 'room',
                         'action' => $isNew ? 'New Room Added' : 'Room Status Updated',
-                        'description' => "Room {$item->room_number} in {$item->property->title} is now " . ucfirst($item->status),
+                        'description' => "Room {$item->room_number} in {$item->property->title} is now ".ucfirst($item->status),
                         'by' => 'System',
-                        'status' => $item->status, 'timestamp' => $item->updated_at, 'icon' => 'bed', 'color' => $item->status === 'occupied' ? 'blue' : ($item->status === 'available' ? 'green' : 'yellow')
+                        'status' => $item->status, 'timestamp' => $item->updated_at, 'icon' => 'bed', 'color' => $item->status === 'occupied' ? 'blue' : ($item->status === 'available' ? 'green' : 'yellow'),
                     ];
                 }
                 if ($item instanceof \App\Models\Property) {
@@ -85,41 +87,43 @@ class LandlordDashboardController extends Controller
                         'action' => 'Property Updated',
                         'description' => "Details for property '{$item->title}' were recently updated.",
                         'by' => 'Landlord',
-                        'status' => 'active', 'timestamp' => $item->updated_at, 'icon' => 'business', 'color' => 'blue'
+                        'status' => 'active', 'timestamp' => $item->updated_at, 'icon' => 'business', 'color' => 'blue',
                     ];
                 }
                 if ($item instanceof \App\Models\Invoice) {
                     return [
                         'id' => $item->id, 'type' => 'payment',
                         'action' => 'New Invoice Generated',
-                        'description' => "Invoice #{$item->reference} created for room " . ($item->booking->room->room_number ?? 'N/A'),
+                        'description' => "Invoice #{$item->reference} created for room ".($item->booking->room->room_number ?? 'N/A'),
                         'by' => 'System',
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'gray'
+                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'gray',
                     ];
                 }
                 if ($item instanceof \App\Models\PaymentTransaction) {
                     return [
                         'id' => $item->id, 'type' => 'payment',
                         'action' => 'Payment Received',
-                        'description' => "Received ₱" . number_format($item->amount_cents/100, 2) . " via " . ucfirst($item->method) . " for Room " . ($item->invoice->booking->room->room_number ?? 'N/A'),
-                        'by' => ($item->tenant->first_name ?? 'Tenant') . ' ' . ($item->tenant->last_name ?? ''),
-                        'status' => 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'green'
+                        'description' => 'Received ₱'.number_format($item->amount_cents / 100, 2).' via '.ucfirst($item->method).' for Room '.($item->invoice->booking->room->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
+                        'status' => 'confirmed', 'timestamp' => $item->created_at, 'icon' => 'cash-outline', 'color' => 'green',
                     ];
                 }
                 if ($item instanceof \App\Models\MaintenanceRequest) {
                     return [
                         'id' => $item->id, 'type' => 'maintenance',
-                        'action' => 'Maintenance Request ' . ucfirst($item->status),
-                        'description' => "{$item->title} - Room " . ($item->booking->room->room_number ?? 'N/A'),
-                        'by' => ($item->tenant->first_name ?? 'Tenant') . ' ' . ($item->tenant->last_name ?? ''),
-                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'wrench', 
-                        'color' => $item->status === 'pending' ? 'red' : 'green'
+                        'action' => 'Maintenance Request '.ucfirst($item->status),
+                        'description' => "{$item->title} - Room ".($item->booking->room->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
+                        'status' => $item->status, 'timestamp' => $item->created_at, 'icon' => 'wrench',
+                        'color' => $item->status === 'pending' ? 'red' : 'green',
                     ];
                 }
+
                 return (array) $item;
             });
-            
+
             $limit = $propertyId ? 50 : 20;
+
             return response()->json($formattedActivities->take($limit), 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch recent activities', 'error' => $e->getMessage()], 500);
@@ -131,27 +135,28 @@ class LandlordDashboardController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
-            
+
             $data = $this->dashboardService->getUpcomingPayments($context['landlord_id'], $assignedPropertyIds, $context['is_caretaker']);
 
             $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
-                $daysLeft = now()->diffInDays($booking->end_date, false);  
+                $daysLeft = now()->diffInDays($booking->end_date, false);
+
                 return [
-                    'id' => $booking->id, 
-                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant') . ' ' . ($booking->tenant->last_name ?? ''),
+                    'id' => $booking->id,
+                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
                     'propertyTitle' => $booking->property->title ?? 'Property', 'roomNumber' => $booking->room->room_number ?? 'N/A',
                     'endDate' => $booking->end_date->format('Y-m-d'), 'daysLeft' => (int) $daysLeft,
-                    'urgency' => $daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low')
+                    'urgency' => $daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low'),
                 ];
             });
 
             $unpaidBookings = collect($data['unpaidBookings'])->map(function ($booking) {
                 return [
-                    'id' => $booking->id, 
-                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant') . ' ' . ($booking->tenant->last_name ?? ''),
+                    'id' => $booking->id,
+                    'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
                     'propertyTitle' => $booking->property->title ?? 'Property', 'roomNumber' => $booking->room->room_number ?? 'N/A',
                     'dueDate' => $booking->start_date->format('Y-m-d'), 'amount' => (float) $booking->total_amount,
-                    'paymentStatus' => $booking->payment_status, 'type' => 'payment'
+                    'paymentStatus' => $booking->payment_status, 'type' => 'payment',
                 ];
             });
 
@@ -176,12 +181,13 @@ class LandlordDashboardController extends Controller
                     'id' => $property->id, 'title' => $property->title, 'totalRooms' => $totalRooms,
                     'occupiedRooms' => $occupiedRooms, 'availableRooms' => $property->rooms->where('status', 'available')->count(),
                     'occupancyRate' => $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0,
-                    'status' => $property->current_status
+                    'status' => $property->current_status,
                 ];
-                if (!$context['is_caretaker']) {
+                if (! $context['is_caretaker']) {
                     $data['potentialRevenue'] = (float) $property->rooms->sum('monthly_rate');
                     $data['actualRevenue'] = (float) $property->rooms->where('status', 'occupied')->sum('monthly_rate');
                 }
+
                 return $data;
             })->sortByDesc('occupancyRate')->values();
 
@@ -196,12 +202,12 @@ class LandlordDashboardController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
-            
+
             $revenueData = $this->dashboardService->getRevenueChart($context['landlord_id']);
 
             return response()->json([
                 'labels' => array_keys($revenueData),
-                'data' => array_values($revenueData)
+                'data' => array_values($revenueData),
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch revenue chart', 'error' => $e->getMessage()], 500);

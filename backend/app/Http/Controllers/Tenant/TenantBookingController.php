@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-
-use Illuminate\Http\Request;
 use App\Models\Booking;
+use App\Models\Room;
+use App\Models\TenantProfile;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\TenantProfile;
-use App\Models\Room;
 
 class TenantBookingController extends Controller
 {
@@ -34,7 +33,7 @@ class TenantBookingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch bookings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -69,7 +68,10 @@ class TenantBookingController extends Controller
                     Log::warning('Failed to remove tenant from room during tenant cancellation', ['err' => $e->getMessage()]);
                 }
                 // update property availability
-                try { $booking->room->property->updateAvailableRooms(); } catch (\Exception $e) {}
+                try {
+                    $booking->room->property->updateAvailableRooms();
+                } catch (\Exception $e) {
+                }
             }
 
             // Update tenant profile if exists
@@ -80,7 +82,7 @@ class TenantBookingController extends Controller
             if ($tenantProfile) {
                 $tenantProfile->update([
                     'status' => 'inactive',
-                    'move_out_date' => now()->format('Y-m-d')
+                    'move_out_date' => now()->format('Y-m-d'),
                 ]);
             }
 
@@ -91,6 +93,7 @@ class TenantBookingController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Tenant cancel booking failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
             return response()->json(['message' => 'Failed to cancel booking', 'error' => $e->getMessage()], 500);
         }
     }
@@ -109,7 +112,7 @@ class TenantBookingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Booking not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
@@ -164,7 +167,7 @@ class TenantBookingController extends Controller
 
             $partialCharge = 0.0;
             if ($daysOverdue > 0) {
-                $ratePerDay = $booking->room->daily_rate !== null ? (float)$booking->room->daily_rate : ($monthlyDue / max(1, $daysInMonth));
+                $ratePerDay = $booking->room->daily_rate !== null ? (float) $booking->room->daily_rate : ($monthlyDue / max(1, $daysInMonth));
                 $partialCharge = round($daysOverdue * $ratePerDay, 2);
             }
 
@@ -172,7 +175,7 @@ class TenantBookingController extends Controller
 
             $amountCents = (int) round($totalAmount * 100);
 
-            $reference = 'INV-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)),0,6));
+            $reference = 'INV-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
 
             $invoice = \App\Models\Invoice::create([
                 'reference' => $reference,
@@ -180,7 +183,7 @@ class TenantBookingController extends Controller
                 'property_id' => $booking->property_id,
                 'booking_id' => $booking->id,
                 'tenant_id' => $booking->tenant_id,
-                'description' => 'Invoice for booking ' . $booking->booking_reference,
+                'description' => 'Invoice for booking '.$booking->booking_reference,
                 'amount_cents' => $amountCents,
                 'currency' => 'PHP',
                 'status' => 'pending',
@@ -190,8 +193,8 @@ class TenantBookingController extends Controller
                     'partial_days' => $daysOverdue,
                     'partial_charge' => $partialCharge,
                     'days_in_month' => $daysInMonth,
-                    'cycle_start' => $cycleStart->format('Y-m-d')
-                ]
+                    'cycle_start' => $cycleStart->format('Y-m-d'),
+                ],
             ]);
 
             return response()->json(['success' => true, 'data' => $invoice], 201);

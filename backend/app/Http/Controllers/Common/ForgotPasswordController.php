@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
-
+use App\Mail\ResetPasswordCode;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use App\Models\User;
-use App\Mail\ResetPasswordCode;
-use Carbon\Carbon;
 
 class ForgotPasswordController extends Controller
 {
@@ -21,7 +20,7 @@ class ForgotPasswordController extends Controller
     public function sendCode(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email'
+            'email' => 'required|email',
         ]);
 
         if ($validator->fails()) {
@@ -32,7 +31,7 @@ class ForgotPasswordController extends Controller
         $user = User::where('email', $email)->first();
 
         // If user doesn't exist, still return success to prevent enumeration
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'If your email is registered, a reset code has been sent.'], 200);
         }
 
@@ -50,7 +49,7 @@ class ForgotPasswordController extends Controller
         DB::table('password_reset_codes')->insert([
             'email' => $email,
             'code' => $code,
-            'created_at' => now()
+            'created_at' => now(),
         ]);
 
         // Send Email
@@ -70,7 +69,7 @@ class ForgotPasswordController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'code' => 'required|digits:6'
+            'code' => 'required|digits:6',
         ]);
 
         if ($validator->fails()) {
@@ -82,7 +81,7 @@ class ForgotPasswordController extends Controller
             ->where('code', $request->code)
             ->first();
 
-        if (!$record) {
+        if (! $record) {
             return response()->json(['message' => 'Invalid code.'], 400);
         }
 
@@ -102,7 +101,7 @@ class ForgotPasswordController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'code' => 'required|digits:6',
-            'password' => 'required|min:8|confirmed'
+            'password' => 'required|min:8|confirmed',
         ]);
 
         if ($validator->fails()) {
@@ -115,14 +114,14 @@ class ForgotPasswordController extends Controller
             ->where('code', $request->code)
             ->first();
 
-        if (!$record || Carbon::parse($record->created_at)->addMinutes(10)->isPast()) {
+        if (! $record || Carbon::parse($record->created_at)->addMinutes(10)->isPast()) {
             return response()->json(['message' => 'Invalid or expired code.'], 400);
         }
 
         // Update User Password
         $user = User::where('email', $request->email)->first();
-        
-        if (!$user) {
+
+        if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -134,7 +133,7 @@ class ForgotPasswordController extends Controller
         if (Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'New password cannot be the same as your current password.',
-                'errors' => ['password' => ['You cannot use your old password. Please choose a new one.']]
+                'errors' => ['password' => ['You cannot use your old password. Please choose a new one.']],
             ], 422);
         }
 

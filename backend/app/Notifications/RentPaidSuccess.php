@@ -2,11 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Channels\DatabaseChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Channels\DatabaseChannel;
 
 class RentPaidSuccess extends Notification implements ShouldQueue
 {
@@ -62,11 +62,12 @@ class RentPaidSuccess extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         $data = $this->toArray($notifiable);
+
         return [
-            'type'    => $data['type'] ?? 'notification',
-            'title'   => $data['title'] ?? 'Rent Payment Successful',
+            'type' => $data['type'] ?? 'notification',
+            'title' => $data['title'] ?? 'Rent Payment Successful',
             'message' => $data['message'],
-            'data'    => $data,
+            'data' => $data,
         ];
     }
 }

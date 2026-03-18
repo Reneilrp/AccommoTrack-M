@@ -11,13 +11,13 @@ trait ResolvesLandlordAccess
     {
         $user = $request->user();
 
-        if (!$user || !$user->managesLandlordData()) {
+        if (! $user || ! $user->managesLandlordData()) {
             throw new AccessDeniedHttpException('Landlord or caretaker access required.');
         }
 
         $landlordId = $user->effectiveLandlordId();
 
-        if (!$landlordId) {
+        if (! $landlordId) {
             throw new AccessDeniedHttpException('Caretaker assignment is missing.');
         }
 
@@ -31,14 +31,14 @@ trait ResolvesLandlordAccess
 
     protected function ensureCaretakerCan(array $context, string $permissionColumn): void
     {
-        if (!$context['is_caretaker']) {
+        if (! $context['is_caretaker']) {
             return;
         }
 
         $assignment = $context['assignment'];
 
-        if (!$assignment || !($assignment->{$permissionColumn} ?? false)) {
-            throw new AccessDeniedHttpException('Caretaker does not have permission to access this data: ' . str_replace('can_view_', '', $permissionColumn));
+        if (! $assignment || ! ($assignment->{$permissionColumn} ?? false)) {
+            throw new AccessDeniedHttpException('Caretaker does not have permission to access this data: '.str_replace('can_view_', '', $permissionColumn));
         }
     }
 
@@ -48,24 +48,25 @@ trait ResolvesLandlordAccess
      */
     protected function checkPropertyAccess(array $context, int $propertyId): void
     {
-        if (!$context['is_caretaker']) {
+        if (! $context['is_caretaker']) {
             // If landlord, ensure they own the property
             $owns = \App\Models\Property::where('id', $propertyId)
                 ->where('landlord_id', $context['landlord_id'])
                 ->exists();
-            if (!$owns) {
+            if (! $owns) {
                 throw new AccessDeniedHttpException('You do not own this property.');
             }
+
             return;
         }
 
         $assignment = $context['assignment'];
-        if (!$assignment) {
+        if (! $assignment) {
             throw new AccessDeniedHttpException('Caretaker assignment not found.');
         }
 
         $isAssigned = $assignment->properties()->where('properties.id', $propertyId)->exists();
-        if (!$isAssigned) {
+        if (! $isAssigned) {
             throw new AccessDeniedHttpException('Caretaker is not assigned to this property.');
         }
     }

@@ -2,23 +2,21 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Property;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Property;
 
 class StoreRoomRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
         // Check if the property exists and belongs to the authenticated user.
         $property = Property::where('id', $this->input('property_id'))
-                            ->where('landlord_id', Auth::id())
-                            ->first();
+            ->where('landlord_id', Auth::id())
+            ->first();
 
         return $property !== null;
     }
@@ -44,7 +42,7 @@ class StoreRoomRequest extends FormRequest
                     if ($isApartment && $value === 'bedSpacer') {
                         $fail('The room type for Apartment cannot be Bed Spacer. It must be Single, Double, or Quad Room.');
                     }
-                }
+                },
             ],
             'gender_restriction' => 'nullable|in:male,female,mixed',
             'floor' => 'required|integer|min:1',
@@ -61,7 +59,7 @@ class StoreRoomRequest extends FormRequest
             'amenities' => 'nullable|array',
             'amenities.*' => 'string',
             'images' => 'nullable|array|max:10',
-            'images.*' => 'image|mimes:jpeg,png,jpg|max:10240'
+            'images.*' => 'image|mimes:jpeg,png,jpg|max:10240',
         ];
     }
 }

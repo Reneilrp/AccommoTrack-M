@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Property;
 use App\Models\LandlordVerification;
 use App\Models\LandlordVerificationHistory;
+use App\Models\Property;
+use App\Models\User;
 use App\Notifications\LandlordApprovedNotification;
 use App\Notifications\LandlordRejectedNotification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
@@ -38,7 +38,7 @@ class AdminController extends Controller
                 // For caretakers: their assignment with landlord info
                 'caretakerAssignment' => function ($query) {
                     $query->with(['landlord:id,first_name,last_name,email', 'landlord.properties:id,landlord_id,title']);
-                }
+                },
             ])
             ->get()
             ->map(function (User $user) {
@@ -50,7 +50,7 @@ class AdminController extends Controller
                     $userData['properties_list'] = $user->properties->map(function ($p) {
                         return [
                             'id' => $p->id,
-                            'name' => $p->title
+                            'name' => $p->title,
                         ];
                     })->toArray();
                     // Add verification status for landlords
@@ -67,18 +67,18 @@ class AdminController extends Controller
                         $currentProperty = [
                             'id' => $activeBooking->property->id,
                             'name' => $activeBooking->property->title,
-                            'room_number' => $activeBooking->room->room_number ?? null
+                            'room_number' => $activeBooking->room->room_number ?? null,
                         ];
                     }
 
                     // Fallback to room assignments if no booking
-                    if (!$currentProperty && $user->roomAssignments->count() > 0) {
+                    if (! $currentProperty && $user->roomAssignments->count() > 0) {
                         $assignment = $user->roomAssignments->first();
                         if ($assignment && $assignment->property) {
                             $currentProperty = [
                                 'id' => $assignment->property->id,
                                 'name' => $assignment->property->title,
-                                'room_number' => $assignment->room_number ?? null
+                                'room_number' => $assignment->room_number ?? null,
                             ];
                         }
                     }
@@ -92,14 +92,14 @@ class AdminController extends Controller
                         $landlord = $user->caretakerAssignment->landlord;
                         $userData['assigned_landlord'] = [
                             'id' => $landlord->id,
-                            'name' => trim($landlord->first_name . ' ' . $landlord->last_name),
+                            'name' => trim($landlord->first_name.' '.$landlord->last_name),
                             'email' => $landlord->email,
                             'properties' => $landlord->properties->map(function ($p) {
                                 return [
                                     'id' => $p->id,
-                                    'name' => $p->title
+                                    'name' => $p->title,
                                 ];
-                            })->toArray()
+                            })->toArray(),
                         ];
                     } else {
                         $userData['assigned_landlord'] = null;
@@ -174,9 +174,9 @@ class AdminController extends Controller
 
             // Send approval email notification
             try {
-                $user->notify(new LandlordApprovedNotification());
+                $user->notify(new LandlordApprovedNotification);
             } catch (\Exception $e) {
-                \Log::error('Failed to send approval notification: ' . $e->getMessage());
+                \Log::error('Failed to send approval notification: '.$e->getMessage());
             }
         }
 
@@ -193,7 +193,7 @@ class AdminController extends Controller
         ]);
 
         $verification = LandlordVerification::with('user')->findOrFail($id);
-        
+
         // Save current state to history before updating
         LandlordVerificationHistory::create([
             'landlord_verification_id' => $verification->id,
@@ -224,13 +224,13 @@ class AdminController extends Controller
             try {
                 $user->notify(new LandlordRejectedNotification($request->reason));
             } catch (\Exception $e) {
-                \Log::error('Failed to send rejection notification: ' . $e->getMessage());
+                \Log::error('Failed to send rejection notification: '.$e->getMessage());
             }
         }
 
         return response()->json([
             'verification' => $verification,
-            'message' => 'Verification rejected successfully'
+            'message' => 'Verification rejected successfully',
         ]);
     }
 
@@ -271,7 +271,6 @@ class AdminController extends Controller
         return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
     }
 
-
     /**
      * Get approved properties
      */
@@ -284,7 +283,6 @@ class AdminController extends Controller
 
         return response()->json(['data' => \App\Http\Resources\PropertyResource::collection($properties)->resolve()]);
     }
-
 
     /**
      * Get rejected properties
@@ -322,7 +320,7 @@ class AdminController extends Controller
         $property->is_published = true;
         $property->is_available = true;
         $property->save();
-        
+
         // Ensure available rooms count is up to date
         $property->updateAvailableRooms();
 
@@ -408,7 +406,7 @@ class AdminController extends Controller
             $activities[] = [
                 'type' => 'user',
                 'title' => 'New User Registration',
-                'description' => $user->first_name . ' ' . $user->last_name . ' registered as ' . $user->role,
+                'description' => $user->first_name.' '.$user->last_name.' registered as '.$user->role,
                 'timestamp' => $user->created_at->toISOString(),
                 'badge' => ucfirst($user->role),
             ];
@@ -426,7 +424,7 @@ class AdminController extends Controller
             $activities[] = [
                 'type' => $statusType,
                 'title' => $property->current_status === Property::STATUS_PENDING ? 'Property Submitted' : ($property->current_status === Property::STATUS_ACTIVE ? 'Property Approved' : 'Property Rejected'),
-                'description' => $property->title . ' by ' . $property->landlord->first_name . ' ' . $property->landlord->last_name,
+                'description' => $property->title.' by '.$property->landlord->first_name.' '.$property->landlord->last_name,
                 'timestamp' => $property->created_at->toISOString(),
                 'badge' => ucfirst($property->current_status),
             ];

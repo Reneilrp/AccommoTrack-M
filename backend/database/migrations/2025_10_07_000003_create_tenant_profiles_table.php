@@ -13,20 +13,20 @@ return new class extends Migration
     {
         Schema::create('tenant_profiles', function (Blueprint $table) {
             $table->id();
-            
+
             // One-to-one with users table (each tenant has exactly one profile)
             $table->foreignId('user_id')
-                  ->unique()
-                  ->constrained('users')
-                  ->onDelete('cascade');
+                ->unique()
+                ->constrained('users')
+                ->onDelete('cascade');
 
             // Core tenancy information
             $table->date('move_in_date')->nullable();
             $table->date('move_out_date')->nullable();
-            
+
             // Status: active = currently living, inactive = moved out, evicted = forced out
             $table->enum('status', ['active', 'inactive', 'evicted'])
-                  ->default('inactive'); // safer default — only activate on booking confirm
+                ->default('inactive'); // safer default — only activate on booking confirm
 
             // // Optional link back to the booking that started this tenancy
             // $table->foreignId('booking_id')
@@ -48,7 +48,7 @@ return new class extends Migration
 
             // Tenant preferences / behavior notes
             $table->string('preference')->nullable();
-            
+
             // Personal info
             $table->date('date_of_birth')->nullable();
 

@@ -8,8 +8,6 @@ class UpdateRoomRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -37,7 +35,7 @@ class UpdateRoomRequest extends FormRequest
                     if ($isApartment && $value === 'bedSpacer') {
                         $fail('The room type for Apartment cannot be Bed Spacer. It must be Single, Double, or Quad Room.');
                     }
-                }
+                },
             ],
             'gender_restriction' => 'nullable|in:male,female,mixed',
             'floor' => 'sometimes|integer|min:1',

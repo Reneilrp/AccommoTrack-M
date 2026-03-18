@@ -2,19 +2,18 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
     /**
      * Register a new user and generate an OTP.
      *
-     * @param array $data
      * @return array{user: User, otp: string}
      */
     public function register(array $data): array
@@ -37,15 +36,13 @@ class AuthService
             'email_otp_code' => Hash::make($otp),
             'email_otp_expires_at' => $otpExpiresAt,
         ]);
-        
+
         return ['user' => $user, 'otp' => $otp];
     }
 
     /**
      * Log a user in.
      *
-     * @param array $credentials
-     * @return User
      * @throws ValidationException
      * @throws AccountBlockedException
      * @throws PendingVerificationException
@@ -54,7 +51,7 @@ class AuthService
     {
         $user = User::where('email', $credentials['email'])->first();
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid email or password.'],
             ]);
@@ -67,9 +64,9 @@ class AuthService
         // Check landlord verification status
         if ($user->role === 'landlord') {
             $verification = $user->landlordVerification;
-            
-            if (($verification && $verification->status === 'pending') || (!$verification && !$user->is_verified)) {
-                 throw new PendingVerificationException('Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.');
+
+            if (($verification && $verification->status === 'pending') || (! $verification && ! $user->is_verified)) {
+                throw new PendingVerificationException('Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.');
             }
         }
 
@@ -77,7 +74,7 @@ class AuthService
         if ($user->role === 'caretaker') {
             $user->load('caretakerAssignment');
         }
-        
+
         return $user;
     }
 }

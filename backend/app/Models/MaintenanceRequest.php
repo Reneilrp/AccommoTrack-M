@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $resolved_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @method static \Database\Factories\MaintenanceRequestFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MaintenanceRequest newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MaintenanceRequest newQuery()
@@ -36,6 +37,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MaintenanceRequest whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MaintenanceRequest whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MaintenanceRequest whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class MaintenanceRequest extends Model
@@ -53,12 +55,12 @@ class MaintenanceRequest extends Model
         'priority',
         'status',
         'images',
-        'resolved_at'
+        'resolved_at',
     ];
 
     protected $casts = [
         'resolved_at' => 'datetime',
-        'images' => 'array'
+        'images' => 'array',
     ];
 
     public function property()

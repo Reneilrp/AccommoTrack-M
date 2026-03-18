@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Models\PaymentTransaction;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use App\Models\PaymentTransaction;
 
 class TransactionController extends Controller
 {
@@ -21,6 +20,7 @@ class TransactionController extends Controller
         if ($tx->invoice && $tx->invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         return response()->json($tx, 200);
     }
 
@@ -40,13 +40,13 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Only original payment transactions can be refunded'
+                'message' => 'Only original payment transactions can be refunded',
             ], 422);
         }
 
         $validated = $request->validate([
             'amount_cents' => 'nullable|integer|min:1',
-            'reason' => 'nullable|string'
+            'reason' => 'nullable|string',
         ]);
 
         $alreadyRefundedForTx = max(0, (int) ($tx->refunded_amount_cents ?? 0));
@@ -56,7 +56,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'This transaction is already fully refunded'
+                'message' => 'This transaction is already fully refunded',
             ], 422);
         }
 
@@ -70,7 +70,7 @@ class TransactionController extends Controller
                     'max_refundable_cents' => 0,
                     'remaining_for_transaction_cents' => $remainingForTx,
                 ],
-                'message' => 'Refund window has ended or no refundable amount remains after penalty'
+                'message' => 'Refund window has ended or no refundable amount remains after penalty',
             ], 422);
         }
 
@@ -82,7 +82,7 @@ class TransactionController extends Controller
                     'requested_amount_cents' => $refundAmount,
                     'remaining_for_transaction_cents' => $remainingForTx,
                 ],
-                'message' => 'Requested refund exceeds the current refundable cap'
+                'message' => 'Requested refund exceeds the current refundable cap',
             ], 422);
         }
 
@@ -121,6 +121,7 @@ class TransactionController extends Controller
             }
 
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -132,17 +133,18 @@ class TransactionController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Refund failed: ' . $e->getMessage(),
+                'message' => 'Refund failed: '.$e->getMessage(),
             ], 500);
         }
     }
 
     private function computeMaxRefundForTransaction($invoice, PaymentTransaction $tx, int $remainingForTx): int
     {
-        if (!$invoice) {
+        if (! $invoice) {
             return $remainingForTx;
         }
 
@@ -160,7 +162,7 @@ class TransactionController extends Controller
         });
 
         $booking = $invoice->booking;
-        if (!$booking || !$booking->start_date || !$booking->end_date || $totalPaidCents <= 0) {
+        if (! $booking || ! $booking->start_date || ! $booking->end_date || $totalPaidCents <= 0) {
             return $remainingForTx;
         }
 

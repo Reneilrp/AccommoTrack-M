@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Review;
-use App\Models\Property;
+use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Booking;
+use App\Models\Property;
+use App\Models\Review;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 
 class ReviewController extends Controller
 {
     use ResolvesLandlordAccess;
+
     /**
      * Get all published reviews for a property (Public)
      */
@@ -21,7 +21,7 @@ class ReviewController extends Controller
     {
         try {
             $property = Property::findOrFail($propertyId);
-            
+
             $reviews = Review::where('property_id', $propertyId)
                 ->where('is_published', true)
                 ->with(['tenant:id,first_name,last_name,profile_image'])
@@ -80,7 +80,7 @@ class ReviewController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch reviews',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -110,7 +110,7 @@ class ReviewController extends Controller
             }
 
             // Check if booking is completed or confirmed
-            if (!in_array($booking->status, ['completed', 'confirmed'])) {
+            if (! in_array($booking->status, ['completed', 'confirmed'])) {
                 return response()->json(['message' => 'You can only review confirmed or completed bookings'], 400);
             }
 
@@ -140,7 +140,7 @@ class ReviewController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to submit review',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -177,7 +177,7 @@ class ReviewController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to add response',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -193,7 +193,7 @@ class ReviewController extends Controller
 
             $query = Review::whereHas('property', function ($q) use ($context) {
                 $q->where('landlord_id', $context['landlord_id']);
-                
+
                 if ($context['is_caretaker'] && $context['assignment']) {
                     $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
                     $q->whereIn('id', $assignedPropertyIds);
@@ -204,7 +204,7 @@ class ReviewController extends Controller
                 // If caretaker, ensure they have access to the specific property_id requested
                 if ($context['is_caretaker'] && $context['assignment']) {
                     $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
-                    if (!in_array($request->property_id, $assignedPropertyIds)) {
+                    if (! in_array($request->property_id, $assignedPropertyIds)) {
                         return response()->json(['message' => 'Unauthorized access to this property'], 403);
                     }
                 }
@@ -214,34 +214,34 @@ class ReviewController extends Controller
             $reviews = $query->with([
                 'tenant:id,first_name,last_name,profile_image',
                 'property:id,title',
-                'booking:id,start_date,end_date'
+                'booking:id,start_date,end_date',
             ])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($review) {
-                return [
-                    'id' => $review->id,
-                    'property_id' => $review->property_id,
-                    'property_title' => $review->property?->title,
-                    'rating' => $review->rating,
-                    'comment' => $review->comment,
-                    'reviewer_name' => $review->reviewer_name,
-                    'reviewer_image' => $review->tenant?->profile_image,
-                    'time_ago' => $review->time_ago,
-                    'created_at' => $review->created_at->toISOString(),
-                    'landlord_response' => $review->landlord_response,
-                    'landlord_response_date' => $review->landlord_response_date?->toISOString(),
-                    'booking_dates' => $review->booking 
-                        ? $review->booking->start_date . ' - ' . $review->booking->end_date 
-                        : null,
-                ];
-            });
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($review) {
+                    return [
+                        'id' => $review->id,
+                        'property_id' => $review->property_id,
+                        'property_title' => $review->property?->title,
+                        'rating' => $review->rating,
+                        'comment' => $review->comment,
+                        'reviewer_name' => $review->reviewer_name,
+                        'reviewer_image' => $review->tenant?->profile_image,
+                        'time_ago' => $review->time_ago,
+                        'created_at' => $review->created_at->toISOString(),
+                        'landlord_response' => $review->landlord_response,
+                        'landlord_response_date' => $review->landlord_response_date?->toISOString(),
+                        'booking_dates' => $review->booking
+                            ? $review->booking->start_date.' - '.$review->booking->end_date
+                            : null,
+                    ];
+                });
 
             return response()->json($reviews, 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch reviews',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -253,7 +253,7 @@ class ReviewController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             $reviews = Review::where('tenant_id', $user->id)
                 ->with(['property:id,title,street_address,city'])
                 ->orderBy('created_at', 'desc')
@@ -263,7 +263,7 @@ class ReviewController extends Controller
                         'id' => $review->id,
                         'property_id' => $review->property_id,
                         'property_title' => $review->property?->title,
-                        'property_location' => $review->property 
+                        'property_location' => $review->property
                             ? ($review->property->city ?? $review->property->street_address)
                             : null,
                         'rating' => $review->rating,
@@ -278,7 +278,7 @@ class ReviewController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch reviews',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

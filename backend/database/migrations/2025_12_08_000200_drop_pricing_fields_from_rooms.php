@@ -26,12 +26,13 @@ class DropPricingFieldsFromRooms extends Migration
      * Reverse the migrations.
      *
      * Re-adds the columns with previous defaults so the change is reversible.
+     *
      * @return void
      */
     public function down()
     {
         Schema::table('rooms', function (Blueprint $table) {
-            if (!Schema::hasColumn('rooms', 'min_stay_days')) {
+            if (! Schema::hasColumn('rooms', 'min_stay_days')) {
                 $table->integer('min_stay_days')->nullable()->after('billing_policy');
             }
         });

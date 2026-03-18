@@ -7,10 +7,10 @@ use App\Models\Room;
 use App\Models\TenantProfile;
 use App\Models\User;
 use App\Notifications\NewBookingNotification;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class BookingService
 {
@@ -19,7 +19,7 @@ class BookingService
      */
     public function createBooking(array $data, ?int $tenantId = null): Booking
     {
-        return DB::transaction(function() use ($data, $tenantId) {
+        return DB::transaction(function () use ($data, $tenantId) {
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
             $requestedBeds = (int) ($data['bed_count'] ?? 1);
 
@@ -27,7 +27,7 @@ class BookingService
             $pendingBeds = (int) Booking::where('room_id', $room->id)
                 ->where('status', 'pending')
                 ->sum('bed_count');
-            
+
             $effectiveOccupancy = $room->occupied + $pendingBeds;
 
             // Check if room has available slots
@@ -44,7 +44,7 @@ class BookingService
             $days = $startDate->diffInDays($endDate);
 
             $today = Carbon::today();
-            
+
             if ($room->billing_policy === 'daily') {
                 // For daily rooms, check-in must be today or later
                 if ($startDate->lessThan($today)) {
@@ -64,7 +64,7 @@ class BookingService
 
             // Enforce minimum stay if configured
             $minStay = $room->min_stay_days ?? null;
-            
+
             // If billing policy is monthly, the implicit minimum stay is 30 days
             if (($room->billing_policy === 'monthly' || $room->billing_policy === 'monthly_with_daily') && ($minStay === null || $minStay < 30)) {
                 $minStay = 30;
@@ -79,7 +79,7 @@ class BookingService
             $totalAmount = $priceResult['total'] * $requestedBeds;
             $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
 
-            $bookingReference = 'BK-' . strtoupper(Str::random(8));
+            $bookingReference = 'BK-'.strtoupper(Str::random(8));
 
             $booking = Booking::create([
                 'property_id' => $room->property_id,
@@ -96,7 +96,7 @@ class BookingService
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
-                'notes' => $data['notes'] ?? null
+                'notes' => $data['notes'] ?? null,
             ]);
 
             // Update room status to occupied if it's now full (confirmed + pending)
@@ -119,9 +119,7 @@ class BookingService
 
     /**
      * Update booking status with all business logic
-     * 
-     * @param Booking $booking
-     * @param array $data
+     *
      * @return array{booking: Booking, room_updated: bool, tenant_name: string}
      */
     public function updateStatus(Booking $booking, array $data): array
@@ -154,21 +152,21 @@ class BookingService
             $booking->load(['property', 'tenant.tenantProfile', 'room.currentTenant']);
 
             $tenantName = $booking->guest_name;
-            if (!$tenantName && $booking->tenant) {
-                $tenantName = $booking->tenant->first_name . ' ' . $booking->tenant->last_name;
+            if (! $tenantName && $booking->tenant) {
+                $tenantName = $booking->tenant->first_name.' '.$booking->tenant->last_name;
             }
 
             return [
                 'booking' => $booking,
                 'room_updated' => true,
-                'tenant_name' => $tenantName ?: 'Guest'
+                'tenant_name' => $tenantName ?: 'Guest',
             ];
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to update booking status', [
                 'error' => $e->getMessage(),
-                'booking_id' => $booking->id
+                'booking_id' => $booking->id,
             ]);
             throw $e;
         }
@@ -197,7 +195,7 @@ class BookingService
                     [
                         'move_in_date' => $booking->start_date,
                         'status' => 'active',
-                        'booking_id' => $booking->id
+                        'booking_id' => $booking->id,
                     ]
                 );
             } else {
@@ -207,15 +205,15 @@ class BookingService
 
         // Auto-generate initial invoice if it doesn't exist
         $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
-        if (!$existingInvoice) {
-            $reference = 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+        if (! $existingInvoice) {
+            $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
             \App\Models\Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $booking->landlord_id,
                 'property_id' => $booking->property_id,
                 'booking_id' => $booking->id,
                 'tenant_id' => $booking->tenant_id, // can be null for walk-ins
-                'description' => 'Initial invoice for booking ' . $booking->booking_reference,
+                'description' => 'Initial invoice for booking '.$booking->booking_reference,
                 'amount_cents' => (int) round($booking->total_amount * 100),
                 'currency' => 'PHP',
                 'status' => 'pending',
@@ -225,14 +223,14 @@ class BookingService
 
             Log::info('Auto-generated invoice for confirmed booking', [
                 'booking_id' => $booking->id,
-                'reference' => $reference
+                'reference' => $reference,
             ]);
         }
 
         Log::info('Booking confirmed', [
             'booking_id' => $booking->id,
             'tenant_id' => $booking->tenant_id,
-            'room_id' => $booking->room_id
+            'room_id' => $booking->room_id,
         ]);
 
         $booking->room->property->updateAvailableRooms();
@@ -246,7 +244,7 @@ class BookingService
         Log::info('Booking marked as completed', [
             'booking_id' => $booking->id,
             'status' => $status,
-            'room_still_occupied' => true
+            'room_still_occupied' => true,
         ]);
         // Room stays occupied - no changes needed
     }
@@ -267,7 +265,7 @@ class BookingService
 
             Log::info('Refund processed for cancelled booking', [
                 'booking_id' => $booking->id,
-                'refund_amount' => $booking->refund_amount
+                'refund_amount' => $booking->refund_amount,
             ]);
         }
 
@@ -283,14 +281,14 @@ class BookingService
             if ($tenantProfile) {
                 $tenantProfile->update([
                     'status' => 'inactive',
-                    'move_out_date' => now()->format('Y-m-d')
+                    'move_out_date' => now()->format('Y-m-d'),
                 ]);
             }
         }
 
         Log::info('Booking cancelled', [
             'booking_id' => $booking->id,
-            'tenant_id' => $booking->tenant_id
+            'tenant_id' => $booking->tenant_id,
         ]);
 
         $booking->room->property->updateAvailableRooms();
@@ -298,9 +296,7 @@ class BookingService
 
     /**
      * Update payment status with auto-upgrade logic
-     * 
-     * @param Booking $booking
-     * @param string $paymentStatus
+     *
      * @return array{booking: Booking, status_upgraded: bool}
      */
     public function updatePaymentStatus(Booking $booking, string $paymentStatus): array
@@ -314,7 +310,7 @@ class BookingService
             $statusUpgraded = true;
 
             Log::info('Booking auto-upgraded from partial-completed to completed', [
-                'booking_id' => $booking->id
+                'booking_id' => $booking->id,
             ]);
         }
 
@@ -328,7 +324,7 @@ class BookingService
 
         return [
             'booking' => $booking,
-            'status_upgraded' => $statusUpgraded
+            'status_upgraded' => $statusUpgraded,
         ];
     }
 
@@ -347,7 +343,7 @@ class BookingService
             'total' => (clone $baseQuery)->count(),
             'confirmed' => (clone $baseQuery)->where('status', 'confirmed')->count(),
             'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
-            'completed' => (clone $baseQuery)->whereIn('status', ['completed', 'partial-completed'])->count()
+            'completed' => (clone $baseQuery)->whereIn('status', ['completed', 'partial-completed'])->count(),
         ];
     }
 }

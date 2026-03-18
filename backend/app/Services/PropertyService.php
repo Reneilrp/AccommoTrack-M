@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class PropertyService
@@ -84,11 +84,11 @@ class PropertyService
                 $validated['current_status'] = Property::STATUS_DRAFT;
             }
 
-            if (!$isVerified) {
+            if (! $isVerified) {
                 $validated['current_status'] = Property::STATUS_DRAFT;
                 $validated['is_published'] = false;
             }
-            
+
             // Prevent changing status from pending to active/inactive by landlord
             if ($property->current_status === Property::STATUS_PENDING && isset($validated['current_status'])) {
                 if (in_array($validated['current_status'], [Property::STATUS_ACTIVE, Property::STATUS_INACTIVE])) {
@@ -114,7 +114,7 @@ class PropertyService
             $property->update($validated);
 
             if ($request->has('is_eligible')) {
-                $property->is_eligible = (bool)$request->input('is_eligible');
+                $property->is_eligible = (bool) $request->input('is_eligible');
                 $property->save();
             }
 
@@ -127,45 +127,45 @@ class PropertyService
             return $property;
         });
     }
-    
+
     public function getPublicProperties(Request $request)
     {
         $query = Property::where('is_published', true)->where('is_available', true);
 
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('street_address', 'like', "%{$search}%")
-                  ->orWhere('barangay', 'like', "%{$search}%")
-                  ->orWhere('city', 'like', "%{$search}%")
-                  ->orWhere('province', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('street_address', 'like', "%{$search}%")
+                    ->orWhere('barangay', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('province', 'like', "%{$search}%");
             });
         }
 
-        if ($request->has('type') && !empty($request->type) && $request->type !== 'All') {
+        if ($request->has('type') && ! empty($request->type) && $request->type !== 'All') {
             $type = $request->type;
             $allowed = ['dormitory', 'apartment', 'boardingHouse', 'bedSpacer', 'others'];
-            if (!in_array($type, $allowed)) {
-                 $normalized = strtolower(str_replace([' ', '_'], '', $type));
-                 foreach($allowed as $a) {
-                     if (strtolower($a) === $normalized) {
-                         $type = $a;
-                         break;
-                     }
-                 }
+            if (! in_array($type, $allowed)) {
+                $normalized = strtolower(str_replace([' ', '_'], '', $type));
+                foreach ($allowed as $a) {
+                    if (strtolower($a) === $normalized) {
+                        $type = $a;
+                        break;
+                    }
+                }
             }
             $query->where('property_type', $type);
         }
 
         if ($request->has('min_price') || $request->has('max_price')) {
-            $query->whereHas('rooms', function($q) use ($request) {
+            $query->whereHas('rooms', function ($q) use ($request) {
                 $q->where('status', 'available');
-                if ($request->has('min_price') && !empty($request->min_price)) {
+                if ($request->has('min_price') && ! empty($request->min_price)) {
                     $q->where('monthly_rate', '>=', $request->min_price);
                 }
-                if ($request->has('max_price') && !empty($request->max_price)) {
+                if ($request->has('max_price') && ! empty($request->max_price)) {
                     $q->where('monthly_rate', '<=', $request->max_price);
                 }
             });
@@ -196,9 +196,11 @@ class PropertyService
         }
 
         return $query->with([
-                'rooms.images', 'rooms.amenities', 'images', 'landlord:id,first_name,last_name',
-                'reviews' => function($q) { $q->where('is_published', true); }
-            ])
+            'rooms.images', 'rooms.amenities', 'images', 'landlord:id,first_name,last_name',
+            'reviews' => function ($q) {
+                $q->where('is_published', true);
+            },
+        ])
             ->orderBy('created_at', 'desc')
             ->get();
     }
@@ -216,7 +218,7 @@ class PropertyService
             }
 
             foreach ($property->rooms as $room) {
-                foreach($room->images as $roomImage) {
+                foreach ($room->images as $roomImage) {
                     Storage::disk('public')->delete($roomImage->image_url);
                 }
             }
@@ -229,7 +231,7 @@ class PropertyService
     {
         $amenityIds = [];
         foreach ($amenityNames as $amenityName) {
-            if (!empty($amenityName)) {
+            if (! empty($amenityName)) {
                 $amenity = \App\Models\Amenity::firstOrCreate(['name' => $amenityName]);
                 $amenityIds[] = $amenity->id;
             }
@@ -240,13 +242,13 @@ class PropertyService
     private function handleFileUploads(Property $property, Request $request, bool $isUpdate = false): void
     {
         if ($request->hasFile('images')) {
-            $manager = new ImageManager(new Driver());
+            $manager = new ImageManager(new Driver);
             foreach ($request->file('images') as $index => $file) {
                 $image = $manager->read($file->getRealPath());
                 $image->scaleDown(width: 1920);
                 $encoded = $image->toWebp(80);
-                $filename = 'property_' . time() . '_' . uniqid() . '.webp';
-                $path = 'property_images/' . $filename;
+                $filename = 'property_'.time().'_'.uniqid().'.webp';
+                $path = 'property_images/'.$filename;
                 Storage::disk('public')->put($path, (string) $encoded);
                 PropertyImage::create([
                     'property_id' => $property->id,
@@ -263,7 +265,7 @@ class PropertyService
             $this->uploadVideo($property, $request->file('video'));
         }
 
-        if ($isUpdate && !$request->hasFile('video') && $request->boolean('delete_video')) {
+        if ($isUpdate && ! $request->hasFile('video') && $request->boolean('delete_video')) {
             $this->deleteExistingVideos($property);
         }
 
@@ -278,7 +280,7 @@ class PropertyService
                 ]);
             }
         }
-        
+
         if ($isUpdate) {
             $this->handleDeletions($property, $request);
             $this->handlePrimaryImageUpdate($property, $request);
@@ -305,15 +307,15 @@ class PropertyService
                 throw new \Exception('Video duration must not exceed 45 seconds.');
             }
             PropertyImage::create([
-                'property_id' => $property->id, 'image_url' => $path, 'is_primary' => false, 
+                'property_id' => $property->id, 'image_url' => $path, 'is_primary' => false,
                 'display_order' => 99, 'media_type' => 'video',
             ]);
         } catch (\Exception $e) {
             Storage::disk('public')->delete($path);
-            throw new \Exception('Could not process video file: ' . $e->getMessage());
+            throw new \Exception('Could not process video file: '.$e->getMessage());
         }
     }
-    
+
     private function handleDeletions(Property $property, Request $request): void
     {
         if ($request->has('deleted_credentials')) {
@@ -336,7 +338,7 @@ class PropertyService
             }
         }
     }
-    
+
     private function handlePrimaryImageUpdate(Property $property, Request $request): void
     {
         if ($request->has('primary_image_id')) {

@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Common;
 
-use App\Http\Controllers\Controller;
-
 use App\Events\MessageSent;
+use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
-use App\Models\Conversation;
-use App\Models\Message;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
+use App\Models\Conversation;
+use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -25,13 +24,13 @@ class MessageController extends Controller
         $ownerId = $context['owner_id'];
 
         $conversations = Conversation::where(function ($q) use ($ownerId) {
-                $q->where('user_one_id', $ownerId)
-                  ->orWhere('user_two_id', $ownerId);
-            })
+            $q->where('user_one_id', $ownerId)
+                ->orWhere('user_two_id', $ownerId);
+        })
             ->with(['userOne', 'userTwo', 'property', 'lastMessage'])
             ->withCount(['messages as unread_count' => function ($q) use ($ownerId) {
                 $q->where('receiver_id', $ownerId)
-                  ->where('is_read', false);
+                    ->where('is_read', false);
             }])
             ->orderBy('last_message_at', 'desc')
             ->get();
@@ -48,7 +47,7 @@ class MessageController extends Controller
         $conversation = Conversation::where('id', $conversationId)
             ->where(function ($q) use ($ownerId) {
                 $q->where('user_one_id', $ownerId)
-                  ->orWhere('user_two_id', $ownerId);
+                    ->orWhere('user_two_id', $ownerId);
             })
             ->firstOrFail();
 
@@ -58,7 +57,7 @@ class MessageController extends Controller
             ->where('is_read', false)
             ->update([
                 'is_read' => true,
-                'read_at' => now()
+                'read_at' => now(),
             ]);
 
         $messages = Message::where('conversation_id', $conversationId)
@@ -90,21 +89,21 @@ class MessageController extends Controller
             'message' => 'required_without:image|nullable|string|max:2000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
-        
+
         $userId = $actorUserId;
 
         // Handle Image Upload
         $imageUrl = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver);
             $image = $manager->read($file->getRealPath());
             $image->scaleDown(width: 1920);
             $encoded = $image->toWebp(80);
-            
-            $filename = 'msg_' . time() . '_' . uniqid() . '.webp';
-            $path = 'message_images/' . $filename;
-            
+
+            $filename = 'msg_'.time().'_'.uniqid().'.webp';
+            $path = 'message_images/'.$filename;
+
             \Illuminate\Support\Facades\Storage::disk('public')->put($path, (string) $encoded);
             $imageUrl = $path;
         }
@@ -112,15 +111,15 @@ class MessageController extends Controller
         // Find or create conversation
         if ($request->conversation_id) {
             $conversation = Conversation::findOrFail($request->conversation_id);
-            $recipientId = $conversation->user_one_id === $userId 
-                ? $conversation->user_two_id 
+            $recipientId = $conversation->user_one_id === $userId
+                ? $conversation->user_two_id
                 : $conversation->user_one_id;
         } else {
             $recipientId = $request->recipient_id;
-            
+
             $conversation = Conversation::where(function ($q) use ($userId, $recipientId) {
-                    $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
-                })
+                $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
+            })
                 ->orWhere(function ($q) use ($userId, $recipientId) {
                     $q->where('user_one_id', $recipientId)->where('user_two_id', $userId);
                 })
@@ -129,7 +128,7 @@ class MessageController extends Controller
                 })
                 ->first();
 
-            if (!$conversation) {
+            if (! $conversation) {
                 $conversation = Conversation::create([
                     'user_one_id' => $userId,
                     'user_two_id' => $recipientId,
@@ -158,7 +157,7 @@ class MessageController extends Controller
         try {
             broadcast(new MessageSent($message))->toOthers();
         } catch (\Exception $e) {
-            \Log::error('Broadcasting failed: ' . $e->getMessage());
+            \Log::error('Broadcasting failed: '.$e->getMessage());
         }
 
         return response()->json(new MessageResource($message));
@@ -185,8 +184,8 @@ class MessageController extends Controller
         $recipientId = $request->recipient_id;
 
         $conversation = Conversation::where(function ($q) use ($userId, $recipientId) {
-                $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
-            })
+            $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
+        })
             ->orWhere(function ($q) use ($userId, $recipientId) {
                 $q->where('user_one_id', $recipientId)->where('user_two_id', $userId);
             })
@@ -195,7 +194,7 @@ class MessageController extends Controller
             })
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             $conversation = Conversation::create([
                 'user_one_id' => $userId,
                 'user_two_id' => $recipientId,
@@ -204,7 +203,7 @@ class MessageController extends Controller
         }
 
         $conversation->load(['userOne', 'userTwo', 'property', 'lastMessage']);
-        
+
         return response()->json(new ConversationResource($conversation));
     }
 
@@ -213,7 +212,7 @@ class MessageController extends Controller
     {
         $context = $this->resolveMessageContext($request);
         $ownerId = $context['owner_id'];
-        
+
         $count = Message::where('receiver_id', $ownerId)
             ->where('is_read', false)
             ->count();
@@ -225,7 +224,7 @@ class MessageController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             throw new AccessDeniedHttpException('Authentication required.');
         }
 

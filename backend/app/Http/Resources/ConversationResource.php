@@ -22,7 +22,7 @@ class ConversationResource extends JsonResource
                 'first_name' => $otherUser->first_name,
                 'last_name' => $otherUser->last_name,
                 'role' => $otherUser->role,
-                'profile_image' => $otherUser->profile_image ? (str_starts_with($otherUser->profile_image, 'http') ? $otherUser->profile_image : asset('storage/' . $otherUser->profile_image)) : null,
+                'profile_image' => $otherUser->profile_image ? (str_starts_with($otherUser->profile_image, 'http') ? $otherUser->profile_image : asset('storage/'.$otherUser->profile_image)) : null,
             ] : null,
             'property' => $this->property ? [
                 'id' => $this->property->id,
@@ -43,6 +43,7 @@ class ConversationResource extends JsonResource
         if ($user && $user->isCaretaker()) {
             return $user->effectiveLandlordId();
         }
+
         return $user->id;
     }
 }

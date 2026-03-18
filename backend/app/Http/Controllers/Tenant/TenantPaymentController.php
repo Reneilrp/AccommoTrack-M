@@ -3,13 +3,10 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-
-use Illuminate\Http\Request;
 use App\Models\Invoice;
-use App\Models\Booking;
 use App\Models\PaymentTransaction;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class TenantPaymentController extends Controller
 {
@@ -41,7 +38,7 @@ class TenantPaymentController extends Controller
                     $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
                     $paidCents = $invoice->transactions
                         ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
-                        ->sum(function($tx) {
+                        ->sum(function ($tx) {
                             return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
                         });
                     $remainingCents = max(0, $totalCents - $paidCents);
@@ -58,15 +55,15 @@ class TenantPaymentController extends Controller
                         'statusRaw' => $invoice->status,
                         'method' => $lastTx ? ucfirst(str_replace('paymongo_', '', $lastTx->method)) : 'N/A',
                         'referenceNo' => $lastTx->gateway_reference ?? ($invoice->reference ?? 'N/A'),
-                        'transactions' => $invoice->transactions->map(function($tx) {
+                        'transactions' => $invoice->transactions->map(function ($tx) {
                             return [
                                 'id' => $tx->id,
                                 'amount' => (float) $tx->amount_cents / 100,
                                 'status' => $tx->status,
                                 'method' => $tx->method,
-                                'date' => $tx->created_at->format('M d, Y H:i')
+                                'date' => $tx->created_at->format('M d, Y H:i'),
                             ];
-                        })
+                        }),
                     ];
                 });
 
@@ -74,7 +71,7 @@ class TenantPaymentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch payment history',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -130,12 +127,12 @@ class TenantPaymentController extends Controller
                 'totalPaidThisMonth' => (float) $totalPaidThisMonthCents / 100,
                 'paidCount' => $paidCount,
                 'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->format('M d') : 'None',
-                'pendingAmount' => (float) $pendingAmountCents / 100
+                'pendingAmount' => (float) $pendingAmountCents / 100,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch payment stats',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -154,9 +151,8 @@ class TenantPaymentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Invoice not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
 }
-

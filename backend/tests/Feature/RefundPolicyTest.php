@@ -161,7 +161,7 @@ class RefundPolicyTest extends TestCase
             ->assertJsonPath('data.max_refundable_cents', 0);
     }
 
-            private function buildScenario(string $startDate, string $endDate, int $transactionAmountCents, array $options = []): array
+    private function buildScenario(string $startDate, string $endDate, int $transactionAmountCents, array $options = []): array
     {
         $suffix = uniqid();
         $landlord = User::create([
@@ -219,7 +219,7 @@ class RefundPolicyTest extends TestCase
             'room_id' => $room->id,
             'tenant_id' => $tenant->id,
             'landlord_id' => $landlord->id,
-            'booking_reference' => 'BKG-' . uniqid(),
+            'booking_reference' => 'BKG-'.uniqid(),
             'start_date' => $startDate,
             'end_date' => $endDate,
             'total_months' => $options['total_months'] ?? 1,
@@ -230,7 +230,7 @@ class RefundPolicyTest extends TestCase
         ]);
 
         $invoice = Invoice::create([
-            'reference' => 'INV-' . uniqid(),
+            'reference' => 'INV-'.uniqid(),
             'landlord_id' => $landlord->id,
             'property_id' => $property->id,
             'booking_id' => $booking->id,

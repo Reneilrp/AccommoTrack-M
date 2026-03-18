@@ -17,7 +17,7 @@ class TransferRequest extends Model
         'reason',
         'status',
         'landlord_notes',
-        'handled_at'
+        'handled_at',
     ];
 
     protected $casts = [

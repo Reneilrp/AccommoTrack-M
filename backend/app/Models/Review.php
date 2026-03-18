@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read mixed $time_ago
  * @property-read \App\Models\Property $property
  * @property-read \App\Models\User $tenant
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Review newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Review newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Review query()
@@ -44,6 +45,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Review whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Review whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Review whereValueRating($value)
+ *
  * @mixin \Eloquent
  */
 class Review extends Model
@@ -107,13 +109,15 @@ class Review extends Model
         if ($this->tenant) {
             $firstName = $this->tenant->first_name ?? '';
             $lastName = $this->tenant->last_name ?? '';
-            
+
             // Return first name and last initial for privacy
             if ($firstName && $lastName) {
-                return $firstName . ' ' . strtoupper(substr($lastName, 0, 1)) . '.';
+                return $firstName.' '.strtoupper(substr($lastName, 0, 1)).'.';
             }
+
             return $firstName ?: 'Anonymous';
         }
+
         return 'Anonymous';
     }
 

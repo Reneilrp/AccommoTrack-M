@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Http\Requests\StoreRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
 use App\Http\Resources\RoomResource;
-use App\Services\RoomService;
-use Illuminate\Http\Request;
-use App\Models\Room;
 use App\Models\Property;
-use Illuminate\Support\Facades\DB;
+use App\Models\Room;
+use App\Services\RoomService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class RoomController extends Controller
 {
@@ -30,7 +28,7 @@ class RoomController extends Controller
     {
         try {
             $propertyId = $propertyId ?? $request->query('property_id');
-            if (!$propertyId) {
+            if (! $propertyId) {
                 return response()->json(['message' => 'Property ID is required'], 400);
             }
 
@@ -61,6 +59,7 @@ class RoomController extends Controller
                 ->findOrFail($request->validated()['property_id']);
 
             $room = $this->roomService->createRoom($request->validated(), $property);
+
             return response()->json((new RoomResource($room->fresh(['tenants', 'amenities', 'images'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
@@ -75,8 +74,8 @@ class RoomController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
-            
+            $room = Room::whereHas('property', fn ($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
+
             $updatedRoom = $this->roomService->updateRoom($room, $request->validated());
 
             return response()->json((new RoomResource($updatedRoom->load(['tenants', 'amenities', 'images'])))->resolve());
@@ -94,8 +93,8 @@ class RoomController extends Controller
         try {
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
-            
-            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
+
+            $room = Room::whereHas('property', fn ($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
 
             $this->roomService->deleteRoom($room);
 
@@ -117,7 +116,7 @@ class RoomController extends Controller
             $this->checkPropertyAccess($context, $room->property_id);
 
             $validated = $request->validate(['status' => 'required|in:available,occupied,maintenance']);
-            
+
             $updatedRoom = $this->roomService->updateStatus($room, $validated['status']);
 
             return response()->json((new RoomResource($updatedRoom->load('tenants')))->resolve());
@@ -147,7 +146,7 @@ class RoomController extends Controller
             return response()->json(['message' => 'Failed to fetch stats', 'error' => $e->getMessage()], 500);
         }
     }
-    
+
     public function pricing(Request $request, $id)
     {
         try {
@@ -158,7 +157,7 @@ class RoomController extends Controller
             } else {
                 $start = $request->query('start') ?? $request->query('start_date');
                 $end = $request->query('end') ?? $request->query('end_date');
-                
+
                 if ($start && $end) {
                     $days = Carbon::parse($start)->diffInDays(Carbon::parse($end));
                 }
@@ -169,6 +168,7 @@ class RoomController extends Controller
             }
 
             $result = $room->calculatePriceForDays($days);
+
             return response()->json($result, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found'], 404);
@@ -187,9 +187,9 @@ class RoomController extends Controller
 
             // Default methods
             $methods = ['cash'];
-            
+
             // Check if property has specific accepted payments
-            if (!empty($property->accepted_payments)) {
+            if (! empty($property->accepted_payments)) {
                 $methods = $property->accepted_payments;
             }
 
@@ -203,7 +203,7 @@ class RoomController extends Controller
                 'methods' => $methods,
                 'is_paymongo_ready' => $isPaymongoReady,
                 'property_id' => $property->id,
-                'landlord_id' => $landlord->id
+                'landlord_id' => $landlord->id,
             ], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Room not found'], 404);
@@ -218,11 +218,11 @@ class RoomController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
-            
+            $room = Room::whereHas('property', fn ($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
+
             $validated = $request->validate([
                 'tenant_id' => 'required|exists:users,id',
-                'start_date' => 'nullable|date'
+                'start_date' => 'nullable|date',
             ]);
 
             $updatedRoom = $this->roomService->assignTenant($room, $validated['tenant_id'], $validated['start_date'] ?? null);
@@ -239,7 +239,7 @@ class RoomController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            
+
             $validated = $request->validate([
                 'tenant_id' => 'required|exists:users,id',
                 'type' => 'nullable|in:monthly,daily',
@@ -252,14 +252,14 @@ class RoomController extends Controller
             $type = $validated['type'] ?? (isset($validated['days']) ? 'daily' : 'monthly');
             $value = $validated['value'] ?? ($validated['days'] ?? ($validated['months'] ?? 1));
 
-            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))
+            $room = Room::whereHas('property', fn ($q) => $q->where('landlord_id', $context['landlord_id']))
                 ->findOrFail($id);
 
             $result = $this->roomService->extendStay($room, $validated['tenant_id'], $type, $value);
 
             return response()->json([
                 'message' => 'Stay extended successfully',
-                'data' => $result
+                'data' => $result,
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to extend stay', 'error' => $e->getMessage()], 500);
@@ -272,8 +272,8 @@ class RoomController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $room = Room::whereHas('property', fn($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
-            
+            $room = Room::whereHas('property', fn ($q) => $q->where('landlord_id', $context['landlord_id']))->findOrFail($id);
+
             $tenantId = $request->input('tenant_id');
 
             $updatedRoom = $this->roomService->removeTenant($room, $tenantId);

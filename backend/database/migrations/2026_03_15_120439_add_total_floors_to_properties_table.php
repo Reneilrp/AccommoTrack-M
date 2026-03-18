@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('properties', function (Blueprint $table) {
-            if (!Schema::hasColumn('properties', 'total_floors')) {
+            if (! Schema::hasColumn('properties', 'total_floors')) {
                 $table->integer('total_floors')->default(1)->after('floor_level');
             }
         });

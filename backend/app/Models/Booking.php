@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\Property $property
  * @property-read \App\Models\Room $room
  * @property-read \App\Models\User $tenant
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking cancelled()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking confirmed()
  * @method static \Database\Factories\BookingFactory factory($count = null, $state = [])
@@ -71,6 +72,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking whereTotalAmount($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking whereTotalMonths($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Booking whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Booking extends Model
@@ -96,7 +98,7 @@ class Booking extends Model
         'notes',
         'cancelled_at',
         'cancellation_reason',
-        'confirmed_at'
+        'confirmed_at',
     ];
 
     protected $casts = [
@@ -106,7 +108,7 @@ class Booking extends Model
         'total_amount' => 'decimal:2',
         'cancelled_at' => 'datetime',
         'confirmed_at' => 'datetime',
-        'guest_name' => 'string'
+        'guest_name' => 'string',
     ];
 
     /**
@@ -147,19 +149,19 @@ class Booking extends Model
     public function addons()
     {
         return $this->belongsToMany(Addon::class, 'booking_addons')
-                    ->withPivot([
-                        'id',
-                        'quantity',
-                        'price_at_booking',
-                        'status',
-                        'request_note',
-                        'response_note',
-                        'approved_at',
-                        'approved_by',
-                        'invoiced_at',
-                        'invoice_id'
-                    ])
-                    ->withTimestamps();
+            ->withPivot([
+                'id',
+                'quantity',
+                'price_at_booking',
+                'status',
+                'request_note',
+                'response_note',
+                'approved_at',
+                'approved_by',
+                'invoiced_at',
+                'invoice_id',
+            ])
+            ->withTimestamps();
     }
 
     /**
@@ -168,8 +170,8 @@ class Booking extends Model
     public function activeMonthlyAddons()
     {
         return $this->addons()
-                    ->wherePivot('status', 'active')
-                    ->where('price_type', 'monthly');
+            ->wherePivot('status', 'active')
+            ->where('price_type', 'monthly');
     }
 
     /**

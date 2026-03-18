@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\Booking|null $booking
  * @property-read \App\Models\Room|null $room
  * @property-read \App\Models\User $tenant
+ *
  * @method static \Database\Factories\PaymentFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Payment newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Payment newQuery()
@@ -39,6 +40,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Payment whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Payment whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Payment whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Payment extends Model
@@ -56,7 +58,7 @@ class Payment extends Model
         'status',
         'payment_method',
         'reference_number',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [

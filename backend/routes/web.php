@@ -2,13 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/login', fn() => response()->json(['message' => 'Login route placeholder']))->name('login');
+Route::get('/login', fn () => response()->json(['message' => 'Login route placeholder']))->name('login');
 
+Route::get('/become-landlord', function () {
 
-
-Route::get('/become-landlord', function() {
-
-    return redirect(config('app.url') . '/become-landlord');
+    return redirect(config('app.url').'/become-landlord');
 
 });
 

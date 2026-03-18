@@ -12,19 +12,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('properties', function (Blueprint $table) {
-            if (!Schema::hasColumn('properties', 'max_occupants')) {
+            if (! Schema::hasColumn('properties', 'max_occupants')) {
                 $table->integer('max_occupants')->default(1)->after('nearby_landmarks');
             }
-            if (!Schema::hasColumn('properties', 'number_of_bedrooms')) {
+            if (! Schema::hasColumn('properties', 'number_of_bedrooms')) {
                 $table->integer('number_of_bedrooms')->nullable()->after('max_occupants');
             }
-            if (!Schema::hasColumn('properties', 'number_of_bathrooms')) {
+            if (! Schema::hasColumn('properties', 'number_of_bathrooms')) {
                 $table->integer('number_of_bathrooms')->nullable()->after('number_of_bedrooms');
             }
-            if (!Schema::hasColumn('properties', 'floor_area')) {
+            if (! Schema::hasColumn('properties', 'floor_area')) {
                 $table->decimal('floor_area', 10, 2)->nullable()->after('number_of_bathrooms');
             }
-            if (!Schema::hasColumn('properties', 'floor_level')) {
+            if (! Schema::hasColumn('properties', 'floor_level')) {
                 $table->string('floor_level')->nullable()->after('floor_area');
             }
         });

@@ -1,9 +1,8 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class NormalizeBillingPolicy extends Migration
 {
@@ -17,7 +16,7 @@ class NormalizeBillingPolicy extends Migration
     public function up()
     {
         // Only run if the column exists
-        if (!Schema::hasColumn('rooms', 'billing_policy')) {
+        if (! Schema::hasColumn('rooms', 'billing_policy')) {
             return;
         }
 
@@ -32,7 +31,7 @@ class NormalizeBillingPolicy extends Migration
      */
     public function down()
     {
-        if (!Schema::hasColumn('rooms', 'billing_policy')) {
+        if (! Schema::hasColumn('rooms', 'billing_policy')) {
             return;
         }
 

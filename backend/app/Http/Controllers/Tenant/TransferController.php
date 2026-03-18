@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RoomResource;
 use App\Models\Booking;
-use App\Models\TransferRequest;
 use App\Models\Room;
+use App\Models\TransferRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,7 +17,7 @@ class TransferController extends Controller
         $tenant = Auth::user();
         $tenantId = $tenant?->id;
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json([
                 'success' => false,
                 'data' => [],
@@ -37,7 +37,7 @@ class TransferController extends Controller
             ->with('room')
             ->first();
 
-        if (!$activeBooking) {
+        if (! $activeBooking) {
             return response()->json([
                 'success' => false,
                 'data' => [],
@@ -45,7 +45,7 @@ class TransferController extends Controller
             ], 422);
         }
 
-        if (!$this->hasTransferEligibleGender($tenant)) {
+        if (! $this->hasTransferEligibleGender($tenant)) {
             return response()->json([
                 'success' => false,
                 'data' => [],
@@ -77,15 +77,15 @@ class TransferController extends Controller
         $tenant = Auth::user();
         $tenantId = $tenant?->id;
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
-        
+
         $validated = $request->validate([
             'booking_id' => 'required|integer|exists:bookings,id',
             'property_id' => 'required|integer|exists:properties,id',
             'requested_room_id' => 'required|exists:rooms,id',
-            'reason' => 'required|string|max:500'
+            'reason' => 'required|string|max:500',
         ]);
 
         $activeBooking = Booking::where('id', $validated['booking_id'])
@@ -95,11 +95,11 @@ class TransferController extends Controller
             ->with('room')
             ->first();
 
-        if (!$activeBooking) {
+        if (! $activeBooking) {
             return response()->json(['message' => 'No active booking found for the selected property.'], 422);
         }
 
-        if (!$this->hasTransferEligibleGender($tenant)) {
+        if (! $this->hasTransferEligibleGender($tenant)) {
             return response()->json(['message' => 'Please complete your profile gender before requesting a room transfer.'], 422);
         }
 
@@ -114,11 +114,11 @@ class TransferController extends Controller
             return response()->json(['message' => 'You can only request transfers within the same property.'], 422);
         }
 
-        if (!$requestedRoom->isAvailable() || $requestedRoom->available_slots <= 0) {
+        if (! $requestedRoom->isAvailable() || $requestedRoom->available_slots <= 0) {
             return response()->json(['message' => 'The requested room is not available.'], 422);
         }
 
-        if (!$this->isRoomGenderCompatible($requestedRoom, $tenant)) {
+        if (! $this->isRoomGenderCompatible($requestedRoom, $tenant)) {
             return response()->json(['message' => 'The requested room is not compatible with your gender restriction.'], 422);
         }
 
@@ -137,7 +137,7 @@ class TransferController extends Controller
             'current_room_id' => $activeBooking->room_id,
             'requested_room_id' => $requestedRoom->id,
             'reason' => $validated['reason'],
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
         return response()->json($transferRequest, 201);
@@ -146,12 +146,13 @@ class TransferController extends Controller
     private function hasTransferEligibleGender($tenant): bool
     {
         $gender = $this->normalizeTenantGender($tenant?->gender);
+
         return in_array($gender, ['male', 'female'], true);
     }
 
     private function normalizeTenantGender(?string $gender): ?string
     {
-        if (!$gender) {
+        if (! $gender) {
             return null;
         }
 
@@ -169,7 +170,7 @@ class TransferController extends Controller
         $tenantGender = $this->normalizeTenantGender($tenant?->gender);
         $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
 
-        if (!$tenantGender) {
+        if (! $tenantGender) {
             return false;
         }
 
@@ -187,7 +188,7 @@ class TransferController extends Controller
             ->with(['currentRoom', 'requestedRoom.property'])
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return response()->json($requests);
     }
 
@@ -195,12 +196,13 @@ class TransferController extends Controller
     {
         $tenantId = Auth::id();
         $request = TransferRequest::where('tenant_id', $tenantId)->findOrFail($id);
-        
+
         if ($request->status !== 'pending') {
             return response()->json(['message' => 'Only pending requests can be cancelled.'], 422);
         }
 
         $request->update(['status' => 'cancelled']);
+
         return response()->json(['message' => 'Request cancelled successfully.']);
     }
 }

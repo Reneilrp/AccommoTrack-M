@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('postal_code', 20)->nullable();
             $table->enum('verification_status', ['pending', 'verified', 'rejected'])->default('pending');
             $table->timestamps();
-            
+
             $table->unique('user_id');
         });
     }

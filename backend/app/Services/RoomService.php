@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Room;
-use App\Models\Property;
 use App\Models\Amenity;
-use App\Models\RoomImage;
 use App\Models\Booking;
+use App\Models\Property;
+use App\Models\Room;
+use App\Models\RoomImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -71,7 +71,7 @@ class RoomService
                     throw ValidationException::withMessages(['room_number' => 'Room number already exists for this property.']);
                 }
             }
-            
+
             $oldStatus = $room->status;
             $room->update($validatedData);
 
@@ -86,7 +86,7 @@ class RoomService
             if (isset($validatedData['images'])) {
                 $this->syncImagesFromUrls($room, $validatedData['images']);
             }
-            
+
             if (isset($validatedData['status']) && $validatedData['status'] !== $oldStatus) {
                 $room->property->updateAvailableRooms();
             }
@@ -94,7 +94,7 @@ class RoomService
             return $room;
         });
     }
-    
+
     /**
      * Delete a room.
      */
@@ -110,7 +110,7 @@ class RoomService
 
         DB::transaction(function () use ($room) {
             $property = $room->property;
-            
+
             $room->amenities()->detach();
             foreach ($room->images as $image) {
                 Storage::disk('public')->delete(str_replace('/storage/', '', $image->image_url));
@@ -135,9 +135,9 @@ class RoomService
         } else {
             $room->update(['status' => $status]);
         }
-        
+
         $room->property->updateAvailableRooms();
-        
+
         return $room->load('tenants');
     }
 
@@ -148,6 +148,7 @@ class RoomService
     {
         return DB::transaction(function () use ($room, $tenantId, $startDate, $bedCount) {
             $room->assignTenant($tenantId, $startDate, $bedCount);
+
             return $room->load('tenants');
         });
     }
@@ -159,6 +160,7 @@ class RoomService
     {
         return DB::transaction(function () use ($room, $tenantId) {
             $room->removeTenant($tenantId);
+
             return $room->load('tenants');
         });
     }
@@ -176,7 +178,7 @@ class RoomService
                 ->orderBy('end_date', 'desc')
                 ->first();
 
-            if (!$booking) {
+            if (! $booking) {
                 throw new \Exception('No active booking found for this tenant in this room.');
             }
 
@@ -202,14 +204,14 @@ class RoomService
             $booking->save();
 
             // 3. Create Invoice for the extension
-            $reference = 'INV-EXT-MAN-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+            $reference = 'INV-EXT-MAN-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
             $invoice = \App\Models\Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $room->property->landlord_id,
                 'property_id' => $room->property_id,
                 'booking_id' => $booking->id,
                 'tenant_id' => $tenantId,
-                'description' => "Stay Extension (+{$value} " . ($type === 'monthly' ? 'month' : 'day') . "(s)) for Room {$room->room_number}",
+                'description' => "Stay Extension (+{$value} ".($type === 'monthly' ? 'month' : 'day')."(s)) for Room {$room->room_number}",
                 'amount_cents' => (int) round($extensionAmount * 100),
                 'currency' => 'PHP',
                 'status' => 'pending',
@@ -219,15 +221,15 @@ class RoomService
                     'extension_type' => $type,
                     'extension_value' => $value,
                     'previous_end_date' => $currentEnd->format('Y-m-d'),
-                    'new_end_date' => $newEnd->format('Y-m-d')
-                ]
+                    'new_end_date' => $newEnd->format('Y-m-d'),
+                ],
             ]);
 
             return [
                 'booking' => $booking,
                 'invoice' => $invoice,
                 'new_end_date' => $booking->end_date,
-                'extension_amount' => $extensionAmount
+                'extension_amount' => $extensionAmount,
             ];
         });
     }
@@ -240,13 +242,14 @@ class RoomService
             throw ValidationException::withMessages(['room_type' => 'Apartment properties cannot have Bed Spacer room type.']);
         }
     }
-    
+
     private function isRoomNumberDuplicate(string $roomNumber, int $propertyId, ?int $excludeRoomId = null): bool
     {
         $query = Room::where('property_id', $propertyId)->where('room_number', $roomNumber);
         if ($excludeRoomId) {
             $query->where('id', '!=', $excludeRoomId);
         }
+
         return $query->exists();
     }
 
@@ -259,7 +262,7 @@ class RoomService
         }
         $room->amenities()->sync($amenityIds);
     }
-    
+
     private function handleImageUploads(Request $request, Room $room): void
     {
         if ($request->hasFile('images')) {
@@ -272,7 +275,7 @@ class RoomService
             }
         }
     }
-    
+
     private function syncImagesFromUrls(Room $room, array $imageUrls): void
     {
         $room->images()->delete();

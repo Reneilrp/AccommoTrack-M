@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('rooms', function (Blueprint $table) {
-            if (!Schema::hasColumn('rooms', 'min_stay_days')) {
+            if (! Schema::hasColumn('rooms', 'min_stay_days')) {
                 $table->integer('min_stay_days')->default(1)->after('billing_policy');
             }
         });

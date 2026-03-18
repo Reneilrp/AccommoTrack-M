@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Booking;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class ExpirePendingBookings extends Command
@@ -30,7 +30,7 @@ class ExpirePendingBookings extends Command
     {
         $expirationDays = 2;
         $this->info("Searching for pending bookings older than {$expirationDays} days...");
-        Log::info("Running ExpirePendingBookings command...");
+        Log::info('Running ExpirePendingBookings command...');
 
         $expiredBookings = Booking::where('status', 'pending')
             ->where('created_at', '<=', Carbon::now()->subDays($expirationDays))
@@ -39,6 +39,7 @@ class ExpirePendingBookings extends Command
         if ($expiredBookings->isEmpty()) {
             $this->info('No expired pending bookings found.');
             Log::info('No expired pending bookings found.');
+
             return;
         }
 
@@ -47,7 +48,7 @@ class ExpirePendingBookings extends Command
 
         foreach ($expiredBookings as $booking) {
             $booking->status = 'cancelled';
-            $booking->cancellation_reason = 'Booking request expired after ' . $expirationDays . ' days.';
+            $booking->cancellation_reason = 'Booking request expired after '.$expirationDays.' days.';
             $booking->cancelled_at = Carbon::now();
             $booking->save();
 

@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'payment_methods_settings')) {
+            if (! Schema::hasColumn('users', 'payment_methods_settings')) {
                 $table->json('payment_methods_settings')->nullable()->after('is_active');
             }
         });
 
         Schema::table('bookings', function (Blueprint $table) {
-            if (!Schema::hasColumn('bookings', 'payment_method')) {
+            if (! Schema::hasColumn('bookings', 'payment_method')) {
                 $table->string('payment_method')->nullable()->after('payment_status');
             }
         });

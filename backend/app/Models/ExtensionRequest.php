@@ -20,7 +20,7 @@ class ExtensionRequest extends Model
         'tenant_notes',
         'landlord_notes',
         'status',
-        'handled_at'
+        'handled_at',
     ];
 
     protected $casts = [

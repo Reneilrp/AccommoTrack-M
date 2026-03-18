@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-
+use App\Models\TenantProfile;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use App\Models\User;
-use App\Models\TenantProfile;
 
 class TenantSettingsController extends Controller
 {
@@ -19,21 +18,21 @@ class TenantSettingsController extends Controller
     {
         try {
             $userId = Auth::id();
-            
+
             // Get user directly
             $user = User::select([
-                'id', 'first_name', 'middle_name', 'last_name', 'email', 'phone', 
+                'id', 'first_name', 'middle_name', 'last_name', 'email', 'phone',
                 'profile_image', 'is_verified', 'is_active', 'notification_preferences',
-                'date_of_birth', 'gender'
+                'date_of_birth', 'gender',
             ])->findOrFail($userId);
 
             // Get tenant profile directly
             $tenantProfile = TenantProfile::where('user_id', $userId)
                 ->select([
                     'move_in_date', 'move_out_date', 'status', 'notes',
-                    'emergency_contact_name', 'emergency_contact_phone', 
-                    'emergency_contact_relationship', 'current_address', 
-                    'preference'
+                    'emergency_contact_name', 'emergency_contact_phone',
+                    'emergency_contact_relationship', 'current_address',
+                    'preference',
                 ])
                 ->first();
 
@@ -47,39 +46,39 @@ class TenantSettingsController extends Controller
             // Format profile image URL
             $profileImage = null;
             if ($user->profile_image) {
-                $profileImage = asset('storage/' . $user->profile_image);
+                $profileImage = asset('storage/'.$user->profile_image);
             }
 
             return response()->json([
-                'id'             => $user->id,
-                'first_name'     => $user->first_name,
-                'middle_name'    => $user->middle_name,
-                'last_name'      => $user->last_name,
-                'email'          => $user->email,
-                'phone'          => $user->phone,
-                'profile_image'  => $profileImage,
-                'is_verified'    => $user->is_verified,
-                'is_active'      => $user->is_active,
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'middle_name' => $user->middle_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'profile_image' => $profileImage,
+                'is_verified' => $user->is_verified,
+                'is_active' => $user->is_active,
                 'notification_preferences' => $user->notification_preferences,
-                'age'            => $age,
-                'gender'         => $user->gender,
-                'date_of_birth'  => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
+                'age' => $age,
+                'gender' => $user->gender,
+                'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
                 'tenant_profile' => $tenantProfile ? [
-                    'move_in_date'                => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
-                    'move_out_date'               => $tenantProfile->move_out_date ? $tenantProfile->move_out_date->format('Y-m-d') : null,
-                    'status'                      => $tenantProfile->status,
-                    'notes'                       => $tenantProfile->notes,
-                    'emergency_contact_name'      => $tenantProfile->emergency_contact_name,
-                    'emergency_contact_phone'     => $tenantProfile->emergency_contact_phone,
+                    'move_in_date' => $tenantProfile->move_in_date ? $tenantProfile->move_in_date->format('Y-m-d') : null,
+                    'move_out_date' => $tenantProfile->move_out_date ? $tenantProfile->move_out_date->format('Y-m-d') : null,
+                    'status' => $tenantProfile->status,
+                    'notes' => $tenantProfile->notes,
+                    'emergency_contact_name' => $tenantProfile->emergency_contact_name,
+                    'emergency_contact_phone' => $tenantProfile->emergency_contact_phone,
                     'emergency_contact_relationship' => $tenantProfile->emergency_contact_relationship,
-                    'current_address'             => $tenantProfile->current_address,
-                    'preference'                  => $tenantProfile->preference,
-                ] : null
+                    'current_address' => $tenantProfile->current_address,
+                    'preference' => $tenantProfile->preference,
+                ] : null,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch profile',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -91,41 +90,55 @@ class TenantSettingsController extends Controller
             $user = User::findOrFail($userId);
 
             $validated = $request->validate([
-                'first_name'                    => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
-                'middle_name'                   => ['nullable', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
-                'last_name'                     => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
-                'email'                         => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
-                'phone'                         => 'nullable|string|max:20',
-                'profile_image'                 => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-                'notification_preferences'      => 'nullable',
+                'first_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
+                'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
+                'phone' => 'nullable|string|max:20',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'notification_preferences' => 'nullable',
 
                 // TenantProfile fields
-                'date_of_birth'                 => ['nullable', 'date', 'before_or_equal:' . now()->subYears(18)->format('Y-m-d')],
-                'gender'                        => 'nullable|string|max:50',
-                'emergency_contact_name'        => 'nullable|string|max:255',
-                'emergency_contact_phone'       => 'nullable|string|max:20',
-                'emergency_contact_relationship'=> 'nullable|string|max:100',
-                'current_address'               => 'nullable|string',
-                'preference'                    => 'nullable', // Allow array or json
-                'notes'                         => 'nullable|string',
-                'move_in_date'                  => 'nullable|date',
-                'move_out_date'                 => 'nullable|date',
-                'status'                        => 'nullable|string',
+                'date_of_birth' => ['nullable', 'date', 'before_or_equal:'.now()->subYears(18)->format('Y-m-d')],
+                'gender' => 'nullable|string|max:50',
+                'emergency_contact_name' => 'nullable|string|max:255',
+                'emergency_contact_phone' => 'nullable|string|max:20',
+                'emergency_contact_relationship' => 'nullable|string|max:100',
+                'current_address' => 'nullable|string',
+                'preference' => 'nullable', // Allow array or json
+                'notes' => 'nullable|string',
+                'move_in_date' => 'nullable|date',
+                'move_out_date' => 'nullable|date',
+                'status' => 'nullable|string',
             ], [
-                'date_of_birth.before_or_equal' => 'Tenants must be at least 18 years old.'
+                'date_of_birth.before_or_equal' => 'Tenants must be at least 18 years old.',
             ]);
 
             DB::beginTransaction();
 
             // Update User table directly (only fields present in request)
             $userData = [];
-            if ($request->has('first_name')) $userData['first_name'] = $validated['first_name'];
-            if ($request->has('middle_name')) $userData['middle_name'] = $validated['middle_name'];
-            if ($request->has('last_name')) $userData['last_name'] = $validated['last_name'];
-            if ($request->has('email')) $userData['email'] = $validated['email'];
-            if ($request->has('phone')) $userData['phone'] = $validated['phone'];
-            if ($request->has('date_of_birth')) $userData['date_of_birth'] = $validated['date_of_birth'];
-            if ($request->has('gender')) $userData['gender'] = $validated['gender'];
+            if ($request->has('first_name')) {
+                $userData['first_name'] = $validated['first_name'];
+            }
+            if ($request->has('middle_name')) {
+                $userData['middle_name'] = $validated['middle_name'];
+            }
+            if ($request->has('last_name')) {
+                $userData['last_name'] = $validated['last_name'];
+            }
+            if ($request->has('email')) {
+                $userData['email'] = $validated['email'];
+            }
+            if ($request->has('phone')) {
+                $userData['phone'] = $validated['phone'];
+            }
+            if ($request->has('date_of_birth')) {
+                $userData['date_of_birth'] = $validated['date_of_birth'];
+            }
+            if ($request->has('gender')) {
+                $userData['gender'] = $validated['gender'];
+            }
             if ($request->has('notification_preferences')) {
                 $prefs = $validated['notification_preferences'];
                 // When sent as a JSON string via FormData, decode it first
@@ -137,7 +150,7 @@ class TenantSettingsController extends Controller
                 }
                 if (is_array($prefs)) {
                     // Normalize all values to proper booleans before storing
-                    $userData['notification_preferences'] = array_map(fn($v) => (bool)$v, $prefs);
+                    $userData['notification_preferences'] = array_map(fn ($v) => (bool) $v, $prefs);
                 }
             }
 
@@ -151,17 +164,17 @@ class TenantSettingsController extends Controller
                 $userData['profile_image'] = $path;
             }
 
-            if (!empty($userData)) {
+            if (! empty($userData)) {
                 User::where('id', $userId)->update($userData);
             }
 
             // Update or create TenantProfile safely (merging preferences)
             $tenantProfile = TenantProfile::firstOrNew(['user_id' => $userId]);
-            
+
             $profileFields = [
                 'emergency_contact_name', 'emergency_contact_phone',
                 'emergency_contact_relationship', 'current_address', 'notes',
-                'move_in_date', 'move_out_date', 'status'
+                'move_in_date', 'move_out_date', 'status',
             ];
 
             foreach ($profileFields as $field) {
@@ -173,10 +186,12 @@ class TenantSettingsController extends Controller
             // Smart merge for preferences
             if (array_key_exists('preference', $validated)) {
                 $currentPrefs = $tenantProfile->preference ?? [];
-                if (!is_array($currentPrefs)) $currentPrefs = [];
-                
+                if (! is_array($currentPrefs)) {
+                    $currentPrefs = [];
+                }
+
                 $newPrefs = $validated['preference'];
-                
+
                 // Decode if it's a JSON string (common with FormData)
                 if (is_string($newPrefs)) {
                     $decoded = json_decode($newPrefs, true);
@@ -199,19 +214,21 @@ class TenantSettingsController extends Controller
 
             return response()->json([
                 'message' => 'Profile updated successfully',
-                'user'    => $updatedUser
+                'user' => $updatedUser,
             ], 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Failed to update profile',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -221,10 +238,10 @@ class TenantSettingsController extends Controller
         try {
             $validated = $request->validate([
                 'current_password' => 'required|string',
-                'new_password'     => [
-                    'required', 
-                    'string', 
-                    'min:8', 
+                'new_password' => [
+                    'required',
+                    'string',
+                    'min:8',
                     'confirmed',
                     'regex:/[a-z]/',
                     'regex:/[A-Z]/',
@@ -238,9 +255,9 @@ class TenantSettingsController extends Controller
             $user = User::findOrFail($userId);
 
             // Check current password
-            if (!Hash::check($validated['current_password'], $user->password)) {
+            if (! Hash::check($validated['current_password'], $user->password)) {
                 return response()->json([
-                    'message' => 'Current password is incorrect'
+                    'message' => 'Current password is incorrect',
                 ], 422);
             }
 
@@ -250,17 +267,17 @@ class TenantSettingsController extends Controller
                 ->update(['password' => Hash::make($validated['new_password'])]);
 
             return response()->json([
-                'message' => 'Password changed successfully'
+                'message' => 'Password changed successfully',
             ], 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to change password',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
