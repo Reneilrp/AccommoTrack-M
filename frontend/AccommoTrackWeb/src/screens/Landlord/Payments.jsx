@@ -19,6 +19,9 @@ const REFUND_ELIGIBLE_STATUSES = [
   "refunded",
 ];
 
+const getBillingPolicy = (booking) =>
+  String(booking?.billing_policy || booking?.room?.billing_policy || "monthly").toLowerCase();
+
 const toDateOnly = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -34,22 +37,57 @@ const getStayProgress = (booking) => {
 
   const today = toDateOnly(new Date());
   const totalDays = Math.max(1, Math.floor((end - start) / 86400000) + 1);
+  const billingPolicy = getBillingPolicy(booking);
 
-  let stayedDays = 0;
-  if (today >= start && today <= end) {
-    stayedDays = Math.floor((today - start) / 86400000) + 1;
-  } else if (today > end) {
-    stayedDays = totalDays;
+  if (billingPolicy === "daily") {
+    let stayedDays = 0;
+    if (today >= start && today <= end) {
+      stayedDays = Math.floor((today - start) / 86400000) + 1;
+    } else if (today > end) {
+      stayedDays = totalDays;
+    }
+
+    const refundableDays = Math.max(0, totalDays - stayedDays);
+    const refundableRatio = totalDays > 0 ? refundableDays / totalDays : 0;
+
+    return {
+      mode: "daily",
+      totalUnits: totalDays,
+      usedUnits: stayedDays,
+      refundableUnits: refundableDays,
+      refundableRatio,
+      unitLabel: "days",
+      totalDays,
+      stayedDays,
+      refundableDays,
+    };
   }
 
-  const refundableDays = Math.max(0, totalDays - stayedDays);
-  const refundableRatio = totalDays > 0 ? refundableDays / totalDays : 0;
+  const totalMonths = Math.max(
+    1,
+    Number(booking?.total_months || Math.ceil(totalDays / 30)),
+  );
+  let elapsedDays = 0;
+  if (today > start && today <= end) {
+    elapsedDays = Math.floor((today - start) / 86400000);
+  } else if (today > end) {
+    elapsedDays = totalMonths * 30;
+  }
+
+  const usedMonths = Math.min(totalMonths, Math.max(0, Math.floor(elapsedDays / 30)));
+  const refundableMonths = Math.max(0, totalMonths - usedMonths);
+  const refundableRatio = totalMonths > 0 ? refundableMonths / totalMonths : 0;
 
   return {
-    totalDays,
-    stayedDays,
-    refundableDays,
+    mode: "monthly",
+    totalUnits: totalMonths,
+    usedUnits: usedMonths,
+    refundableUnits: refundableMonths,
     refundableRatio,
+    unitLabel: totalMonths === 1 ? "month" : "months",
+    totalDays,
+    stayedDays: Math.min(totalDays, elapsedDays),
+    refundableDays: Math.max(0, totalDays - elapsedDays),
   };
 };
 
@@ -88,7 +126,7 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
     .reduce((sum, line) => sum + Math.max(0, Number(line.refunded_amount_cents || 0)), 0);
 
   const proratedCents = Math.floor(
-    (paidBaseCents * stayProgress.refundableDays) / stayProgress.totalDays,
+    (paidBaseCents * stayProgress.refundableUnits) / stayProgress.totalUnits,
   );
 
   const invoiceCapCents = Math.max(
@@ -1035,7 +1073,7 @@ export default function Payments() {
                         Refundable Stay Window
                       </span>
                       <span className="text-blue-700 dark:text-blue-300">
-                        {selectedStayProgress.refundableDays}/{selectedStayProgress.totalDays} days refundable
+                        {selectedStayProgress.refundableUnits}/{selectedStayProgress.totalUnits} {selectedStayProgress.unitLabel} refundable
                       </span>
                     </div>
                     <div className="w-full h-2.5 rounded-full bg-blue-100 dark:bg-blue-950 overflow-hidden">
@@ -1047,20 +1085,20 @@ export default function Payments() {
                     <div className="grid grid-cols-3 gap-2 text-[11px]">
                       <div className="p-2 rounded-md bg-white/70 dark:bg-gray-800/60">
                         <p className="text-gray-500 dark:text-gray-400 uppercase font-bold">Stayed</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{selectedStayProgress.stayedDays} days</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{selectedStayProgress.usedUnits} {selectedStayProgress.unitLabel}</p>
                       </div>
                       <div className="p-2 rounded-md bg-white/70 dark:bg-gray-800/60">
                         <p className="text-gray-500 dark:text-gray-400 uppercase font-bold">Refundable</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{selectedStayProgress.refundableDays} days</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{selectedStayProgress.refundableUnits} {selectedStayProgress.unitLabel}</p>
                       </div>
                       <div className="p-2 rounded-md bg-white/70 dark:bg-gray-800/60">
                         <p className="text-gray-500 dark:text-gray-400 uppercase font-bold">Fixed Penalty</p>
                         <p className="font-bold text-gray-900 dark:text-white">₱{(REFUND_FIXED_PENALTY_CENTS / 100).toLocaleString()}</p>
                       </div>
                     </div>
-                    {selectedStayProgress.refundableDays > 0 && (
+                    {selectedStayProgress.refundableUnits > 0 && (
                       <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                        Refundable days show stay eligibility. Final refundable amount still depends on prior refunds and fixed penalty.
+                        Refundable stay units show eligibility. Final refundable amount still depends on prior refunds and fixed penalty.
                       </p>
                     )}
                   </div>

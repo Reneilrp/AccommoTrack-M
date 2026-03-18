@@ -30,7 +30,7 @@ class TransactionController extends Controller
     public function refund(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
-        $tx = PaymentTransaction::with(['invoice.booking', 'invoice.transactions'])->findOrFail($id);
+        $tx = PaymentTransaction::with(['invoice.booking.room', 'invoice.transactions'])->findOrFail($id);
         $invoice = $tx->invoice;
         if ($invoice && $invoice->landlord_id !== $context['landlord_id']) {
             return response()->json(['success' => false, 'data' => null, 'message' => 'Unauthorized'], 403);
@@ -168,17 +168,37 @@ class TransactionController extends Controller
         $endDate = Carbon::parse($booking->end_date)->startOfDay();
         $today = now()->startOfDay();
 
-        $totalDays = max(1, $startDate->diffInDays($endDate) + 1);
-        if ($today->lt($startDate)) {
-            $elapsedDays = 0;
-        } elseif ($today->gt($endDate)) {
-            $elapsedDays = $totalDays;
+        $billingPolicy = strtolower((string) ($booking->room->billing_policy ?? $booking->billing_policy ?? 'monthly'));
+        $proratedCents = 0;
+
+        if ($billingPolicy === 'daily') {
+            $totalDays = max(1, $startDate->diffInDays($endDate) + 1);
+            if ($today->lt($startDate)) {
+                $elapsedDays = 0;
+            } elseif ($today->gt($endDate)) {
+                $elapsedDays = $totalDays;
+            } else {
+                $elapsedDays = $startDate->diffInDays($today) + 1;
+            }
+
+            $unusedDays = max(0, $totalDays - $elapsedDays);
+            $proratedCents = (int) floor(($totalPaidCents * $unusedDays) / $totalDays);
         } else {
-            $elapsedDays = $startDate->diffInDays($today) + 1;
+            $totalMonths = max(1, (int) ($booking->total_months ?: ceil(($startDate->diffInDays($endDate) + 1) / 30)));
+            if ($today->lt($startDate)) {
+                $elapsedDays = 0;
+            } elseif ($today->gt($endDate)) {
+                $elapsedDays = $totalMonths * 30;
+            } else {
+                $elapsedDays = $startDate->diffInDays($today);
+            }
+
+            // For monthly billing, consider a month consumed for each full 30-day block.
+            $usedMonths = min($totalMonths, max(0, (int) floor($elapsedDays / 30)));
+            $unusedMonths = max(0, $totalMonths - $usedMonths);
+            $proratedCents = (int) floor(($totalPaidCents * $unusedMonths) / $totalMonths);
         }
 
-        $unusedDays = max(0, $totalDays - $elapsedDays);
-        $proratedCents = (int) floor(($totalPaidCents * $unusedDays) / $totalDays);
         $fixedPenaltyCents = max(0, (int) config('refunds.fixed_penalty_cents', 0));
         $invoiceCapRemaining = max(0, $proratedCents - $fixedPenaltyCents - $alreadyRefundedCents);
 

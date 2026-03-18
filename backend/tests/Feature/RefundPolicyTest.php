@@ -24,7 +24,11 @@ class RefundPolicyTest extends TestCase
         [$landlord, $transaction] = $this->buildScenario(
             now()->subDays(9)->toDateString(),
             now()->addDays(20)->toDateString(),
-            300000
+            300000,
+            [
+                'billing_policy' => 'daily',
+                'total_months' => 1,
+            ]
         );
 
         Sanctum::actingAs($landlord);
@@ -46,7 +50,11 @@ class RefundPolicyTest extends TestCase
         [$landlord, $transaction] = $this->buildScenario(
             now()->subDays(9)->toDateString(),
             now()->addDays(20)->toDateString(),
-            300000
+            300000,
+            [
+                'billing_policy' => 'daily',
+                'total_months' => 1,
+            ]
         );
 
         Sanctum::actingAs($landlord);
@@ -60,6 +68,16 @@ class RefundPolicyTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.applied_refund_cents', 100000);
 
+        $refund = PaymentTransaction::query()
+            ->where('invoice_id', $transaction->invoice_id)
+            ->where('amount_cents', -100000)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($refund);
+        $this->assertSame('cash', $refund->method);
+        $this->assertSame('refunded', $refund->status);
+
         $transaction->refresh();
         $this->assertSame(100000, (int) $transaction->refunded_amount_cents);
         $this->assertSame('partially_refunded', $transaction->status);
@@ -72,7 +90,11 @@ class RefundPolicyTest extends TestCase
         [$landlord, $transaction] = $this->buildScenario(
             now()->subDays(9)->toDateString(),
             now()->addDays(20)->toDateString(),
-            300000
+            300000,
+            [
+                'billing_policy' => 'daily',
+                'total_months' => 1,
+            ]
         );
 
         Sanctum::actingAs($landlord);
@@ -88,6 +110,31 @@ class RefundPolicyTest extends TestCase
         $this->assertSame(150000, (int) $transaction->refunded_amount_cents);
     }
 
+    public function test_refund_monthly_policy_refunds_remaining_months(): void
+    {
+        config()->set('refunds.fixed_penalty_cents', 0);
+
+        [$landlord, $transaction] = $this->buildScenario(
+            now()->subDays(30)->toDateString(),
+            now()->addDays(29)->toDateString(),
+            200000,
+            [
+                'billing_policy' => 'monthly',
+                'total_months' => 2,
+            ]
+        );
+
+        Sanctum::actingAs($landlord);
+
+        $response = $this->postJson("/api/transactions/{$transaction->id}/refund", []);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.applied_refund_cents', 100000)
+            ->assertJsonPath('data.max_refundable_cents', 100000);
+    }
+
     public function test_refund_is_blocked_after_stay_window_ends(): void
     {
         config()->set('refunds.fixed_penalty_cents', 0);
@@ -95,7 +142,11 @@ class RefundPolicyTest extends TestCase
         [$landlord, $transaction] = $this->buildScenario(
             now()->subDays(30)->toDateString(),
             now()->subDay()->toDateString(),
-            300000
+            300000,
+            [
+                'billing_policy' => 'daily',
+                'total_months' => 1,
+            ]
         );
 
         Sanctum::actingAs($landlord);
@@ -110,7 +161,7 @@ class RefundPolicyTest extends TestCase
             ->assertJsonPath('data.max_refundable_cents', 0);
     }
 
-    private function buildScenario(string $startDate, string $endDate, int $transactionAmountCents): array
+            private function buildScenario(string $startDate, string $endDate, int $transactionAmountCents, array $options = []): array
     {
         $suffix = uniqid();
         $landlord = User::create([
@@ -160,7 +211,7 @@ class RefundPolicyTest extends TestCase
             'capacity' => 1,
             'pricing_model' => 'full_room',
             'status' => 'occupied',
-            'billing_policy' => 'monthly',
+            'billing_policy' => $options['billing_policy'] ?? 'monthly',
         ]);
 
         $booking = Booking::create([
@@ -171,7 +222,7 @@ class RefundPolicyTest extends TestCase
             'booking_reference' => 'BKG-' . uniqid(),
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'total_months' => 1,
+            'total_months' => $options['total_months'] ?? 1,
             'monthly_rent' => 10000,
             'total_amount' => 10000,
             'status' => 'confirmed',

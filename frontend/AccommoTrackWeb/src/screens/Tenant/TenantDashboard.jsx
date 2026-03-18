@@ -100,9 +100,13 @@ const TenantDashboard = () => {
   const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
 
   // Calculate Total Monthly Rent across all active stays
-  const totalMonthlyRent = hasActiveStays 
+  const totalMonthlyRent = hasActiveStays
     ? stayData.stays.reduce((total, stay) => total + (stay.booking?.monthlyRent || stay.booking?.monthly_rent || 0), 0)
     : 0;
+  const totalMonthlyAddons = hasActiveStays
+    ? stayData.stays.reduce((total, stay) => total + (stay.addons?.monthlyTotal || stay.addons?.monthly_total || 0), 0)
+    : 0;
+  const totalMonthlySummary = totalMonthlyRent + totalMonthlyAddons;
 
   return (
     <div className="space-y-6 font-sans max-w-6xl mx-auto">
@@ -138,9 +142,10 @@ const TenantDashboard = () => {
             <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" />
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {formatCurrency(totalMonthlyRent)}
+            {formatCurrency(totalMonthlySummary)}
           </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Total Monthly Rent</p>
+          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Rent: {formatCurrency(totalMonthlyRent)} | Add-ons: {formatCurrency(totalMonthlyAddons)}</p>
+          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Monthly Payment Summary</p>
         </div>
 
         {/* Outstanding Due Card */}
