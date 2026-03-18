@@ -103,6 +103,27 @@ export const UIStateProvider = ({ children }) => {
   };
 
   /**
+   * Invalidate one or more cached data buckets.
+   * @param {string|string[]} buckets
+   */
+  const invalidateData = (buckets) => {
+    const bucketList = Array.isArray(buckets) ? buckets : [buckets];
+    setUIState(prev => {
+      const nextData = { ...prev.data };
+      bucketList.forEach((bucket) => {
+        if (Object.prototype.hasOwnProperty.call(nextData, bucket)) {
+          nextData[bucket] = null;
+        }
+      });
+
+      return {
+        ...prev,
+        data: nextData
+      };
+    });
+  };
+
+  /**
    * Reset a specific screen's UI state to initial values
    * @param {string} screen 
    */
@@ -114,7 +135,7 @@ export const UIStateProvider = ({ children }) => {
   };
 
   return (
-    <UIStateContext.Provider value={{ uiState, updateScreenState, updateData, resetScreenState }}>
+    <UIStateContext.Provider value={{ uiState, updateScreenState, updateData, invalidateData, resetScreenState }}>
       {children}
     </UIStateContext.Provider>
   );

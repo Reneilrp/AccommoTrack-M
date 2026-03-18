@@ -17,10 +17,6 @@ const TenantDashboard = () => {
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   const fetchDashboardData = async () => {
     try {
       // Only set loading true if we have no cached data
@@ -43,6 +39,36 @@ const TenantDashboard = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  useEffect(() => {
+    const handleFocusRefresh = () => {
+      fetchDashboardData();
+    };
+
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === 'visible') {
+        fetchDashboardData();
+      }
+    };
+
+    const handleNotificationRefresh = () => {
+      fetchDashboardData();
+    };
+
+    window.addEventListener('focus', handleFocusRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
+    window.addEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+      window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+    };
+  }, []);
 
   // Helper to format currency
   const formatCurrency = (amount) => {
@@ -130,9 +156,21 @@ const TenantDashboard = () => {
       {/* Middle Area: The "My Stays" Hub */}
       <div className="space-y-6">
         {hasActiveStays ? (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {stayData.stays.map((stay) => (
-              <div key={stay.booking.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden group">
+              <div
+                key={stay.booking.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate('/bookings')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate('/bookings');
+                  }
+                }}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden group cursor-pointer hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/60"
+              >
                 {/* Property Image and Overlay */}
                 <div className="relative h-52">
                   <img 
@@ -162,7 +200,10 @@ const TenantDashboard = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => navigate('/messages', { state: { startConversation: true, recipient: { id: stay.landlord?.id, name: stay.landlord?.name }, property: { id: stay.property?.id, title: stay.property?.title || stay.property?.name } } })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate('/messages', { state: { startConversation: true, recipient: { id: stay.landlord?.id, name: stay.landlord?.name }, property: { id: stay.property?.id, title: stay.property?.title || stay.property?.name } } });
+                      }}
                       className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-300" />

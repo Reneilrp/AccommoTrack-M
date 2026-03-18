@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tenantService } from '../../services/tenantService';
 import api, { getImageUrl } from '../../utils/api';
@@ -36,7 +36,7 @@ import ReportModal from '../../components/Modals/ReportModal';
 
 const MyBookings = () => {
   const navigate = useNavigate();
-  const { uiState, updateScreenState, updateData } = useUIState();
+  const { uiState, updateScreenState, updateData, invalidateData } = useUIState();
   const activeTab = uiState.bookings?.activeTab || 'current';
   
   // Use cached data for instant mount
@@ -59,12 +59,17 @@ const MyBookings = () => {
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
 
+  const invalidateTenantStayCache = useCallback(() => {
+    invalidateData(['dashboard', 'bookings']);
+  }, [invalidateData]);
+
   // Handle Extension Request
   const handleRequestExtension = async (payload) => {
     setExtendingStay(true);
     try {
       await api.post(`/bookings/${payload.booking_id}/extend`, payload);
       toast.success('Extension request sent to landlord');
+      invalidateTenantStayCache();
       fetchData();
       setShowExtensionModal(false);
     } catch (err) {
@@ -81,6 +86,7 @@ const MyBookings = () => {
     try {
       await api.post('/tenant/transfers', payload);
       toast.success('Room transfer request sent to landlord');
+      invalidateTenantStayCache();
       fetchData();
       setShowTransferModal(false);
     } catch (err) {
@@ -98,10 +104,6 @@ const MyBookings = () => {
   // Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedPropertyForReport, setSelectedPropertyForReport] = useState(null);
-
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
 
   const fetchData = async () => {
     // Only set loading true if we don't have data for the current tab already
@@ -144,7 +146,7 @@ const MyBookings = () => {
 
         // Update cache
         updateData('bookings', { 
-          ...cachedData, 
+          ...(cachedData || {}), 
           activeStays: stays, 
           pendingBookings: pending,
           upcomingBooking: upcoming 
@@ -155,7 +157,7 @@ const MyBookings = () => {
         setHistory(data);
         
         // Update cache
-        updateData('bookings', { ...cachedData, history: data });
+        updateData('bookings', { ...(cachedData || {}), history: data });
       }
     } catch (err) {
       const serverMessage = err?.response?.data?.message || err?.message || 'Failed to load data.';
@@ -166,6 +168,41 @@ const MyBookings = () => {
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleFocusRefresh = () => {
+      if (activeTab === 'current' || activeTab === 'financials') {
+        fetchData();
+      }
+    };
+
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === 'visible' && (activeTab === 'current' || activeTab === 'financials')) {
+        fetchData();
+      }
+    };
+
+    const handleNotificationRefresh = () => {
+      if (activeTab === 'current' || activeTab === 'financials') {
+        invalidateTenantStayCache();
+        fetchData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocusRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
+    window.addEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+      window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
+    };
+  }, [activeTab, invalidateTenantStayCache]);
+
   const handleCancelBooking = async (bookingId) => {
     if (!confirm('Are you sure you want to cancel this booking?')) return;
     
@@ -173,6 +210,7 @@ const MyBookings = () => {
     try {
       await tenantService.cancelBooking(bookingId, 'Tenant cancelled the booking');
       toast.success('Booking cancelled successfully');
+      invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel booking:', err);
@@ -187,6 +225,7 @@ const MyBookings = () => {
     try {
       await tenantService.requestAddon(payload);
       // Refresh data
+      invalidateTenantStayCache();
       fetchData();
       setShowAddonModal(false);
     } catch (err) {
@@ -201,6 +240,7 @@ const MyBookings = () => {
     if (!confirm('Cancel this addon request?')) return;
     try {
       await tenantService.cancelAddonRequest(addonId);
+      invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel addon request:', err);

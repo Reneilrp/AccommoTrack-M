@@ -70,6 +70,10 @@ const NotificationDropdown = () => {
 
       setNotifications(merged);
       setUnreadCount(safeNotifs.filter(n => !n.read_at).length);
+
+      if (role === 'tenant') {
+        window.dispatchEvent(new CustomEvent('accommo:tenant-data-refresh'));
+      }
     } catch (error) {
       console.error('Failed to load notifications', error);
     } finally {

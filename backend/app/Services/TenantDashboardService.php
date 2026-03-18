@@ -98,7 +98,8 @@ class TenantDashboardService
     public function getActiveStays(int $tenantId)
     {
         return Booking::where('tenant_id', $tenantId)
-            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            // Current stay must only include actively occupied bookings.
+            ->where('status', 'confirmed')
             ->where('end_date', '>=', now())
             ->with([
                 'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
@@ -122,7 +123,7 @@ class TenantDashboardService
     public function getUpcomingBooking(int $tenantId): ?Booking
     {
         return Booking::where('tenant_id', $tenantId)
-            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            ->where('status', 'confirmed')
             ->where('start_date', '>', now())
             ->with(['room', 'property.landlord', 'landlord'])
             ->orderBy('start_date', 'asc')
@@ -239,10 +240,11 @@ class TenantDashboardService
     private function getActiveBooking(int $tenantId, array $relations = []): ?Booking
     {
         return Booking::where('tenant_id', $tenantId)
-            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            ->where('status', 'confirmed')
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
             ->with($relations)
+            ->orderByDesc('start_date')
             ->first();
     }
 }
