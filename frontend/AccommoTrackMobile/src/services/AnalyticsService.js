@@ -37,11 +37,44 @@ const analyticsService = {
    */
   async getProperties() {
     try {
-      const response = await api.get('/landlord/properties');
-      return { success: true, data: Array.isArray(response.data) ? response.data : [] };
+      const response = await api.get('/properties/accessible');
+      const payload = response?.data;
+      const data = Array.isArray(payload)
+        ? payload
+        : (Array.isArray(payload?.data) ? payload.data : []);
+      return { success: true, data };
     } catch (error) {
       console.error('Property list fetch failed:', error.response?.data || error.message);
       return { success: false, error: buildErrorMessage(error, 'Unable to load properties') };
+    }
+  },
+
+  /**
+   * Export analytics report as CSV from backend
+   * @param {object} params - Optional params like { time_range, property_id }
+   */
+  async exportAnalyticsCsv(params = {}) {
+    try {
+      const response = await api.get('/landlord/analytics/export-csv', {
+        params,
+        responseType: 'text'
+      });
+
+      const disposition = response?.headers?.['content-disposition'] || '';
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+      const filename = match ? match[1].replace(/['"]/g, '') : null;
+
+      return {
+        success: true,
+        data: response?.data || '',
+        filename
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: buildErrorMessage(error, 'Unable to export analytics report'),
+        status: error?.response?.status || null
+      };
     }
   },
 

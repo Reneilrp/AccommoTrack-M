@@ -19,10 +19,43 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PaymentService from '../../../../services/PaymentService.js';
-import BookingService from '../../../../services/BookingService.js'; // We might need to update booking status too
 import { getStyles } from '../../../../styles/Landlord/Payments.js';
 
-const STATUS_FILTERS = ['all', 'pending', 'paid', 'unpaid', 'partial', 'cancelled', 'refunded'];
+const STATUS_FILTERS = ['all', 'pending', 'paid', 'unpaid', 'partial', 'overdue', 'cancelled', 'refunded'];
+
+const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || ((invoice?.amount_cents ?? 0) / 100));
+
+const getSettledAmount = (invoice) =>
+  (invoice?.transactions || [])
+    .filter((tx) => ['succeeded', 'paid', 'partially_refunded'].includes((tx?.status || '').toLowerCase()))
+    .reduce((sum, tx) => {
+      const txAmount = tx?.amount_cents ? tx.amount_cents / 100 : parseFloat(tx?.amount || 0);
+      const refunded = tx?.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+      return sum + Math.max(0, txAmount - refunded);
+    }, 0);
+
+const getInvoiceStatus = (invoice) => {
+  const bookingPayStatus = (invoice?.booking?.payment_status || invoice?.payment_status || '').toLowerCase();
+  const invStatus = (invoice?.status || '').toLowerCase();
+  const bookingStatus = (invoice?.booking?.status || '').toLowerCase();
+
+  if (bookingPayStatus === 'refunded' || invStatus === 'refunded') return 'refunded';
+  if (bookingPayStatus === 'cancelled' || invStatus === 'cancelled') return 'cancelled';
+  if (bookingPayStatus === 'paid' || invStatus === 'paid') return 'paid';
+
+  if (invStatus === 'partial' || bookingPayStatus === 'partial') return 'partial';
+  if (invStatus === 'unpaid' || bookingPayStatus === 'unpaid') return 'unpaid';
+
+  if (invoice?.due_date && new Date(invoice.due_date) < new Date()) return 'overdue';
+
+  if (invStatus) return invStatus;
+  if (bookingPayStatus) return bookingPayStatus;
+  if (bookingStatus === 'pending') return 'pending';
+
+  return 'pending';
+};
+
+const getRemainingAmount = (invoice) => Math.max(0, getInvoiceTotal(invoice) - getSettledAmount(invoice));
 
 export default function Payments({ navigation }) {
   const { theme } = useTheme();
@@ -111,11 +144,8 @@ export default function Payments({ navigation }) {
       });
       if (res.success) {
         // Calculate if full payment reached to auto-update booking status
-        const invoiceTotal = parseFloat(selectedInvoice?.amount || ((selectedInvoice?.amount_cents ?? 0) / 100));
-        const currentPaid = (selectedInvoice.transactions || []).reduce((sum, tx) => {
-            const txAmount = tx.amount_cents ? tx.amount_cents / 100 : (tx.amount || 0);
-            return sum + (tx.status !== 'refunded' ? txAmount : 0);
-        }, 0);
+        const invoiceTotal = getInvoiceTotal(selectedInvoice);
+        const currentPaid = getSettledAmount(selectedInvoice);
         
         if (currentPaid + amountNum >= invoiceTotal && selectedInvoice.booking_id) {
            // Auto-update booking to paid if threshold reached
@@ -176,20 +206,13 @@ export default function Payments({ navigation }) {
   const filteredInvoices = useMemo(() => {
     if (!Array.isArray(invoices)) return [];
     return invoices.filter(inv => {
-      const bookingPayStatus = (inv.booking?.payment_status || inv.payment_status || '').toLowerCase();
-      const invStatus = (inv.status || '').toLowerCase();
-      
-      const status = (() => {
-        if (bookingPayStatus === 'refunded') return 'refunded';
-        if (bookingPayStatus === 'cancelled') return 'cancelled';
-        if (invStatus) return invStatus;
-        if (bookingPayStatus) return bookingPayStatus;
-        return 'unpaid';
-      })();
+      const status = getInvoiceStatus(inv);
+      const bookingStatus = (inv.booking?.status || '').toLowerCase();
 
       const matchesFilter = activeFilter === 'all' || status === activeFilter;
       
       if (!matchesFilter) return false;
+      if (activeFilter === 'all' && (bookingStatus === 'cancelled' || bookingStatus === 'pending')) return false;
       
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
@@ -214,16 +237,7 @@ export default function Payments({ navigation }) {
   };
 
   const renderInvoiceItem = ({ item }) => {
-    const bookingPayStatus = (item.booking?.payment_status || item.payment_status || '').toLowerCase();
-    const invStatus = (item.status || '').toLowerCase();
-    
-    const status = (() => {
-      if (bookingPayStatus === 'refunded') return 'refunded';
-      if (bookingPayStatus === 'cancelled') return 'cancelled';
-      if (invStatus) return invStatus;
-      if (bookingPayStatus) return bookingPayStatus;
-      return 'unpaid';
-    })();
+    const status = getInvoiceStatus(item);
 
     const statusStyle = getStatusStyle(status);
     const amount = item.amount || (item.amount_cents ? item.amount_cents / 100 : 0);
@@ -269,7 +283,8 @@ export default function Payments({ navigation }) {
               style={styles.viewButton}
               onPress={() => {
                 setSelectedInvoice(item);
-                setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
+                const remaining = getRemainingAmount(item);
+                setRecordData({ amount: remaining > 0 ? remaining.toString() : '', method: 'cash', reference: '', notes: '' });
                 setShowModal(true);
               }}
             >
@@ -405,16 +420,7 @@ export default function Payments({ navigation }) {
 
                 {/* Status-based Conditional Rendering */}
                 {(() => {
-                  const bookingPayStatus = (selectedInvoice?.booking?.payment_status || selectedInvoice?.payment_status || '').toLowerCase();
-                  const invStatus = (selectedInvoice?.status || '').toLowerCase();
-                  
-                  const status = (() => {
-                    if (bookingPayStatus === 'refunded') return 'refunded';
-                    if (bookingPayStatus === 'cancelled') return 'cancelled';
-                    if (invStatus) return invStatus;
-                    if (bookingPayStatus) return bookingPayStatus;
-                    return 'unpaid';
-                  })();
+                  const status = getInvoiceStatus(selectedInvoice);
 
                   const isSettled = ['paid', 'refunded', 'cancelled'].includes(status);
                   

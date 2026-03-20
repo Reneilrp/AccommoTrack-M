@@ -31,6 +31,9 @@ export default function MyBookings() {
   const [pendingBookings, setPendingBookings] = useState([]);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
+  const [submittingExtension, setSubmittingExtension] = useState(false);
+  const [submittingTransfer, setSubmittingTransfer] = useState(false);
+  const [cancellingBookingId, setCancellingBookingId] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -105,6 +108,86 @@ export default function MyBookings() {
       style: 'currency',
       currency: 'PHP',
     }).format(amount || 0);
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!bookingId || cancellingBookingId) return;
+
+    setCancellingBookingId(bookingId);
+    const result = await BookingService.cancelBooking(bookingId, {
+      reason: 'Tenant cancelled the booking',
+    });
+
+    if (result.success) {
+      Alert.alert('Cancelled', 'Your booking request has been cancelled.');
+      fetchData();
+    } else {
+      Alert.alert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
+    }
+
+    setCancellingBookingId(null);
+  };
+
+  const handleRequestExtension = async (booking) => {
+    if (!booking?.id || submittingExtension) return;
+
+    const submitExtension = async (days) => {
+      setSubmittingExtension(true);
+      const result = await TenantService.requestExtension(booking.id, {
+        duration: days,
+        unit: 'days',
+      });
+
+      if (result.success) {
+        Alert.alert('Extension Requested', 'Your extension request was sent to your landlord.');
+        fetchData();
+      } else {
+        Alert.alert('Request Failed', result.error || 'Failed to request extension.');
+      }
+      setSubmittingExtension(false);
+    };
+
+    Alert.alert(
+      'Request Extension',
+      'Select extension duration',
+      [
+        { text: '7 Days', onPress: () => submitExtension(7) },
+        { text: '30 Days', onPress: () => submitExtension(30) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleRequestTransfer = async (booking, room) => {
+    if (!booking?.id || submittingTransfer) return;
+
+    Alert.alert(
+      'Request Room Transfer',
+      'Send transfer request to your landlord?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Request',
+          onPress: async () => {
+            setSubmittingTransfer(true);
+            const result = await TenantService.requestTransfer({
+              booking_id: booking.id,
+              current_room_id: room?.id || room?.room_id,
+              requested_date: new Date().toISOString().slice(0, 10),
+              tenant_notes: '',
+            });
+
+            if (result.success) {
+              Alert.alert('Transfer Requested', 'Your transfer request was sent to your landlord.');
+              fetchData();
+            } else {
+              Alert.alert('Request Failed', result.error || 'Failed to request transfer.');
+            }
+            setSubmittingTransfer(false);
+          },
+        },
+      ]
+    );
   };
 
   const getStatusColor = (status) => {
@@ -321,7 +404,26 @@ export default function MyBookings() {
                </View>
             </View>
 
-            <View style={[styles.reviewBtnContainer, { gap: 12 }]}>
+            {!booking.isPending && (
+              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 10 }]}> 
+                <TouchableOpacity
+                  style={[styles.reviewBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : '#2563EB' }]}
+                  disabled={submittingExtension}
+                  onPress={() => handleRequestExtension(booking)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Extend Stay</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.reviewBtn, { backgroundColor: submittingTransfer ? theme.colors.textTertiary : '#7C3AED' }]}
+                  disabled={submittingTransfer}
+                  onPress={() => handleRequestTransfer(booking, room)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Transfer Room</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={[styles.reviewBtnContainer, { gap: 12 }]}> 
                {!booking.isPending ? (
                  <>
                    <TouchableOpacity 
@@ -347,12 +449,19 @@ export default function MyBookings() {
                       "Are you sure you want to cancel this booking request?",
                       [
                         { text: "No", style: "cancel" },
-                        { text: "Yes, Cancel", style: "destructive", onPress: () => fetchData() } // Add actual cancel logic if needed
+                        {
+                          text: "Yes, Cancel",
+                          style: "destructive",
+                          onPress: () => handleCancelBooking(booking.id)
+                        }
                       ]
                     );
                   }}
+                  disabled={cancellingBookingId === booking.id}
                  >
-                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>Cancel Request</Text>
+                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                     {cancellingBookingId === booking.id ? 'Cancelling...' : 'Cancel Request'}
+                   </Text>
                  </TouchableOpacity>
                )}
             </View>

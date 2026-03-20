@@ -13,6 +13,9 @@ import TenantSettings from '../screens/Tenant/TenantSettings';
 import TenantPayments from '../screens/Tenant/TenantPayments';
 import InvoiceCheckout from '../screens/Tenant/InvoiceCheckout';
 import TenantMaintenance from '../screens/Tenant/TenantMaintenance';
+import Notifications from '../screens/Tenant/Notifications';
+import Addons from '../screens/Tenant/Addons';
+import Reviews from '../screens/Tenant/Reviews';
 import VerificationStatus from '../screens/Landlord/VerificationStatus';
 
 export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
@@ -29,6 +32,9 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/checkout/:id" element={<InvoiceCheckout />} />
           <Route path="/messages" element={<TenantMessages user={user} />} />
           <Route path="/settings" element={<TenantSettings user={user} onUserUpdate={onUserUpdate} />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/addons" element={<Addons />} />
+          <Route path="/reviews" element={<Reviews />} />
           <Route path="/verification" element={<VerificationStatus />} />
           
           {/* Default redirect */}

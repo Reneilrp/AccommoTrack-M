@@ -34,6 +34,7 @@ const PROPERTY_TYPES = [
 
 const STATUS_OPTIONS = [
   { label: 'Pending', value: 'pending' },
+  { label: 'Draft', value: 'draft' },
   { label: 'Active', value: 'active' },
   { label: 'Inactive', value: 'inactive' },
   { label: 'Maintenance', value: 'maintenance' }
@@ -186,10 +187,10 @@ export default function DormProfileScreen({ route, navigation }) {
   const [isPayMongoVerified, setIsPayMongoVerified] = useState(false);
 
   const availableStatusOptions = useMemo(() => {
-    if (baseline.status === 'pending') {
-      // If currently pending, only allow pending or maintenance. 
+    if (baseline.status === 'pending' || baseline.status === 'draft') {
+      // If currently pending or draft, only allow pending, draft or maintenance. 
       // Active/Inactive require admin approval first.
-      return STATUS_OPTIONS.filter(opt => opt.value === 'pending' || opt.value === 'maintenance');
+      return STATUS_OPTIONS.filter(opt => opt.value === 'pending' || opt.value === 'draft' || opt.value === 'maintenance');
     }
     return STATUS_OPTIONS;
   }, [baseline.status]);
@@ -664,6 +665,30 @@ export default function DormProfileScreen({ route, navigation }) {
               <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Manage Rooms</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.outlineBtn, styles.outlineBtnBlue]}
+              onPress={() => navigation.navigate('Tenants', { propertyId: form.id })}
+            >
+              <Ionicons name="people-outline" size={20} color="#2563EB" />
+              <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 14 }}>Manage Tenants</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.outlineBtn, { borderColor: '#F59E0B' }]}
+              onPress={() => navigation.navigate('MaintenanceRequests')}
+            >
+              <Ionicons name="construct-outline" size={20} color="#F59E0B" />
+              <Text style={{ color: '#F59E0B', fontWeight: '600', fontSize: 14 }}>Maintenance Requests</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.outlineBtn, { borderColor: '#F43F5E' }]}
+              onPress={() => navigation.navigate('Reviews')}
+            >
+              <Ionicons name="star-outline" size={20} color="#F43F5E" />
+              <Text style={{ color: '#F43F5E', fontWeight: '600', fontSize: 14 }}>Guest Reviews</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity 
               style={[styles.outlineBtn, styles.outlineBtnPrimary]}
               onPress={() => navigation.navigate('AddonManagement', { propertyId: form.id, propertyTitle: form.title })}
@@ -730,9 +755,9 @@ export default function DormProfileScreen({ route, navigation }) {
                 ))}
               </Picker>
             </View>
-            {isEditing && baseline.status === 'pending' && (
+            {isEditing && (baseline.status === 'pending' || baseline.status === 'draft') && (
               <Text style={{ fontSize: 11, color: '#92400E', marginTop: 4, fontStyle: 'italic' }}>
-                * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
+                * Properties with Pending or Draft status cannot be set to Active/Inactive until approved by the admin.
               </Text>
             )}
 

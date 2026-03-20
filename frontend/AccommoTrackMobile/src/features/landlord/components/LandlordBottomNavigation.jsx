@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
@@ -85,6 +86,10 @@ export default function LandlordBottomNavigation({ onLogout }) {
 
   const isCaretaker = user?.role === 'caretaker';
   const permissions = user?.caretaker_permissions || {};
+  const hasPermission = React.useCallback((key) => {
+    if (!isCaretaker) return true;
+    return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+  }, [isCaretaker, permissions]);
 
   // Define tabs with permission checks
   const tabs = [
@@ -100,21 +105,21 @@ export default function LandlordBottomNavigation({ onLogout }) {
       component: MyProperties,
       label: 'Properties',
       icon: (focused) => focused ? 'business' : 'business-outline',
-      show: !isCaretaker || permissions.can_view_properties || permissions.can_view_rooms || permissions.can_view_tenants,
+      show: !isCaretaker || hasPermission('properties'),
     },
     {
       name: 'Bookings',
       component: Bookings,
       label: 'Bookings',
       customButton: true,
-      show: !isCaretaker || permissions.can_view_bookings,
+      show: !isCaretaker || hasPermission('bookings'),
     },
     {
       name: 'Messages',
       component: Messages,
       label: 'Messages',
       icon: (focused) => focused ? 'chatbubbles' : 'chatbubbles-outline',
-      show: !isCaretaker || permissions.can_view_messages,
+      show: !isCaretaker || hasPermission('messages'),
     },
     {
       name: 'Settings',

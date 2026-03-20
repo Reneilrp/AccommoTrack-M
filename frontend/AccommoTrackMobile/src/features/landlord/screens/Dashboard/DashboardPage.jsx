@@ -92,16 +92,20 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
   const isCaretaker = user?.role === 'caretaker';
   const caretakerPermissions = user?.caretaker_permissions || {};
+  const hasPermission = useCallback((key) => {
+    if (!isCaretaker) return true;
+    return Boolean(caretakerPermissions?.[key] || caretakerPermissions?.[`can_view_${key}`]);
+  }, [isCaretaker, caretakerPermissions]);
 
   const quickActions = [
-    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties', show: !isCaretaker || caretakerPermissions.can_view_properties },
-    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement', show: !isCaretaker || caretakerPermissions.can_view_rooms },
-    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants', show: !isCaretaker || caretakerPermissions.can_view_tenants },
-    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || caretakerPermissions.can_view_bookings },
+    { id: 1, title: 'Properties', icon: 'business', color: theme.colors.primary, screen: 'Properties', show: !isCaretaker || hasPermission('properties') || hasPermission('rooms') || hasPermission('tenants') },
+    { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement', show: !isCaretaker || hasPermission('rooms') },
+    { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants', show: !isCaretaker || hasPermission('tenants') },
+    { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || hasPermission('bookings') },
     { id: 5, title: 'Payments', icon: 'cash', color: '#16a34a', screen: 'Payments', show: !isCaretaker },
     { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics', show: !isCaretaker },
-    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || caretakerPermissions.can_view_messages },
-    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: true },
+    { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || hasPermission('messages') },
+    { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: !isCaretaker || hasPermission('rooms') },
     { id: 9, title: 'Reviews', icon: 'star', color: '#FCD34D', screen: 'Reviews', show: !isCaretaker }
   ];
 
@@ -483,21 +487,22 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
               </View>
             </View>
 
-            {/* Active Tenants */}
-            <View style={[styles.statCard, styles.statCardAmber]}>
-              <View style={styles.statCardLeft}>
-                <View style={[styles.statIconContainer, { backgroundColor: '#FFF7ED' }]}>
-                  <Ionicons name="people" size={18} color="#C2410C" />
+            {!isCaretaker && (
+              <View style={[styles.statCard, styles.statCardAmber]}>
+                <View style={styles.statCardLeft}>
+                  <View style={[styles.statIconContainer, { backgroundColor: '#FFF7ED' }]}>
+                    <Ionicons name="cash" size={18} color="#C2410C" />
+                  </View>
+                  <View style={[styles.statBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.statBadgeText, { color: '#166534' }]}>Monthly</Text>
+                  </View>
                 </View>
-                <View style={[styles.statBadge, { backgroundColor: '#FFF7ED' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#C2410C' }]}>Staying</Text>
+                <View style={styles.statCardRight}>
+                  <Text style={styles.statValue}>₱{(stats?.revenue?.monthly ?? 0).toLocaleString()}</Text>
+                  <Text style={styles.statLabel}>Monthly Revenue</Text>
                 </View>
               </View>
-              <View style={styles.statCardRight}>
-                <Text style={styles.statValue}>{stats?.tenants?.active ?? 0}</Text>
-                <Text style={styles.statLabel}>Active Tenants</Text>
-              </View>
-            </View>
+            )}
           </View>
         </View>
 

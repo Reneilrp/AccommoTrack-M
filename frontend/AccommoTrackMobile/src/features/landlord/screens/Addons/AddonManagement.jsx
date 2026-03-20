@@ -30,8 +30,11 @@ export default function AddonManagement({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('manage'); // 'manage', 'requests', 'active'
   const [showModal, setShowModal] = useState(false);
+  const [showRejectNoteModal, setShowRejectNoteModal] = useState(false);
   const [editingAddon, setEditingAddon] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [rejectContext, setRejectContext] = useState(null);
+  const [rejectNote, setRejectNote] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -129,23 +132,10 @@ export default function AddonManagement({ route, navigation }) {
   };
 
   const handleRequest = (bookingId, addonId, action) => {
-    const actionLabel = action === 'approve' ? 'Approve' : 'Reject';
-    
     if (action === 'reject') {
-      // For mobile simplicity, we can just reject or ask for note via prompt if supported
-      // Alert.prompt is iOS only, so we'll use a simple confirmation for now
-      Alert.alert(
-        'Reject Request',
-        'Are you sure you want to reject this request?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Reject', 
-            style: 'destructive',
-            onPress: () => processRequestAction(bookingId, addonId, 'reject')
-          }
-        ]
-      );
+      setRejectContext({ bookingId, addonId });
+      setRejectNote('');
+      setShowRejectNoteModal(true);
     } else {
       Alert.alert(
         'Approve Request',
@@ -159,6 +149,15 @@ export default function AddonManagement({ route, navigation }) {
         ]
       );
     }
+  };
+
+  const handleSubmitReject = async () => {
+    if (!rejectContext) return;
+    const { bookingId, addonId } = rejectContext;
+    await processRequestAction(bookingId, addonId, 'reject', rejectNote.trim() || null);
+    setShowRejectNoteModal(false);
+    setRejectContext(null);
+    setRejectNote('');
   };
 
   const processRequestAction = async (bookingId, addonId, action, note = null) => {
@@ -582,6 +581,64 @@ export default function AddonManagement({ route, navigation }) {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRejectNoteModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          setShowRejectNoteModal(false);
+          setRejectContext(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reject Request</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowRejectNoteModal(false);
+                  setRejectContext(null);
+                }}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formContainer}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Reason for rejection (optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={rejectNote}
+                  onChangeText={setRejectNote}
+                  placeholder="Add a note for the tenant"
+                  multiline
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowRejectNoteModal(false);
+                  setRejectContext(null);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.saveButton]}
+                onPress={handleSubmitReject}
+              >
+                <Text style={styles.saveButtonText}>Reject</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

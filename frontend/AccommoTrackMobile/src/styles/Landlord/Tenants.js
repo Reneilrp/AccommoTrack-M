@@ -228,6 +228,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 16,
     gap: 10
   },
@@ -260,6 +261,95 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '700',
     fontSize: 13
+  },
+  warningBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6
+  },
+  warningBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  dangerBtn: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#DC2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6
+  },
+  dangerBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  selectCheckbox: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    zIndex: 2,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 10,
+    padding: 2
+  },
+  bulkActionsBar: {
+    marginTop: 12,
+    marginHorizontal: 16,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10
+  },
+  bulkSelectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  selectAllText: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    fontSize: 13
+  },
+  bulkCountText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  bulkButtonsRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  bulkPrimaryBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  bulkPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700'
   },
   // Modal
   modalContainer: {
@@ -460,6 +550,153 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600', 
     fontSize: 14
   },
+  overlayContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    padding: 16
+  },
+  actionModalCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 16,
+    maxHeight: '86%'
+  },
+  actionModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text
+  },
+  actionModalSubtitle: {
+    color: theme.colors.textSecondary,
+    marginTop: 8,
+    marginBottom: 14,
+    lineHeight: 19
+  },
+  actionFieldLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
+    marginTop: 8
+  },
+  roomsPicker: {
+    maxHeight: 150,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  modalLoader: {
+    marginVertical: 12
+  },
+  roomOption: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    backgroundColor: theme.colors.surface
+  },
+  roomOptionActive: {
+    borderColor: '#16A34A',
+    backgroundColor: theme.isDark ? 'rgba(22, 163, 74, 0.18)' : '#DCFCE7'
+  },
+  roomOptionTitle: {
+    color: theme.colors.text,
+    fontWeight: '700',
+    fontSize: 14
+  },
+  roomOptionMeta: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 3
+  },
+  actionInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: theme.colors.text
+  },
+  actionTextArea: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 86,
+    textAlignVertical: 'top',
+    color: theme.colors.text
+  },
+  actionTextAreaLarge: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    color: theme.colors.text
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14
+  },
+  modalCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: theme.colors.backgroundSecondary
+  },
+  modalCancelText: {
+    color: theme.colors.text,
+    fontWeight: '700'
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: '#D97706'
+  },
+  modalDangerBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: '#DC2626'
+  },
+  modalSuccessBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    backgroundColor: '#16A34A'
+  },
+  modalConfirmText: {
+    color: '#FFFFFF',
+    fontWeight: '700'
+  },
+  modalDisabledBtn: {
+    opacity: 0.45
+  }
 });
 
 export default getStyles;

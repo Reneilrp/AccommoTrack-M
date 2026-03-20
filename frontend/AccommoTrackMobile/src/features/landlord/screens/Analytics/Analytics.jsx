@@ -99,6 +99,21 @@ export default function Analytics({ navigation }) {
     if (!analytics) return;
     setExporting(true);
     try {
+      const exportResponse = await analyticsService.exportAnalyticsCsv({
+        time_range: timeRange,
+        ...(selectedProperty !== 'all' ? { property_id: selectedProperty } : {})
+      });
+
+      if (exportResponse.success && exportResponse.data) {
+        const serverFileName = exportResponse.filename || `AccommoTrack_Analytics_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`;
+        const serverFileUri = `${FileSystem.documentDirectory}${serverFileName}`;
+        await FileSystem.writeAsStringAsync(serverFileUri, exportResponse.data, {
+          encoding: FileSystem.EncodingType.UTF8
+        });
+        await Sharing.shareAsync(serverFileUri);
+        return;
+      }
+
       const formatCsvVal = (val) => `"${String(val).replace(/"/g, '""')}"`;
       const rows = [
         ['AccommoTrack Analytics Report'],

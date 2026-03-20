@@ -171,5 +171,32 @@ export const tenantService = {
             console.error('Error changing password:', error);
             throw error;
         }
+    },
+
+    /**
+     * Get available add-ons for active booking
+     */
+    async getAvailableAddons() {
+        try {
+            const response = await api.get('/tenant/addons/available');
+            return response.data;
+        } catch (error) {
+            if (error.response?.status === 404) return { success: false, status: 404 };
+            console.error('Error fetching available addons:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Get current addon requests (pending/active)
+     */
+    async getAddonRequests() {
+        try {
+            const response = await api.get('/tenant/addons/requests');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching addon requests:', error);
+            return { success: false, error: error.message };
+        }
     }
 };

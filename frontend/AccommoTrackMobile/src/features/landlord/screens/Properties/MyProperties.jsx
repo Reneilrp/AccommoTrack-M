@@ -25,17 +25,19 @@ const STATUS_TABS = [
   { key: "active", label: "Active" },
   { key: "inactive", label: "Inactive" },
   { key: "pending", label: "Pending" },
+  { key: "draft", label: "Draft" },
 ];
 
 const STATUS_COLORS = {
   active: { bg: "#DCFCE7", fg: "#166534" },
   inactive: { bg: "#E5E7EB", fg: "#374151" },
   pending: { bg: "#FEF3C7", fg: "#92400E" },
+  draft: { bg: "#F3E8FF", fg: "#6B21A8" },
   maintenance: { bg: "#DBEAFE", fg: "#1D4ED8" },
   default: { bg: "#E5E7EB", fg: "#6B7280" },
 };
 
-const emptyMetrics = { active: 0, inactive: 0, pending: 0, totalRooms: 0 };
+const emptyMetrics = { active: 0, inactive: 0, pending: 0, draft: 0, totalRooms: 0 };
 
 export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
@@ -264,6 +266,10 @@ export default function MyPropertiesScreen({ navigation }) {
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Pending Listings</Text>
           <Text style={styles.statValueOrange}>{stats.pending}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Drafts</Text>
+          <Text style={[styles.statValueOrange, { color: '#6B21A8' }]}>{stats.draft}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Inactive Listings</Text>

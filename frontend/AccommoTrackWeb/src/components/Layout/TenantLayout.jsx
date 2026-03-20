@@ -15,7 +15,10 @@ import {
   Settings as SettingsIcon,
   Menu,
   ChevronLeft,
-  LogOut
+  LogOut,
+  Bell,
+  Package,
+  Star
 } from 'lucide-react';
 
 export default function TenantLayout({ user, onLogout, children }) {
@@ -54,6 +57,21 @@ export default function TenantLayout({ user, onLogout, children }) {
       path: '/maintenance',
       label: 'Maintenance',
       icon: <Wrench className="w-5 h-5" />
+    },
+    {
+      path: '/addons',
+      label: 'Add-ons',
+      icon: <Package className="w-5 h-5" />
+    },
+    {
+      path: '/notifications',
+      label: 'Notifications',
+      icon: <Bell className="w-5 h-5" />
+    },
+    {
+      path: '/reviews',
+      label: 'My Reviews',
+      icon: <Star className="w-5 h-5" />
     },
     {
       path: '/settings',
@@ -189,7 +207,7 @@ export default function TenantLayout({ user, onLogout, children }) {
           </div>
           
           <div className="ml-auto z-10">
-            {location.pathname === '/dashboard' && <NotificationDropdown />}
+            <NotificationDropdown />
           </div>
         </header>
 

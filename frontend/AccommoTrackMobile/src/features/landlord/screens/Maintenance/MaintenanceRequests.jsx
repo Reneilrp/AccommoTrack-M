@@ -8,7 +8,8 @@ import {
   Modal,
   Image,
   ActivityIndicator,
-  Alert
+  Alert,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,6 @@ import { useNavigation } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Landlord/MaintenanceRequests.js';
 import MaintenanceService from '../../../../services/MaintenanceService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { BASE_URL } from '../../../../config/index.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
 
 export default function MaintenanceRequests() {
@@ -26,6 +26,7 @@ export default function MaintenanceRequests() {
   
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
@@ -35,15 +36,27 @@ export default function MaintenanceRequests() {
     fetchRequests();
   }, [statusFilter]);
 
-  const fetchRequests = async () => {
-    setLoading(true);
+  const fetchRequests = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     const res = await MaintenanceService.getLandlordRequests({ status: statusFilter });
     if (res.success) {
       setRequests(res.data || []);
+      if (selectedRequest?.id) {
+        const nextSelected = (res.data || []).find(item => item.id === selectedRequest.id);
+        if (nextSelected) {
+          setSelectedRequest(nextSelected);
+        }
+      }
     } else {
-      // Alert.alert('Error', res.error);
+      Alert.alert('Error', res.error || 'Failed to load maintenance requests');
     }
     setLoading(false);
+    setRefreshing(false);
   };
 
   const handleUpdateStatus = async (id, newStatus) => {
@@ -57,7 +70,10 @@ export default function MaintenanceRequests() {
       if (selectedRequest?.id === id) {
         setSelectedRequest(prev => ({ ...prev, status: newStatus }));
       }
-      setDetailsVisible(false);
+
+      if (statusFilter !== 'all') {
+        fetchRequests(true);
+      }
     } else {
       Alert.alert('Error', res.error);
     }
@@ -167,6 +183,14 @@ export default function MaintenanceRequests() {
           renderItem={renderItem}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchRequests(true)}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="construct-outline" size={48} color={theme.colors.textTertiary} />

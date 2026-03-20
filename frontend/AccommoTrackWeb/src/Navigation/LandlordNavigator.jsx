@@ -20,6 +20,7 @@ import CaretakerDashboard from '../screens/Landlord/CaretakerDashboard.jsx';
 import LandlordMaintenance from '../screens/Landlord/LandlordMaintenance.jsx';
 import LandlordReviews from '../screens/Landlord/Reviews.jsx';
 import VerificationStatus from '../screens/Landlord/VerificationStatus.jsx';
+import AddonManagement from '../screens/Landlord/AddonManagement.jsx';
 
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
@@ -76,6 +77,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/tenants" element={<Tenants user={user} accessRole="landlord" />} />
           <Route path="/bookings" element={<Bookings user={user} accessRole="landlord" />} />
           <Route path="/messages" element={<Messages user={user} accessRole="landlord" />} />
+          <Route path="/addons" element={<AddonManagement user={user} accessRole="landlord" />} />
           <Route path="/analytics" element={<Analytics user={user} accessRole="landlord" />} />
           <Route
             path="/settings"

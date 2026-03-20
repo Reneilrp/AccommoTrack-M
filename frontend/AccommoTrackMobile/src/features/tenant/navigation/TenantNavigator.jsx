@@ -10,6 +10,7 @@ import AccommodationDetails from '../screens/Explore/PropertyDetailsScreen.jsx';
 import ProfilePage from '../screens/Profile/ProfilePage.jsx';
 import UpdatePassword from '../screens/Profile/UpdatePassword.jsx';
 import NotificationPreferences from '../screens/Settings/NotificationPreferences.jsx';
+import PreferencesLifestyle from '../screens/Settings/PreferencesLifestyle.jsx';
 import MyBookings from '../screens/Bookings/MyBookings.jsx';
 import PaymentsScreen from '../screens/Payments/PaymentsScreen.jsx';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
@@ -123,6 +124,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
             <MainStack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
             <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
+            <MainStack.Screen name="PreferencesLifestyle" component={PreferencesLifestyle} options={{ animation: 'none' }} />
             <MainStack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
 
             <MainStack.Screen name="MyBookings" options={{ animation: 'none' }}>

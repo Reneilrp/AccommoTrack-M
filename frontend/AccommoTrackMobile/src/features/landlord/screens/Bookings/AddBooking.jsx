@@ -43,10 +43,35 @@ export default function AddBooking({ navigation }) {
 
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showCheckOut, setShowCheckOut] = useState(false);
+  const [guestSearch, setGuestSearch] = useState('');
+  const [guestResults, setGuestResults] = useState([]);
+  const [selectedGuest, setSelectedGuest] = useState(null);
+  const [isSearchingGuests, setIsSearchingGuests] = useState(false);
 
   useEffect(() => {
     fetchProperties();
   }, []);
+
+  useEffect(() => {
+    if (!guestSearch || guestSearch.trim().length < 2 || selectedGuest) {
+      setGuestResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingGuests(true);
+      try {
+        const res = await BookingService.searchGuests(guestSearch.trim());
+        setGuestResults(res.success ? res.data : []);
+      } catch (error) {
+        setGuestResults([]);
+      } finally {
+        setIsSearchingGuests(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [guestSearch, selectedGuest]);
 
   const fetchProperties = async () => {
     try {
@@ -115,7 +140,7 @@ export default function AddBooking({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!formData.guestName || !formData.propertyId || !formData.roomId || !formData.amount) {
+    if ((!selectedGuest && !formData.guestName) || !formData.propertyId || !formData.roomId || !formData.amount) {
       Alert.alert('Validation', 'Please fill in all required fields.');
       return;
     }
@@ -128,16 +153,21 @@ export default function AddBooking({ navigation }) {
     setSubmitting(true);
     try {
       const payload = {
-        guest_name: formData.guestName,
-        email: formData.email,
-        phone: formData.phone,
         property_id: formData.propertyId,
         room_id: formData.roomId,
-        check_in: formData.checkIn.toISOString().split('T')[0],
-        check_out: formData.checkOut.toISOString().split('T')[0],
+        start_date: formData.checkIn.toISOString().split('T')[0],
+        end_date: formData.checkOut.toISOString().split('T')[0],
         amount: parseFloat(formData.amount),
         payment_status: formData.paymentStatus,
       };
+
+      if (selectedGuest) {
+        payload.guest_id = selectedGuest.id;
+      } else {
+        payload.guest_name = formData.guestName;
+        payload.email = formData.email;
+        payload.phone = formData.phone;
+      }
 
       const res = await BookingService.createBooking(payload);
       if (res.success) {
@@ -185,10 +215,41 @@ export default function AddBooking({ navigation }) {
             <Text style={styles.label}>Full Name <Text style={styles.requiredAsterisk}>*</Text></Text>
             <TextInput
               style={styles.input}
-              value={formData.guestName}
-              onChangeText={(text) => setFormData({ ...formData, guestName: text })}
-              placeholder="Enter guest's full name"
+              value={guestSearch}
+              onChangeText={(text) => {
+                setGuestSearch(text);
+                setSelectedGuest(null);
+                setFormData(prev => ({ ...prev, guestName: text }));
+              }}
+              placeholder="Search existing tenant or enter new name"
             />
+            {isSearchingGuests && (
+              <View style={styles.searchingContainer}>
+                <ActivityIndicator size="small" color="#16a34a" />
+                <Text style={styles.searchingText}>Searching...</Text>
+              </View>
+            )}
+            {!selectedGuest && guestResults.length > 0 && (
+              <View style={styles.searchResultsContainer}>
+                {guestResults.slice(0, 5).map((guest) => (
+                  <TouchableOpacity
+                    key={guest.id}
+                    style={styles.searchResultItem}
+                    onPress={() => {
+                      setSelectedGuest(guest);
+                      setGuestSearch(guest.name || '');
+                      setGuestResults([]);
+                    }}
+                  >
+                    <Text style={styles.searchResultTitle}>{guest.name}</Text>
+                    {!!guest.email && <Text style={styles.searchResultSub}>{guest.email}</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {selectedGuest && (
+              <Text style={styles.selectedGuestText}>Using existing tenant: {selectedGuest.name}</Text>
+            )}
           </View>
 
           <View style={styles.inputGroup}>

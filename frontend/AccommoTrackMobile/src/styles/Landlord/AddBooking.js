@@ -67,6 +67,46 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 15,
     color: theme.colors.text,
   },
+  searchingContainer: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchingText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  searchResultsContainer: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    backgroundColor: theme.colors.background,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  searchResultTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  searchResultSub: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  selectedGuestText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
   pickerWrapper: {
     backgroundColor: theme.colors.background,
     borderWidth: 1,

@@ -702,6 +702,118 @@ const PropertyService = {
   },
 
   /**
+   * Fetch rooms by property ID for transfer flow
+   * Matches: GET /api/rooms/property/{propertyId}
+   */
+  async getRoomsByProperty(propertyId) {
+    try {
+      const response = await api.get(`/rooms/property/${propertyId}`);
+      const list = Array.isArray(response.data?.data)
+        ? response.data.data
+        : (Array.isArray(response.data) ? response.data : []);
+      return {
+        success: true,
+        data: list,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching rooms by property:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Transfer tenant to another room
+   * Matches: POST /api/landlord/tenants/{tenantId}/transfer-room
+   */
+  async transferTenantRoom(tenantId, payload) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/transfer-room`,
+        payload,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error transferring tenant room:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Evict tenant from active booking
+   * Matches: POST /api/landlord/tenants/{tenantId}/evict
+   */
+  async evictTenant(tenantId, reason) {
+    try {
+      const response = await api.post(
+        `/landlord/tenants/${tenantId}/evict`,
+        { reason },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error evicting tenant:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Broadcast message to selected tenants
+   * Matches: POST /api/landlord/broadcast
+   */
+  async broadcastToTenants(tenantIds, message) {
+    try {
+      const response = await api.post(
+        `/landlord/broadcast`,
+        { tenant_ids: tenantIds, message },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error sending tenant broadcast:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Create a tenant on behalf of landlord
    * Matches: POST /api/landlord/tenants
    */
@@ -953,6 +1065,112 @@ const PropertyService = {
   },
 
   /**
+   * Fetch tenant extension requests for landlord
+   * Matches: GET /api/landlord/extensions
+   */
+  async getExtensionRequests() {
+    try {
+      const response = await api.get(`/landlord/extensions`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching extension requests:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Handle tenant extension request (approve/modify/reject)
+   * Matches: PATCH /api/landlord/extensions/{id}/handle
+   */
+  async handleExtensionRequest(requestId, payload) {
+    try {
+      const response = await api.patch(
+        `/landlord/extensions/${requestId}/handle`,
+        payload,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error handling extension request:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Fetch tenant transfer requests for landlord
+   * Matches: GET /api/landlord/transfers
+   */
+  async getTransferRequests() {
+    try {
+      const response = await api.get(`/landlord/transfers`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching transfer requests:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: [],
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Handle tenant transfer request (approve/reject)
+   * Matches: PATCH /api/landlord/transfers/{id}/handle
+   */
+  async handleTransferRequest(requestId, payload) {
+    try {
+      const response = await api.patch(
+        `/landlord/transfers/${requestId}/handle`,
+        payload,
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error handling transfer request:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Get payment options for a room
    * Matches: GET /api/rooms/{roomId}/payment-options
    */
@@ -1065,6 +1283,28 @@ const PropertyService = {
       };
     } catch (error) {
       console.error("Error removing tenant:", error);
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Extend stay for a tenant in a room
+   * Matches: POST /api/rooms/{id}/extend
+   */
+  async extendStay(roomId, payload) {
+    try {
+      const response = await api.post(`/rooms/${roomId}/extend`, payload);
+      return {
+        success: true,
+        data: response.data,
+        error: null,
+      };
+    } catch (error) {
+      console.error("Error extending stay:", error);
       return {
         success: false,
         data: null,

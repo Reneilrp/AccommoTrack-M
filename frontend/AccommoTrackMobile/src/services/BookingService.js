@@ -3,6 +3,25 @@ import { API_BASE_URL as API_URL } from '../config/index.js';
 
 class BookingService {
 
+  async searchGuests(query) {
+    try {
+      const response = await api.get('/users/search', {
+        params: { query },
+      });
+      return {
+        success: true,
+        data: response.data?.users || [],
+      };
+    } catch (error) {
+      console.error('Error searching guests:', error);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.message || 'Failed to search guests',
+      };
+    }
+  }
+
   /**
    * Create a new booking
    * UPDATED: Now sends start_date and end_date instead of total_months

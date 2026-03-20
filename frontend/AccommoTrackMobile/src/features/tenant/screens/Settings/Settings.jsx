@@ -128,6 +128,9 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
       case "Profile":
         rootNavigate('Profile');
         break;
+      case "Preferences & Lifestyle":
+        rootNavigate('PreferencesLifestyle');
+        break;
       case "Notification Preferences":
         // Scroll to notifications or navigate if separate
         break;
@@ -284,6 +287,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         title: "Account",
         items: [
           { id: 1, label: "Profile", icon: "person-outline", arrow: true },
+          { id: 16, label: "Preferences & Lifestyle", icon: "options-outline", arrow: true },
           { id: 2, label: "Account Security", icon: "lock-closed-outline", arrow: true },
           { 
             id: 3, 

@@ -73,6 +73,46 @@ class TenantService {
   }
 
   /**
+   * Request stay extension for a booking
+   */
+  async requestExtension(bookingId, payload) {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/extend`, payload);
+
+      return {
+        success: true,
+        data: response.data.data || response.data,
+      };
+    } catch (error) {
+      console.error("Error requesting extension:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to request extension",
+      };
+    }
+  }
+
+  /**
+   * Request room transfer for current stay
+   */
+  async requestTransfer(payload) {
+    try {
+      const response = await api.post(`/tenant/transfers`, payload);
+
+      return {
+        success: true,
+        data: response.data.data || response.data,
+      };
+    } catch (error) {
+      console.error("Error requesting transfer:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to request transfer",
+      };
+    }
+  }
+
+  /**
    * Request an addon for current booking
    */
   async requestAddon(data) {

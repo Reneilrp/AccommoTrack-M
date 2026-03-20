@@ -137,6 +137,12 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
 
+  const [extendModalVisible, setExtendModalVisible] = useState(false);
+  const [extendTarget, setExtendTarget] = useState(null);
+  const [extendType, setExtendType] = useState('months'); // 'days' or 'months'
+  const [extendValue, setExtendValue] = useState('1');
+  const [extending, setExtending] = useState(false);
+
   const [allTenants, setAllTenants] = useState([]);
   const [tenantModalVisible, setTenantModalVisible] = useState(false);
   const [assignTargetRoom, setAssignTargetRoom] = useState(null);
@@ -640,6 +646,23 @@ export default function RoomManagementScreen({ navigation, route }) {
                 Status
               </Text>
             </TouchableOpacity>
+
+            {item.status === 'occupied' && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#F3E8FF" }]}
+                onPress={() => {
+                  setExtendTarget(item);
+                  setExtendType('months');
+                  setExtendValue('1');
+                  setExtendModalVisible(true);
+                }}
+              >
+                <Ionicons name="time-outline" size={18} color="#7E22CE" />
+                <Text style={[styles.actionText, { color: "#7E22CE" }]}>
+                  Extend
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -1255,6 +1278,90 @@ export default function RoomManagementScreen({ navigation, route }) {
                 Cancel
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Extend Stay Modal */}
+      <Modal visible={extendModalVisible} transparent animationType="fade">
+        <View style={styles.statusModalOverlay}>
+          <View style={[styles.statusSheet, { padding: 20 }]}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 10 }]}>
+              Extend Stay
+            </Text>
+            <Text style={[styles.helperText, { marginBottom: 20 }]}>
+              Extend the current tenant's stay for Room {extendTarget?.room_number}.
+            </Text>
+
+            <View style={{ flexDirection: 'row', marginBottom: 20, gap: 10 }}>
+              <TouchableOpacity 
+                style={[
+                  { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+                  extendType === 'months' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
+                ]}
+                onPress={() => setExtendType('months')}
+              >
+                <Text style={{ color: extendType === 'months' ? '#FFF' : theme.colors.text }}>Months</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+                  extendType === 'days' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
+                ]}
+                onPress={() => setExtendType('days')}
+              >
+                <Text style={{ color: extendType === 'days' ? '#FFF' : theme.colors.text }}>Days</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={[styles.input, { marginBottom: 25 }]}
+              placeholder={`Number of ${extendType}`}
+              keyboardType="numeric"
+              value={extendValue}
+              onChangeText={setExtendValue}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity 
+                style={[styles.secondaryButton, { flex: 1 }]} 
+                onPress={() => setExtendModalVisible(false)}
+                disabled={extending}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.primaryButton, { flex: 2 }]} 
+                onPress={async () => {
+                  if (!extendValue || isNaN(extendValue) || parseInt(extendValue) <= 0) {
+                    Alert.alert('Invalid Value', `Please enter a valid number of ${extendType}.`);
+                    return;
+                  }
+                  setExtending(true);
+                  try {
+                    const payload = {
+                      [extendType]: parseInt(extendValue),
+                      tenant_id: extendTarget.tenant?.id || extendTarget.tenant_id
+                    };
+                    const res = await PropertyService.extendStay(extendTarget.id, payload);
+                    if (res.success) {
+                      setExtendModalVisible(false);
+                      loadRooms();
+                      Alert.alert('Success', 'Stay extended successfully.');
+                    } else {
+                      Alert.alert('Error', res.error || 'Failed to extend stay.');
+                    }
+                  } catch (err) {
+                    Alert.alert('Error', 'An unexpected error occurred.');
+                  } finally {
+                    setExtending(false);
+                  }
+                }}
+                disabled={extending}
+              >
+                {extending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Confirm Extension</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

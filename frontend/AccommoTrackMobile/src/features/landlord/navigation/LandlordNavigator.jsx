@@ -37,6 +37,7 @@ const Stack = createNativeStackNavigator();
 
 // Main Stack Navigator
 export default function LandlordNavigator({ onLogout }) {
+  const [user, setUser] = React.useState(null);
   const [userRole, setUserRole] = React.useState('landlord');
 
   React.useEffect(() => {
@@ -44,13 +45,39 @@ export default function LandlordNavigator({ onLogout }) {
       try {
         const userString = await AsyncStorage.getItem('user');
         if (userString) {
-          const user = JSON.parse(userString);
-          setUserRole(user.role || 'landlord');
+          const parsedUser = JSON.parse(userString);
+          setUser(parsedUser);
+          setUserRole(parsedUser.role || 'landlord');
         }
       } catch (e) {}
     };
     checkRole();
   }, []);
+
+  const isCaretaker = userRole === 'caretaker';
+  const permissions = user?.caretaker_permissions || {};
+  const hasPermission = React.useCallback(
+    (key) => {
+      if (!isCaretaker) return true;
+      return Boolean(permissions?.[key] || permissions?.[`can_view_${key}`]);
+    },
+    [isCaretaker, permissions]
+  );
+
+  const canAccessRooms = hasPermission('rooms');
+  const canAccessBookings = hasPermission('bookings');
+  const canAccessTenants = hasPermission('tenants');
+  const canAccessMessages = hasPermission('messages');
+
+  const canAccessPropertyManagement = !isCaretaker || hasPermission('properties');
+  const canAccessMyProperties = canAccessPropertyManagement;
+  const canAccessAnalytics = !isCaretaker;
+  const canAccessPayments = !isCaretaker;
+  const canAccessReviews = !isCaretaker;
+  const canAccessAddonManagement = !isCaretaker;
+  const canAccessNotifications = !isCaretaker;
+  const canAccessPropertyActivityLogs = !isCaretaker;
+  const canAccessPropertyPaymentSettings = !isCaretaker;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -60,35 +87,69 @@ export default function LandlordNavigator({ onLogout }) {
       />
       
       {/* Additional Screens */}
-      <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
+      {canAccessMyProperties && (
+        <Stack.Screen name="MyProperties" component={MyProperties} options={{ animation: 'none' }}/>
+      )}
       <Stack.Screen name="DashboardPage" component={LandlordDashboard} options={{ animation: 'none' }}/>
-      <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
-      <Stack.Screen name="RoomManagement" component={RoomManagement} options={{ animation: 'none' }}/>
-      <Stack.Screen name="Analytics" component={Analytics} options={{ animation: 'none' }}/>
+      {canAccessTenants && (
+        <Stack.Screen name="Tenants" component={Tenants} options={{ animation: 'none' }}/>
+      )}
+      {canAccessRooms && (
+        <Stack.Screen name="RoomManagement" component={RoomManagement} options={{ animation: 'none' }}/>
+      )}
+      {canAccessAnalytics && (
+        <Stack.Screen name="Analytics" component={Analytics} options={{ animation: 'none' }}/>
+      )}
       <Stack.Screen name="MyProfile" component={MyProfile} options={{ animation: 'none' }}/>
-      <Stack.Screen name="AddProperty" component={AddProperty} options={{ animation: 'none' }}/>
-      <Stack.Screen name="DormProfile" component={DormProfile} options={{ animation: 'none' }}/>
+      {canAccessPropertyManagement && (
+        <Stack.Screen name="AddProperty" component={AddProperty} options={{ animation: 'none' }}/>
+      )}
+      {canAccessPropertyManagement && (
+        <Stack.Screen name="DormProfile" component={DormProfile} options={{ animation: 'none' }}/>
+      )}
       <Stack.Screen name="PropertyDetails" component={PropertyDetailsScreen} options={{ animation: 'none' }}/>
       <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }}/>
       <Stack.Screen name="About" component={About} options={{ animation: 'none' }}/>
       <Stack.Screen name="DevTeam" component={DevTeam} options={{ animation: 'none', headerShown: false }} />
-      <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
+      {canAccessNotifications && (
+        <Stack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
+      )}
       <Stack.Screen name="AllActivities" component={AllActivities} options={{ animation: 'none' }} />
-      <Stack.Screen name="AddonManagement" component={AddonManagement} options={{ animation: 'none' }} />
-      <Stack.Screen name="AddBooking" component={AddBooking} options={{ animation: 'none' }} />
-      <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+      {canAccessAddonManagement && (
+        <Stack.Screen name="AddonManagement" component={AddonManagement} options={{ animation: 'none' }} />
+      )}
+      {canAccessBookings && (
+        <Stack.Screen name="AddBooking" component={AddBooking} options={{ animation: 'none' }} />
+      )}
+      {canAccessPayments && (
+        <Stack.Screen name="Payments" component={Payments} options={{ animation: 'none' }} />
+      )}
       <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
-      <Stack.Screen name="PropertyActivityLogs" component={PropertyActivityLogs} options={{ animation: 'none' }} />
-      <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
-      <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
-      <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
+      {canAccessPropertyActivityLogs && (
+        <Stack.Screen name="PropertyActivityLogs" component={PropertyActivityLogs} options={{ animation: 'none' }} />
+      )}
+      {canAccessTenants && (
+        <Stack.Screen name="TenantLogs" component={TenantLogs} options={{ animation: 'none' }} />
+      )}
+      {canAccessRooms && (
+        <Stack.Screen name="MaintenanceRequests" component={MaintenanceRequests} options={{ animation: 'none' }} />
+      )}
+      {canAccessReviews && (
+        <Stack.Screen name="Reviews" component={Reviews} options={{ animation: 'none' }} />
+      )}
       <Stack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />
-      <Stack.Screen name="PropertyPaymentSettings" component={PropertyPaymentSettings} options={{ animation: 'none' }} />
-      <Stack.Screen name="ManualPaymentSettings" component={ManualPaymentSettings} options={{ animation: 'none' }} />
+      {canAccessPropertyPaymentSettings && (
+        <Stack.Screen name="PropertyPaymentSettings" component={PropertyPaymentSettings} options={{ animation: 'none' }} />
+      )}
+      {canAccessPropertyPaymentSettings && (
+        <Stack.Screen name="ManualPaymentSettings" component={ManualPaymentSettings} options={{ animation: 'none' }} />
+      )}
       {userRole === 'landlord' && (
         <Stack.Screen name="Caretakers" component={Caretakers} options={{ animation: 'none' }} />
       )}
-      <Stack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none' }} />
+      {canAccessMessages && (
+        <Stack.Screen name="Chat" component={ChatScreen} options={{ animation: 'none' }} />
+      )}
       <Stack.Screen name="Settings">
         {(props) => <Settings {...props} onLogout={onLogout} />}
       </Stack.Screen>
