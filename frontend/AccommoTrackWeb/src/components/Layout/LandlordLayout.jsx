@@ -31,10 +31,6 @@ export default function LandlordLayout({
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [caretakerProperties, setCaretakerProperties] = useState([]);
-  const [selectedCaretakerProperty, setSelectedCaretakerProperty] = useState(() => {
-    try { return Number(localStorage.getItem('caretaker_property')) || null; } catch (e) { return null; }
-  });
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -107,32 +103,6 @@ export default function LandlordLayout({
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
-  };
-
-  // Load accessible properties for caretakers so they can pick which property to monitor
-  React.useEffect(() => {
-    if (!isCaretaker) return;
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await api.get('/properties/accessible');
-        if (!mounted) return;
-        setCaretakerProperties(res.data || []);
-        // If nothing selected, pick first
-        if (!selectedCaretakerProperty && Array.isArray(res.data) && res.data.length > 0) {
-          setSelectedCaretakerProperty(res.data[0].id);
-          try { localStorage.setItem('caretaker_property', String(res.data[0].id)); } catch (e) {}
-        }
-      } catch (e) {
-        // ignore failures silently; page routes already protect access
-      }
-    })();
-    return () => { mounted = false; };
-  }, [isCaretaker]);
-
-  const handleSelectCaretakerProperty = (id) => {
-    setSelectedCaretakerProperty(id);
-    try { localStorage.setItem('caretaker_property', String(id)); } catch (e) {}
   };
 
   const confirmLogout = () => {

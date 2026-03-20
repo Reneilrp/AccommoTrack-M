@@ -63,20 +63,6 @@ const UserManagement = () => {
     }
   };
 
-  const handleApprove = async (userId) => {
-    setActionLoading(userId + ':approve');
-    try {
-      await api.post(`/admin/users/${userId}/approve`);
-      toast.success('User approved successfully');
-      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_verified: true } : u)));
-    } catch (err) {
-      console.error('Failed to approve user', err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to approve');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleView = (user) => {
     setSelectedUser(user);
     setShowModal(true);

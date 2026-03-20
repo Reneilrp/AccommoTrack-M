@@ -20,19 +20,17 @@ import {
   KeyRound
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../../utils/api';
 
 export default function CareTakerAccess({
   caretakers,
-  setCaretakers,
   caretakerForm,
   setCaretakerForm,
   caretakerPermissions,
-  setCaretakerPermissions,
   landlordProperties,
   selectedPropertyIds,
   setSelectedPropertyIds,
   caretakerState,
-  setCaretakerState,
   handleCreateCaretaker,
   handleRevokeCaretaker,
   fetchCaretakers,
@@ -168,13 +166,10 @@ export default function CareTakerAccess({
     const { caretaker } = passwordResetModal;
     setPasswordResetModal(prev => ({ ...prev, loading: true }));
     try {
-      // Endpoint from api.php: Route::post('/caretakers/{assignmentId}/reset-password', [CaretakerController::class, 'resetPassword']);
-      // Note: In LandlordNavigator.jsx on web, we might need the exact URL. Assuming /landlord/caretakers/{id}/reset-password or similar.
-      // Based on the grep, it's inside a group. Let's check the group in api.php
       const res = await api.post(`/landlord/caretakers/${caretaker.id}/reset-password`);
       setPasswordResetModal(prev => ({ ...prev, loading: false, tempPassword: res.data.temporary_password }));
       toast.success('Password has been reset');
-    } catch (e) {
+    } catch {
       toast.error('Failed to reset password');
       setPasswordResetModal(prev => ({ ...prev, loading: false }));
     }
@@ -187,8 +182,8 @@ export default function CareTakerAccess({
     }));
   };
 
-  const handleUpdateSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const handleUpdateSubmit = async (ev) => {
+    if (ev && ev.preventDefault) ev.preventDefault();
     
     // Validate required
     if (!editFormData.first_name || !editFormData.last_name || !editFormData.email) {
@@ -307,7 +302,7 @@ export default function CareTakerAccess({
       setRevocationModal({ show: false, caretaker: null, reason: '' });
       setSelectedCaretaker(null);
       toast.success('Access revoked successfully');
-    } catch (err) {
+    } catch {
       toast.error('Failed to revoke access');
     }
   };
@@ -327,8 +322,8 @@ export default function CareTakerAccess({
     handlePermissionToggle('rooms');
   };
 
-  const handleRegister = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const handleRegister = async (ev) => {
+    if (ev && ev.preventDefault) ev.preventDefault();
     
     // Final check for errors
     const errors = {
@@ -366,7 +361,7 @@ export default function CareTakerAccess({
 
     try {
       await handleCreateCaretaker();
-    } catch (err) {
+    } catch {
       // Error handled by parent
     }
   };
@@ -449,7 +444,7 @@ export default function CareTakerAccess({
                               placeholder="caretaker@example.com"
                               value={safeForm.email}
                               onChange={handleInputChange}
-                              className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.email ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
+                              className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.email ? 'border-red-500 ring-red-50' : 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -956,7 +951,7 @@ export default function CareTakerAccess({
       {/* Permission Modal */}
       {roomPermissionPrompt && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 text-center space-y-4">
               <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-10 h-10 text-amber-600 dark:text-amber-400" />

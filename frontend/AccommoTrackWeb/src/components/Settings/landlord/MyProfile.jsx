@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 
-export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, setProfilePhoto, photoPreview, setPhotoPreview, isUploadingPhoto, setIsUploadingPhoto, fileInputRef, handlePhotoSelect, handlePhotoUpload, handleRemovePhoto }) {
-  const NAME_REGEX = /^[\p{L}\s'\-]+$/u;
+export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, photoPreview, setPhotoPreview, fileInputRef, handlePhotoSelect, handleRemovePhoto }) {
+  const NAME_REGEX = /^[\p{L}\s'-]+$/u;
   const [nameErrors, setNameErrors] = useState({ firstName: '', lastName: '' });
 
   const handleNameChange = (field, value) => {

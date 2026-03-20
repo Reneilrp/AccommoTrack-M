@@ -27,7 +27,22 @@ export default function RoomDetailsModal({
   onBookingSuccess,
   bookingService,
 }) {
-  if (!room) return null;
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
+  const [bedCount, setBedCount] = useState(1);
+  const [startDate, setStartDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [endDate, setEndDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [duration, setDuration] = useState(null);
+  const [_pricingBreakdown, setPricingPreview] = useState(null);
+  const [loadingPricing, setLoadingPricing] = useState(false);
+  const [agreedToRules, setAgreedToRules] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
+  const [autoNavTimer, setAutoNavTimer] = useState(null);
 
   const toMoneyNumber = (value, fallback = 0) => {
     if (typeof value === "number") {
@@ -46,35 +61,18 @@ export default function RoomDetailsModal({
     return `₱${amount.toLocaleString()}`;
   };
 
-  const billingPolicy = String(room.billing_policy || "monthly").toLowerCase();
+  const billingPolicy = String(room?.billing_policy || "monthly").toLowerCase();
   const monthlyRate = toMoneyNumber(
-    room.monthly_rate ?? room.monthlyRate ?? room.price,
+    room?.monthly_rate ?? room?.monthlyRate ?? room?.price,
     0,
   );
   const dailyRate = toMoneyNumber(
-    room.daily_rate ?? room.dailyRate,
+    room?.daily_rate ?? room?.dailyRate,
     monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0,
   );
 
   const primaryRate = billingPolicy === "daily" ? dailyRate : monthlyRate;
   const primaryRateLabel = billingPolicy === "daily" ? "Daily Rate" : "Monthly Rate";
-
-  const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
-  const [bedCount, setBedCount] = useState(1);
-  const [startDate, setStartDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
-  const [endDate, setEndDate] = useState("");
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [duration, setDuration] = useState(null);
-  const [pricingBreakdown, setPricingPreview] = useState(null);
-  const [loadingPricing, setLoadingPricing] = useState(false);
-  const [agreedToRules, setAgreedToRules] = useState(false);
-  const [bookingResult, setBookingResult] = useState(null);
-  const [autoNavTimer, setAutoNavTimer] = useState(null);
 
   // Initialize dates
   useEffect(() => {
@@ -89,7 +87,7 @@ export default function RoomDetailsModal({
   // Fetch pricing whenever dates change
   useEffect(() => {
     const fetchPricing = async () => {
-      if (!startDate || !endDate || new Date(endDate) <= new Date(startDate)) {
+      if (!room?.id || !startDate || !endDate || new Date(endDate) <= new Date(startDate)) {
         setTotalPrice(0);
         setDuration(null);
         return;
@@ -119,84 +117,15 @@ export default function RoomDetailsModal({
 
     const timer = setTimeout(fetchPricing, 300); // Debounce
     return () => clearTimeout(timer);
-  }, [startDate, endDate, room.id]);
+  }, [startDate, endDate, room?.id, bedCount]);
 
-  const getEndOfCurrentMonth = (fromDate = new Date()) => {
-    const year = fromDate.getFullYear();
-    const month = fromDate.getMonth();
-    const lastDay = new Date(year, month + 1, 0);
-    lastDay.setHours(23, 59, 59, 999);
-    return lastDay;
-  };
+  useEffect(() => {
+    return () => {
+      if (autoNavTimer) clearTimeout(autoNavTimer);
+    };
+  }, [autoNavTimer]);
 
-  const isStartWithinCurrentMonth = (dateStr) => {
-    if (!dateStr) return false;
-    const dt = new Date(dateStr);
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = getEndOfCurrentMonth();
-    // Compare timestamps to ignore time components issues
-    return dt.getTime() >= start.getTime() && dt.getTime() <= end.getTime();
-  };
-
-  const calculateDuration = () => {
-    if (!startDate || !endDate) return null;
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (end <= start) return null;
-
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const months = Math.floor(diffDays / 30);
-    const extraDays = diffDays % 30;
-
-    return { days: diffDays, months, extraDays };
-  };
-
-  const calculateTotal = () => {
-    // If we have pricing from backend, use it
-    if (totalPrice > 0 && pricingBreakdown) {
-      return; 
-    }
-
-    if (!startDate || !endDate) {
-      setTotalPrice(0);
-      return;
-    }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (end <= start) {
-      setTotalPrice(0);
-      return;
-    }
-
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    const monthly = monthlyRate;
-    const daily = dailyRate;
-    const policy = billingPolicy;
-
-    const months = Math.floor(diffDays / 30);
-    const extraDays = diffDays % 30;
-
-    let total = 0;
-    if (policy === "daily") {
-      total = diffDays * daily;
-    } else if (policy === "monthly_with_daily") {
-      total = (months * monthly) + (extraDays * daily);
-    } else {
-      // monthly: round up to nearest month
-      const totalMonths = extraDays > 0 ? months + 1 : months;
-      total = totalMonths * monthly;
-    }
-
-    setTotalPrice(total * bedCount);
-    setDuration({ days: diffDays, months, extraDays });
-  };
+  if (!room) return null;
 
   const handleStartDateChange = (e) => {
     const newStart = e.target.value;
@@ -308,12 +237,6 @@ export default function RoomDetailsModal({
       setIsSubmitting(false);
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (autoNavTimer) clearTimeout(autoNavTimer);
-    };
-  }, [autoNavTimer]);
 
   const getRoomTypeLabel = (room) => {
     if (room.type_label) return room.type_label;

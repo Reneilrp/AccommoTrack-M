@@ -133,7 +133,7 @@ const LandlordRegister = () => {
     if (!value || !emailRegex.test(value)) return;
     try {
       if (emailCheckAbortController.current) {
-        try { emailCheckAbortController.current.abort(); } catch (e) { }
+        try { emailCheckAbortController.current.abort(); } catch (_e) { }
       }
       emailCheckAbortController.current = new AbortController();
       const res = await api.get('/check-email', { params: { email: value }, signal: emailCheckAbortController.current.signal });
@@ -220,7 +220,7 @@ const LandlordRegister = () => {
     const errors = {};
     
     if (step === 1) {
-      const nameRegex = /^[\p{L} '\-]+$/u;
+      const nameRegex = /^[\p{L} '-]+$/u;
 
       if (!form.firstName?.trim()) {
         errors.firstName = 'First name is required';
