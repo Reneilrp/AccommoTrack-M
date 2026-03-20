@@ -31,12 +31,7 @@ export default function DashboardPage({ user }) {
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchDashboardData();
-    fetchVerificationStatus();
-  }, []);
-
-  const fetchVerificationStatus = async () => {
+  const fetchVerificationStatus = React.useCallback(async () => {
     try {
       const res = await api.get('/landlord/my-verification');
       setVerificationStatus(res.data);
@@ -45,9 +40,9 @@ export default function DashboardPage({ user }) {
         setVerificationStatus({ status: 'not_submitted' });
       }
     }
-  };
+  }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async () => {
     try {
       if (!cachedData) setLoading(true);
       setError('');
@@ -85,7 +80,12 @@ export default function DashboardPage({ user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [cachedData, dashboardKey, updateData]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchVerificationStatus();
+  }, [fetchDashboardData, fetchVerificationStatus]);
 
   const getActivityIcon = (type) => {
     switch (type) {

@@ -59,19 +59,32 @@ class AddonService
 
             DB::beginTransaction();
             try {
-                $booking->addons()->updateExistingPivot($addonId, [
+                $updateData = [
                     'status' => $newStatus,
                     'response_note' => $note,
                     'approved_at' => now(),
                     'approved_by' => $userId,
                     'updated_at' => now(),
-                ]);
+                ];
+
+                // If price_at_booking is 0 (common for custom requests or newly updated prices),
+                // snap the current addon price into the booking record upon approval.
+                if ((float) ($addonRequest->pivot->price_at_booking ?? 0) <= 0) {
+                    $updateData['price_at_booking'] = $addon->price;
+                }
+
+                $booking->addons()->updateExistingPivot($addonId, $updateData);
 
                 if ($addon->addon_type === 'rental' && ! is_null($addon->stock)) {
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
-                $amountCents = (int) round(($addonRequest->pivot->price_at_booking ?? $addon->price) * ($addonRequest->pivot->quantity ?? 1) * 100);
+                $priceToUse = (float) ($addonRequest->pivot->price_at_booking ?? 0);
+                if ($priceToUse <= 0) {
+                    $priceToUse = (float) $addon->price;
+                }
+
+                $amountCents = (int) round($priceToUse * ($addonRequest->pivot->quantity ?? 1) * 100);
 
                 // Check for existing PENDING invoice for this booking
                 $latestInvoice = $booking->invoices()

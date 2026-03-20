@@ -39,6 +39,29 @@ class BookingService
                 throw new \Exception('Room is currently under maintenance');
             }
 
+            // Check Gender Compatibility
+            $tenant = $tenantId ? User::find($tenantId) : null;
+            if ($tenant && $tenant->role === 'tenant') {
+                $property = $room->property;
+                $propertyType = strtolower($property->property_type ?? '');
+                $targetTypes = ['dormitory', 'boarding house', 'bedspacer'];
+
+                // Only enforce for specific property types
+                if ($propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
+                    $tenantGender = $this->normalizeGender($tenant->gender);
+                    $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
+
+                    if ($roomRestriction !== 'mixed') {
+                        if (! $tenantGender) {
+                            throw new \Exception('Please complete your profile gender (male/female) before booking this room type.');
+                        }
+                        if ($roomRestriction !== $tenantGender) {
+                            throw new \Exception("This room is restricted to {$roomRestriction}s only.");
+                        }
+                    }
+                }
+            }
+
             $startDate = Carbon::parse($data['start_date']);
             $endDate = Carbon::parse($data['end_date']);
             $days = $startDate->diffInDays($endDate);
@@ -92,7 +115,7 @@ class BookingService
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate->format('Y-m-d'),
                 'total_months' => $totalMonths,
-                'monthly_rent' => $room->monthly_rate,
+                'monthly_rent' => $room->monthly_rate ?? 0.00,
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
@@ -345,5 +368,20 @@ class BookingService
             'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
             'completed' => (clone $baseQuery)->whereIn('status', ['completed', 'partial-completed'])->count(),
         ];
+    }
+
+    protected function normalizeGender(?string $gender): ?string
+    {
+        if (! $gender) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($gender));
+
+        return match ($normalized) {
+            'male', 'boy', 'boys' => 'male',
+            'female', 'girl', 'girls' => 'female',
+            default => null,
+        };
     }
 }

@@ -85,7 +85,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
               <Settings user={user} accessRole="landlord" onUserUpdate={onUserUpdate} />
             }
           />
-          <Route path="/verification" element={<VerificationStatus />} />
+          <Route path="/verification" element={<VerificationStatus user={user} onUpdate={onUserUpdate} />} />
         </Routes>
       </LandlordLayout>
     </SidebarProvider>

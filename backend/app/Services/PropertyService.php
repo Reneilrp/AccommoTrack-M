@@ -22,6 +22,7 @@ class PropertyService
 
             $currentStatus = Property::STATUS_DRAFT;
             $isPublished = false;
+            $isAvailable = false;
 
             if ($isVerified) {
                 $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);

@@ -417,7 +417,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
               handleRemovePhoto={handleRemovePhoto}
             />
           )}
-          {activeTab === 'notifications' && <Notifications />}
+          {activeTab === 'notifications' && <Notifications user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'security' && (
             <Security 
               user={user} 
@@ -456,10 +456,10 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
               handlePermissionToggle={handlePermissionToggle}
             />
           )}
-          {activeTab === 'payments' && <PaymentMethods />}
-          {activeTab === 'verification' && <VerificationStatus />}
+          {activeTab === 'payments' && <PaymentMethods user={user} onUpdate={onUserUpdate} />}
+          {activeTab === 'verification' && <VerificationStatus user={user} onUpdate={onUserUpdate} />}
           {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
-          {activeTab === 'switch-role' && <SwitchRoleTab />}
+          {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}
         </div>
       </div>
     </div>

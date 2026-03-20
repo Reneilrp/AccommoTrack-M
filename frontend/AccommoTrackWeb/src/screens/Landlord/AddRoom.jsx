@@ -97,9 +97,9 @@ export default function AddRoomModal({
           setPropertyGender(pGender);
 
           // Auto-set room gender if property is restricted
-          if (pGender === "boys") {
+          if (pGender === "male") {
             setFormData((prev) => ({ ...prev, genderRestriction: "male" }));
-          } else if (pGender === "girls") {
+          } else if (pGender === "female") {
             setFormData((prev) => ({ ...prev, genderRestriction: "female" }));
           }
         }

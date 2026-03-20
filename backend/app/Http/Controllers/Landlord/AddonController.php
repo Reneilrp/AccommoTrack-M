@@ -225,6 +225,7 @@ class AddonController extends Controller
                     'booking_addons.addon_id',
                     'booking_addons.quantity',
                     'booking_addons.price_at_booking',
+                    'addons.price as current_price',
                     'booking_addons.request_note',
                     'booking_addons.created_at as requested_at',
                     'addons.name as addon_name',
@@ -241,13 +242,18 @@ class AddonController extends Controller
 
             return response()->json([
                 'pendingRequests' => $pendingRequests->map(function ($request) {
+                    $price = (float) $request->price_at_booking;
+                    if ($price <= 0 && $request->current_price > 0) {
+                        $price = (float) $request->current_price;
+                    }
+
                     return [
                         'requestId' => $request->request_id,
                         'bookingId' => $request->booking_id,
                         'addonId' => $request->addon_id,
                         'addonName' => $request->addon_name,
                         'quantity' => $request->quantity,
-                        'price' => (float) $request->price_at_booking,
+                        'price' => $price,
                         'priceType' => $request->price_type,
                         'addonType' => $request->addon_type,
                         'stock' => $request->stock,
@@ -337,6 +343,7 @@ class AddonController extends Controller
                     'booking_addons.booking_id',
                     'booking_addons.quantity',
                     'booking_addons.price_at_booking',
+                    'addons.price as current_price',
                     'booking_addons.status',
                     'booking_addons.approved_at',
                     'addons.name as addon_name',
@@ -352,17 +359,26 @@ class AddonController extends Controller
             $monthlyRevenue = $activeAddons
                 ->where('price_type', 'monthly')
                 ->sum(function ($item) {
-                    return $item->price_at_booking * $item->quantity;
+                    $price = (float) $item->price_at_booking;
+                    if ($price <= 0 && $item->current_price > 0) {
+                        $price = (float) $item->current_price;
+                    }
+                    return $price * $item->quantity;
                 });
 
             return response()->json([
                 'activeAddons' => $activeAddons->map(function ($item) {
+                    $price = (float) $item->price_at_booking;
+                    if ($price <= 0 && $item->current_price > 0) {
+                        $price = (float) $item->current_price;
+                    }
+
                     return [
                         'requestId' => $item->request_id,
                         'bookingId' => $item->booking_id,
                         'addonName' => $item->addon_name,
                         'quantity' => $item->quantity,
-                        'price' => (float) $item->price_at_booking,
+                        'price' => $price,
                         'priceType' => $item->price_type,
                         'addonType' => $item->addon_type,
                         'status' => $item->status,

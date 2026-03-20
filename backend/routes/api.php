@@ -260,6 +260,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/extensions/{id}/handle', [\App\Http\Controllers\Landlord\ExtensionController::class, 'handle']);
 
         // Landlord: Transfer requests handling
+        Route::post('/broadcast', [TenantController::class, 'broadcast']);
+        Route::post('/tenants/{id}/evict', [TenantController::class, 'evict']);
         Route::get('/transfers', [\App\Http\Controllers\Landlord\TransferController::class, 'index']);
         Route::patch('/transfers/{id}/handle', [\App\Http\Controllers\Landlord\TransferController::class, 'handle']);
     });

@@ -51,8 +51,8 @@ const TenantSettings = ({ user, onUserUpdate }) => {
             {activeTab === 'preferences' && <PreferencesTab />}
             {activeTab === 'account' && <AccountTab user={user} />}
             {activeTab === 'notifications' && <NotificationsTab />}
-            {activeTab === 'appearance' && <AppearanceTab />}
-            {activeTab === 'switch-role' && <SwitchRoleTab />}
+            {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
+            {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}
           </div>
         </div>
       </div>

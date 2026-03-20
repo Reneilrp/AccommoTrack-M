@@ -45,17 +45,18 @@ class TransferController extends Controller
             ], 422);
         }
 
-        if (! $this->hasTransferEligibleGender($tenant)) {
+        $property = $activeBooking->property;
+        if (! $this->hasTransferEligibleGender($tenant, $property)) {
             return response()->json([
                 'success' => false,
                 'data' => [],
-                'message' => 'Please complete your profile gender before requesting a room transfer.',
+                'message' => 'Please complete your profile gender (male/female) before requesting a room transfer for this property type.',
             ], 422);
         }
 
         $rooms = Room::where('property_id', $activeBooking->property_id)
             ->where('id', '!=', $activeBooking->room_id)
-            ->with('tenants', 'amenities', 'images')
+            ->with('tenants', 'amenities', 'images', 'property')
             ->orderBy('room_number')
             ->get()
             ->filter(function (Room $room) use ($tenant) {
@@ -99,11 +100,12 @@ class TransferController extends Controller
             return response()->json(['message' => 'No active booking found for the selected property.'], 422);
         }
 
-        if (! $this->hasTransferEligibleGender($tenant)) {
-            return response()->json(['message' => 'Please complete your profile gender before requesting a room transfer.'], 422);
+        $property = $activeBooking->property;
+        if (! $this->hasTransferEligibleGender($tenant, $property)) {
+            return response()->json(['message' => 'Please complete your profile gender (male/female) before requesting a room transfer for this property type.'], 422);
         }
 
-        $requestedRoom = Room::findOrFail($validated['requested_room_id']);
+        $requestedRoom = Room::with('property')->findOrFail($validated['requested_room_id']);
 
         // Basic validation: must be same property (usually) and available
         if ((int) $requestedRoom->property_id !== (int) $validated['property_id']) {
@@ -143,8 +145,17 @@ class TransferController extends Controller
         return response()->json($transferRequest, 201);
     }
 
-    private function hasTransferEligibleGender($tenant): bool
+    private function hasTransferEligibleGender($tenant, \App\Models\Property $property): bool
     {
+        $propertyType = strtolower($property->property_type ?? '');
+        $targetTypes = ['dormitory', 'boarding house', 'bedspacer'];
+
+        // If it's an Apartment or not one of the target types, gender profile completion is not mandatory for transfer
+        if ($propertyType === 'apartment' || ! in_array($propertyType, $targetTypes)) {
+            return true;
+        }
+
+        // For restricted types, user must have a male/female gender set
         $gender = $this->normalizeTenantGender($tenant?->gender);
 
         return in_array($gender, ['male', 'female'], true);
@@ -167,15 +178,35 @@ class TransferController extends Controller
 
     private function isRoomGenderCompatible(Room $room, $tenant): bool
     {
+        $property = $room->property;
+        $propertyType = strtolower($property->property_type ?? '');
+
+        // 1. Apartment type properties are excluded from gender restrictions
+        if ($propertyType === 'apartment') {
+            return true;
+        }
+
+        // 2. Gender constraints only apply to Dormitory, Boarding house, and bedSpacer
+        $targetTypes = ['dormitory', 'boarding house', 'bedspacer'];
+        if (! in_array($propertyType, $targetTypes)) {
+            // If it's not one of the target types and not an apartment,
+            // we default to allowing it unless explicitly restricted by something else.
+            // But based on requirements, only these three have the restriction.
+            return true;
+        }
+
+        // 3. For target types, check gender compatibility
         $tenantGender = $this->normalizeTenantGender($tenant?->gender);
         $roomRestriction = strtolower((string) ($room->gender_restriction ?? 'mixed'));
 
-        if (! $tenantGender) {
-            return false;
-        }
-
+        // If room is mixed, anyone can join
         if ($roomRestriction === 'mixed') {
             return true;
+        }
+
+        // If room has a specific restriction (male/female), tenant must match
+        if (! $tenantGender) {
+            return false;
         }
 
         return $roomRestriction === $tenantGender;

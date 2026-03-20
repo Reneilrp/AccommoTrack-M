@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('properties', function (Blueprint $table) {
             if (! Schema::hasColumn('properties', 'gender_restriction')) {
-                $table->enum('gender_restriction', ['boys', 'girls', 'mixed'])->default('mixed')->after('property_type');
+                $table->enum('gender_restriction', ['male', 'female', 'mixed'])->default('mixed')->after('property_type');
             }
         });
 

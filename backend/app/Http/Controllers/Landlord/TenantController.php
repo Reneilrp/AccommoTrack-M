@@ -206,8 +206,34 @@ class TenantController extends Controller
             ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
             ->where('bookings.tenant_id', $tenant->id)
             ->where('bookings.landlord_id', $landlordId)
-            ->select(['booking_addons.*', 'addons.name as addon_name', 'bookings.booking_reference'])
-            ->get();
+            ->select([
+                'booking_addons.*',
+                'addons.name as addon_name',
+                'addons.price as current_price',
+                'addons.price_type',
+                'bookings.booking_reference'
+            ])
+            ->get()
+            ->map(function ($addon) {
+                $price = (float) $addon->price_at_booking;
+                if ($price <= 0 && $addon->current_price > 0) {
+                    $price = (float) $addon->current_price;
+                }
+
+                return [
+                    'id' => $addon->id,
+                    'booking_id' => $addon->booking_id,
+                    'addon_id' => $addon->addon_id,
+                    'quantity' => $addon->quantity,
+                    'price' => $price,
+                    'price_at_booking' => (float) $addon->price_at_booking,
+                    'status' => $addon->status,
+                    'addon_name' => $addon->addon_name,
+                    'price_type' => $addon->price_type,
+                    'booking_reference' => $addon->booking_reference,
+                    'created_at' => $addon->created_at,
+                ];
+            });
 
         $transferRequests = \App\Models\TransferRequest::where('tenant_id', $tenant->id)
             ->where('landlord_id', $landlordId)
@@ -217,7 +243,13 @@ class TenantController extends Controller
 
         return response()->json([
             'id' => $tenant->id,
+            'first_name' => $tenant->first_name,
+            'last_name' => $tenant->last_name,
             'full_name' => $tenant->first_name.' '.$tenant->last_name,
+            'email' => $tenant->email,
+            'phone' => $tenant->phone,
+            'gender' => $tenant->gender,
+            'date_of_birth' => $tenant->date_of_birth,
             'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property->title] : null,
             'tenantProfile' => $tenant->tenantProfile,
             'history' => [
@@ -543,6 +575,144 @@ class TenantController extends Controller
             Log::error('Room transfer failed: '.$e->getMessage());
 
             return response()->json(['error' => 'Failed to transfer room', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Broadcast a message to multiple tenants
+     */
+    public function broadcast(Request $request): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_messages');
+            $landlordId = $context['landlord_id'];
+
+            $validated = $request->validate([
+                'message' => 'required|string|max:2000',
+                'recipients' => 'required|array',
+                'recipients.*' => 'exists:users,id',
+            ]);
+
+            $senderId = $landlordId;
+            $actualSenderId = Auth::id();
+            $senderRole = Auth::user()->role;
+            $messageText = $validated['message'];
+            $recipientIds = $validated['recipients'];
+
+            $sentCount = 0;
+
+            foreach ($recipientIds as $recipientId) {
+                // Find or create conversation
+                $conversation = \App\Models\Conversation::where(function ($q) use ($senderId, $recipientId) {
+                    $q->where('user_one_id', $senderId)->where('user_two_id', $recipientId);
+                })
+                    ->orWhere(function ($q) use ($senderId, $recipientId) {
+                        $q->where('user_one_id', $recipientId)->where('user_two_id', $senderId);
+                    })
+                    ->first();
+
+                if (! $conversation) {
+                    $conversation = \App\Models\Conversation::create([
+                        'user_one_id' => $senderId,
+                        'user_two_id' => $recipientId,
+                    ]);
+                }
+
+                // Create message
+                $message = \App\Models\Message::create([
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => $senderId,
+                    'actual_sender_id' => $actualSenderId,
+                    'sender_role' => $senderRole,
+                    'receiver_id' => $recipientId,
+                    'message' => $messageText,
+                    'is_read' => false,
+                ]);
+
+                $conversation->update(['last_message_at' => now()]);
+
+                // Broadcast the message event
+                try {
+                    broadcast(new \App\Events\MessageSent($message))->toOthers();
+                } catch (\Exception $e) {
+                    // Ignore broadcast errors in loop
+                }
+
+                $sentCount++;
+            }
+
+            return response()->json([
+                'message' => "Broadcast sent successfully to $sentCount tenants.",
+                'sent_count' => $sentCount,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to send broadcast', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Evict a tenant
+     */
+    public function evict(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->assertNotCaretaker($context);
+            $landlordId = $context['landlord_id'];
+
+            $validated = $request->validate([
+                'reason' => 'required|string|max:1000',
+            ]);
+
+            $tenant = User::where('role', 'tenant')->with(['room', 'tenantProfile'])->findOrFail($id);
+
+            // Verify the tenant belongs to this landlord
+            $hasValidBooking = $tenant->bookings()->where('landlord_id', $landlordId)->exists();
+            if (! $tenant->room && ! $hasValidBooking) {
+                throw new AccessDeniedHttpException('This tenant is not associated with your properties.');
+            }
+
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // 1. End current booking
+            $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
+                ->where('landlord_id', $landlordId)
+                ->whereIn('status', ['confirmed', 'active'])
+                ->first();
+
+            if ($activeBooking) {
+                $this->bookingService->updateStatus($activeBooking, ['status' => 'cancelled']);
+            }
+
+            // 2. Unassign from room if assigned
+            if ($tenant->room) {
+                if ($tenant->room->property->landlord_id !== $landlordId) {
+                    throw new AccessDeniedHttpException('Unauthorized room unassignment.');
+                }
+                $tenant->room->removeTenant($tenant->id);
+            }
+
+            // 3. Update tenant profile
+            if ($tenant->tenantProfile) {
+                $currentNotes = $tenant->tenantProfile->notes ?? '';
+                $evictionLog = "\n[".now()->toDateString().'] EVICTED. Reason: '.$validated['reason'];
+                $tenant->tenantProfile->update([
+                    'status' => 'evicted',
+                    'move_out_date' => now()->format('Y-m-d'),
+                    'notes' => $currentNotes.$evictionLog,
+                ]);
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'message' => 'Tenant evicted successfully.',
+                'tenant' => $tenant->load(['tenantProfile', 'room']),
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json(['error' => 'Failed to evict tenant', 'message' => $e->getMessage()], 500);
         }
     }
 

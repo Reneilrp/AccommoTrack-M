@@ -6,3 +6,6 @@ Diagrams
 .idea/
 repomix-output.xml
 AGENTS.md
+*.md
+*.txt
+*.md

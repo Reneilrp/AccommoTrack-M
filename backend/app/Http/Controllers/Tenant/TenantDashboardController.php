@@ -99,7 +99,16 @@ class TenantDashboardController extends Controller
             }
 
             $stays = $bookings->map(function ($booking) {
-                $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')->whereIn('pivot.status', ['active', 'approved'])->sum(fn ($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
+                $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')
+                    ->whereIn('pivot.status', ['active', 'approved'])
+                    ->sum(function ($a) {
+                        $price = (float) $a->pivot->price_at_booking;
+                        if ($price <= 0 && $a->price > 0) {
+                            $price = (float) $a->price;
+                        }
+
+                        return $price * $a->pivot->quantity;
+                    });
 
                 // For multiple stays, we might want to fetch available addons per property
                 // But for now let's use the standard service call which finds the "first" active booking context
@@ -142,8 +151,22 @@ class TenantDashboardController extends Controller
                     ],
                     'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email, 'phone' => $booking->landlord->phone_number ?? null],
                     'addons' => [
-                        'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->values(),
-                        'pending' => $booking->addons->where('pivot.status', 'pending')->values(),
+                        'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
+                            $price = (float) $a->pivot->price_at_booking;
+                            if ($price <= 0 && $a->price > 0) {
+                                $a->pivot->price_at_booking = $a->price;
+                            }
+
+                            return $a;
+                        })->values(),
+                        'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
+                            $price = (float) $a->pivot->price_at_booking;
+                            if ($price <= 0 && $a->price > 0) {
+                                $a->pivot->price_at_booking = $a->price;
+                            }
+
+                            return $a;
+                        })->values(),
                         'available' => $availableAddons, 'monthlyTotal' => (float) $monthlyAddonTotal,
                         'pendingCount' => $booking->addons->where('pivot.status', 'pending')->count(),
                     ],
@@ -190,7 +213,14 @@ class TenantDashboardController extends Controller
             $pastBookings = $this->dashboardService->getHistory(Auth::id());
             $formattedBookings = $pastBookings->getCollection()->map(function ($booking) {
                 $totalPaid = $booking->payments->where('status', 'completed')->sum('amount');
-                $addonTotal = $booking->addons->sum(fn ($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
+                $addonTotal = $booking->addons->sum(function ($a) {
+                    $price = (float) $a->pivot->price_at_booking;
+                    if ($price <= 0 && $a->price > 0) {
+                        $price = (float) $a->price;
+                    }
+
+                    return $price * $a->pivot->quantity;
+                });
 
                 // Build a timeline of activities
                 $activityLog = collect();
@@ -255,7 +285,18 @@ class TenantDashboardController extends Controller
                     'confirmedAt' => $booking->confirmed_at,
                     'activityLog' => $sortedActivity,
                     'financials' => ['monthlyRent' => (float) $booking->monthly_rent, 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
-                    'addons' => $booking->addons->map(fn ($a) => ['name' => $a->name, 'price' => (float) $a->pivot->price_at_booking, 'priceType' => $a->price_type]),
+                    'addons' => $booking->addons->map(function ($a) {
+                        $price = (float) $a->pivot->price_at_booking;
+                        if ($price <= 0 && $a->price > 0) {
+                            $price = (float) $a->price;
+                        }
+
+                        return [
+                            'name' => $a->name,
+                            'price' => $price,
+                            'priceType' => $a->price_type,
+                        ];
+                    }),
                     'cancelledAt' => $booking->cancelled_at, 'cancellationReason' => $booking->cancellation_reason,
                     'review' => $booking->review ? ['id' => $booking->review->id, 'rating' => $booking->review->rating] : null,
                 ];
@@ -290,8 +331,20 @@ class TenantDashboardController extends Controller
             }
 
             return response()->json([
-                'pending' => $booking->addons->where('pivot.status', 'pending')->values(),
-                'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->values(),
+                'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
+                    if ((float) $a->pivot->price_at_booking <= 0 && $a->price > 0) {
+                        $a->pivot->price_at_booking = $a->price;
+                    }
+
+                    return $a;
+                })->values(),
+                'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
+                    if ((float) $a->pivot->price_at_booking <= 0 && $a->price > 0) {
+                        $a->pivot->price_at_booking = $a->price;
+                    }
+
+                    return $a;
+                })->values(),
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch addon requests', 'error' => $e->getMessage()], 500);
