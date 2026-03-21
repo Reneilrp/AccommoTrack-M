@@ -211,7 +211,7 @@ class TenantController extends Controller
                 'addons.name as addon_name',
                 'addons.price as current_price',
                 'addons.price_type',
-                'bookings.booking_reference'
+                'bookings.booking_reference',
             ])
             ->get()
             ->map(function ($addon) {
@@ -712,6 +712,7 @@ class TenantController extends Controller
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
+
             return response()->json(['error' => 'Failed to evict tenant', 'message' => $e->getMessage()], 500);
         }
     }

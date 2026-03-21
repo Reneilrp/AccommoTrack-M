@@ -1220,33 +1220,13 @@ const PropertyService = {
     }
   },
 
-  /**
-   * Fetch all tenants for the current landlord
-   * Matches: GET /api/landlord/tenants
-   */
-  async getTenants() {
-    try {
-      const response = await api.get("/landlord/tenants");
-      return {
-        success: true,
-        data: response.data?.data || response.data || [],
-        error: null,
-      };
-    } catch (error) {
-      console.error("Error fetching tenants:", error);
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
-    }
-  },
+
 
   /**
    * Assign a tenant to a room
    * Matches: POST /api/rooms/{id}/assign-tenant
    */
-  async assignTenantToRoom(roomId, tenantId, startDate = null) {
+  async assignRoomToTenant(roomId, tenantId, startDate = null) {
     try {
       const response = await api.post(`/rooms/${roomId}/assign-tenant`, {
         tenant_id: tenantId,

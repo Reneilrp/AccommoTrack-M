@@ -3,9 +3,10 @@ import ProfileTab from '../../components/Settings/tenant/ProfileTab';
 import PreferencesTab from '../../components/Settings/tenant/PreferencesTab';
 import AccountTab from '../../components/Settings/tenant/AccountTab';
 import NotificationsTab from '../../components/Settings/tenant/NotificationsTab';
+import ReviewsTab from '../../components/Settings/tenant/ReviewsTab';
 import AppearanceTab from '../../components/Settings/AppearanceTab';
 import SwitchRoleTab from '../../components/Settings/SwitchRoleTab';
-import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight } from 'lucide-react';
+import { User, Sliders, Shield, Bell, Palette, ArrowLeftRight, Star } from 'lucide-react';
 
 const TenantSettings = ({ user, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -15,6 +16,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
     { id: 'preferences', label: 'Preferences & Lifestyle', icon: 'Sliders' },
     { id: 'account', label: 'Account Security', icon: 'Shield' },
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
+    { id: 'reviews', label: 'My Reviews', icon: 'Star' },
     { id: 'appearance', label: 'Appearance', icon: 'Palette' },
     { id: 'switch-role', label: 'Switch Role', icon: 'ArrowLeftRight' },
   ];
@@ -51,6 +53,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
             {activeTab === 'preferences' && <PreferencesTab />}
             {activeTab === 'account' && <AccountTab user={user} />}
             {activeTab === 'notifications' && <NotificationsTab />}
+            {activeTab === 'reviews' && <ReviewsTab />}
             {activeTab === 'appearance' && <AppearanceTab user={user} onUserUpdate={onUserUpdate} />}
             {activeTab === 'switch-role' && <SwitchRoleTab user={user} onUserUpdate={onUserUpdate} />}
           </div>
@@ -66,6 +69,7 @@ const Icon = ({ name, className }) => {
     case 'Sliders': return <Sliders className={className} />;
     case 'Shield': return <Shield className={className} />;
     case 'Bell': return <Bell className={className} />;
+    case 'Star': return <Star className={className} />;
     case 'Palette': return <Palette className={className} />;
     case 'ArrowLeftRight': return <ArrowLeftRight className={className} />;
     default: return null;

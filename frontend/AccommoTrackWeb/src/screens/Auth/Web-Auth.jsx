@@ -689,7 +689,7 @@ function AuthScreen({ onLogin = () => {} }) {
       }
     }
 
-    const allowedGenders = ["male", "female", "other", "prefer_not_to_say"];
+    const allowedGenders = ["male", "female", "rather_not_say"];
     if (formData.gender && !allowedGenders.includes(formData.gender)) {
       errors.gender = "Please select a valid gender";
     }
@@ -1460,8 +1460,7 @@ function AuthScreen({ onLogin = () => {} }) {
                     <option value="">Select your gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
+                    <option value="rather_not_say">Rather not to say</option>
                   </select>
                   {fieldErrors.gender && (
                     <p className="text-xs text-red-500 mt-1">{fieldErrors.gender}</p>

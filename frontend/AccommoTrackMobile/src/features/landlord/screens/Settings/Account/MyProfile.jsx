@@ -134,6 +134,8 @@ export default function MyProfileScreen({ navigation }) {
         middle_name: tempUser.middle_name?.trim() || '',
         last_name: tempUser.last_name.trim(),
         phone: tempUser.phone?.trim() || '',
+        gender: tempUser.gender || null,
+        identified_as: tempUser.identified_as || null,
         date_of_birth: tempUser.date_of_birth || null,
       }, selectedImage);
       
@@ -351,6 +353,40 @@ export default function MyProfileScreen({ navigation }) {
             iconName="call-outline"
             keyboardType="phone-pad"
             maxLength={20}
+            styles={styles}
+          />
+
+          <View style={styles.fieldContainer}>
+            <View style={styles.fieldLabelContainer}>
+              <Ionicons name="transgender-outline" size={20} color="#6B7280" />
+              <Text style={styles.fieldLabel}>Gender</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                if (!isEditing) return;
+                Alert.alert("Select Gender", "Choose your gender", [
+                  { text: "Male", onPress: () => setTempUser({ ...tempUser, gender: "male" }) },
+                  { text: "Female", onPress: () => setTempUser({ ...tempUser, gender: "female" }) },
+                  { text: "Rather not to say", onPress: () => setTempUser({ ...tempUser, gender: "rather_not_say" }) },
+                  { text: "Cancel", style: "cancel" },
+                ]);
+              }}
+              disabled={!isEditing}
+              style={[styles.fieldValue, isEditing && styles.fieldValueEditable]}
+            >
+              <Text style={{ color: tempUser?.gender ? theme.colors.text : "#9CA3AF", fontSize: 16, textTransform: "capitalize" }}>
+                {tempUser?.gender ? tempUser.gender.replace(/_/g, ' ') : "Select Gender"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ProfileField
+            label="Pronouns (e.g. He/Him)"
+            value={tempUser?.identified_as}
+            editable={isEditing}
+            onChangeText={(text) => setTempUser({ ...tempUser, identified_as: text })}
+            iconName="person-outline"
+            maxLength={50}
             styles={styles}
           />
 

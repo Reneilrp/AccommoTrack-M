@@ -468,7 +468,9 @@ export default function RoomManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {stats.total} / {stats.total_limit || stats.total}
+                </p>
               </div>
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                 <Home className="w-6 h-6 text-blue-600 dark:text-blue-400" />

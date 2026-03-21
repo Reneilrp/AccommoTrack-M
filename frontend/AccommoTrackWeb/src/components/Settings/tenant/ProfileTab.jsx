@@ -18,9 +18,6 @@ const ProfileTab = ({ onUserUpdate }) => {
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
 
-  // 'Male', 'Female', 'Others', or ''
-  const [genderMode, setGenderMode] = useState('');
-
   const [formData, setFormData] = useState({
     first_name: '',
     middle_name: '',
@@ -31,6 +28,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     // Tenant Fields
     date_of_birth: '',
     gender: '', // The actual value stored
+    identified_as: '',
     current_address: '',
     emergency_contact_name: '',
     emergency_contact_phone: '',
@@ -52,14 +50,6 @@ const ProfileTab = ({ onUserUpdate }) => {
     }
 
     const backendGender = data.gender || prefs.gender || '';
-    let initialMode = '';
-    if (backendGender === 'Male' || backendGender === 'Female') {
-      initialMode = backendGender;
-    } else if (backendGender) {
-      initialMode = 'Others';
-    }
-
-    setGenderMode(initialMode);
 
     setFormData({
       first_name: data.first_name || '',
@@ -68,6 +58,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       phone: data.phone || '',
       date_of_birth: data.date_of_birth || '',
       gender: backendGender,
+      identified_as: data.identified_as || '',
       current_address: data.tenant_profile?.current_address || '',
       emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
       emergency_contact_phone: data.tenant_profile?.emergency_contact_phone || '',
@@ -114,22 +105,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     }
   };
 
-  const handleGenderSelectChange = (e) => {
-    const selectedMode = e.target.value;
-    setGenderMode(selectedMode);
-    
-    // If selecting specific standard options, update the actual data
-    if (selectedMode === 'Male' || selectedMode === 'Female') {
-        setFormData(prev => ({ ...prev, gender: selectedMode }));
-    } else if (selectedMode === 'Others') {
-        // Look for existing data if it's not Male/Female, otherwise clear
-        if (formData.gender === 'Male' || formData.gender === 'Female') {
-            setFormData(prev => ({ ...prev, gender: '' }));
-        }
-    } else {
-        setFormData(prev => ({ ...prev, gender: '' }));
-    }
-  };
+
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -272,33 +248,35 @@ const ProfileTab = ({ onUserUpdate }) => {
           </div>
           
           {/* Gender Section */}
-          <div className={`${genderMode === 'Others' ? 'col-span-1' : 'col-span-1'}`}>
+          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Gender</label>
-             <div className="flex flex-col gap-2">
-                <select
-                value={genderMode}
-                onChange={handleGenderSelectChange}
-                disabled={!isEditing}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
-                >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Others">Others</option>
-                </select>
-
-                {genderMode === 'Others' && (
-                    <input
-                        type="text"
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="Please specify"
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white animate-fadeIn disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
-                    />
-                )}
-            </div>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              disabled={!isEditing}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="rather_not_say">Rather not to say</option>
+            </select>
+          </div>
+          
+          {/* Pronouns Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Pronouns <span className="text-gray-400 text-xs font-normal">(e.g., He/Him, She/Her)</span></label>
+            <input
+              type="text"
+              name="identified_as"
+              maxLength={50}
+              value={formData.identified_as}
+              onChange={handleChange}
+              disabled={!isEditing}
+              placeholder="How do you identify?"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
+            />
           </div>
 
           <div>

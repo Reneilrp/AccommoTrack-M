@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import tenantService from '../../../../services/TenantService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { DashboardStatSkeleton, PropertyCardSkeleton, BookingCardSkeleton } from '../../../../components/Skeletons/index.jsx';
@@ -25,6 +26,22 @@ const DashboardScreen = () => {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const loadUserName = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          const user = JSON.parse(userString);
+          setUserName(user.first_name || '');
+        }
+      } catch (error) {
+        console.error('Error loading user name:', error);
+      }
+    };
+    loadUserName();
+  }, []);
 
   // Fetch current stay data
   const { data: stayData, isLoading: stayLoading, refetch: refetchStay } = useQuery({
@@ -106,6 +123,16 @@ const DashboardScreen = () => {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
             }
           >
+            {/* Header Greeting */}
+            <View style={{ marginBottom: 20, marginTop: 10 }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>
+                Welcome back, {userName || 'User'}!
+              </Text>
+              <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>
+                Here's what's happening with your stay today.
+              </Text>
+            </View>
+
             {/* Stats Cards - Always visible */}
             <View style={styles.statsRow}>
               <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight }]}>
@@ -295,6 +322,13 @@ const DashboardScreen = () => {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Quick Actions</Text>
               <View style={styles.actionList}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate('Profile')}
+                >
+                  <Text style={styles.actionText}>My Profile</Text>
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
+                </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('MyBookings')}

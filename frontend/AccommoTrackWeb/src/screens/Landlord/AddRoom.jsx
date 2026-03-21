@@ -717,17 +717,14 @@ export default function AddRoomModal({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Floor <span className="text-red-500">*</span>
                 </label>
-                <select
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="e.g., 1"
                   value={formData.floor}
                   onChange={(e) => handleInputChange("floor", e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                >
-                  {floors.map((floor) => (
-                    <option key={floor.value} value={floor.value}>
-                      {floor.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div>

@@ -230,9 +230,22 @@ const NotificationDropdown = () => {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">You're all caught up!</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                {notifications.map(renderItem)}
-              </ul>
+              <>
+                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {notifications.map(renderItem)}
+                </ul>
+                <div className="p-2 border-t border-gray-100 dark:border-gray-700">
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate('/notifications');
+                    }}
+                    className="w-full py-2 text-xs font-bold text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors uppercase tracking-widest"
+                  >
+                    View All Notifications
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

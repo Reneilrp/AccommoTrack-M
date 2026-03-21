@@ -134,8 +134,11 @@ class RoomController extends Controller
             $this->ensureCaretakerCan($context, 'can_view_rooms');
             $this->checkPropertyAccess($context, (int) $propertyId);
 
+            $property = Property::findOrFail($propertyId);
+
             return response()->json([
                 'total' => Room::where('property_id', $propertyId)->count(),
+                'total_limit' => $property->total_rooms,
                 'occupied' => Room::where('property_id', $propertyId)->where('status', 'occupied')->count(),
                 'available' => Room::where('property_id', $propertyId)->where('status', 'available')->count(),
                 'maintenance' => Room::where('property_id', $propertyId)->where('status', 'maintenance')->count(),

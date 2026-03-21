@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { useNavigation } from '@react-navigation/native';
@@ -266,10 +268,37 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'tenant' // Default to tenant for mobile app
+    role: 'tenant', // Default to tenant for mobile app
+    dateOfBirth: null,
+    gender: ''
   });
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   const navigation = useNavigation();
+
+  // W8: Restore saved registration form data from AsyncStorage on mount
+  useEffect(() => {
+    const restoreFormData = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('signup_form_draft');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Restore non-password fields only
+          setFormData(prev => ({
+            ...prev,
+            firstName: parsed.firstName || '',
+            middleName: parsed.middleName || '',
+            lastName: parsed.lastName || '',
+            email: parsed.email || '',
+            dateOfBirth: parsed.dateOfBirth ? new Date(parsed.dateOfBirth) : null,
+            gender: parsed.gender || '',
+          }));
+        }
+      } catch { /* ignore */ }
+    };
+    restoreFormData();
+  }, []);
 
   useEffect(() => {
     const emailCheckTimeout = setTimeout(async () => {
@@ -300,7 +329,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   }, [formData.email, isLogin, signupStep]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
     setError('');
     setFieldErrors(prev => ({ ...prev, [field]: '' }));
     if (field === 'email') {
@@ -315,12 +345,25 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(value),
       });
     }
+    // W8: Save non-password fields to AsyncStorage for persistence
+    if (!isLogin && !['password', 'confirmPassword'].includes(field)) {
+      const toSave = { firstName: newFormData.firstName, middleName: newFormData.middleName, lastName: newFormData.lastName, email: newFormData.email, dateOfBirth: newFormData.dateOfBirth, gender: newFormData.gender };
+      AsyncStorage.setItem('signup_form_draft', JSON.stringify(toSave)).catch(() => {});
+    }
   };
+
+  // W11: Unicode-aware name validation
+  const nameRegex = /^[\p{L} '-]+$/u;
 
   const validateStep1 = () => {
     const errors = {};
     if (!formData.firstName) errors.firstName = 'First name is required';
+    else if (!nameRegex.test(formData.firstName.trim())) errors.firstName = 'First name contains invalid characters (letters, spaces, hyphens only)';
+    if (formData.middleName?.trim() && !nameRegex.test(formData.middleName.trim())) errors.middleName = 'Middle name contains invalid characters';
     if (!formData.lastName) errors.lastName = 'Last name is required';
+    else if (!nameRegex.test(formData.lastName.trim())) errors.lastName = 'Last name contains invalid characters (letters, spaces, hyphens only)';
+    if (!formData.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
+    if (!formData.gender) errors.gender = 'Gender is required';
 
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -514,6 +557,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         password: formData.password,
         password_confirmation: formData.confirmPassword,
         role: formData.role,
+        date_of_birth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : '',
+        gender: formData.gender,
       };
 
       // Only add middle_name if it's not empty/whitespace
@@ -533,20 +578,26 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
       const data = await response.json();
 
       if (response.ok) {
-        showSuccess('Success', 'Registration successful! Please login to continue.');
+        showSuccess('Success', 'Registration successful! Please verify your email.');
         console.log('User registered:', data.user);
-        setIsLogin(true);
-        setSignupStep(1);
+        // W8: Clear saved form draft after successful registration
+        AsyncStorage.removeItem('signup_form_draft').catch(() => {});
+        // Navigate to OTP verification screen
+        navigation.navigate('OtpVerification', { email: formData.email.trim() });
+        // Reset form
         setFormData({
           firstName: '',
           middleName: '',
           lastName: '',
-          email: formData.email,
+          email: '',
           password: '',
           confirmPassword: '',
-          role: 'tenant'
+          role: 'tenant',
+          dateOfBirth: null,
+          gender: ''
         });
         setAgreedToTerms(false);
+        setSignupStep(1);
       } else {
         const errMsg = data.message || 'Registration failed. Please try again.';
         setError(errMsg);
@@ -570,7 +621,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const toggleScreen = () => {
     setIsLogin(!isLogin);
     setSignupStep(1);
-    setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: 'tenant' });
+    setFormData({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '', role: 'tenant', dateOfBirth: null, gender: '' });
     setAgreedToTerms(false);
     setError('');
     // Ensure password visibility is reset when switching screens
@@ -776,6 +827,53 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   </View>
                   {fieldErrors.lastName && <Text style={styles.inlineErrorText}>{fieldErrors.lastName}</Text>}
 
+                  {/* Date of Birth Field */}
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="calendar-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                    <TouchableOpacity
+                      style={[styles.input, { justifyContent: 'center' }]}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <Text style={{ color: formData.dateOfBirth ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}>
+                        {formData.dateOfBirth ? formData.dateOfBirth.toISOString().split('T')[0] : 'Select Date of Birth'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={formData.dateOfBirth || new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                      mode="date"
+                      maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 17))}
+                      display="default"
+                      onChange={(event, date) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (date) {
+                          handleInputChange('dateOfBirth', date);
+                        }
+                      }}
+                    />
+                  )}
+                  {fieldErrors.dateOfBirth && <Text style={styles.inlineErrorText}>{fieldErrors.dateOfBirth}</Text>}
+
+                  {/* Gender Field */}
+                  <View style={[styles.inputContainer, { paddingVertical: Platform.OS === 'ios' ? 4 : 0 }]}>
+                    <Ionicons name="transgender-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                    <View style={{ flex: 1, justifyContent: 'center', height: Platform.OS === 'ios' ? 40 : 50 }}>
+                      <Picker
+                        selectedValue={formData.gender}
+                        onValueChange={(itemValue) => handleInputChange('gender', itemValue)}
+                        style={{ color: formData.gender ? (theme.isDark ? '#FFF' : '#000') : '#9CA3AF' }}
+                        dropdownIconColor="#9CA3AF"
+                      >
+                        <Picker.Item label="Select Gender" value="" color="#9CA3AF" />
+                        <Picker.Item label="Male" value="male" />
+                        <Picker.Item label="Female" value="female" />
+                        <Picker.Item label="Rather not to say" value="rather_not_say" />
+                      </Picker>
+                    </View>
+                  </View>
+                  {fieldErrors.gender && <Text style={styles.inlineErrorText}>{fieldErrors.gender}</Text>}
+
                   {/* Next Button */}
                   <TouchableOpacity
                     style={styles.submitButton}
@@ -950,6 +1048,18 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Register as Landlord */}
+          {isLogin && (
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('LandlordRegister')}>
+                <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+                  Want to list your property?{' '}
+                  <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Register as Landlord</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Continue as Guest Button - Only show when user logged out */}
           {onContinueAsGuest && (

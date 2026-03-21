@@ -26,6 +26,17 @@ class UpdateRoomRequest extends FormRequest
         $room = \App\Models\Room::find($this->route('room') ?? $this->route('id'));
         $isApartment = $room && $room->property && $room->property->property_type === 'apartment';
 
+        $propertyGender = ($room && $room->property) ? strtolower($room->property->gender_restriction) : 'mixed';
+        $allowedGenders = ['male', 'female', 'mixed'];
+
+        if (in_array($propertyGender, ['female', 'girls'])) {
+            $allowedGenders = ['female'];
+        } elseif (in_array($propertyGender, ['male', 'boys'])) {
+            $allowedGenders = ['male'];
+        }
+
+        $genderRule = 'nullable|in:'.implode(',', $allowedGenders);
+
         return [
             'room_number' => 'sometimes|string|max:50',
             'room_type' => [
@@ -37,7 +48,7 @@ class UpdateRoomRequest extends FormRequest
                     }
                 },
             ],
-            'gender_restriction' => 'nullable|in:male,female,mixed',
+            'gender_restriction' => $genderRule,
             'floor' => 'sometimes|integer|min:1',
             'monthly_rate' => 'sometimes|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
             'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
@@ -54,6 +65,29 @@ class UpdateRoomRequest extends FormRequest
             'amenities.*' => 'string',
             'images' => 'nullable|array',
             'images.*' => 'string|url', // Assuming URLs are sent for existing images
+        ];
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     *
+     * @return array<string, mixed>
+     */
+    public function messages(): array
+    {
+        $room = \App\Models\Room::find($this->route('room') ?? $this->route('id'));
+        $propertyGender = ($room && $room->property) ? strtolower($room->property->gender_restriction) : 'mixed';
+
+        if (in_array($propertyGender, ['female', 'girls'])) {
+            $message = 'This property is restricted to females only. All rooms must also be female-only.';
+        } elseif (in_array($propertyGender, ['male', 'boys'])) {
+            $message = 'This property is restricted to males only. All rooms must also be male-only.';
+        } else {
+            $message = 'The selected gender restriction is invalid.';
+        }
+
+        return [
+            'gender_restriction.in' => $message,
         ];
     }
 }

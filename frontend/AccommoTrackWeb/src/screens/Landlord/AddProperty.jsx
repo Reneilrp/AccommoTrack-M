@@ -97,12 +97,8 @@ export default function AddProperty({ onBack, onSave }) {
     latitude: '',
     longitude: '',
     nearbyLandmarks: '',
-    maxTenants: '',
-    number_of_bedrooms: '',
     number_of_bathrooms: '',
-    floor_area: '',
     floor_level: '',
-    total_floors: '1',
     totalRooms: '',
     amenities: [],
     rules: [],
@@ -380,12 +376,8 @@ export default function AddProperty({ onBack, onSave }) {
       latitude: parseFloat(formData.latitude) || null,
       longitude: parseFloat(formData.longitude) || null,
       nearby_landmarks: formData.nearbyLandmarks || null,
-      max_occupants: parseInt(formData.maxTenants) || 1,
-      number_of_bedrooms: parseInt(formData.number_of_bedrooms) || 0,
       number_of_bathrooms: parseInt(formData.number_of_bathrooms) || 0,
-      floor_area: parseFloat(formData.floor_area) || 0,
       floor_level: formData.floor_level || null,
-      total_floors: parseInt(formData.total_floors) || 1,
       total_rooms: parseInt(formData.totalRooms) || null,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
@@ -671,32 +663,6 @@ export default function AddProperty({ onBack, onSave }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Max Tenants
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g., 4"
-                      value={formData.maxTenants}
-                      onChange={(e) => handleInputChange('maxTenants', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Bedrooms
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g., 2"
-                      value={formData.number_of_bedrooms}
-                      onChange={(e) => handleInputChange('number_of_bedrooms', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Bathrooms
                     </label>
                     <input
@@ -723,20 +689,6 @@ export default function AddProperty({ onBack, onSave }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Floor Area (sqm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="e.g., 50.5"
-                      value={formData.floor_area}
-                      onChange={(e) => handleInputChange('floor_area', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Floor Level
                     </label>
                     <input
@@ -744,19 +696,6 @@ export default function AddProperty({ onBack, onSave }) {
                       placeholder="e.g., 2nd Floor"
                       value={formData.floor_level}
                       onChange={(e) => handleInputChange('floor_level', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Total Floors
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g., 3"
-                      value={formData.total_floors}
-                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     />
                   </div>

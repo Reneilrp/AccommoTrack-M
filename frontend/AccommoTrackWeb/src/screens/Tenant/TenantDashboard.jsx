@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { tenantService } from '../../services/tenantService';
 import { getImageUrl } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
-import { SkeletonCurrentStay, Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
+import { SkeletonCurrentStay, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
-import { ChevronRight, Home, Calendar, Search, Wallet, Wrench, AlertCircle, MessageSquare } from 'lucide-react';
+import { Home, Calendar, Wallet, AlertCircle, MessageSquare } from 'lucide-react';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
@@ -16,33 +16,36 @@ const TenantDashboard = () => {
   const [loading, setLoading] = useState(!cachedData);
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
+  const [activities, setActivities] = useState(cachedData?.activities || []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       // Only set loading true if we have no cached data
       if (!cachedData) setLoading(true);
       
-      const [currentStay, dashboardStats] = await Promise.all([
+      const [currentStay, dashboardStats, activityRes] = await Promise.all([
         tenantService.getCurrentStay(),
-        tenantService.getDashboardStats()
+        tenantService.getDashboardStats(),
+        tenantService.getActivities()
       ]);
       
       setStayData(currentStay);
       setStats(dashboardStats);
+      setActivities(Array.isArray(activityRes.activities) ? activityRes.activities.slice(0, 5) : []);
       
       // Update the global UI State for instant mount next time
-      updateData('dashboard', { stayData: currentStay, stats: dashboardStats });
+      updateData('dashboard', { stayData: currentStay, stats: dashboardStats, activities: activityRes.activities });
       
     } catch (error) {
       console.error('Failed to load dashboard data', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [cachedData, updateData]);
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
   useEffect(() => {
     const handleFocusRefresh = () => {
@@ -70,7 +73,7 @@ const TenantDashboard = () => {
       window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchDashboardData]);
 
   // Helper to format currency
   const formatCurrency = (amount) => {
@@ -291,6 +294,55 @@ const TenantDashboard = () => {
               >
                 Pay Now
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity Feed */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+              Recent Activity
+            </h3>
+            <button 
+              onClick={() => navigate('/notifications')}
+              className="text-sm font-bold text-green-600 dark:text-green-400 hover:underline"
+            >
+              View All
+            </button>
+          </div>
+          
+          {activities.length > 0 ? (
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {activities.map((activity, idx) => (
+                <div key={idx} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      activity.color === 'green' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                      activity.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
+                      activity.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                      'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {activity.type === 'booking' ? <Calendar className="w-5 h-5" /> :
+                       activity.type === 'payment' ? <Wallet className="w-5 h-5" /> :
+                       activity.type === 'room' ? <Home className="w-5 h-5" /> :
+                       <MessageSquare className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{activity.action}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{activity.description}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">No recent activities to show.</p>
             </div>
           )}
         </div>

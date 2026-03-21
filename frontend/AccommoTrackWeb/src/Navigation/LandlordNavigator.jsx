@@ -21,6 +21,7 @@ import LandlordMaintenance from '../screens/Landlord/LandlordMaintenance.jsx';
 import LandlordReviews from '../screens/Landlord/Reviews.jsx';
 import VerificationStatus from '../screens/Landlord/VerificationStatus.jsx';
 import AddonManagement from '../screens/Landlord/AddonManagement.jsx';
+import NotificationsPage from '../screens/Landlord/NotificationsPage.jsx';
 
 export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   if (user?.role === 'caretaker') {
@@ -51,6 +52,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
               path="/settings"
               element={<Settings user={user} accessRole="caretaker" onUserUpdate={onUserUpdate} />}
             />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="*" element={<Navigate to={caretakerHome} replace />} />
           </Routes>
         </LandlordLayout>
@@ -86,6 +88,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
             }
           />
           <Route path="/verification" element={<VerificationStatus user={user} onUpdate={onUserUpdate} />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
       </LandlordLayout>
     </SidebarProvider>

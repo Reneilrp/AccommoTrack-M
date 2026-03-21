@@ -54,26 +54,6 @@ export default function TenantLayout({ user, onLogout, children }) {
       icon: <MessageSquare className="w-5 h-5" />
     },
     {
-      path: '/maintenance',
-      label: 'Maintenance',
-      icon: <Wrench className="w-5 h-5" />
-    },
-    {
-      path: '/addons',
-      label: 'Add-ons',
-      icon: <Package className="w-5 h-5" />
-    },
-    {
-      path: '/notifications',
-      label: 'Notifications',
-      icon: <Bell className="w-5 h-5" />
-    },
-    {
-      path: '/reviews',
-      label: 'My Reviews',
-      icon: <Star className="w-5 h-5" />
-    },
-    {
       path: '/settings',
       label: 'Settings',
       icon: <SettingsIcon className="w-5 h-5" />

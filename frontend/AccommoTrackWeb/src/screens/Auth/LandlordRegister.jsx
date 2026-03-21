@@ -16,7 +16,7 @@ import api, { isCancel } from '../../utils/api';
 
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);
-  // TODO: Terms & Conditions modal — content not yet available but coming soon
+  // Terms & Conditions modal
   const [showTermsModal, setShowTermsModal] = useState(false);
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -864,12 +864,20 @@ const LandlordRegister = () => {
         </div>
       )}
 
-      {/* Terms and Conditions Modal — TODO: We still don't have the actual content, but coming soon */}
+      {/* Terms and Conditions Modal */}
       {showTermsModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Last Updated: March 2026</p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowTermsModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -877,21 +885,134 @@ const LandlordRegister = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-8 flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed scrollbar-thin">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
+                <p className="text-green-800 dark:text-green-300 font-medium text-xs">
+                  By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
+                </p>
               </div>
-              <h4 className="text-xl font-bold text-gray-900 dark:text-white">Coming Soon</h4>
-              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                We're still working on our Terms and Conditions. They will be available soon. Thank you for your patience!
-              </p>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">1. General Terms</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>AccommoTrack is a platform that connects property owners/landlords with tenants — it is not the landlord itself.</li>
+                  <li>Users must be at least 18 years old to register as a tenant, and at least 20 years old to register as a landlord.</li>
+                  <li>All information provided must be accurate and truthful.</li>
+                  <li>By using AccommoTrack, you agree to comply with all applicable local laws and regulations.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">2. Account Responsibilities</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Users are responsible for keeping their login credentials secure and confidential.</li>
+                  <li>One account per person — sharing accounts is not allowed.</li>
+                  <li>You are responsible for all activity that occurs under your account.</li>
+                  <li>AccommoTrack reserves the right to suspend or terminate accounts that violate these terms.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">3. Landlord Obligations</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Must provide accurate property listings including photos, pricing, amenities, and house rules.</li>
+                  <li>Must undergo identity verification before listing properties on the platform.</li>
+                  <li>Responsible for the physical condition, safety, and legality of their properties.</li>
+                  <li>Must honor confirmed bookings at the listed price and terms.</li>
+                  <li>Must respond to tenant inquiries, maintenance requests, and booking requests in a timely manner.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">4. Tenant Obligations</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Must provide truthful personal information during registration and booking.</li>
+                  <li>Must pay rent and applicable fees on time as agreed upon in the booking.</li>
+                  <li>Must follow the property's house rules as set by the landlord.</li>
+                  <li>Must report maintenance issues and property damage through the platform promptly.</li>
+                  <li>Must treat the property and its facilities with care and respect.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">5. Bookings & Payments</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Bookings are confirmed only after landlord approval.</li>
+                  <li>Payment terms, due dates, and applicable fees are set by the landlord and displayed at the time of booking.</li>
+                  <li>AccommoTrack facilitates digital payment tracking but does not process financial transactions directly.</li>
+                  <li>Disputes regarding payments should first be resolved between landlord and tenant.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">6. Cancellation & Refund Policy</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Cancellation policies are determined by individual landlords and displayed on each property listing.</li>
+                  <li>Refund eligibility depends on the property's stated cancellation policy.</li>
+                  <li>AccommoTrack may mediate disputes but final decisions regarding refunds rest with the landlord.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">7. Privacy & Data</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>We collect personal information including name, email, phone number, and identification documents for verification purposes.</li>
+                  <li>Your data is used solely for platform operations, account verification, and improving our services.</li>
+                  <li>We do not sell your personal information to third parties.</li>
+                  <li>Verification documents (IDs, permits) are stored securely and used only for landlord identity verification.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">8. Content & Reviews</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Users may not post false, defamatory, misleading, or inappropriate content or reviews.</li>
+                  <li>AccommoTrack reserves the right to remove content that violates these terms or community standards.</li>
+                  <li>Landlords may publicly respond to reviews left on their properties.</li>
+                  <li>Reviews should be based on genuine experiences and written in good faith.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">9. Property Reporting</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>Tenants can report properties for safety concerns, fraud, or violations through the platform.</li>
+                  <li>AccommoTrack will investigate reported properties and may delist or suspend listings found to violate community standards or local regulations.</li>
+                  <li>False or malicious reports may result in account suspension.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">10. Limitation of Liability</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>AccommoTrack acts as a marketplace and facilitator — we are not liable for the physical condition of properties, disputes between users, or any damages arising from the use of listed accommodations.</li>
+                  <li>The platform is provided "as is" without warranty of any kind, either express or implied.</li>
+                  <li>Users engage with each other at their own risk and are encouraged to exercise due diligence.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">11. Modifications to Terms</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  <li>AccommoTrack reserves the right to update or modify these terms at any time.</li>
+                  <li>Users will be notified of significant changes via email or in-app notifications.</li>
+                  <li>Continued use of the platform after changes constitutes acceptance of the updated terms.</li>
+                </ul>
+              </section>
+
+              <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 mt-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  If you have any questions about these terms, please contact us through the Help & Support page.
+                </p>
+              </div>
             </div>
-            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 text-right">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">Please read carefully before proceeding.</p>
               <button
                 onClick={() => setShowTermsModal(false)}
-                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-all"
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-all shadow-md shadow-green-500/20"
               >
-                Got it
+                I Understand
               </button>
             </div>
           </div>

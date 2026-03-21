@@ -175,6 +175,32 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                       />
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
+                        <select
+                          value={profileData.gender || ''}
+                          onChange={e => setProfileData({ ...profileData, gender: e.target.value })}
+                          className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="rather_not_say">Rather not to say</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pronouns <span className="text-gray-400 text-xs font-normal">(e.g., He/Him)</span></label>
+                        <input
+                          type="text"
+                          maxLength={50}
+                          value={profileData.identified_as || ''}
+                          onChange={e => setProfileData({ ...profileData, identified_as: e.target.value })}
+                          className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
+                          placeholder="How do you identify?"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {/* Account Info Card */}
@@ -197,7 +223,9 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         lastName: user.last_name || '',
                         email: user.email || '',
                         phone: user.phone || '',
-                        dateOfBirth: user.date_of_birth || ''
+                        dateOfBirth: user.date_of_birth || '',
+                        gender: user.gender || '',
+                        identified_as: user.identified_as || ''
                       });
                       setIsEditingProfile(false);
                     }}
@@ -255,6 +283,17 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   <p className="text-gray-900 dark:text-white font-medium text-lg">
                     {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                   </p>
+                </div>
+                {/* Gender and Pronouns View */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Gender</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg capitalize">{profileData.gender ? profileData.gender.replace(/_/g, ' ') : '-'}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Pronouns</label>
+                    <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.identified_as || '-'}</p>
+                  </div>
                 </div>
                 {/* Account Info Card */}
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">

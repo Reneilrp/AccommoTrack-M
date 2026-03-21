@@ -198,5 +198,18 @@ export const tenantService = {
             console.error('Error fetching addon requests:', error);
             return { success: false, error: error.message };
         }
+    },
+
+    /**
+     * Get recent activities for tenant
+     */
+    async getActivities() {
+        try {
+            const response = await api.get('/tenant/dashboard/activities');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching tenant activities:', error);
+            return { success: false, activities: [] };
+        }
     }
 };

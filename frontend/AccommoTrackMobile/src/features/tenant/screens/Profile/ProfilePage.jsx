@@ -41,6 +41,7 @@ export default function ProfilePage() {
     phone: "",
     bio: "",
     gender: "",
+    identifiedAs: "",
     dateOfBirth: "",
     currentAddress: "",
     emergencyContactName: "",
@@ -84,6 +85,7 @@ export default function ProfilePage() {
           email: data.email || "",
           phone: data.phone || "",
           gender: data.gender || "",
+          identifiedAs: data.identified_as || "",
           age: calculatedAge,
           dateOfBirth: data.date_of_birth || "",
           bio: data.tenant_profile?.notes || "",
@@ -185,9 +187,11 @@ export default function ProfilePage() {
         first_name: profileData.firstName.trim(),
         middle_name: profileData.middleName?.trim() || null,
         last_name: profileData.lastName.trim(),
+        email: profileData.email.trim(),
         phone: profileData.phone?.trim() || "",
         notes: profileData.bio?.trim() || "",
         gender: profileData.gender || null,
+        identified_as: profileData.identifiedAs?.trim() || null,
         preference: profileData.preferences,
         date_of_birth: profileData.dateOfBirth || null,
         current_address: profileData.currentAddress?.trim() || null,
@@ -212,6 +216,7 @@ export default function ProfilePage() {
           lastName: u.last_name || "",
           phone: u.phone || "",
           gender: u.gender || "",
+          identifiedAs: u.identified_as || "",
           bio: tp.notes || "",
           dateOfBirth: u.date_of_birth || "",
           preferences: (() => {
@@ -464,7 +469,7 @@ export default function ProfilePage() {
           </View>
           {!isEditing && (
             <Text style={[styles.userName, { color: theme.colors.text }]}>
-              {[profileData.firstName, profileData.lastName]
+              {[profileData.firstName, profileData.middleName, profileData.lastName]
                 .filter(Boolean)
                 .join(" ")}
             </Text>
@@ -578,6 +583,39 @@ export default function ProfilePage() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
+              Email Address
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+                !isEditing && styles.inputDisabled,
+              ]}
+            >
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={theme.colors.textSecondary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                value={profileData.email}
+                onChangeText={(text) => handleInputChange("email", text)}
+                editable={isEditing}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholder="Email Address"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
               Phone Number
             </Text>
             <View
@@ -618,8 +656,7 @@ export default function ProfilePage() {
                 Alert.alert("Select Gender", "Choose your gender", [
                   { text: "Male", onPress: () => handleInputChange("gender", "male") },
                   { text: "Female", onPress: () => handleInputChange("gender", "female") },
-                  { text: "Other", onPress: () => handleInputChange("gender", "other") },
-                  { text: "Prefer not to say", onPress: () => handleInputChange("gender", "prefer_not_to_say") },
+                  { text: "Rather not to say", onPress: () => handleInputChange("gender", "rather_not_say") },
                   { text: "Cancel", style: "cancel" },
                 ]);
               }}
@@ -652,6 +689,38 @@ export default function ProfilePage() {
                 {profileData.gender || "Select Gender"}
               </Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Pronouns <Text style={{fontSize: 12, color: theme.colors.textSecondary, fontWeight: "normal"}}>(Optionals, e.g., He/Him)</Text>
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+                !isEditing && styles.inputDisabled,
+              ]}
+            >
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color={theme.colors.textSecondary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                value={profileData.identifiedAs}
+                onChangeText={(text) => handleInputChange("identifiedAs", text)}
+                editable={isEditing}
+                placeholder="How do you identify?"
+                placeholderTextColor={theme.colors.textTertiary}
+                maxLength={50}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>

@@ -23,6 +23,9 @@ import { getStyles } from '../../../../styles/Landlord/Payments.js';
 
 const STATUS_FILTERS = ['all', 'pending', 'paid', 'unpaid', 'partial', 'overdue', 'cancelled', 'refunded'];
 
+const REFUND_FIXED_PENALTY_CENTS = 0;
+const REFUND_ELIGIBLE_STATUSES = ['succeeded', 'paid', 'partially_refunded', 'refunded'];
+
 const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || ((invoice?.amount_cents ?? 0) / 100));
 
 const getSettledAmount = (invoice) =>
@@ -57,6 +60,60 @@ const getInvoiceStatus = (invoice) => {
 
 const getRemainingAmount = (invoice) => Math.max(0, getInvoiceTotal(invoice) - getSettledAmount(invoice));
 
+const toDateOnly = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getBillingPolicy = (booking) =>
+  String(booking?.billing_policy || booking?.room?.billing_policy || 'monthly').toLowerCase();
+
+const getStayProgress = (booking) => {
+  const start = toDateOnly(booking?.start_date || booking?.checkIn);
+  const end = toDateOnly(booking?.end_date || booking?.checkOut);
+  if (!start || !end || end < start) return null;
+
+  const today = toDateOnly(new Date());
+  const totalDays = Math.max(1, Math.floor((end - start) / 86400000) + 1);
+  const billingPolicy = getBillingPolicy(booking);
+
+  if (billingPolicy === 'daily') {
+    let stayedDays = 0;
+    if (today >= start && today <= end) stayedDays = Math.floor((today - start) / 86400000) + 1;
+    else if (today > end) stayedDays = totalDays;
+    const refundableDays = Math.max(0, totalDays - stayedDays);
+    return { mode: 'daily', totalUnits: totalDays, usedUnits: stayedDays, refundableUnits: refundableDays, refundableRatio: totalDays > 0 ? refundableDays / totalDays : 0, unitLabel: 'days', totalDays, stayedDays, refundableDays };
+  }
+
+  const totalMonths = Math.max(1, Number(booking?.total_months || Math.ceil(totalDays / 30)));
+  let elapsedDays = 0;
+  if (today > start && today <= end) elapsedDays = Math.floor((today - start) / 86400000);
+  else if (today > end) elapsedDays = totalMonths * 30;
+  const usedMonths = Math.min(totalMonths, Math.max(0, Math.floor(elapsedDays / 30)));
+  const refundableMonths = Math.max(0, totalMonths - usedMonths);
+  return { mode: 'monthly', totalUnits: totalMonths, usedUnits: usedMonths, refundableUnits: refundableMonths, refundableRatio: totalMonths > 0 ? refundableMonths / totalMonths : 0, unitLabel: totalMonths === 1 ? 'month' : 'months', totalDays, stayedDays: Math.min(totalDays, elapsedDays), refundableDays: Math.max(0, totalDays - elapsedDays) };
+};
+
+const getTransactionRefundPreview = (invoice, tx, booking) => {
+  if (!tx || !invoice) return null;
+  const txAmountCents = Math.max(0, Number(tx.amount_cents || 0));
+  const txRefundedCents = Math.max(0, Number(tx.refunded_amount_cents || 0));
+  const txRemainingCents = Math.max(0, txAmountCents - txRefundedCents);
+  if (txRemainingCents <= 0) return { maxRefundableCents: 0, txRemainingCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress: getStayProgress(booking) };
+
+  const stayProgress = getStayProgress(booking);
+  if (!stayProgress) return { maxRefundableCents: txRemainingCents, txRemainingCents, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress: null };
+
+  const paidBaseCents = (invoice.transactions || []).filter(l => Number(l.amount_cents || 0) > 0).filter(l => REFUND_ELIGIBLE_STATUSES.includes((l.status || '').toLowerCase())).reduce((s, l) => s + Math.max(0, Number(l.amount_cents || 0)), 0);
+  const alreadyRefundedCents = (invoice.transactions || []).filter(l => Number(l.amount_cents || 0) > 0).reduce((s, l) => s + Math.max(0, Number(l.refunded_amount_cents || 0)), 0);
+  const proratedCents = Math.floor((paidBaseCents * stayProgress.refundableUnits) / stayProgress.totalUnits);
+  const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
+  return { maxRefundableCents: Math.min(txRemainingCents, invoiceCapCents), txRemainingCents, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
+};
+
 export default function Payments({ navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
@@ -72,6 +129,8 @@ export default function Payments({ navigation }) {
   const [recording, setRecording] = useState(false);
   const [refundingTxId, setRefundingTxId] = useState(null);
   const [recordData, setRecordData] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
+  const [refundAmount, setRefundAmount] = useState('');
+  const [showRefundConfirm, setShowRefundConfirm] = useState(null);
 
   const fetchInvoices = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -168,25 +227,39 @@ export default function Payments({ navigation }) {
 
   const handleRefund = async (tx) => {
     if (!tx || !tx.id) return;
-    
+
+    // Calculate prorated refund preview
+    const booking = selectedInvoice?.booking || null;
+    const preview = getTransactionRefundPreview(selectedInvoice, tx, booking);
+    const maxRefund = preview ? preview.maxRefundableCents : (tx.amount_cents || 0);
+
+    if (maxRefund <= 0) {
+      Alert.alert('No Refund Available', 'This transaction has no refundable amount remaining based on the stay progress.');
+      return;
+    }
+
+    const stayInfo = preview?.stayProgress
+      ? `\n\nStay Progress: ${preview.stayProgress.usedUnits}/${preview.stayProgress.totalUnits} ${preview.stayProgress.unitLabel} used`
+        + (preview.fixedPenaltyCents > 0 ? `\nPenalty: ₱${(preview.fixedPenaltyCents / 100).toLocaleString()}` : '')
+      : '';
+
     Alert.alert(
-      'Confirm Refund',
-      `Are you sure you want to refund ₱${(tx.amount_cents / 100).toLocaleString()}? This action cannot be undone.`,
+      'Confirm Prorated Refund',
+      `Max refundable: ₱${(maxRefund / 100).toLocaleString()}${stayInfo}\n\nAre you sure? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Yes, Refund', 
+        {
+          text: 'Yes, Refund',
           style: 'destructive',
           onPress: async () => {
             setRefundingTxId(tx.id);
             try {
-              const res = await PaymentService.refundTransaction(tx.id, tx.amount_cents);
+              const res = await PaymentService.refundTransaction(tx.id, maxRefund);
               if (res.success) {
-                // If the whole booking was paid, we might want to update its status to refunded
                 if (selectedInvoice.booking_id) {
-                   await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
+                  await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
                 }
-                Alert.alert('Success', 'Transaction refunded successfully');
+                Alert.alert('Success', `Refunded ₱${(maxRefund / 100).toLocaleString()} successfully`);
                 fetchInvoices(true);
                 setShowModal(false);
               } else {
@@ -223,6 +296,26 @@ export default function Payments({ navigation }) {
       return ref.includes(q) || tenant.includes(q) || property.includes(q);
     });
   }, [invoices, activeFilter, searchQuery]);
+
+  // ──── Payment Stats (W4) ────
+  const stats = useMemo(() => {
+    const s = { totalPaid: 0, totalBalance: 0, paidCount: 0, pendingCount: 0, overdueCount: 0 };
+    invoices.forEach(inv => {
+      const status = getInvoiceStatus(inv);
+      const total = inv.amount_cents ? inv.amount_cents / 100 : Number(inv.amount || 0);
+      const paid = (inv.transactions || []).filter(tx => ['succeeded', 'paid', 'partially_refunded'].includes(tx.status)).reduce((sum, tx) => {
+        const txAmt = tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0);
+        const txRef = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+        return sum + (txAmt - txRef);
+      }, 0);
+      s.totalPaid += paid;
+      s.totalBalance += Math.max(0, total - paid);
+      if (status === 'paid') s.paidCount++;
+      else if (['pending', 'unpaid', 'partial'].includes(status)) s.pendingCount++;
+      else if (status === 'overdue') s.overdueCount++;
+    });
+    return s;
+  }, [invoices]);
 
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
@@ -358,6 +451,25 @@ export default function Payments({ navigation }) {
           ))}
         </ScrollView>
       </View>
+
+      {/* ── Stats Summary Cards (W4) ── */}
+      {invoices.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 10 }}>
+          {[
+            { label: 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
+            { label: 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
+            { label: 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
+            { label: 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
+            { label: 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
+          ].map((card, i) => (
+            <View key={i} style={{ backgroundColor: theme.isDark ? theme.colors.surface : card.bg, borderRadius: 12, padding: 14, minWidth: 110, borderWidth: 1, borderColor: theme.isDark ? theme.colors.border : 'transparent' }}>
+              <Ionicons name={card.icon} size={20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
+              <Text style={{ fontSize: 18, fontWeight: '800', color: theme.isDark ? theme.colors.text : card.color, marginTop: 6 }}>{card.value}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: theme.isDark ? theme.colors.textSecondary : card.color, opacity: 0.8, marginTop: 2 }}>{card.label}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       <FlatList
         data={filteredInvoices}

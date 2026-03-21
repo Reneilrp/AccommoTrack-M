@@ -47,6 +47,7 @@ const MyBookings = () => {
   const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
   const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   
   // Only show initial loader if we have NO cached data at all
   const [loading, setLoading] = useState(!cachedData);
@@ -105,7 +106,27 @@ const MyBookings = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedPropertyForReport, setSelectedPropertyForReport] = useState(null);
 
-  const fetchData = async () => {
+  const loadMoreHistory = async () => {
+    if (!history?.pagination || history.pagination.currentPage >= history.pagination.lastPage || historyLoadingMore) {
+      return;
+    }
+    setHistoryLoadingMore(true);
+    try {
+      const nextPage = history.pagination.currentPage + 1;
+      const data = await tenantService.getHistory(nextPage);
+      setHistory(prev => ({
+        bookings: [...(prev.bookings || []), ...data.bookings],
+        pagination: data.pagination
+      }));
+      updateData('bookings', { ...uiState.data.bookings, history });
+    } catch (err) {
+      toast.error('Failed to load more history');
+    } finally {
+      setHistoryLoadingMore(false);
+    }
+  };
+
+  const fetchData = useCallback(async () => {
     // Only set loading true if we don't have data for the current tab already
     const hasDataForTab = (activeTab === 'history' ? (history?.bookings?.length > 0) : (activeStays?.length > 0 || pendingBookings?.length > 0 || upcomingBooking));
     if (!hasDataForTab) setLoading(true);
@@ -166,11 +187,11 @@ const MyBookings = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, history?.bookings?.length, activeStays?.length, pendingBookings?.length, upcomingBooking, updateData, cachedData]);
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [fetchData]);
 
   useEffect(() => {
     const handleFocusRefresh = () => {
@@ -205,7 +226,7 @@ const MyBookings = () => {
       window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
       if (interval) clearInterval(interval);
     };
-  }, [activeTab, invalidateTenantStayCache]);
+  }, [activeTab, invalidateTenantStayCache, fetchData]);
 
   const handleCancelBooking = async (bookingId) => {
     if (!confirm('Are you sure you want to cancel this booking?')) return;

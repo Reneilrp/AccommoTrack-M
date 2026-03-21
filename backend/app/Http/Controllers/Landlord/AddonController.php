@@ -363,6 +363,7 @@ class AddonController extends Controller
                     if ($price <= 0 && $item->current_price > 0) {
                         $price = (float) $item->current_price;
                     }
+
                     return $price * $item->quantity;
                 });
 

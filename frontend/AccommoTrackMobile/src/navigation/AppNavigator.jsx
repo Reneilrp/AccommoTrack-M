@@ -7,6 +7,8 @@ import Toast from 'react-native-toast-message';
 /* Core */
 import LandingPages from '../features/auth/screens/LandingPages.jsx';
 import AuthScreens from '../features/auth/screens/AuthScreen.jsx';
+import LandlordRegisterScreen from '../features/auth/screens/LandlordRegisterScreen.jsx';
+import OtpVerificationScreen from '../features/auth/screens/OtpVerificationScreen.jsx';
 import LandlordLayout from '../features/landlord/navigation/LandlordLayout.jsx';
 import TenantLayout from '../features/tenant/navigation/TenantLayout.jsx';
 import { getStyles } from '../styles/AppNavigator.js';
@@ -168,7 +170,7 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'none',
+          animation: 'slide_from_right',
         }}
       >
         <Stack.Screen name="Auth">
@@ -194,6 +196,8 @@ export default function AppNavigator() {
             />
           )}
         </Stack.Screen>
+        <Stack.Screen name="LandlordRegister" component={LandlordRegisterScreen} />
+        <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
       </Stack.Navigator>
     );
   }
