@@ -28,7 +28,7 @@ class UpdatePropertyRequest extends FormRequest
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'property_type' => 'sometimes|required|string|max:255',
-            'gender_restriction' => 'nullable|in:boys,girls,mixed',
+            'gender_restriction' => 'nullable|in:boys,girls,mixed,male,female',
             'street_address' => 'sometimes|required|string',
             'city' => 'sometimes|required|string',
             'province' => 'sometimes|required|string',
