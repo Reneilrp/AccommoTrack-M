@@ -29,11 +29,16 @@ class RoomService
             $capacity = $validatedData['capacity'] ?? 1;
             $pricingModel = $validatedData['pricing_model'] ?? (($validatedData['room_type'] === 'bedSpacer') ? 'per_bed' : 'full_room');
 
+            $propertyGender = strtolower($property->gender_restriction ?? 'mixed');
+            $defaultGender = in_array($propertyGender, ['male', 'female', 'boys', 'girls']) 
+                ? (in_array($propertyGender, ['male', 'boys']) ? 'male' : 'female') 
+                : 'mixed';
+
             $room = Room::create([
                 'property_id' => $property->id,
                 'room_number' => $validatedData['room_number'],
                 'room_type' => $validatedData['room_type'],
-                'gender_restriction' => $validatedData['gender_restriction'] ?? 'mixed',
+                'gender_restriction' => $validatedData['gender_restriction'] ?? $defaultGender,
                 'floor' => $validatedData['floor'],
                 'monthly_rate' => $validatedData['monthly_rate'] ?? null,
                 'daily_rate' => $validatedData['daily_rate'] ?? null,

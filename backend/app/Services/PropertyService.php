@@ -35,12 +35,19 @@ class PropertyService
                 $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
             }
 
+            $genderRestriction = strtolower($validated['gender_restriction'] ?? 'mixed');
+            $genderRestriction = match ($genderRestriction) {
+                'boys', 'male' => 'male',
+                'girls', 'female' => 'female',
+                default => 'mixed',
+            };
+
             $property = Property::create([
                 'landlord_id' => $user->id,
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'property_type' => $validated['property_type'],
-                'gender_restriction' => $validated['gender_restriction'] ?? 'mixed',
+                'gender_restriction' => $genderRestriction,
                 'current_status' => $currentStatus,
                 'street_address' => $validated['street_address'],
                 'city' => $validated['city'],
@@ -110,6 +117,15 @@ class PropertyService
 
             if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
                 $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
+            }
+
+            if (isset($validated['gender_restriction'])) {
+                $val = strtolower($validated['gender_restriction']);
+                $validated['gender_restriction'] = match ($val) {
+                    'boys', 'male' => 'male',
+                    'girls', 'female' => 'female',
+                    default => 'mixed',
+                };
             }
 
             $property->update($validated);

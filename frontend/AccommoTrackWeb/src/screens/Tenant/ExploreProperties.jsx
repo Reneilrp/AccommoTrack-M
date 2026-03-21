@@ -1305,7 +1305,7 @@ const ExploreProperties = () => {
         />
       )}
 
-      <Footer />
+      {!authService.isAuthenticated() && <Footer />}
     </div>
   );
 };

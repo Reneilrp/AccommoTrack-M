@@ -30,7 +30,7 @@ export default function AddRoomModal({
   const [formData, setFormData] = useState({
     roomNumber: "",
     roomType: initialRoomType,
-    genderRestriction: "mixed",
+    genderRestriction: "male",
     floor: "1",
     monthlyRate: "",
     // new billing related fields
@@ -92,14 +92,24 @@ export default function AddRoomModal({
         if (mounted) {
           setPropertyRules(Array.isArray(rules) ? rules : []);
           setLocalAmenities(Array.isArray(amenities) ? amenities : []);
-          setTotalFloors(p.total_floors || 1);
+          
+          let maxFloor = p.total_floors || 1;
+          if (maxFloor === 1 && p.floor_level) {
+            // Extract numbers from "5th floor", "Level 4", "12", etc.
+            const parsedFloor = parseInt(String(p.floor_level).replace(/\D/g, ''), 10);
+            if (!isNaN(parsedFloor) && parsedFloor > 0) {
+              maxFloor = parsedFloor;
+            }
+          }
+          setTotalFloors(maxFloor);
+
           const pGender = p.gender_restriction || "mixed";
           setPropertyGender(pGender);
 
           // Auto-set room gender if property is restricted
-          if (pGender === "male") {
+          if (pGender === "male" || pGender === "boys") {
             setFormData((prev) => ({ ...prev, genderRestriction: "male" }));
-          } else if (pGender === "female") {
+          } else if (pGender === "female" || pGender === "girls") {
             setFormData((prev) => ({ ...prev, genderRestriction: "female" }));
           }
         }
@@ -717,14 +727,17 @@ export default function AddRoomModal({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Floor <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="e.g., 1"
+                <select
                   value={formData.floor}
                   onChange={(e) => handleInputChange("floor", e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                />
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  {floors.map((floorObj) => (
+                    <option key={floorObj.value} value={floorObj.value}>
+                      {floorObj.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -758,7 +771,6 @@ export default function AddRoomModal({
                     disabled={propertyGender !== "mixed"}
                     className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-600 cursor-not-allowed" : ""}`}
                   >
-                    <option value="mixed">Mixed</option>
                     <option value="male">Male Only</option>
                     <option value="female">Female Only</option>
                   </select>

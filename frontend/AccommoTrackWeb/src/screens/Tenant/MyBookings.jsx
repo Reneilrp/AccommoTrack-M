@@ -49,6 +49,9 @@ const MyBookings = () => {
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   
+  const fetchedLiveRef = React.useRef(!!cachedData);
+  const fetchedHistoryRef = React.useRef(!!(cachedData && cachedData.history));
+
   // Only show initial loader if we have NO cached data at all
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
@@ -128,7 +131,7 @@ const MyBookings = () => {
 
   const fetchData = useCallback(async () => {
     // Only set loading true if we don't have data for the current tab already
-    const hasDataForTab = (activeTab === 'history' ? (history?.bookings?.length > 0) : (activeStays?.length > 0 || pendingBookings?.length > 0 || upcomingBooking));
+    const hasDataForTab = activeTab === 'history' ? fetchedHistoryRef.current : fetchedLiveRef.current;
     if (!hasDataForTab) setLoading(true);
     
     setError(null);
@@ -165,6 +168,8 @@ const MyBookings = () => {
           console.warn('Failed to fetch tenant bookings for pending detection', e);
         }
 
+        fetchedLiveRef.current = true;
+
         // Update cache
         updateData('bookings', { 
           ...(cachedData || {}), 
@@ -176,6 +181,7 @@ const MyBookings = () => {
       } else if (activeTab === 'history') {
         const data = await tenantService.getHistory();
         setHistory(data);
+        fetchedHistoryRef.current = true;
         
         // Update cache
         updateData('bookings', { ...(cachedData || {}), history: data });
@@ -187,7 +193,7 @@ const MyBookings = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, history?.bookings?.length, activeStays?.length, pendingBookings?.length, upcomingBooking, updateData, cachedData]);
+  }, [activeTab, updateData, cachedData]);
 
   useEffect(() => {
     fetchData();

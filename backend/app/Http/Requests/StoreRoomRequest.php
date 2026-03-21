@@ -33,7 +33,10 @@ class StoreRoomRequest extends FormRequest
         $isApartment = $property && $property->property_type === 'apartment';
 
         $propertyGender = $property ? strtolower($property->gender_restriction) : 'mixed';
-        $allowedGenders = ['male', 'female', 'mixed'];
+        $allowedGenders = ['male', 'female'];
+        if ($property && !in_array($property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
+            $allowedGenders[] = 'mixed';
+        }
 
         if (in_array($propertyGender, ['female', 'girls'])) {
             $allowedGenders = ['female'];

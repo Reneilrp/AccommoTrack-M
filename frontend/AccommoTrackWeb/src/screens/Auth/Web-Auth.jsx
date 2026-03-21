@@ -411,21 +411,15 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
   );
 };
 
-function AuthScreen({ onLogin = () => {} }) {
+function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const navigate = useNavigate();
   const { effectiveTheme } = usePreferences();
-  const [isLogin, setIsLogin] = useState(() => {
-    try {
-      const saved = localStorage.getItem("auth_is_login");
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
-  });
+  const [isLogin, setIsLogin] = useState(!isRegister);
 
+  // Sync state if prop changes via routing (e.g., user directly clicks 'Sign In' or 'Register' links)
   useEffect(() => {
-    localStorage.setItem("auth_is_login", JSON.stringify(isLogin));
-  }, [isLogin]);
+    setIsLogin(!isRegister);
+  }, [isRegister]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -486,7 +480,7 @@ function AuthScreen({ onLogin = () => {} }) {
     .split("T")[0];
   const [formData, setFormData] = useState(() => {
     try {
-      const saved = localStorage.getItem("auth_form_data");
+      const saved = sessionStorage.getItem("auth_form_data");
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
@@ -515,10 +509,10 @@ function AuthScreen({ onLogin = () => {} }) {
     };
   });
 
-  // Persist form data (excluding passwords) to localStorage
+  // Persist form data (excluding passwords) to sessionStorage
   useEffect(() => {
     const dataToSave = { ...formData, password: "", password_confirmation: "" };
-    localStorage.setItem("auth_form_data", JSON.stringify(dataToSave));
+    sessionStorage.setItem("auth_form_data", JSON.stringify(dataToSave));
   }, [formData]);
 
   const handleInputChange = (field, value) => {

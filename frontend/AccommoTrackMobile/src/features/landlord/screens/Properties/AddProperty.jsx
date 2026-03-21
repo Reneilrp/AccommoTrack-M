@@ -598,7 +598,7 @@ export default function AddProperty({ navigation }) {
           <Text style={styles.successMessage}>
             {successModal.isDraft
               ? "Your property draft has been saved successfully. You can complete it later."
-              : "Your property has been submitted and is now pending admin approval."}
+              : "Your property has been submitted and is now pending admin approval. Please wait 1-2 days for eligibility review."}
           </Text>
           <TouchableOpacity
             style={styles.successButton}

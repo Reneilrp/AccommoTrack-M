@@ -27,7 +27,10 @@ class UpdateRoomRequest extends FormRequest
         $isApartment = $room && $room->property && $room->property->property_type === 'apartment';
 
         $propertyGender = ($room && $room->property) ? strtolower($room->property->gender_restriction) : 'mixed';
-        $allowedGenders = ['male', 'female', 'mixed'];
+        $allowedGenders = ['male', 'female'];
+        if ($room && $room->property && !in_array($room->property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
+            $allowedGenders[] = 'mixed';
+        }
 
         if (in_array($propertyGender, ['female', 'girls'])) {
             $allowedGenders = ['female'];

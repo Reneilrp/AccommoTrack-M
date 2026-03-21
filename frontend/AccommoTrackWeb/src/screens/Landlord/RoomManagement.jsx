@@ -231,7 +231,7 @@ export default function RoomManagement() {
       type: room.type_label,
       roomNumber: room.room_number,
       price: room.monthly_rate,
-      genderRestriction: room.gender_restriction || 'mixed',
+      genderRestriction: room.gender_restriction === 'mixed' ? 'male' : (room.gender_restriction || 'male'),
       floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
       dailyRate: room.daily_rate || '',
       billingPolicy: room.billing_policy || 'monthly',
@@ -751,7 +751,6 @@ export default function RoomManagement() {
                       disabled={propertyGender !== "mixed"}
                       className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${propertyGender !== "mixed" ? "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-70" : ""}`}
                     >
-                      <option value="mixed">Mixed</option>
                       <option value="male">Male Only</option>
                       <option value="female">Female Only</option>
                     </select>

@@ -45,6 +45,7 @@ export default function AddProperty({ onBack, onSave }) {
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
   const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
+  const [showSuccessModal, setShowSuccessModal] = useState({ visible: false, isDraft: false, result: null });
   const formContentRef = useRef(null);
 
   // Fix Leaflet marker icon issue
@@ -463,10 +464,7 @@ export default function AddProperty({ onBack, onSave }) {
         }
       });
       const data = result.data;
-      toast.success(isDraft ? 'Draft saved!' : 'Property submitted for admin approval!');
-      if (onSave) onSave(result, 'pending');
-      if (onBack) onBack();
-
+      setShowSuccessModal({ visible: true, isDraft, result });
     } catch (err) {
       const errData = err.response?.data;
       if (errData?.errors) {
@@ -1304,6 +1302,40 @@ export default function AddProperty({ onBack, onSave }) {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal.visible && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              {showSuccessModal.isDraft ? (
+                <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
+              ) : (
+                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              )}
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              {showSuccessModal.isDraft ? "Draft Saved!" : "Success!"}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6 font-medium">
+              {showSuccessModal.isDraft
+                ? "Your property draft has been saved successfully. You can complete it later."
+                : "Your property has been submitted and is now pending. Please wait 1-2 days for admin approval for eligibility."}
+            </p>
+            <button
+              onClick={() => {
+                const { result, isDraft } = showSuccessModal;
+                setShowSuccessModal({ visible: false, isDraft: false, result: null });
+                if (onSave) onSave(result, isDraft ? 'draft' : 'pending');
+                if (onBack) onBack();
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+            >
+              Go to My Properties
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
