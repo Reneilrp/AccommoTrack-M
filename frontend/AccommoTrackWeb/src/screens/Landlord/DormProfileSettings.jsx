@@ -164,11 +164,16 @@ export default function DormProfileSettings({
         .filter(Boolean)
         .sort((a, b) => a.display_order - b.display_order);
 
+      const hasMaleRooms = (data.rooms || []).some(r => r.gender_restriction === 'male');
+      const hasFemaleRooms = (data.rooms || []).some(r => r.gender_restriction === 'female');
+
       setDormData({
         id: data.id,
         name: data.title,
         type: data.property_type,
         gender_restriction: data.gender_restriction || "mixed",
+        hasMaleRooms,
+        hasFemaleRooms,
         description: data.description || "",
         address: {
           street: data.street_address,
@@ -1050,8 +1055,20 @@ export default function DormProfileSettings({
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white capitalize"
                       >
                         <option value="mixed">Mixed (Any Gender)</option>
-                        <option value="male">Boys Only</option>
-                        <option value="female">Girls Only</option>
+                        <option 
+                          value="male" 
+                          disabled={dormData.hasFemaleRooms}
+                          title={dormData.hasFemaleRooms ? "Contains Female rooms" : ""}
+                        >
+                          Boys Only {isEditing && dormData.hasFemaleRooms ? "(Disabled: Has Female Rooms)" : ""}
+                        </option>
+                        <option 
+                          value="female"
+                          disabled={dormData.hasMaleRooms}
+                          title={dormData.hasMaleRooms ? "Contains Male rooms" : ""}
+                        >
+                          Girls Only {isEditing && dormData.hasMaleRooms ? "(Disabled: Has Male Rooms)" : ""}
+                        </option>
                       </select>
                     </div>
                   )}
