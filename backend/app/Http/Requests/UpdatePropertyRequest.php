@@ -45,7 +45,7 @@ class UpdatePropertyRequest extends FormRequest
             'total_floors' => 'nullable|integer|min:1',
             'property_rules' => 'nullable|string',
             'total_rooms' => 'nullable|integer',
-            'current_status' => 'nullable|in:pending,maintenance,draft',
+            'current_status' => 'nullable|in:pending,maintenance,draft,active,inactive',
             'is_draft' => 'sometimes|boolean',
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
