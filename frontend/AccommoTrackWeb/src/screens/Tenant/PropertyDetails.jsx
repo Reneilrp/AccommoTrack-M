@@ -631,7 +631,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const renderPolicies = () => (
     <div className="animate-in fade-in duration-300">
       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-        House Rules & Policies
+        Property Rules & Policies
       </h3>
       {property.rules && property.rules.length > 0 ? (
         <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-6">

@@ -294,6 +294,7 @@ export default function RoomManagement() {
       await fetchRooms();
       setShowEditModal(false);
       setSelectedRoom(null);
+      toast.success('Room updated successfully');
     } catch (error) {
       console.error('Failed to update room:', error);
       setError(error.message);
@@ -310,6 +311,7 @@ export default function RoomManagement() {
       setDeleteConfirmModal({ show: false, room: null });
       setShowEditModal(false);
       setSelectedRoom(null);
+      toast.success('Room deleted successfully');
       return true;
     } catch (error) {
       console.error('Failed to delete room:', error);
@@ -359,6 +361,7 @@ export default function RoomManagement() {
         maintenance: prev.maintenance + delta(oldStatus, 'maintenance'),
       };
     });
+      toast.success('Room status updated successfully');
 
     } catch (error) {
       setError('Failed to update room status. Please try again.');

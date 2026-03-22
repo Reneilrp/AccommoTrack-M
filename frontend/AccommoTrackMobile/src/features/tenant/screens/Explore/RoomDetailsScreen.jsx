@@ -679,11 +679,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           )}
 
           {/* Room Rules */}
-          {activeRoom.rules && activeRoom.rules.length > 0 && (
+          {((activeRoom.rules && activeRoom.rules.length > 0) || (propertyData?.rules && propertyData.rules.length > 0)) && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Room Rules</Text>
               <View style={styles.rulesList}>
-                {activeRoom.rules.map((rule, index) => (
+                {(activeRoom.rules?.length > 0 ? activeRoom.rules : propertyData?.rules || []).map((rule, index) => (
                   <View key={index} style={styles.ruleItem}>
                     <Ionicons name="alert-circle-outline" size={18} color="#f97316" />
                     <Text style={[styles.ruleText, { color: theme.colors.text }]}>{rule}</Text>

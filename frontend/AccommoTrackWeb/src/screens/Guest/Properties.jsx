@@ -120,12 +120,12 @@ const RoomDetailsModal = ({ room, property, onClose }) => {
               </div>
             </div>
 
-            {/* House Rules */}
+            {/* Room Rules */}
             {room.rules && Array.isArray(room.rules) && (
               <div className="mb-6">
                 <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-5 border border-orange-100 dark:border-orange-800/30">
                   <h3 className="text-base font-bold text-orange-800 dark:text-orange-300 mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4" /> House Rules
+                    <Shield className="w-4 h-4" /> Room Rules
                   </h3>
                   <ul className="space-y-2">
                     {room.rules.map((rule, idx) => (

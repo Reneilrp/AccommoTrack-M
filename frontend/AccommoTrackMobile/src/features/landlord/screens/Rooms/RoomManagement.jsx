@@ -285,6 +285,7 @@ export default function RoomManagementScreen({ navigation, route }) {
           onPress: async () => {
             const res = await PropertyService.removeTenantFromRoom(room.id);
             if (res.success) {
+              Alert.alert("Success", "Tenant removed successfully");
               loadRooms();
             } else {
               Alert.alert("Error", res.error || "Failed to remove tenant");
@@ -304,6 +305,7 @@ export default function RoomManagementScreen({ navigation, route }) {
         tenantId,
       );
       if (res.success) {
+        Alert.alert("Success", "Tenant assigned successfully");
         setTenantModalVisible(false);
         setAssignTargetRoom(null);
         loadRooms();
@@ -542,6 +544,7 @@ export default function RoomManagementScreen({ navigation, route }) {
           : await PropertyService.updateRoom(formData.id, payload);
 
       if (res.success) {
+        Alert.alert("Success", modalMode === "add" ? "Room added successfully" : "Room updated successfully");
         setModalVisible(false);
         loadRooms();
       } else {

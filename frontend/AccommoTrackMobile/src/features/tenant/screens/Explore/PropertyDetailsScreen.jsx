@@ -720,13 +720,13 @@ export default function PropertyDetailsScreen({ route }) {
             </View>
           )}
 
-          {/* House Rules */}
+          {/* Property Rules */}
           {(() => {
             const propertyRules = getPropertyRules();
             if (propertyRules.length > 0) {
               return (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>House Rules</Text>
+                  <Text style={styles.sectionTitle}>Property Rules</Text>
                   {propertyRules.map((rule, index) => (
                     <View key={index} style={styles.ruleItem}>
                       <Ionicons

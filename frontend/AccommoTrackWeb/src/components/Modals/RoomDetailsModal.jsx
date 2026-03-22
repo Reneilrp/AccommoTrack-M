@@ -424,17 +424,16 @@ export default function RoomDetailsModal({
                       </p>
                     )}
                   </div>
-                  {/* House Rules Section */}
+                  {/* Room Rules Section */}
                   <div>
                     <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-lg">
-                      House Rules
+                      Room Rules
                     </h4>
-                    {property.rules &&
-                    Array.isArray(property.rules) &&
-                    property.rules.length > 0 ? (
+                    {(room.rules && Array.isArray(room.rules) && room.rules.length > 0) || 
+                     (property.rules && Array.isArray(property.rules) && property.rules.length > 0) ? (
                       <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-5">
                         <ul className="space-y-3">
-                          {property.rules.map((rule, index) => (
+                          {(room.rules?.length > 0 ? room.rules : property.rules).map((rule, index) => (
                             <li
                               key={index}
                               className="flex items-start gap-3 text-sm text-gray-800 dark:text-gray-200"
@@ -713,7 +712,7 @@ export default function RoomDetailsModal({
                           <span className="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">
                             I have read and agree to the{" "}
                             <span className="font-medium text-green-700 dark:text-green-400">
-                              House Rules
+                              Room Rules
                             </span>{" "}
                             and policies.
                           </span>
