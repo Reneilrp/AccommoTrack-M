@@ -161,7 +161,7 @@ class Room extends Model
         // 2. Add beds from confirmed walk-in guests (who don't have a tenant_id/user account yet)
         // These are currently staying (start_date <= today <= end_date)
         $occupiedByWalkins = (int) Booking::where('room_id', $this->id)
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->whereNull('tenant_id')
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
@@ -191,7 +191,7 @@ class Room extends Model
 
         // Add walk-in guests (confirmed active bookings with no tenant_id)
         $walkins = Booking::where('room_id', $this->id)
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
             ->whereNull('tenant_id')
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())

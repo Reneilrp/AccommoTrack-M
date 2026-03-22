@@ -17,6 +17,7 @@ import About from '../screens/Settings/Support/About.jsx';
 import DevTeam from '../screens/Settings/Support/DevTeam/DevTeam.jsx';
 import AddProperty from '../screens/Properties/AddProperty.jsx';
 import DormProfile from '../screens/Properties/DormProfile.jsx';
+import DormProfileSettings from '../screens/Properties/DormProfileSettings.jsx';
 import Notifications from '../screens/Notifications/Notifications.jsx';
 import AllActivities from '../screens/Dashboard/AllActivities.jsx';
 import AddonManagement from '../screens/Addons/AddonManagement.jsx';
@@ -106,6 +107,9 @@ export default function LandlordNavigator({ onLogout }) {
       )}
       {canAccessPropertyManagement && (
         <Stack.Screen name="DormProfile" component={DormProfile} options={{ animation: 'none' }}/>
+      )}
+      {canAccessPropertyManagement && (
+        <Stack.Screen name="DormProfileSettings" component={DormProfileSettings} options={{ animation: 'none' }}/>
       )}
       <Stack.Screen name="PropertyDetails" component={PropertyDetailsScreen} options={{ animation: 'none' }}/>
       <Stack.Screen name="HelpSupport" component={HelpSupport} options={{ animation: 'none' }}/>

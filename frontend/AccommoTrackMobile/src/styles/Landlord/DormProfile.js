@@ -471,6 +471,40 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 10, 
     fontWeight: 'bold'
   },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    marginBottom: 16
+  },
+  floorsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8
+  },
+  floorButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface
+  },
+  floorButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  floorButtonText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '600'
+  },
+  floorButtonTextActive: {
+    color: theme.colors.textInverse
+  },
 });
 
 export default getStyles;

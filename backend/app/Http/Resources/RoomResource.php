@@ -44,7 +44,7 @@ class RoomResource extends JsonResource
 
                 // Add confirmed walk-in guests
                 $walkins = \App\Models\Booking::where('room_id', $this->id)
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
                     ->whereNull('tenant_id')
                     ->where('start_date', '<=', now())
                     ->where('end_date', '>=', now())

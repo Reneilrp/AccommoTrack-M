@@ -691,6 +691,14 @@ export default function DormProfileScreen({ route, navigation }) {
 
             <TouchableOpacity 
               style={[styles.outlineBtn, styles.outlineBtnPrimary]}
+              onPress={() => navigation.navigate('DormProfileSettings', { propertyId: form.id })}
+            >
+              <Ionicons name="settings-outline" size={20} color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 14 }}>Property Settings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.outlineBtn, styles.outlineBtnPrimary]}
               onPress={() => navigation.navigate('AddonManagement', { propertyId: form.id, propertyTitle: form.title })}
             >
               <Ionicons name="sparkles-outline" size={20} color={theme.colors.primary} />
