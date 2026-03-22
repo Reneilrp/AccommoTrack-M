@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class RoomService
 {
@@ -271,8 +273,14 @@ class RoomService
     private function handleImageUploads(Request $request, Room $room): void
     {
         if ($request->hasFile('images')) {
+            $manager = new ImageManager(new Driver);
             foreach ($request->file('images') as $file) {
-                $path = $file->store('room_images', 'public');
+                $image = $manager->read($file->getRealPath());
+                $image->scaleDown(width: 1920);
+                $encoded = $image->toWebp(80);
+                $filename = 'room_'.time().'_'.uniqid().'.webp';
+                $path = 'room_images/'.$filename;
+                Storage::disk('public')->put($path, (string) $encoded);
                 RoomImage::create([
                     'room_id' => $room->id,
                     'image_url' => Storage::url($path),

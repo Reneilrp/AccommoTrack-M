@@ -196,21 +196,21 @@ export default function AddProperty({ onBack, onSave }) {
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-    
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+
     const validFiles = [];
-    let hasLargeFile = false;
 
     files.forEach(file => {
-      if (file.size <= MAX_SIZE) {
-        validFiles.push(file);
-      } else {
-        hasLargeFile = true;
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name}: unsupported file type`);
+        return;
       }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name}: file too large (max 10 MB)`);
+        return;
+      }
+      validFiles.push(file);
     });
-
-    if (hasLargeFile) {
-      toast.error('Some images were skipped because they exceed the 10MB limit.');
-    }
 
     if (validFiles.length > 0) {
       setFormData(prev => ({
@@ -401,6 +401,11 @@ export default function AddProperty({ onBack, onSave }) {
     if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
     if (!formData.city) errors.city = 'City is required';
     if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
+
+    // At least 1 image required (even for drafts)
+    if (!Array.isArray(formData.images) || formData.images.length === 0) {
+      errors.images = 'At least 1 property image is required';
+    }
 
     // If property is marked eligible and we're submitting (not saving draft), credentials are required
     if (!isDraft && formData.isEligible && (!Array.isArray(formData.credentials) || formData.credentials.length === 0)) {

@@ -57,6 +57,7 @@ export const mapProperty = (property) => {
     description: property.description || '',
     rating: property.rating || null,
     image: property.image, // Passed from backend map in getAllProperties
+    images: property.images || [], // Full array of property images
     video_url: property.video_url, // Passed from backend map in getAllProperties
     rooms: Array.isArray(property.rooms) ? property.rooms.map(mapRoom).filter(Boolean) : [],
   };

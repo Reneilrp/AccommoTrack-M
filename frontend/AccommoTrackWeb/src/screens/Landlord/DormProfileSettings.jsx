@@ -393,10 +393,28 @@ export default function DormProfileSettings({
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+
+    const validFiles = [];
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name}: unsupported file type`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name}: file too large (max 10 MB)`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
     // Store File objects so they can be uploaded when user saves
     setDormData((prev) => ({
       ...prev,
-      images: [...(prev.images || []), ...files],
+      images: [...(prev.images || []), ...validFiles],
     }));
   };
 

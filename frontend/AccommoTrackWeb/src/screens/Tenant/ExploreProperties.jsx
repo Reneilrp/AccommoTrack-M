@@ -107,31 +107,50 @@ const ExploreProperties = () => {
     if (!property) return;
 
     const items = [];
+    const addedUrls = new Set();
 
     // 1. Add Video Tour if exists (as first item)
     if (property.video_url) {
       items.push({ type: "video", url: property.video_url });
     }
 
-    // 2. Add Property main image
-    if (property.image) {
-      items.push({ type: "image", url: getImageUrl(property.image) });
-    }
-
-    // 3. Add all unique room images
-    const roomImages = new Set();
-    (property.rooms || []).forEach((room) => {
-      if (room.image) roomImages.add(getImageUrl(room.image));
-      if (Array.isArray(room.images)) {
-        room.images.forEach((img) => roomImages.add(getImageUrl(img)));
-      }
-    });
-
-    roomImages.forEach((url) => {
-      // Don't duplicate the main property image if it's the same
-      if (url !== getImageUrl(property.image)) {
+    // 2. Add ALL property images (not just the primary)
+    const propertyImages = Array.isArray(property.images) ? property.images : [];
+    if (propertyImages.length > 0) {
+      propertyImages.forEach((img) => {
+        const url = getImageUrl(img);
+        if (url && !addedUrls.has(url)) {
+          addedUrls.add(url);
+          items.push({ type: "image", url });
+        }
+      });
+    } else if (property.image) {
+      // Fallback: if images array is empty but single image exists
+      const url = getImageUrl(property.image);
+      if (url) {
+        addedUrls.add(url);
         items.push({ type: "image", url });
       }
+    }
+
+    // 3. Add all unique room images (that aren't already in property images)
+    (property.rooms || []).forEach((room) => {
+      const roomImgs = Array.isArray(room.images) ? room.images : [];
+      // Also check room.image (single primary)
+      if (room.image) {
+        const url = getImageUrl(room.image);
+        if (url && !addedUrls.has(url)) {
+          addedUrls.add(url);
+          items.push({ type: "image", url });
+        }
+      }
+      roomImgs.forEach((img) => {
+        const url = getImageUrl(img);
+        if (url && !addedUrls.has(url)) {
+          addedUrls.add(url);
+          items.push({ type: "image", url });
+        }
+      });
     });
 
     setGalleryItems(items);
@@ -265,6 +284,9 @@ const ExploreProperties = () => {
           location: fullProperty.full_address || fullProperty.city || "",
           description: fullProperty.description || "",
           rating: fullProperty.rating || null,
+          rules: Array.isArray(fullProperty.property_rules)
+            ? fullProperty.property_rules
+            : [],
           // common owner fields from backend: landlord_id, user_id, owner_id or nested user/owner objects
           landlord_id:
             fullProperty.landlord_id ||
