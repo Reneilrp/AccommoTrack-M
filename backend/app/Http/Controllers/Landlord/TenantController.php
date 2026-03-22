@@ -527,6 +527,7 @@ class TenantController extends Controller
             }
 
             // 2. End current booking/assignment
+            $originalEndDate = null;
             if ($oldRoom) {
                 // Find latest active booking
                 $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
@@ -535,8 +536,18 @@ class TenantController extends Controller
                     ->first();
 
                 if ($activeBooking) {
+                    $originalEndDate = $activeBooking->end_date;
                     $activeBooking->end_date = now()->format('Y-m-d');
                     $activeBooking->save();
+
+                    // Cancel pending/unpaid invoices for the old booking
+                    \App\Models\Invoice::where('booking_id', $activeBooking->id)
+                        ->whereNotIn('status', ['paid', 'cancelled', 'void'])
+                        ->update([
+                            'status' => 'cancelled',
+                            'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Cancelled due to room transfer)')"),
+                        ]);
+
                     $this->bookingService->updateStatus($activeBooking, ['status' => 'completed']);
                 }
 
@@ -545,7 +556,16 @@ class TenantController extends Controller
 
             // 3. Start new booking for the new room
             $moveInDate = now()->format('Y-m-d');
-            $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+            
+            if ($originalEndDate) {
+                if (\Carbon\Carbon::parse($originalEndDate)->lte(\Carbon\Carbon::parse($moveInDate))) {
+                    $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(1)->format('Y-m-d');
+                } else {
+                    $endDate = $originalEndDate->format('Y-m-d');
+                }
+            } else {
+                $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+            }
 
             $newBooking = $this->bookingService->createBooking([
                 'room_id' => $newRoom->id,

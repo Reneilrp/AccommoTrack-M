@@ -230,6 +230,7 @@ export default function TenantPayments() {
             <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Property</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Room</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Due Date</th>
@@ -245,6 +246,9 @@ export default function TenantPayments() {
                   filtered.map((payment) => (
                     <tr key={payment.id}>
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{payment.propertyName}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                        {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
+                      </td>
                       <td className="px-6 py-4 text-sm font-semibold">{paymentService.formatAmount(payment.amount)}</td>
                       <td className="px-6 py-4 text-sm">{payment.date}</td>
                       <td className="px-6 py-4 text-sm">{payment.dueDate || '-'}</td>
@@ -268,7 +272,7 @@ export default function TenantPayments() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">No payments found</td>
+                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">No payments found</td>
                   </tr>
                 );
               })()}
