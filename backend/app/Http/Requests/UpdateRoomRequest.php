@@ -84,6 +84,7 @@ class UpdateRoomRequest extends FormRequest
             'capacity' => 'sometimes|integer|min:1',
             'pricing_model' => 'sometimes|in:full_room,per_bed',
             'status' => 'sometimes|in:available,occupied,maintenance',
+            'require_1month_advance' => 'sometimes|boolean',
             'current_tenant_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
             'rules' => 'nullable|array',

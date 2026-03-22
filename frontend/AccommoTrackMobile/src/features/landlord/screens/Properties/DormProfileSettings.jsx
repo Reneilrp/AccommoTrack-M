@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,6 +52,7 @@ const buildEmptyForm = () => ({
   floorLevel: [],
   curfewTime: '',
   curfewPolicy: '',
+  require1MonthAdvance: false,
 });
 
 const normalizeSettings = (data) => {
@@ -66,6 +68,7 @@ const normalizeSettings = (data) => {
     floorLevel: data?.floor_level ? String(data.floor_level).split(',').filter(Boolean) : [],
     curfewTime: data?.curfew_time || '',
     curfewPolicy: data?.curfew_policy || '',
+    require1MonthAdvance: !!data?.require_1month_advance,
   };
 };
 
@@ -131,6 +134,7 @@ export default function DormProfileSettings({ route, navigation }) {
       payload.append('floor_level', form.floorLevel.join(','));
       payload.append('curfew_time', form.curfewTime);
       payload.append('curfew_policy', form.curfewPolicy);
+      payload.append('require_1month_advance', form.require1MonthAdvance ? '1' : '0');
       
       // PropertyService.updateProperty handles multipart/form-data and _method spoofing
       const response = await PropertyService.updateProperty(propertyId, payload);
@@ -293,6 +297,24 @@ export default function DormProfileSettings({ route, navigation }) {
               </View>
             </View>
           )}
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Lease Advance</Text>
+          <Text style={styles.sectionSubtitle}>Require tenants to pay 1 month advance upon booking</Text>
+          
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Require 1-Month Advance</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>If enabled, move-in cost will include one extra month rent.</Text>
+            </View>
+            <Switch
+              value={form.require1MonthAdvance}
+              onValueChange={(val) => updateForm('require1MonthAdvance', val)}
+              trackColor={{ true: theme.colors.primary, false: '#CBD5E1' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
         </View>
 
         <View style={styles.sectionCard}>

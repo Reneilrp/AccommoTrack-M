@@ -45,6 +45,8 @@ class BookingResource extends JsonResource
             'status' => $this->status,
             'paymentStatus' => $this->payment_status,
             'payment_status' => $this->payment_status,
+            'paymentPlan' => $this->payment_plan,
+            'payment_plan' => $this->payment_plan,
             'notes' => $this->notes,
             'cancellation_reason' => $this->cancellation_reason,
             'cancelled_at' => $this->cancelled_at,

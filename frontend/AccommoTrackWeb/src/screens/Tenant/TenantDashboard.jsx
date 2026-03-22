@@ -1,18 +1,47 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { tenantService } from '../../services/tenantService';
-import { getImageUrl } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
-import { Home, Calendar, Wallet, AlertCircle, MessageSquare } from 'lucide-react';
+import {
+  Home, Calendar, Wallet, AlertCircle, MessageSquare,
+  Activity, CreditCard, ChevronRight, Bell, CalendarClock,
+  CheckCircle2, AlertTriangle, ArrowRight, Zap, Droplets, Wifi
+} from 'lucide-react';
 
+// ─── Shared Components ───────────────────────────────────────────────────────
+const StatusPill = ({ status }) => {
+  const styles = {
+    active: 'bg-green-500/15 text-green-400 border border-green-500/20',
+    ended: 'bg-slate-500/15 text-[#64748b] border border-slate-500/20',
+    overdue: 'bg-red-500/12 text-red-400 border border-red-500/20',
+    pending: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+    paid: 'bg-green-500/15 text-green-400 border border-green-500/20',
+  };
+  return (
+    <span className={`text-[12px] font-semibold px-3 py-1 rounded-full inline-block ${styles[status] || styles.active}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+};
+
+const RoomBadge = ({ roomNumber, color = '#22c55e' }) => (
+  <span className="inline-flex items-center gap-2 font-semibold font-mono text-sm text-[#f1f5f9]">
+    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+    Room {roomNumber}
+  </span>
+);
+
+const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═════════════════════════════════════════════════════════════════════════════
 const TenantDashboard = () => {
   const navigate = useNavigate();
   const { uiState, updateData } = useUIState();
-  
-  // Use cached data from UIState if available
+
   const cachedData = uiState.data.dashboard;
-  
   const [loading, setLoading] = useState(!cachedData);
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
@@ -20,22 +49,19 @@ const TenantDashboard = () => {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      // Only set loading true if we have no cached data
       if (!cachedData) setLoading(true);
-      
+
       const [currentStay, dashboardStats, activityRes] = await Promise.all([
         tenantService.getCurrentStay(),
         tenantService.getDashboardStats(),
         tenantService.getActivities()
       ]);
-      
+
       setStayData(currentStay);
       setStats(dashboardStats);
       setActivities(Array.isArray(activityRes.activities) ? activityRes.activities.slice(0, 5) : []);
-      
-      // Update the global UI State for instant mount next time
+
       updateData('dashboard', { stayData: currentStay, stats: dashboardStats, activities: activityRes.activities });
-      
     } catch (error) {
       console.error('Failed to load dashboard data', error);
     } finally {
@@ -43,24 +69,12 @@ const TenantDashboard = () => {
     }
   }, [cachedData, updateData]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   useEffect(() => {
-    const handleFocusRefresh = () => {
-      fetchDashboardData();
-    };
-
-    const handleVisibilityRefresh = () => {
-      if (document.visibilityState === 'visible') {
-        fetchDashboardData();
-      }
-    };
-
-    const handleNotificationRefresh = () => {
-      fetchDashboardData();
-    };
+    const handleFocusRefresh = () => fetchDashboardData();
+    const handleVisibilityRefresh = () => { if (document.visibilityState === 'visible') fetchDashboardData(); };
+    const handleNotificationRefresh = () => fetchDashboardData();
 
     window.addEventListener('focus', handleFocusRefresh);
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
@@ -75,271 +89,352 @@ const TenantDashboard = () => {
     };
   }, [fetchDashboardData]);
 
-  // Helper to format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP'
-    }).format(amount);
+  // ── Helpers ──
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount || 0);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
-  // Skeleton for dashboard loading state
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  // ── Derived Data ──
+  const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
+  const stays = hasActiveStays ? stayData.stays : [];
+
+  const totalActiveRooms = stays.length;
+  const totalDaysStayed = stays.reduce((sum, s) => sum + (s.booking?.daysStayed || s.booking?.days_stayed || 0), 0);
+  const totalMonthlyRent = stays.reduce((sum, s) => sum + (s.booking?.monthlyRent || s.booking?.monthly_rent || 0), 0);
+  const totalMonthlyAddons = stays.reduce((sum, s) => sum + (s.addons?.monthlyTotal || s.addons?.monthly_total || 0), 0);
+  const totalMonthlySummary = totalMonthlyRent + totalMonthlyAddons;
+  const unpaidBalance = stats?.payments?.totalDue || stats?.payments?.monthlyDue || 0;
+  const totalPaid = stats?.payments?.totalPaid || 0;
+
+  // ── Loading State ──
   if (loading) {
     return (
       <div className="space-y-6 font-sans">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <SkeletonCurrentStay />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)}
+        </div>
+        <SkeletonCurrentStay />
+      </div>
+    );
+  }
+
+  // ── Zero State ──
+  if (!hasActiveStays) {
+    return (
+      <div className="space-y-6 font-sans max-w-5xl mx-auto pb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: Home, label: 'Active Rooms', value: '0', color: 'green' },
+            { icon: Calendar, label: 'Days Stayed', value: '0', color: 'blue' },
+            { icon: Wallet, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
+            { icon: CheckCircle2, label: 'All Paid Up', value: 'Yes', color: 'green' },
+          ].map((card, i) => (
+            <div key={i} className="bg-[#1e2332] border border-[#2a3045] rounded-[14px] p-5 relative overflow-hidden">
+              <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${
+                card.color === 'green' ? 'bg-green-500' : card.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'
+              }`} />
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${
+                card.color === 'green' ? 'bg-green-500/15' : card.color === 'blue' ? 'bg-blue-500/12' : 'bg-purple-500/12'
+              }`}>
+                <card.icon className={`w-5 h-5 ${
+                  card.color === 'green' ? 'text-green-400' : card.color === 'blue' ? 'text-blue-400' : 'text-purple-400'
+                }`} />
+              </div>
+              <div className="text-[28px] font-bold tracking-tight text-[#f1f5f9]">{card.value}</div>
+              <div className="text-[13px] text-[#94a3b8] font-medium tracking-wide mt-1">{card.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-[#1e2332] border border-[#2a3045] rounded-[16px] p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+          <div className="w-24 h-24 bg-green-500/15 rounded-full flex items-center justify-center mb-6">
+            <Home className="w-12 h-12 text-green-400" />
           </div>
-          <div className="space-y-6">
-            <SkeletonStatCard />
-            <SkeletonStatCard />
-          </div>
+          <h2 className="text-2xl font-bold text-[#f1f5f9] mb-3">Ready to find your new home?</h2>
+          <p className="text-[15px] text-[#94a3b8] mb-8 max-w-md mx-auto leading-relaxed">
+            You don't have an active stay yet. Browse our verified properties and find the perfect room for your needs.
+          </p>
+          <button
+            onClick={() => navigate('/explore')}
+            className="px-8 py-3.5 bg-green-600 text-white rounded-xl font-bold text-[15px] hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
+          >
+            Explore Properties
+          </button>
         </div>
       </div>
     );
   }
 
-  const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
+  // ── Stat Card Config (Read Only) ──
+  const statCards = [
+    {
+      key: 'rooms', icon: Home, value: totalActiveRooms.toString(), label: 'Active Rooms', color: 'green',
+    },
+    {
+      key: 'days', icon: Calendar, value: totalDaysStayed.toString(), label: 'Days Stayed', color: 'blue',
+    },
+    {
+      key: 'rent', icon: Wallet, value: formatCurrency(totalMonthlySummary), label: 'Monthly Rent', color: 'purple',
+    },
+    {
+      key: 'status', 
+      icon: unpaidBalance > 0 ? AlertTriangle : CheckCircle2, 
+      value: unpaidBalance > 0 ? formatCurrency(unpaidBalance) : 'Fully Paid', 
+      label: unpaidBalance > 0 ? 'Balance Due' : 'Payment Status', 
+      color: unpaidBalance > 0 ? 'red' : 'green',
+    },
+  ];
 
-  // Calculate Total Monthly Rent across all active stays
-  const totalMonthlyRent = hasActiveStays
-    ? stayData.stays.reduce((total, stay) => total + (stay.booking?.monthlyRent || stay.booking?.monthly_rent || 0), 0)
-    : 0;
-  const totalMonthlyAddons = hasActiveStays
-    ? stayData.stays.reduce((total, stay) => total + (stay.addons?.monthlyTotal || stay.addons?.monthly_total || 0), 0)
-    : 0;
-  const totalMonthlySummary = totalMonthlyRent + totalMonthlyAddons;
-  const totalDaysStayed = hasActiveStays
-    ? stayData.stays.reduce((total, stay) => total + (stay.booking?.daysStayed || stay.booking?.days_stayed || 0), 0)
-    : 0;
+  const colorMap = {
+    green: { iconBg: 'bg-green-500/15', iconText: 'text-green-400', border: 'bg-green-500' },
+    blue: { iconBg: 'bg-blue-500/12', iconText: 'text-blue-400', border: 'bg-blue-400' },
+    purple: { iconBg: 'bg-purple-500/12', iconText: 'text-purple-400', border: 'bg-purple-400' },
+    red: { iconBg: 'bg-red-500/15 text-red-400 shadow-[0_0_15px_rgba(248,113,113,0.15)] border-red-500/50 border', iconText: 'text-red-400', border: 'bg-red-500' },
+  };
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-6 font-sans max-w-6xl mx-auto">
-      {/* Top Row: Global Metrics (Matching Mobile's primary 4) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Current Room Card */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900/30 mb-2">
-            <Home className="w-5 h-5 text-green-600 dark:text-green-400" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white truncate">
-            {hasActiveStays ? stayData.stays.length : '0'}
-          </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-            {stayData?.stays?.length === 1 ? 'Current Room' : 'Current Rooms'}
-          </p>
+    <div className="space-y-8 font-sans max-w-5xl mx-auto pb-12">
+      {/* ── Page Header ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#f1f5f9]">Dashboard</h1>
+          <p className="text-[14px] text-[#94a3b8] mt-1">{getGreeting()} — here is your stay overview.</p>
         </div>
+        <button
+          onClick={() => navigate('/notifications')}
+          className="w-10 h-10 bg-[#1e2332] border border-[#2a3045] rounded-xl flex items-center justify-center relative hover:bg-[#252b3b] transition-colors"
+        >
+          <Bell className="w-5 h-5 text-[#94a3b8]" />
+          {(stats?.notifications?.unread || 0) > 0 && (
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-400 rounded-full border border-[#1e2332]" />
+          )}
+        </button>
+      </div>
 
-        {/* Days Stayed Card */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 mb-2">
-            <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      {/* ── High Priority Action Notification (Unpaid Balance) ── */}
+      {unpaidBalance > 0 && (
+        <div className="bg-gradient-to-r from-red-500/15 to-[#1e2332] border border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-[0_4px_24px_rgba(248,113,113,0.06)]">
+          <div className="flex items-start md:items-center gap-4">
+            <div className="bg-red-500/20 p-3 rounded-full flex-shrink-0 mt-1 md:mt-0">
+              <AlertCircle className="w-7 h-7 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-red-100">Action Required: Balance Due</h2>
+              <p className="text-[15px] text-red-200/80 mt-1 leading-snug">
+                You have an outstanding balance of <span className="font-bold text-red-300">{formatCurrency(unpaidBalance)}</span>. Please settle it to avoid late fees.
+              </p>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {totalDaysStayed}
-          </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Days Stayed</p>
+          <button
+            onClick={() => navigate('/payments')}
+            className="w-full md:w-auto px-8 py-3.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+          >
+            Pay Now <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
+      )}
 
-        {/* Monthly Rent Card */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 mb-2">
-            <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+      {/* ── Upcoming Booking Alert ── */}
+      {stayData?.upcomingBooking && (
+        <div className="bg-gradient-to-r from-blue-500/15 to-[#1e2332] border border-blue-500/30 rounded-[16px] p-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-500/20 p-3 rounded-full flex-shrink-0">
+              <CalendarClock className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-[16px] font-bold text-blue-100">Upcoming Stay at {stayData.upcomingBooking.property}</h2>
+              <p className="text-[14px] text-blue-200/80 mt-0.5">
+                Begins on <span className="font-semibold">{formatDate(stayData.upcomingBooking.startDate)}</span>
+              </p>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {formatCurrency(totalMonthlySummary)}
-          </p>
-          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Rent: {formatCurrency(totalMonthlyRent)} | Add-ons: {formatCurrency(totalMonthlyAddons)}</p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Monthly Payment Summary</p>
+          <button
+            onClick={() => navigate('/bookings')}
+            className="px-5 py-2.5 bg-[#1e2332] text-blue-300 font-bold rounded-xl border border-blue-500/30 hover:bg-blue-500/10 transition-colors"
+          >
+            View
+          </button>
         </div>
+      )}
 
-        {/* Outstanding Due Card */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100 dark:bg-red-900/30 mb-2">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-          </div>
-          <p className={`text-2xl font-bold ${stats?.payments?.monthlyDue > 0 ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
-            {formatCurrency(stats?.payments?.monthlyDue || 0)}
-          </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Outstanding Due</p>
+      {/* ── Stat Cards Grid (Read Only) ── */}
+      <h2 className="text-[18px] font-bold text-[#f1f5f9] mb-4">Quick Summary</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-[-10px]">
+        {statCards.map((card) => {
+          const cm = colorMap[card.color];
+          return (
+            <div key={card.key} className="bg-[#1e2332] border border-[#2a3045] rounded-[16px] p-6 relative overflow-hidden">
+              <div className={`absolute top-0 left-0 right-0 h-[4px] rounded-t-[16px] ${cm.border}`} />
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${cm.iconBg}`}>
+                <card.icon className={`w-5 h-5 ${cm.iconText}`} />
+              </div>
+              <div className="text-[28px] font-bold tracking-tight text-[#f1f5f9] font-mono">{card.value}</div>
+              <div className="text-[14px] text-[#94a3b8] font-medium tracking-wide mt-1.5">{card.label}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Your Active Rooms (Conversational Cards) ── */}
+      <div className="mt-8">
+        <h2 className="text-[18px] font-bold text-[#f1f5f9] mb-5">Your Active Rooms</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {stays.map((stay, idx) => {
+            const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
+            const rent = stay.financials?.monthlyRent || stay.booking?.monthlyRent || stay.booking?.monthly_rent || 0;
+            const addons = stay.financials?.monthlyAddons || stay.addons?.monthlyTotal || stay.addons?.monthly_total || 0;
+            const roomTotal = stay.financials?.monthlyTotal || (rent + addons);
+            const moveIn = formatDate(stay.booking?.startDate || stay.booking?.start_date);
+            const daysStayed = stay.booking?.daysStayed || stay.booking?.days_stayed || 0;
+
+            return (
+              <div key={stay.booking.id} className="bg-[#1e2332] border border-[#2a3045] rounded-[16px] overflow-hidden">
+                <div className="px-6 py-4 border-b border-[#2a3045] flex items-center justify-between bg-[#232840]/50">
+                  <RoomBadge roomNumber={stay.room?.roomNumber || stay.room?.room_number} color={roomColor} />
+                  <StatusPill status="active" />
+                </div>
+                <div className="px-6 py-5 space-y-4">
+                  <div>
+                    <p className="text-[15px] font-semibold text-[#e2e8f0]">{stay.property?.title}</p>
+                    <p className="text-[14px] text-[#94a3b8] mt-0.5">
+                      {stay.room?.roomType || stay.room?.room_type || 'Standard Room'} • {stay.room?.floor ? `${stay.room.floor}${['st','nd','rd'][stay.room.floor - 1] || 'th'} Floor` : 'Floor not specified'}
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 bg-[#181c28] rounded-xl border border-[#2a3045]">
+                    <div className="flex justify-between items-center text-[14px] mb-2">
+                      <span className="text-[#94a3b8]">Monthly Room Total</span>
+                      <span className="font-bold text-[#f1f5f9] text-[15px]">{formatCurrency(roomTotal)}</span>
+                    </div>
+                    {addons > 0 && (
+                      <p className="text-[12.5px] text-[#64748b] mt-1 italic">
+                        Includes Base Rent ({formatCurrency(rent)}) and Add-ons ({formatCurrency(addons)})
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-4 pt-1">
+                    <div className="flex-1">
+                      <p className="text-[13px] text-[#64748b] mb-1">Move-in Date</p>
+                      <p className="text-[14px] font-medium text-[#e2e8f0]">{moveIn}</p>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[13px] text-[#64748b] mb-1">Duration</p>
+                      <p className="text-[14px] font-medium text-[#e2e8f0]">{daysStayed} days so far</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Middle Area: The "My Stays" Hub */}
-      <div className="space-y-6">
-        {hasActiveStays ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {stayData.stays.map((stay) => (
-              <div
-                key={stay.booking.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate('/bookings')}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    navigate('/bookings');
-                  }
-                }}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden group cursor-pointer hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/60"
-              >
-                {/* Property Image and Overlay */}
-                <div className="relative h-52">
-                  <img 
-                    src={stay.property?.image || getImageUrl(stay.property?.image_url) || 'https://via.placeholder.com/800x400'} 
-                    alt="Property" 
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-4">
-                    <h2 className="text-xl font-bold text-white">{stay.property?.title}</h2>
-                    <p className="text-sm text-gray-200">{stay.property?.address || stay.property?.full_address}</p>
-                  </div>
-                </div>
-
-                {/* Property Content */}
-                <div className="p-4">
-                  {/* Landlord Section */}
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={getImageUrl(stay.landlord?.profile_image) || `https://ui-avatars.com/api/?name=${stay.landlord?.name}&background=random`}
-                      alt={stay.landlord?.name}
-                      className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-600 object-cover shadow"
-                    />
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Property Manager</p>
-                      <p className="text-base font-bold text-gray-900 dark:text-white">
-                        {stay.landlord?.name || 'Landlord'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        navigate('/messages', { state: { startConversation: true, recipient: { id: stay.landlord?.id, name: stay.landlord?.name }, property: { id: stay.property?.id, title: stay.property?.title || stay.property?.name } } });
-                      }}
-                      className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Zero-State Main Card */
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
-            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
-              <Home className="w-10 h-10 text-green-600 dark:text-green-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ready to find your new home?</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto">
-              You don't have an active stay yet. Browse our verified properties and find the perfect room for your needs.
-            </p>
+      {/* ── Bottom Row: Activity & Simplified Payment Summary ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        
+        {/* Recent Activity */}
+        <div className="bg-[#1e2332] border border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
+          <div className="px-6 py-5 border-b border-[#2a3045] flex items-center justify-between">
+            <h3 className="text-[16px] font-bold text-[#f1f5f9]">Recent Activity</h3>
             <button
-              onClick={() => navigate('/explore')}
-              className="px-8 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
-            >
-              Explore Properties
-            </button>
-          </div>
-        )}
-
-        {/* Bottom Alerts/Notifications */}
-        <div className="space-y-3">
-          {stayData?.upcomingBooking && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 flex items-center justify-between gap-4 shadow-md">
-              <div className="flex items-center gap-4">
-                <div className="bg-white dark:bg-blue-800/50 p-2 rounded-lg shadow-sm">
-                  <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-blue-900 dark:text-blue-100 tracking-tight">Upcoming Stay at {stayData.upcomingBooking.property}</p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mt-0.5">
-                    Begins on {new Date(stayData.upcomingBooking.startDate).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => navigate('/bookings')}
-                className="text-xs bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 font-bold px-4 py-2 rounded-lg shadow-sm border border-blue-100 dark:border-blue-800 hover:bg-blue-50 transition-colors"
-              >
-                View
-              </button>
-            </div>
-          )}
-
-          {stats?.payments?.monthlyDue > 0 && (
-             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-4 flex items-center justify-between gap-4 shadow-md">
-              <div className="flex items-center gap-4">
-                <div className="bg-white dark:bg-red-800/50 p-2 rounded-lg shadow-sm">
-                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-red-900 dark:text-red-100 tracking-tight">Outstanding Balance Due</p>
-                  <p className="text-xs text-red-700 dark:text-red-300 font-medium mt-0.5">
-                    You have an unpaid balance of {formatCurrency(stats?.payments?.monthlyDue)}.
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => navigate('/payments')}
-                className="text-xs bg-white dark:bg-gray-800 text-red-700 dark:text-red-300 font-bold px-4 py-2 rounded-lg shadow-sm border border-red-100 dark:border-red-800 hover:bg-red-50 transition-colors"
-              >
-                Pay Now
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Recent Activity Feed */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-              Recent Activity
-            </h3>
-            <button 
               onClick={() => navigate('/notifications')}
-              className="text-sm font-bold text-green-600 dark:text-green-400 hover:underline"
+              className="text-[13px] text-[#64748b] font-medium hover:text-[#e2e8f0] transition-colors"
             >
               View All
             </button>
           </div>
-          
-          {activities.length > 0 ? (
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {activities.map((activity, idx) => (
-                <div key={idx} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      activity.color === 'green' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
-                      activity.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
-                      activity.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
-                      'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}>
-                      {activity.type === 'booking' ? <Calendar className="w-5 h-5" /> :
-                       activity.type === 'payment' ? <Wallet className="w-5 h-5" /> :
-                       activity.type === 'room' ? <Home className="w-5 h-5" /> :
-                       <MessageSquare className="w-5 h-5" />}
+          <div className="px-6 py-2 flex-1">
+            {activities.length > 0 ? (
+              activities.map((activity, idx) => {
+                const iconMap = { booking: Calendar, payment: CreditCard, room: Home, message: MessageSquare };
+                const IconComp = iconMap[activity.type] || Activity;
+                
+                return (
+                  <div key={idx} className="flex items-start gap-4 py-4 border-b border-[#2a3045] last:border-b-0">
+                    <div className="w-9 h-9 rounded-full bg-[#252b3b] border border-[#303650] flex items-center justify-center flex-shrink-0">
+                      <IconComp className="w-4 h-4 text-[#94a3b8]" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{activity.action}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{activity.description}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {new Date(activity.timestamp).toLocaleString()}
+                    <div>
+                      <p className="text-[14.5px] text-[#f1f5f9] leading-snug">
+                        {activity.action} {activity.description && <span className="text-[#94a3b8] font-normal">— {activity.description}</span>}
+                      </p>
+                      <p className="text-[13px] text-[#64748b] mt-1">
+                        {new Date(activity.timestamp).toLocaleString('en-US', {
+                          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+                        })}
                       </p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">No recent activities to show.</p>
-            </div>
-          )}
+                );
+              })
+            ) : (
+              <div className="py-8 flex flex-col items-center justify-center text-center">
+                <Activity className="w-10 h-10 text-[#303650] mb-3" />
+                <p className="text-[14px] text-[#64748b]">No recent activities to show.</p>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Simplified Payment Summary */}
+        <div className="bg-[#1e2332] border border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
+          <div className="px-6 py-5 border-b border-[#2a3045]">
+            <h3 className="text-[16px] font-bold text-[#f1f5f9]">Current Payment Cycle</h3>
+            <p className="text-[13px] text-[#64748b] mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+          </div>
+          <div className="px-6 py-5 flex-1 flex flex-col justify-center">
+            
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-[15px] text-[#94a3b8]">Total Charges (Rent & Add-ons)</span>
+                <span className="text-[15px] font-semibold text-[#f1f5f9]">{formatCurrency(totalBilled || totalMonthlySummary)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[15px] text-[#94a3b8]">Total Paid Amount</span>
+                <span className="text-[15px] font-semibold text-green-400">−{formatCurrency(totalPaid)}</span>
+              </div>
+            </div>
+
+            <div className="pt-5 border-t border-[#2a3045]">
+              <div className="flex justify-between items-center mb-5">
+                <span className="text-[16px] font-bold text-[#f1f5f9]">Remaining Balance</span>
+                <span className={`text-[20px] font-bold font-mono ${unpaidBalance > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {formatCurrency(unpaidBalance)}
+                </span>
+              </div>
+
+              {unpaidBalance > 0 ? (
+                <button
+                  onClick={() => navigate('/payments')}
+                  className="w-full py-3.5 bg-[#252b3b] border border-[#303650] text-[#f1f5f9] rounded-xl text-[15px] font-semibold hover:bg-[#303650] transition-colors"
+                >
+                  Make a Payment
+                </button>
+              ) : (
+                <div className="w-full py-3.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-[15px] font-semibold text-center flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" /> You are all caught up!
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+
       </div>
     </div>
   );

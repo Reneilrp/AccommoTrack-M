@@ -90,6 +90,7 @@ class StoreRoomRequest extends FormRequest
             'capacity' => 'required|integer|min:1',
             'pricing_model' => 'required|in:full_room,per_bed',
             'status' => 'sometimes|in:available,occupied,maintenance',
+            'require_1month_advance' => 'sometimes|boolean',
             'description' => 'nullable|string',
             'rules' => 'nullable|array',
             'rules.*' => 'string',

@@ -119,6 +119,7 @@ class BookingService
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
+                'payment_plan' => $data['payment_plan'] ?? 'full',
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -230,14 +231,40 @@ class BookingService
         $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
         if (! $existingInvoice) {
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
+            
+            // Default amount is total
+            $amount = $booking->total_amount;
+            $description = 'Initial invoice for booking '.$booking->booking_reference;
+
+            // If monthly plan and more than 1 month, first invoice is just first month's rent
+            if ($booking->payment_plan === 'monthly' && $booking->total_months > 1) {
+                $amount = $booking->monthly_rent;
+                $description = 'First month rent for booking '.$booking->booking_reference;
+                
+                // Add recurring addons to first invoice if any
+                $recurringAddonAmount = $booking->addons()
+                    ->where('booking_addons.status', 'active')
+                    ->where('price_type', 'monthly')
+                    ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+                
+                $amount += $recurringAddonAmount;
+            }
+
+            // Handle 1 month advance if room or property requires it
+            if ($booking->room->requiresAdvance()) {
+                $advanceAmount = $booking->monthly_rent;
+                $amount += $advanceAmount;
+                $description .= ' (includes 1 month advance)';
+            }
+
             \App\Models\Invoice::create([
                 'reference' => $reference,
                 'landlord_id' => $booking->landlord_id,
                 'property_id' => $booking->property_id,
                 'booking_id' => $booking->id,
                 'tenant_id' => $booking->tenant_id, // can be null for walk-ins
-                'description' => 'Initial invoice for booking '.$booking->booking_reference,
-                'amount_cents' => (int) round($booking->total_amount * 100),
+                'description' => $description,
+                'amount_cents' => (int) round($amount * 100),
                 'currency' => 'PHP',
                 'status' => 'pending',
                 'issued_at' => now(),
@@ -247,6 +274,7 @@ class BookingService
             Log::info('Auto-generated invoice for confirmed booking', [
                 'booking_id' => $booking->id,
                 'reference' => $reference,
+                'plan' => $booking->payment_plan,
             ]);
         }
 

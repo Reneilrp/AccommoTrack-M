@@ -84,6 +84,7 @@ class Room extends Model
         'capacity',
         'pricing_model',
         'status',
+        'require_1month_advance',
         'current_tenant_id',
         'description',
         'rules',
@@ -96,9 +97,19 @@ class Room extends Model
         'daily_rate' => 'decimal:2',
         'min_stay_days' => 'integer',
         'capacity' => 'integer',
+        'require_1month_advance' => 'boolean',
         'current_tenant_id' => 'integer',
         'rules' => 'array',
     ];
+
+    /**
+     * Resolve if this specific room or its parent property requires 1 month advance.
+     * Room setting takes precedence if true, otherwise fallback to property.
+     */
+    public function requiresAdvance()
+    {
+        return $this->require_1month_advance || ($this->property?->require_1month_advance ?? false);
+    }
 
     /**
      * Relationship: Room belongs to a Property

@@ -369,12 +369,23 @@ export default function BookingDetails() {
                             <Text style={[styles.paymentValue, { color: theme.colors.text }]}>₱{(booking.monthlyRent || 0).toLocaleString()}</Text>
                         </View>
                         <View style={styles.paymentRow}>
-                            <Text style={[styles.paymentLabel, { color: theme.colors.text }]}>Total Amount</Text>
+                            <Text style={[styles.paymentLabel, { color: theme.colors.text }]}>Payment Plan</Text>
+                            <Text style={[styles.paymentValue, { color: theme.colors.text, textTransform: 'capitalize' }]}>
+                                {booking.payment_plan || 'Full Payment'}
+                            </Text>
+                        </View>
+                        <View style={styles.paymentRow}>
+                            <Text style={[styles.paymentLabel, { color: theme.colors.text }]}>Total Stay Amount</Text>
                             <Text style={[styles.paymentValue, { color: theme.colors.text, fontWeight: '700' }]}>₱{(booking.amount || 0).toLocaleString()}</Text>
                         </View>
+                        {booking.payment_plan === 'monthly' && (
+                            <Text style={[styles.infoLabel, { color: theme.colors.primary, fontSize: 11, marginTop: 4, fontStyle: 'italic' }]}>
+                                * You are on a monthly payment plan. Check individual invoices in the Payments tab.
+                            </Text>
+                        )}
                         <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
                         <View style={styles.paymentStatusRow}>
-                            <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Payment Status</Text>
+                            <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Overall Payment Status</Text>
                             <View style={[styles.statusPill, { backgroundColor: paymentStyle.bg }]}>
                                 <Text style={[styles.statusPillText, { color: paymentStyle.color }]}>{booking.paymentStatus?.toUpperCase() || 'UNPAID'}</Text>
                             </View>

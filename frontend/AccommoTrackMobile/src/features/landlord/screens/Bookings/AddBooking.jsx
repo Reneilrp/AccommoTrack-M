@@ -39,6 +39,7 @@ export default function AddBooking({ navigation }) {
     checkOut: new Date(new Date().setMonth(new Date().getMonth() + 1)),
     amount: '',
     paymentStatus: 'unpaid',
+    paymentPlan: 'full',
   });
 
   const [showCheckIn, setShowCheckIn] = useState(false);
@@ -159,6 +160,7 @@ export default function AddBooking({ navigation }) {
         end_date: formData.checkOut.toISOString().split('T')[0],
         amount: parseFloat(formData.amount),
         payment_status: formData.paymentStatus,
+        payment_plan: formData.paymentPlan,
       };
 
       if (selectedGuest) {
@@ -390,6 +392,20 @@ export default function AddBooking({ navigation }) {
                 <Picker.Item label="Unpaid" value="unpaid" />
                 <Picker.Item label="Partial" value="partial" />
                 <Picker.Item label="Paid" value="paid" />
+              </Picker>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Payment Plan</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={formData.paymentPlan}
+                onValueChange={(value) => setFormData({ ...formData, paymentPlan: value })}
+                style={styles.picker}
+              >
+                <Picker.Item label="Full Payment (Total Stay)" value="full" />
+                <Picker.Item label="Monthly Installments" value="monthly" />
               </Picker>
             </View>
           </View>

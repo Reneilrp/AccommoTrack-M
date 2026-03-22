@@ -131,6 +131,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     end_date: null,
     notes: '',
     payment_method: 'cash',
+    payment_plan: 'full',
   });
 
   const [totalPrice, setTotalPrice] = useState(0);
@@ -304,6 +305,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       end_date: defaultEndDate,
       notes: '',
       payment_method: 'cash', // Reset to default
+      payment_plan: 'full',
     });
 
     setBookingModalVisible(true);
@@ -369,6 +371,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         start_date: bookingData.start_date.toISOString().split('T')[0],
         end_date: bookingData.end_date.toISOString().split('T')[0],
         payment_method: bookingData.payment_method || 'cash',
+        payment_plan: bookingData.payment_plan,
         notes: bookingData.notes || null
       };
 
@@ -817,6 +820,46 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               </View>
             </View>
 
+            {/* Payment Plan Selection - Only for stays >= 2 months */}
+            {pricingBreakdown && pricingBreakdown.months >= 2 && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Payment Plan <Text style={{color: '#ef4444'}}>*</Text></Text>
+                
+                <View style={styles.paymentMethodRow}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_plan === 'full' && styles.paymentMethodBtnActive
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'full' }))}
+                  >
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_plan === 'full' && styles.paymentMethodBtnTextActive
+                     ]}>Full</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[
+                      styles.paymentMethodBtn, 
+                      bookingData.payment_plan === 'monthly' && styles.paymentMethodBtnActive
+                    ]}
+                    onPress={() => setBookingData(prev => ({ ...prev, payment_plan: 'monthly' }))}
+                  >
+                     <Text style={[
+                       styles.paymentMethodBtnText, 
+                       bookingData.payment_plan === 'monthly' && styles.paymentMethodBtnTextActive
+                     ]}>Monthly</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.summaryNote, { marginTop: 4, fontStyle: 'italic' }]}>
+                  {bookingData.payment_plan === 'monthly' 
+                    ? 'Pay the first month now to confirm, then pay monthly.'
+                    : 'Pay the total amount within 3 days to confirm your booking.'}
+                </Text>
+              </View>
+            )}
+
             {/* Duration & Cost Summary */}
             {bookingData.end_date && (
               <View style={styles.summaryContainer}>
@@ -830,17 +873,37 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     )}
                   </Text>
                 </View>
+                
+                {activeRoom.requires_advance && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>1-Month Advance</Text>
+                    <Text style={styles.summaryValue}>
+                      ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                   <Text style={styles.summaryLabelBold}>Total Amount</Text>
                   <Text style={styles.summaryValueBold}>
-                    {isPricingLoading ? '...' : `₱${(Number(totalPrice) || 0).toLocaleString()}`}
+                    {isPricingLoading ? '...' : `₱${(
+                      (Number(totalPrice) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0)
+                    ).toLocaleString()}`}
                   </Text>
                 </View>
-                {pricingBreakdown && pricingBreakdown.months > 0 && (
-                  <Text style={styles.summaryNote}>
-                    ₱${(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × ${pricingBreakdown.months}
-                  </Text>
-                )}
+                
+                <View style={{ marginTop: 4 }}>
+                  {pricingBreakdown && pricingBreakdown.months > 0 && (
+                    <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
+                      Rent: ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × {pricingBreakdown.months}
+                    </Text>
+                  )}
+                  {activeRoom.requires_advance && (
+                    <Text style={[styles.summaryNote, { color: theme.colors.primary, fontWeight: '600' }]}>
+                      * Includes 1-month advance required for this room
+                    </Text>
+                  )}
+                </View>
               </View>
             )}
 

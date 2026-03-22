@@ -49,6 +49,7 @@ class StorePropertyRequest extends FormRequest
             'is_published' => 'sometimes|boolean',
             'is_available' => 'sometimes|boolean',
             'is_eligible' => 'sometimes|boolean',
+            'require_1month_advance' => 'sometimes|boolean',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',

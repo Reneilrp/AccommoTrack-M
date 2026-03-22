@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
   Dimensions,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -127,6 +128,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     pricingModel: "full_room",
     description: "",
     status: "available",
+    require1MonthAdvance: false,
     amenities: [],
     rules: [],
   });
@@ -409,6 +411,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       pricingModel: initialPM,
       description: "",
       status: "available",
+      require1MonthAdvance: false,
       amenities: [],
       rules: [],
     });
@@ -434,6 +437,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       status: room.status || "available",
       amenities: parseList(room.amenities),
       rules: parseList(room.rules),
+      require1MonthAdvance: !!room.require_1month_advance,
       occupied: room.occupied || 0,
     });
     setSelectedImages([]);
@@ -527,6 +531,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       payload.append("min_stay_days", formData.minStayDays);
       payload.append("description", formData.description || "");
       payload.append("status", formData.status);
+      payload.append("require_1month_advance", formData.require1MonthAdvance ? "1" : "0");
 
       if (formData.monthlyRate)
         payload.append("monthly_rate", formData.monthlyRate);
@@ -1064,6 +1069,20 @@ export default function RoomManagementScreen({ navigation, route }) {
                   </View>
                 </TouchableOpacity>
               )}
+            </View>
+
+            <Text style={styles.sectionTitle}>Lease Advance</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={styles.label}>Require 1-Month Advance</Text>
+                <Text style={styles.helperText}>If enabled, tenants must pay an extra month upfront. This overrides property defaults.</Text>
+              </View>
+              <Switch
+                value={formData.require1MonthAdvance}
+                onValueChange={(v) => handleInputChange("require1MonthAdvance", v)}
+                trackColor={{ true: "#16A34A", false: "#CBD5E1" }}
+                thumbColor="#FFFFFF"
+              />
             </View>
 
             <Text style={styles.sectionTitle}>Description (Optional)</Text>

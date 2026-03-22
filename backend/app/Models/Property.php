@@ -151,6 +151,7 @@ class Property extends Model
 
         // Payment Methods
         'accepted_payments',
+        'require_1month_advance',
     ];
 
     protected $casts = [
@@ -169,6 +170,7 @@ class Property extends Model
         'is_published' => 'boolean',
         'is_available' => 'boolean',
         'is_eligible' => 'boolean',
+        'require_1month_advance' => 'boolean',
         'property_rules' => 'array',
         'accepted_payments' => 'array',
     ];

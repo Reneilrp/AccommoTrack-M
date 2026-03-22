@@ -678,6 +678,10 @@ export default function BookingsScreen({ navigation }) {
                     <Text style={styles.infoLabel}>Monthly Rent</Text>
                     <Text style={styles.infoValue}>{formatCurrency(selectedBooking.monthlyRent || selectedBooking.amount)}</Text>
                   </View>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Payment Plan</Text>
+                    <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{selectedBooking.paymentPlan || 'Full'}</Text>
+                  </View>
                 </View>
                 <View style={styles.totalAmountBox}>
                   <Text style={styles.totalAmountLabel}>Total Amount</Text>

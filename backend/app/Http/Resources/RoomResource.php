@@ -63,6 +63,8 @@ class RoomResource extends JsonResource
                 return array_merge($list, $walkins);
             }),
             'status' => $this->status,
+            'require_1month_advance' => (bool) $this->require_1month_advance,
+            'requires_advance' => (bool) $this->requiresAdvance(),
             'description' => $this->description,
             'rules' => $this->rules ?? [],
             'amenities' => $this->whenLoaded('amenities', fn () => $this->amenities->pluck('name')->toArray(), []),

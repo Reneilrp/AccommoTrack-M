@@ -49,6 +49,7 @@ class RoomService
                 'capacity' => $capacity,
                 'pricing_model' => $pricingModel,
                 'status' => $validatedData['status'] ?? 'available',
+                'require_1month_advance' => $validatedData['require_1month_advance'] ?? false,
                 'description' => $validatedData['description'] ?? null,
                 'rules' => $validatedData['rules'] ?? [],
             ]);

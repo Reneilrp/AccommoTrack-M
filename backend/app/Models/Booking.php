@@ -94,6 +94,7 @@ class Booking extends Model
         'total_amount',
         'status',
         'payment_status',
+        'payment_plan',
         'payment_method',
         'notes',
         'cancelled_at',

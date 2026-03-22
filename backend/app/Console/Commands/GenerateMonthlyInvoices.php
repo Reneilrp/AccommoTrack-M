@@ -34,7 +34,9 @@ class GenerateMonthlyInvoices extends Command
         Log::info('Starting monthly invoice generation task...');
         $this->info('Starting monthly invoice generation task...');
 
-        $bookings = Booking::whereIn('status', ['confirmed', 'active'])->get();
+        $bookings = Booking::whereIn('status', ['confirmed', 'active'])
+            ->where('payment_plan', 'monthly')
+            ->get();
         $generatedCount = 0;
         $now = Carbon::now();
 
