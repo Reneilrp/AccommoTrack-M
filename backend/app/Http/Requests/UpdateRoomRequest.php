@@ -77,8 +77,8 @@ class UpdateRoomRequest extends FormRequest
                     }
                 },
             ],
-            'monthly_rate' => 'sometimes|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
-            'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
+            'monthly_rate' => 'sometimes|nullable|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
+            'daily_rate' => 'sometimes|nullable|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
             'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',
             'min_stay_days' => 'nullable|integer|min:1',
             'capacity' => 'sometimes|integer|min:1',
