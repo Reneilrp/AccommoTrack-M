@@ -22,6 +22,8 @@ import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
+import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
+
 // —————— Terms & Conditions Modal ——————
 const TermsModal = ({ visible, onClose, theme }) => {
   const styles = useMemo(() => getStyles(theme), [theme]);
@@ -29,30 +31,51 @@ const TermsModal = ({ visible, onClose, theme }) => {
     <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={styles.fullScreenModal}>
         <View style={styles.modalHeader}>
-          <Text style={styles.fullModalTitle}>Terms & Conditions</Text>
+          <View>
+            <Text style={styles.fullModalTitle}>Terms & Conditions</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginTop: 2 }}>Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</Text>
+          </View>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={28} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
-          <Text style={{ color: theme.colors.text, fontSize: 14, lineHeight: 22, marginBottom: 12 }}>
-            By registering as a Landlord on AccommoTrack, you agree to the following terms and conditions:
-          </Text>
-          {[
-            { title: '1. Account Responsibilities', body: 'You are responsible for maintaining the confidentiality of your account credentials. All activities under your account are your responsibility.' },
-            { title: '2. Landlord Obligations', body: 'You must provide accurate property listings, maintain safe and habitable accommodations, respond to tenant maintenance requests promptly, and comply with all local housing regulations.' },
-            { title: '3. Document Verification', body: 'You must submit valid government-issued identification and business/accommodation permits. Fraudulent documents will result in account termination.' },
-            { title: '4. Booking & Payment Policies', body: 'You agree to honor confirmed bookings. Cancellation and refund policies must be clearly stated in your property listings. AccommoTrack may facilitate payment processing between tenants and landlords.' },
-            { title: '5. Privacy & Data', body: 'Your personal information will be handled in accordance with our Privacy Policy. Tenant data shared with you must be kept confidential and used only for accommodation purposes.' },
-            { title: '6. Liability', body: 'AccommoTrack is a platform connecting landlords and tenants. We are not responsible for disputes, damages, or losses arising from rental agreements between parties.' },
-            { title: '7. Platform Rules', body: 'AccommoTrack reserves the right to suspend or terminate accounts that violate these terms, engage in fraudulent activity, or receive repeated complaints from tenants.' },
-          ].map((section, i) => (
-            <View key={i} style={{ marginBottom: 16 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: 'bold', fontSize: 15, marginBottom: 4 }}>{section.title}</Text>
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21 }}>{section.body}</Text>
+          <View style={{ backgroundColor: theme.colors.primary + '10', padding: 12, borderRadius: 12, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: theme.colors.primary }}>
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '500', lineHeight: 20 }}>
+              By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
+            </Text>
+          </View>
+
+          {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, i) => (
+            <View key={i} style={{ marginBottom: 20 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>{section.title}</Text>
+              {Array.isArray(section.content) ? (
+                section.content.map((item, j) => (
+                  <View key={j} style={{ flexDirection: 'row', marginBottom: 6, paddingLeft: 4 }}>
+                    <Text style={{ color: theme.colors.primary, marginRight: 8, fontSize: 14 }}>•</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21, flex: 1 }}>{item}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21 }}>{section.content}</Text>
+              )}
             </View>
           ))}
+          
+          <View style={{ marginTop: 10, padding: 15, backgroundColor: theme.colors.card, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
+              If you have any questions about these terms, please contact us through the Help & Support page.
+            </Text>
+          </View>
         </ScrollView>
+        <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+          <TouchableOpacity 
+            style={{ backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+            onPress={onClose}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>I Understand</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );

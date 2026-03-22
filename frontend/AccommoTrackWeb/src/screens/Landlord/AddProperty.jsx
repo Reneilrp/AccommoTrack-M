@@ -670,25 +670,6 @@ export default function AddProperty({ onBack, onSave }) {
                 )}
               </div>
 
-              {(['dormitory', 'boardingHouse', 'bedSpacer'].includes(formData.propertyType)) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Gender Restriction <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.genderRestriction}
-                      onChange={(e) => handleInputChange('genderRestriction', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="mixed">Mixed (Any Gender)</option>
-                      <option value="male">Boys Only</option>
-                      <option value="female">Girls Only</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
@@ -731,6 +712,40 @@ export default function AddProperty({ onBack, onSave }) {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
+                  <div>
+                    {(['dormitory', 'boardingHouse', 'bedSpacer'].includes(formData.propertyType)) && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Gender Restriction <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.genderRestriction}
+                          onChange={(e) => handleInputChange('genderRestriction', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                        >
+                          <option value="mixed">Mixed (Any Gender)</option>
+                          <option value="male">Boys Only</option>
+                          <option value="female">Girls Only</option>
+                        </select>
+                      </>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Floors
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 3"
+                      value={formData.total_floors}
+                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div className="md:col-span-2"></div>
+
                   {parseInt(formData.total_floors) > 1 && (
                     <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -767,19 +782,6 @@ export default function AddProperty({ onBack, onSave }) {
                       </p>
                     </div>
                   )}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Total Floors
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g., 3"
-                      value={formData.total_floors}
-                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
                 </div>
               </div>
             </div>

@@ -26,6 +26,64 @@ import ForgotPasswordModal from '../../../components/ForgotPasswordModal.jsx';
 import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
+import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
+
+const TermsModal = ({ visible, onClose, theme }) => {
+  const styles = getStyles(theme);
+  return (
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      <View style={styles.fullScreenModal}>
+        <View style={styles.modalHeader}>
+          <View>
+            <Text style={styles.fullModalTitle}>Terms & Conditions</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginTop: 2 }}>Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</Text>
+          </View>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={28} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
+          <View style={{ backgroundColor: theme.colors.primary + '10', padding: 12, borderRadius: 12, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: theme.colors.primary }}>
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '500', lineHeight: 20 }}>
+              By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
+            </Text>
+          </View>
+
+          {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, i) => (
+            <View key={i} style={{ marginBottom: 20 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>{section.title}</Text>
+              {Array.isArray(section.content) ? (
+                section.content.map((item, j) => (
+                  <View key={j} style={{ flexDirection: 'row', marginBottom: 6, paddingLeft: 4 }}>
+                    <Text style={{ color: theme.colors.primary, marginRight: 8, fontSize: 14 }}>•</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21, flex: 1 }}>{item}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21 }}>{section.content}</Text>
+              )}
+            </View>
+          ))}
+          
+          <View style={{ marginTop: 10, padding: 15, backgroundColor: theme.colors.card, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
+              If you have any questions about these terms, please contact us through the Help & Support page.
+            </Text>
+          </View>
+        </ScrollView>
+        <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+          <TouchableOpacity 
+            style={{ backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+            onPress={onClose}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>I Understand</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 const PendingVerificationModal = ({ visible, onClose, data, onResubmitPress, theme }) => {
   const isPending = data.status === 'pending_verification';
   const styles = getStyles(theme);
@@ -251,6 +309,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
   const [resubmitModalVisible, setResubmitModalVisible] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [pendingModalData, setPendingModalData] = useState({ title: '', message: '', status: '', reason: '' });
   const [emailAvailable, setEmailAvailable] = useState(null);
   const [emailCheckMsg, setEmailCheckMsg] = useState('');
@@ -652,6 +711,11 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         visible={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
       />
+      <TermsModal 
+        visible={showTermsModal} 
+        onClose={() => setShowTermsModal(false)} 
+        theme={theme} 
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -997,23 +1061,23 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                   {fieldErrors.confirmPassword && <Text style={styles.inlineErrorText}>{fieldErrors.confirmPassword}</Text>}
 
                   {/* Terms and Conditions */}
-                  <TouchableOpacity
-                    style={styles.termsContainer}
-                    onPress={() => setAgreedToTerms(!agreedToTerms)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+                  <View style={styles.termsContainer}>
+                    <TouchableOpacity
+                      style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
+                      onPress={() => setAgreedToTerms(!agreedToTerms)}
+                      activeOpacity={0.7}
+                    >
                       {agreedToTerms && (
                         <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                       )}
-                    </View>
+                    </TouchableOpacity>
                     <Text style={styles.termsText}>
                       Creating your account means you must agree with our{' '}
-                      <Text style={styles.termsLink}>terms and conditions</Text>
+                      <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>terms and conditions</Text>
                       {' '}and{' '}
-                      <Text style={styles.termsLink}>privacy policy</Text>
+                      <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>privacy policy</Text>
                     </Text>
-                  </TouchableOpacity>
+                  </View>
                   {fieldErrors.terms && <Text style={styles.inlineErrorText}>{fieldErrors.terms}</Text>}
 
                   {/* Submit Button */}

@@ -26,6 +26,8 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import BlockedUserModal from "../../components/Shared/BlockedUserModal";
 import ForgotPasswordModal from "../../components/Modals/ForgotPasswordModal";
 
+import { UNIFIED_TERMS_AND_CONDITIONS } from "../../shared/LegalContent";
+
 // Resubmit Modal Component
 const ResubmitModal = ({ visible, onClose, theme }) => {
   const [loading, setLoading] = useState(false);
@@ -439,6 +441,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Detect if user is on mobile device
   useEffect(() => {
@@ -712,6 +715,10 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       !pwdChecks.hasSpecial
     ) {
       errors.password = "Password does not meet complexity requirements";
+    }
+
+    if (!formData.agree_to_terms) {
+      errors.agree_to_terms = "You must agree to the Terms and Conditions";
     }
 
     // Phone number (optional) - if provided, must be 11 digits and start with 09
@@ -1586,6 +1593,26 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   )}
                 </div>
 
+                {/* Terms and Conditions Agreement */}
+                <div className="flex items-start gap-3 py-2">
+                  <div className="flex items-center h-5">
+                    <input
+                      type="checkbox"
+                      id="agree_to_terms"
+                      checked={formData.agree_to_terms || false}
+                      onChange={(e) => handleInputChange("agree_to_terms", e.target.checked)}
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                      required
+                    />
+                  </div>
+                  <label htmlFor="agree_to_terms" className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
+                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-green-600 hover:text-green-700 font-bold underline">Terms and Conditions</button> and confirm that I have read the Privacy Policy.
+                  </label>
+                </div>
+                {fieldErrors.agree_to_terms && (
+                  <p className="text-xs text-red-500 mt-1">{fieldErrors.agree_to_terms}</p>
+                )}
+
                 {/* Hidden Role Field (always tenant) */}
                 <input type="hidden" name="role" value="tenant" />
 
@@ -1749,6 +1776,56 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     {pendingModalData.status === "pending_verification"
                       ? "Got it, thanks!"
                       : "Close"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Terms and Conditions Modal */}
+          {showTermsModal && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl border border-green-100 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-green-50 dark:bg-gray-900/50">
+                  <div>
+                    <h3 className="text-xl font-bold text-green-800 dark:text-green-400">Terms and Conditions</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowTermsModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed scrollbar-thin">
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 mb-4">
+                    <p className="text-green-800 dark:text-green-300 font-medium text-xs">
+                      By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
+                    </p>
+                  </div>
+
+                  {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, idx) => (
+                    <section key={idx}>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{section.title}</h4>
+                      {Array.isArray(section.content) ? (
+                        <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                          {section.content.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-400">{section.content}</p>
+                      )}
+                    </section>
+                  ))}
+                </div>
+                <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                  <button
+                    onClick={() => setShowTermsModal(false)}
+                    className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Close
                   </button>
                 </div>
               </div>

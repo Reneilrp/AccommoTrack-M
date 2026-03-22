@@ -14,6 +14,8 @@ import {
 import logo from '../../assets/Logo.png';
 import api, { isCancel } from '../../utils/api';
 
+import { UNIFIED_TERMS_AND_CONDITIONS } from "../../shared/LegalContent";
+
 const LandlordRegister = () => {
   const [showModal, setShowModal] = useState(true);
   // Terms & Conditions modal
@@ -875,7 +877,7 @@ const LandlordRegister = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Last Updated: March 2026</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
                 </div>
               </div>
               <button
@@ -892,113 +894,20 @@ const LandlordRegister = () => {
                 </p>
               </div>
 
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">1. General Terms</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>AccommoTrack is a platform that connects property owners/landlords with tenants — it is not the landlord itself.</li>
-                  <li>Users must be at least 18 years old to register as a tenant, and at least 20 years old to register as a landlord.</li>
-                  <li>All information provided must be accurate and truthful.</li>
-                  <li>By using AccommoTrack, you agree to comply with all applicable local laws and regulations.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">2. Account Responsibilities</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Users are responsible for keeping their login credentials secure and confidential.</li>
-                  <li>One account per person — sharing accounts is not allowed.</li>
-                  <li>You are responsible for all activity that occurs under your account.</li>
-                  <li>AccommoTrack reserves the right to suspend or terminate accounts that violate these terms.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">3. Landlord Obligations</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Must provide accurate property listings including photos, pricing, amenities, and house rules.</li>
-                  <li>Must undergo identity verification before listing properties on the platform.</li>
-                  <li>Responsible for the physical condition, safety, and legality of their properties.</li>
-                  <li>Must honor confirmed bookings at the listed price and terms.</li>
-                  <li>Must respond to tenant inquiries, maintenance requests, and booking requests in a timely manner.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">4. Tenant Obligations</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Must provide truthful personal information during registration and booking.</li>
-                  <li>Must pay rent and applicable fees on time as agreed upon in the booking.</li>
-                  <li>Must follow the property's house rules as set by the landlord.</li>
-                  <li>Must report maintenance issues and property damage through the platform promptly.</li>
-                  <li>Must treat the property and its facilities with care and respect.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">5. Bookings & Payments</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Bookings are confirmed only after landlord approval.</li>
-                  <li>Payment terms, due dates, and applicable fees are set by the landlord and displayed at the time of booking.</li>
-                  <li>AccommoTrack facilitates digital payment tracking but does not process financial transactions directly.</li>
-                  <li>Disputes regarding payments should first be resolved between landlord and tenant.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">6. Cancellation & Refund Policy</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Cancellation policies are determined by individual landlords and displayed on each property listing.</li>
-                  <li>Refund eligibility depends on the property's stated cancellation policy.</li>
-                  <li>AccommoTrack may mediate disputes but final decisions regarding refunds rest with the landlord.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">7. Privacy & Data</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>We collect personal information including name, email, phone number, and identification documents for verification purposes.</li>
-                  <li>Your data is used solely for platform operations, account verification, and improving our services.</li>
-                  <li>We do not sell your personal information to third parties.</li>
-                  <li>Verification documents (IDs, permits) are stored securely and used only for landlord identity verification.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">8. Content & Reviews</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Users may not post false, defamatory, misleading, or inappropriate content or reviews.</li>
-                  <li>AccommoTrack reserves the right to remove content that violates these terms or community standards.</li>
-                  <li>Landlords may publicly respond to reviews left on their properties.</li>
-                  <li>Reviews should be based on genuine experiences and written in good faith.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">9. Property Reporting</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>Tenants can report properties for safety concerns, fraud, or violations through the platform.</li>
-                  <li>AccommoTrack will investigate reported properties and may delist or suspend listings found to violate community standards or local regulations.</li>
-                  <li>False or malicious reports may result in account suspension.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">10. Limitation of Liability</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>AccommoTrack acts as a marketplace and facilitator — we are not liable for the physical condition of properties, disputes between users, or any damages arising from the use of listed accommodations.</li>
-                  <li>The platform is provided "as is" without warranty of any kind, either express or implied.</li>
-                  <li>Users engage with each other at their own risk and are encouraged to exercise due diligence.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">11. Modifications to Terms</h4>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                  <li>AccommoTrack reserves the right to update or modify these terms at any time.</li>
-                  <li>Users will be notified of significant changes via email or in-app notifications.</li>
-                  <li>Continued use of the platform after changes constitutes acceptance of the updated terms.</li>
-                </ul>
-              </section>
+              {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, idx) => (
+                <section key={idx}>
+                  <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{section.title}</h4>
+                  {Array.isArray(section.content) ? (
+                    <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                      {section.content.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600 dark:text-gray-400">{section.content}</p>
+                  )}
+                </section>
+              ))}
 
               <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 mt-4">
                 <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
