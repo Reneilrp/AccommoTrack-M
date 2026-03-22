@@ -582,8 +582,6 @@ export default function AddRoomModal({
       } catch {
         /* ignore toast errors */
       }
-        /* ignore toast errors */
-      }
     } finally {
       setLoading(false);
     }

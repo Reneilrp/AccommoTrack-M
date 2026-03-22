@@ -96,9 +96,18 @@ class TenantDashboardService
     public function getActiveStays(int $tenantId)
     {
         return Booking::where('tenant_id', $tenantId)
-            // Current stay must only include actively occupied bookings.
-            ->where('status', 'confirmed')
-            ->where('end_date', '>=', now())
+            ->where(function ($query) {
+                // Currently confirmed and active bookings
+                $query->where(function ($q) {
+                    $q->where('status', 'confirmed')
+                        ->where('end_date', '>=', now());
+                })
+                // OR recently completed bookings (last 30 days) to allow for renewal/history
+                ->orWhere(function ($q) {
+                    $q->whereIn('status', ['completed', 'partial-completed'])
+                        ->where('end_date', '>=', now()->subDays(30));
+                });
+            })
             ->with([
                 'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
                 'addons' => fn ($q) => $q->wherePivotIn('status', ['approved', 'active', 'pending']),
@@ -241,9 +250,18 @@ class TenantDashboardService
     private function getActiveBooking(int $tenantId, array $relations = []): ?Booking
     {
         return Booking::where('tenant_id', $tenantId)
-            ->where('status', 'confirmed')
-            ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now())
+            ->where(function ($query) {
+                // Currently confirmed and active bookings
+                $query->where(function ($q) {
+                    $q->where('status', 'confirmed')
+                        ->where('end_date', '>=', now());
+                })
+                // OR recently completed bookings (last 30 days)
+                ->orWhere(function ($q) {
+                    $q->whereIn('status', ['completed', 'partial-completed'])
+                        ->where('end_date', '>=', now()->subDays(30));
+                });
+            })
             ->with($relations)
             ->orderByDesc('start_date')
             ->first();

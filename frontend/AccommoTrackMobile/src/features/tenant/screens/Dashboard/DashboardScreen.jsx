@@ -249,6 +249,31 @@ const DashboardScreen = () => {
                       <Ionicons name="chatbubble-outline" size={20} color={theme.colors.primary} />
                     </TouchableOpacity>
                   </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      {
+                        marginTop: 16,
+                        backgroundColor: stayData.booking?.status === 'completed' ? '#F59E0B' : theme.colors.primary,
+                      },
+                    ]}
+                    onPress={() => {
+                      // Navigate to a renewal/extension screen or open a modal
+                      // For now, we'll assume there's an 'ExtensionRequest' screen or similar
+                      navigation.navigate('MyBookings', { 
+                        screen: 'BookingDetails', 
+                        params: { bookingId: stayData.booking.id, initiateExtension: true } 
+                      });
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="time-outline" size={20} color="#fff" />
+                      <Text style={styles.primaryButtonText}>
+                        {stayData.booking?.status === 'completed' ? 'Renew Stay' : 'Extend Stay'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 </View>
               </View>
             ) : (

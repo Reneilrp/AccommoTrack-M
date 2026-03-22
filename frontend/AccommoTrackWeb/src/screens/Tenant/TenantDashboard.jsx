@@ -124,11 +124,11 @@ const TenantDashboard = () => {
             <Home className="w-5 h-5 text-green-600 dark:text-green-400" />
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white truncate">
-            {hasActiveStays 
-              ? stayData.stays.map(s => s.room?.roomNumber || s.room?.room_number).join(', ')
-              : 'None'}
+            {hasActiveStays ? stayData.stays.length : '0'}
           </p>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Current Room(s)</p>
+          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+            {stayData?.stays?.length === 1 ? 'Current Room' : 'Current Rooms'}
+          </p>
         </div>
 
         {/* Days Stayed Card */}
@@ -283,13 +283,7 @@ const TenantDashboard = () => {
                 </div>
               </div>
               <button 
-                onClick={() => {
-                  if (stats?.payments?.latestUnpaidInvoiceId) {
-                    navigate(`/checkout/${stats.payments.latestUnpaidInvoiceId}`);
-                  } else {
-                    navigate('/payments');
-                  }
-                }}
+                onClick={() => navigate('/payments')}
                 className="text-xs bg-white dark:bg-gray-800 text-red-700 dark:text-red-300 font-bold px-4 py-2 rounded-lg shadow-sm border border-red-100 dark:border-red-800 hover:bg-red-50 transition-colors"
               >
                 Pay Now

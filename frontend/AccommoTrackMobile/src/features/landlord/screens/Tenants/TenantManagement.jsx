@@ -299,6 +299,8 @@ export default function TenantsScreen({ navigation, route }) {
     const payment = PAYMENT_BADGES[paymentStatus] || PAYMENT_BADGES.unpaid;
     const initials = (item.first_name?.[0] || '') + (item.last_name?.[0] || '');
 
+    const currentRoom = item.room || (item.roomAssignments && item.roomAssignments.length > 0 ? item.roomAssignments[0] : null);
+
     return (
       <View style={styles.tenantCard}>
         <TouchableOpacity style={styles.selectCheckbox} onPress={() => handleSelectTenant(item.id)}>
@@ -321,13 +323,13 @@ export default function TenantsScreen({ navigation, route }) {
           <View style={styles.roomRow}>
             <Ionicons name="bed-outline" size={16} color="#16A34A" />
             <Text style={styles.roomText}>
-              {item.room ? `Room ${item.room.room_number}` : 'No room assigned'}
+              {currentRoom ? `Room ${currentRoom.room_number}` : 'No room assigned'}
             </Text>
           </View>
           <View style={styles.metaRow}>
             <View>
               <Text style={styles.metaLabel}>Monthly Rent</Text>
-              <Text style={styles.metaValue}>{item.room ? formatCurrency(item.room.monthly_rate) : '—'}</Text>
+              <Text style={styles.metaValue}>{currentRoom ? formatCurrency(currentRoom.monthly_rate) : '—'}</Text>
             </View>
             <View style={[styles.paymentBadge, { backgroundColor: payment.bg }]}>
               <Text style={[styles.paymentText, { color: payment.color }]}>{payment.label}</Text>

@@ -30,7 +30,8 @@ import {
   Banknote,
   CalendarDays,
   CreditCard,
-  Shuffle
+  Shuffle,
+  MessageSquare
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 
@@ -842,6 +843,21 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           {landlord.phone}
                         </a>
                       )}
+                      <button 
+                        onClick={() => navigate('/messages', { 
+                          state: { 
+                            startConversation: true, 
+                            recipient: { id: landlord?.id, name: landlord?.name }, 
+                            property: { id: property?.id, title: property?.title } 
+                          } 
+                        })}
+                        className="flex items-center gap-3 w-full text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors text-left"
+                      >
+                        <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                          <MessageSquare className="w-4 h-4" />
+                        </div>
+                        Send Message
+                      </button>
                     </div>
                   </div>
 

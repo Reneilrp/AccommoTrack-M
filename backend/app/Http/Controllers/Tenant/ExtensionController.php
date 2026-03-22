@@ -16,7 +16,7 @@ class ExtensionController extends Controller
         $tenantId = Auth::id();
         $booking = Booking::where('id', $bookingId)
             ->where('tenant_id', $tenantId)
-            ->whereIn('status', ['confirmed', 'active'])
+            ->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
             ->firstOrFail();
 
         $validated = $request->validate([

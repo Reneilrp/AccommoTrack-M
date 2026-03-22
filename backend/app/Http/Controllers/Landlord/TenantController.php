@@ -55,7 +55,7 @@ class TenantController extends Controller
             $query = User::where('role', 'tenant')
                 ->with([
                     'tenantProfile',
-                    'room.property',
+                    'roomAssignments.property',
                     'bookings' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId)
                             ->with('room.property')
@@ -63,7 +63,7 @@ class TenantController extends Controller
                     },
                 ])
                 ->where(function ($q) use ($landlordId, $allowedPropertyIds) {
-                    $q->whereHas('room', function ($q2) use ($landlordId, $allowedPropertyIds) {
+                    $q->whereHas('roomAssignments', function ($q2) use ($landlordId, $allowedPropertyIds) {
                         $q2->whereHas('property', function ($q3) use ($landlordId, $allowedPropertyIds) {
                             $q3->where('landlord_id', $landlordId);
                             if ($allowedPropertyIds) {
@@ -72,7 +72,7 @@ class TenantController extends Controller
                         });
                     })
                         ->orWhereHas('bookings', function ($q2) use ($landlordId, $allowedPropertyIds) {
-                            $q2->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                            $q2->whereIn('status', ['confirmed', 'partial-completed'])
                                 ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
                                     $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
                                         $q4->where('landlord_id', $landlordId);
@@ -87,8 +87,8 @@ class TenantController extends Controller
             // Filter by specific property if provided
             if ($propertyId) {
                 $query->where(function ($q) use ($propertyId) {
-                    $q->whereHas('room', fn ($q2) => $q2->where('property_id', $propertyId))
-                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId));
+                    $q->whereHas('roomAssignments', fn ($q2) => $q2->where('property_id', $propertyId))
+                        ->orWhereHas('bookings', fn ($q2) => $q2->where('property_id', $propertyId)->whereIn('status', ['confirmed', 'partial-completed']));
                 });
             }
 
@@ -492,8 +492,8 @@ class TenantController extends Controller
             'damage_description' => 'nullable|string|required_if:damage_charge,>0',
         ]);
 
-        $tenant = User::where('role', 'tenant')->with(['room', 'tenantProfile'])->findOrFail($id);
-        $oldRoom = $tenant->room;
+        $tenant = User::where('role', 'tenant')->with(['roomAssignments', 'tenantProfile'])->findOrFail($id);
+        $oldRoom = $tenant->roomAssignments()->first();
         $newRoom = Room::with('property')->findOrFail($validated['new_room_id']);
 
         // Verify new room belongs to the same landlord
@@ -568,7 +568,7 @@ class TenantController extends Controller
 
             return response()->json([
                 'message' => 'Room transfer successful',
-                'tenant' => $tenant->load(['tenantProfile', 'room']),
+                'tenant' => $tenant->load(['tenantProfile', 'roomAssignments.property']),
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
