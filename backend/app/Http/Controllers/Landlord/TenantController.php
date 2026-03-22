@@ -535,6 +535,8 @@ class TenantController extends Controller
                     ->first();
 
                 if ($activeBooking) {
+                    $activeBooking->end_date = now()->format('Y-m-d');
+                    $activeBooking->save();
                     $this->bookingService->updateStatus($activeBooking, ['status' => 'completed']);
                 }
 

@@ -97,16 +97,14 @@ class TenantDashboardService
     {
         return Booking::where('tenant_id', $tenantId)
             ->where(function ($query) {
-                // Currently confirmed and active bookings
-                $query->where(function ($q) {
-                    $q->where('status', 'confirmed')
-                        ->where('end_date', '>=', now());
-                })
-                // OR recently completed bookings (last 30 days) to allow for renewal/history
-                ->orWhere(function ($q) {
-                    $q->whereIn('status', ['completed', 'partial-completed'])
-                        ->where('end_date', '>=', now()->subDays(30));
-                });
+                // Bookings that are confirmed, completed, or partial-completed
+                $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                      // And lease hasn't historically ended
+                      ->where('end_date', '>=', now()->startOfDay());
+            })
+            // Only bookings where the tenant is actually still actively assigned to the room!
+            ->whereHas('room.tenants', function ($query) use ($tenantId) {
+                $query->where('users.id', $tenantId);
             })
             ->with([
                 'room.images', 'property.landlord', 'property.images', 'landlord', 'review',
