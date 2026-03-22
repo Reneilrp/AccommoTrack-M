@@ -1454,7 +1454,6 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <option value="">Select your gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="rather_not_say">Rather not to say</option>
                   </select>
                   {fieldErrors.gender && (
                     <p className="text-xs text-red-500 mt-1">{fieldErrors.gender}</p>

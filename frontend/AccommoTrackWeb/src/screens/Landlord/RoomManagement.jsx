@@ -81,7 +81,7 @@ export default function RoomManagement() {
     if (!showEditModal || !selectedPropertyId) return;
     const fetchPropertyDetails = async () => {
       try {
-        const res = await api.get(`/properties/${selectedPropertyId}`);
+        const res = await api.get(`/landlord/properties/${selectedPropertyId}`);
         const p = res.data || {};
         setPropertyRules(p.property_rules || []);
         setPropertyAmenitiesList(p.amenities_list || []);

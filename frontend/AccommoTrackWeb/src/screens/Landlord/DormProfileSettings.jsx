@@ -611,12 +611,10 @@ export default function DormProfileSettings({
         amenities: merged,
         property_rules: JSON.stringify(dormData.rules),
         nearby_landmarks: dormData.nearbyLandmarks,
-        max_occupants: parseInt(dormData.max_occupants) || 1,
-        number_of_bedrooms: parseInt(dormData.number_of_bedrooms) || 0,
         number_of_bathrooms: parseInt(dormData.number_of_bathrooms) || 0,
-        floor_area: parseFloat(dormData.floor_area) || 0,
         floor_level: dormData.floor_level,
         total_floors: parseInt(dormData.total_floors) || 1,
+        total_rooms: parseInt(dormData.total_rooms) || 0,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         current_status: dormData.status,
@@ -1120,32 +1118,6 @@ export default function DormProfileSettings({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Max Occupants
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={dormData.max_occupants}
-                        onChange={(e) => handleInputChange("max_occupants", e.target.value)}
-                        disabled={!isEditing}
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.maxOccupants ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Bedrooms
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={dormData.number_of_bedrooms}
-                        onChange={(e) => handleInputChange("number_of_bedrooms", e.target.value)}
-                        disabled={!isEditing}
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.bedrooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Bathrooms
                       </label>
                       <input
@@ -1159,21 +1131,20 @@ export default function DormProfileSettings({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Floor Area (sqm)
+                        Total Rooms
                       </label>
                       <input
                         type="number"
-                        step="0.01"
-                        min="0"
-                        value={dormData.floor_area}
-                        onChange={(e) => handleInputChange("floor_area", e.target.value)}
+                        min="1"
+                        value={dormData.total_rooms || ""}
+                        onChange={(e) => handleInputChange("total_rooms", e.target.value)}
                         disabled={!isEditing}
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.floor_area ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.total_rooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Floor Level
+                        Floor Level (e.g., Basement, Penthouse)
                       </label>
                       <input
                         type="text"
@@ -1197,6 +1168,46 @@ export default function DormProfileSettings({
                         className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.totalFloors ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                       />
                     </div>
+                    {parseInt(dormData.total_floors) > 1 && (
+                      <div className="md:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Managed Floors (Select floors you manage)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: parseInt(dormData.total_floors) }, (_, i) => i + 1).map((floor) => (
+                            <label
+                              key={floor}
+                              className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${
+                                !isEditing ? "opacity-60 cursor-not-allowed" : ""
+                              } ${
+                                (dormData.floor_level || "").split(",").includes(String(floor))
+                                  ? "bg-green-500 border-green-500 text-white"
+                                  : "border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-green-200"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                disabled={!isEditing}
+                                checked={(dormData.floor_level || "").split(",").includes(String(floor))}
+                                onChange={(e) => {
+                                  if (!isEditing) return;
+                                  const current = (dormData.floor_level || "").split(",").filter(f => f && !isNaN(f));
+                                  const next = e.target.checked
+                                    ? [...current, String(floor)].sort((a, b) => Number(a) - Number(b))
+                                    : current.filter((f) => f !== String(floor));
+                                  handleInputChange("floor_level", next.join(","));
+                                }}
+                              />
+                              {floor}
+                            </label>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          Selected floors will be the only ones available when adding rooms.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

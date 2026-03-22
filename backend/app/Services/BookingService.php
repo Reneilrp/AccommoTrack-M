@@ -56,7 +56,7 @@ class BookingService
                             throw new \Exception('Please complete your profile gender (male/female) before booking this room type.');
                         }
                         if ($roomRestriction !== $tenantGender) {
-                            throw new \Exception("This room is restricted to {$roomRestriction}s only.");
+                            throw new \Exception("Sorry, this room is only for specifically {$roomRestriction} only");
                         }
                     }
                 }

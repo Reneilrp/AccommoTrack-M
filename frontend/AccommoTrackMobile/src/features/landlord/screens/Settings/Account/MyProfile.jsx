@@ -367,7 +367,6 @@ export default function MyProfileScreen({ navigation }) {
                 Alert.alert("Select Gender", "Choose your gender", [
                   { text: "Male", onPress: () => setTempUser({ ...tempUser, gender: "male" }) },
                   { text: "Female", onPress: () => setTempUser({ ...tempUser, gender: "female" }) },
-                  { text: "Rather not to say", onPress: () => setTempUser({ ...tempUser, gender: "rather_not_say" }) },
                   { text: "Cancel", style: "cancel" },
                 ]);
               }}

@@ -52,7 +52,31 @@ class UpdateRoomRequest extends FormRequest
                 },
             ],
             'gender_restriction' => $genderRule,
-            'floor' => 'sometimes|integer|min:1',
+            'floor' => [
+                'sometimes',
+                'integer',
+                'min:1',
+                function ($attribute, $value, $fail) use ($room) {
+                    if (!$room || !$room->property) return;
+
+                    $property = $room->property;
+                    $floorLevel = $property->floor_level;
+                    $totalFloors = $property->total_floors;
+
+                    // Check if floor_level is a comma-separated list of numbers
+                    $managedFloors = array_filter(explode(',', $floorLevel), 'is_numeric');
+
+                    if (!empty($managedFloors)) {
+                        if (!in_array($value, $managedFloors)) {
+                            $fail("The selected floor is not one of the managed floors for this property (" . implode(', ', $managedFloors) . ").");
+                        }
+                    } elseif ($totalFloors > 0) {
+                        if ($value > $totalFloors) {
+                            $fail("The selected floor exceeds the total number of floors ($totalFloors) for this property.");
+                        }
+                    }
+                },
+            ],
             'monthly_rate' => 'sometimes|required_if:billing_policy,monthly,monthly_with_daily|numeric|min:0',
             'daily_rate' => 'sometimes|required_if:billing_policy,daily,monthly_with_daily|numeric|min:0',
             'billing_policy' => 'nullable|string|in:monthly,monthly_with_daily,daily',

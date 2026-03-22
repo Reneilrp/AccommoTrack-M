@@ -229,6 +229,7 @@ export default function RoomDetailsModal({
     } catch (error) {
       console.error("Booking failed", error?.response?.data || error);
       const errMsg =
+        error?.response?.data?.error ||
         error?.response?.data?.message ||
         error?.message ||
         "Failed to submit booking request.";

@@ -190,7 +190,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         if (onBookingAdded) onBookingAdded();
         onClose();
       } catch (err) {
-        const msg = err.response?.data?.message || err.message || 'Failed to add booking';
+        const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to add booking';
         setError(msg);
         toast.error(msg);
       } finally {

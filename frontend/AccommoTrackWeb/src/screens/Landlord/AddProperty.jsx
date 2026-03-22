@@ -100,6 +100,7 @@ export default function AddProperty({ onBack, onSave }) {
     nearbyLandmarks: '',
     number_of_bathrooms: '',
     floor_level: '',
+    total_floors: '',
     totalRooms: '',
     amenities: [],
     rules: [],
@@ -379,6 +380,7 @@ export default function AddProperty({ onBack, onSave }) {
       nearby_landmarks: formData.nearbyLandmarks || null,
       number_of_bathrooms: parseInt(formData.number_of_bathrooms) || 0,
       floor_level: formData.floor_level || null,
+      total_floors: parseInt(formData.total_floors) || null,
       total_rooms: parseInt(formData.totalRooms) || null,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
@@ -687,13 +689,62 @@ export default function AddProperty({ onBack, onSave }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Floor Level
+                      Floor Level (e.g., Basement, Penthouse)
                     </label>
                     <input
                       type="text"
                       placeholder="e.g., 2nd Floor"
                       value={formData.floor_level}
                       onChange={(e) => handleInputChange('floor_level', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  {parseInt(formData.total_floors) > 1 && (
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Managed Floors (Select floors you manage)
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: parseInt(formData.total_floors) }, (_, i) => i + 1).map((floor) => (
+                          <label
+                            key={floor}
+                            className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${
+                              (formData.floor_level || '').split(',').includes(String(floor))
+                                ? 'bg-green-500 border-green-500 text-white'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-green-200'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={(formData.floor_level || '').split(',').includes(String(floor))}
+                              onChange={(e) => {
+                                const current = (formData.floor_level || '').split(',').filter(f => f && !isNaN(f));
+                                const next = e.target.checked
+                                  ? [...current, String(floor)].sort((a, b) => a - b)
+                                  : current.filter((f) => f !== String(floor));
+                                handleInputChange('floor_level', next.join(','));
+                              }}
+                            />
+                            {floor}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Selected floors will be the only ones available when adding rooms.
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Floors
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 3"
+                      value={formData.total_floors}
+                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     />
                   </div>

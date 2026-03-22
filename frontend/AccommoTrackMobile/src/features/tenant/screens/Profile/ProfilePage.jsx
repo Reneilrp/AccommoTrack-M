@@ -656,7 +656,6 @@ export default function ProfilePage() {
                 Alert.alert("Select Gender", "Choose your gender", [
                   { text: "Male", onPress: () => handleInputChange("gender", "male") },
                   { text: "Female", onPress: () => handleInputChange("gender", "female") },
-                  { text: "Rather not to say", onPress: () => handleInputChange("gender", "rather_not_say") },
                   { text: "Cancel", style: "cancel" },
                 ]);
               }}

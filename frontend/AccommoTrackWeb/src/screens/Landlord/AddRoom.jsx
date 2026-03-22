@@ -70,6 +70,7 @@ export default function AddRoomModal({
   );
 
   const [totalFloors, setTotalFloors] = useState(1);
+  const [managedFloors, setManagedFloors] = useState([]);
   const [propertyGender, setPropertyGender] = useState("mixed");
 
   // Sync amenities list when prop changes (e.g. parent refreshes after onAmenityAdded)
@@ -85,7 +86,7 @@ export default function AddRoomModal({
     let mounted = true;
     (async () => {
       try {
-        const res = await api.get(`/properties/${propertyId}`);
+        const res = await api.get(`/landlord/properties/${propertyId}`);
         const p = res.data || {};
         const rules = p.rules || p.property_rules || p.rules_list || [];
         const amenities = p.amenities_list || p.amenities || [];
@@ -105,6 +106,17 @@ export default function AddRoomModal({
 
           const pGender = p.gender_restriction || "mixed";
           setPropertyGender(pGender);
+
+          // Managed floors parsing
+          const floorStr = String(p.floor_level || "");
+          const isManagedList = floorStr.split(',').every(part => part.trim() && !isNaN(part.trim()));
+          if (isManagedList && floorStr.includes(',')) {
+            const list = floorStr.split(',').map(n => parseInt(n.trim())).sort((a, b) => a - b);
+            setManagedFloors(list);
+            setFormData(prev => ({ ...prev, floor: String(list[0]) }));
+          } else {
+            setManagedFloors([]);
+          }
 
           // Auto-set room gender if property is restricted
           if (pGender === "male" || pGender === "boys") {
@@ -172,10 +184,15 @@ export default function AddRoomModal({
     return allRoomTypes;
   })();
 
-  const floors = Array.from({ length: totalFloors }, (_, i) => ({
-    value: i + 1,
-    label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
-  }));
+  const floors = managedFloors.length > 0
+    ? managedFloors.map(f => ({
+        value: f,
+        label: `${f}${getOrdinalSuffix(f)} Floor`,
+      }))
+    : Array.from({ length: totalFloors }, (_, i) => ({
+        value: i + 1,
+        label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
+      }));
 
   function getOrdinalSuffix(num) {
     const j = num % 10;

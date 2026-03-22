@@ -50,7 +50,7 @@ class BookingService {
         }
         return {
           success: false,
-          error: error.response.data.message || 'Failed to create booking',
+          error: error.response.data.error || error.response.data.message || 'Failed to create booking',
           details: error.response.data.errors || null,
           status: error.response.status
         };
