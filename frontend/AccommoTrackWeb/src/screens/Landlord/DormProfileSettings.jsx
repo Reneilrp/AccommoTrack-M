@@ -1162,19 +1162,6 @@ export default function DormProfileSettings({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Floor Level (e.g., Basement, Penthouse)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g., 2nd Floor"
-                        value={dormData.floor_level}
-                        onChange={(e) => handleInputChange("floor_level", e.target.value)}
-                        disabled={!isEditing}
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.floor_level ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Total Floors
                       </label>
                       <input

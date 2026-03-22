@@ -746,9 +746,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   ))}
                 </div>
               </div>
-              {review.comment && (
+              {review.comment?.trim() && (
                 <p className="text-gray-600 dark:text-gray-300 text-sm">
-                  "{review.comment}"
+                  "{review.comment.trim()}"
                 </p>
               )}
               {review.landlord_response && (

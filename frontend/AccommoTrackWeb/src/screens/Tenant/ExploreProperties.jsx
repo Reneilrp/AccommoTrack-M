@@ -1014,9 +1014,9 @@ const ExploreProperties = () => {
                                             ))}
                                           </div>
                                         </div>
-                                        {review.comment && (
+                                        {review.comment?.trim() && (
                                           <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                                            "{review.comment}"
+                                            "{review.comment.trim()}"
                                           </p>
                                         )}
                                         {review.landlord_response && (

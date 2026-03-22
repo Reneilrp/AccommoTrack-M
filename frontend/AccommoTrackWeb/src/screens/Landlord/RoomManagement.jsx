@@ -75,6 +75,7 @@ export default function RoomManagement() {
   const [propertyGender, setPropertyGender] = useState("mixed");
   const [newRule, setNewRule] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Load property-level rules and amenities when edit modal opens
   useEffect(() => {
@@ -297,7 +298,13 @@ export default function RoomManagement() {
       toast.success('Room updated successfully');
     } catch (error) {
       console.error('Failed to update room:', error);
-      setError(error.message);
+      const errData = error.response?.data;
+      if (errData?.errors) {
+        setFieldErrors(errData.errors);
+        setError('Update failed. Please review the errors below.');
+      } else {
+        setError(errData?.message || error.message || 'An unknown error occurred.');
+      }
     }
   };
 
@@ -670,7 +677,7 @@ export default function RoomManagement() {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between bg-gray-50 dark:bg-gray-700/30">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Room {selectedRoom.roomNumber}</h2>
               <button
-                onClick={() => { setShowEditModal(false); setSelectedRoom(null); setError(null); }}
+                onClick={() => { setShowEditModal(false); setSelectedRoom(null); setError(null); setFieldErrors({}); }}
                 className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 aria-label="Close edit"
               >
@@ -692,8 +699,9 @@ export default function RoomManagement() {
                     type="text"
                     value={selectedRoom.roomNumber}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, roomNumber: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.room_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.room_number && <p className="text-red-500 text-xs mt-1">{fieldErrors.room_number[0]}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Type</label>
@@ -723,8 +731,9 @@ export default function RoomManagement() {
                     type="number"
                     value={selectedRoom.price}
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.monthly_rate && <p className="text-red-500 text-xs mt-1">{fieldErrors.monthly_rate[0]}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Floor</label>

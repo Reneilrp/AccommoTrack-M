@@ -77,7 +77,7 @@ export const UIStateProvider = ({ children }) => {
    * @param {string} screen - 'explore', 'bookings', or 'wallet'
    * @param {object} newState - partial state to merge
    */
-  const updateScreenState = (screen, newState) => {
+  const updateScreenState = React.useCallback((screen, newState) => {
     setUIState(prev => ({
       ...prev,
       [screen]: {
@@ -85,14 +85,14 @@ export const UIStateProvider = ({ children }) => {
         ...newState
       }
     }));
-  };
+  }, []);
 
   /**
    * Update data for a specific bucket
    * @param {string} bucket - 'dashboard', 'bookings', or 'wallet'
    * @param {any} data 
    */
-  const updateData = (bucket, data) => {
+  const updateData = React.useCallback((bucket, data) => {
     setUIState(prev => ({
       ...prev,
       data: {
@@ -100,13 +100,13 @@ export const UIStateProvider = ({ children }) => {
         [bucket]: data
       }
     }));
-  };
+  }, []);
 
   /**
    * Invalidate one or more cached data buckets.
    * @param {string|string[]} buckets
    */
-  const invalidateData = (buckets) => {
+  const invalidateData = React.useCallback((buckets) => {
     const bucketList = Array.isArray(buckets) ? buckets : [buckets];
     setUIState(prev => {
       const nextData = { ...prev.data };
@@ -121,18 +121,18 @@ export const UIStateProvider = ({ children }) => {
         data: nextData
       };
     });
-  };
+  }, []);
 
   /**
    * Reset a specific screen's UI state to initial values
    * @param {string} screen 
    */
-  const resetScreenState = (screen) => {
+  const resetScreenState = React.useCallback((screen) => {
     setUIState(prev => ({
       ...prev,
       [screen]: INITIAL_STATE[screen]
     }));
-  };
+  }, []);
 
   return (
     <UIStateContext.Provider value={{ uiState, updateScreenState, updateData, invalidateData, resetScreenState }}>

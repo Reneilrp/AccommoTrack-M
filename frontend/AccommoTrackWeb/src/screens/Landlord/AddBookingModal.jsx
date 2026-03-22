@@ -8,6 +8,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     const [loading, setLoading] = useState(false);
     const [loadingPricing, setLoadingPricing] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [properties, setProperties] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [pricingPreview, setPricingPreview] = useState(null);
@@ -52,6 +53,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         setGuestResults([]);
         setSelectedGuest(null);
         setIsGuestInputFocused(false);
+        setFieldErrors({});
       }
     }, [isOpen]);
 
@@ -190,9 +192,16 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         if (onBookingAdded) onBookingAdded();
         onClose();
       } catch (err) {
-        const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to add booking';
-        setError(msg);
-        toast.error(msg);
+        const errData = err.response?.data;
+        if (errData?.errors) {
+          setFieldErrors(errData.errors);
+          setError('Booking failed. Please review the errors below.');
+          toast.error('Please fix the validation errors.');
+        } else {
+          const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to add booking';
+          setError(msg);
+          toast.error(msg);
+        }
       } finally {
         setLoading(false);
       }
@@ -236,7 +245,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               <input
                 type="text"
                 required
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all"
+                className={`w-full border rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all ${fieldErrors.guestName || fieldErrors.guest_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={guestSearch}
                 onChange={e => {
                   setGuestSearch(e.target.value);
@@ -270,6 +279,8 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 </ul>
               )}
             </div>
+            {fieldErrors.guestName && <p className="text-red-500 text-xs mt-1">{fieldErrors.guestName[0]}</p>}
+            {fieldErrors.guest_id && <p className="text-red-500 text-xs mt-1">{fieldErrors.guest_id[0]}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -277,7 +288,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Property</label>
               <select
                 required
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white ${fieldErrors.propertyId ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.propertyId}
                 onChange={handlePropertyChange}
               >
@@ -286,13 +297,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                   <option key={p.id} value={p.id}>{p.title}</option>
                 ))}
               </select>
+              {fieldErrors.propertyId && <p className="text-red-500 text-xs mt-1">{fieldErrors.propertyId[0]}</p>}
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Room</label>
               <select
                 required
                 disabled={!formData.propertyId}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white disabled:opacity-50 ${fieldErrors.roomId || fieldErrors.room_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.roomId}
                 onChange={e => setFormData({ ...formData, roomId: e.target.value })}
               >
@@ -301,6 +313,8 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                   <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
                 ))}
               </select>
+              {fieldErrors.roomId && <p className="text-red-500 text-xs mt-1">{fieldErrors.roomId[0]}</p>}
+              {fieldErrors.room_id && <p className="text-red-500 text-xs mt-1">{fieldErrors.room_id[0]}</p>}
             </div>
           </div>
 
@@ -313,10 +327,12 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 min={getTodayDate()}
                 onKeyDown={(e) => e.preventDefault()}
                 onClick={(e) => e.target.showPicker?.()}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer"
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkIn || fieldErrors.start_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.checkIn}
                 onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
               />
+              {fieldErrors.checkIn && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkIn[0]}</p>}
+              {fieldErrors.start_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.start_date[0]}</p>}
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-out</label>
@@ -326,10 +342,12 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 min={formData.checkIn || getTodayDate()}
                 onKeyDown={(e) => e.preventDefault()}
                 onClick={(e) => e.target.showPicker?.()}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer"
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkOut || fieldErrors.end_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.checkOut}
                 onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
               />
+              {fieldErrors.checkOut && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkOut[0]}</p>}
+              {fieldErrors.end_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.end_date[0]}</p>}
             </div>
           </div>
 

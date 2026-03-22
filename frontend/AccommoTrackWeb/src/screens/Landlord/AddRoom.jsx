@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { X, Upload, Plus, Loader2, HelpCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../utils/api";
-import { usePreferences } from "../../contexts/PreferencesContext";
 import PricingHelp from "../../components/Rooms/PricingHelp";
 import PriceRow from "../../components/Shared/PriceRow";
 
@@ -15,7 +14,6 @@ export default function AddRoomModal({
   propertyAmenities = [],
   onAmenityAdded,
 }) {
-  const { effectiveTheme } = usePreferences();
   const normalizedType = (propertyType || "").toString().toLowerCase();
   const isApartment = normalizedType.includes("apartment");
   const isDormitory = normalizedType.includes("dormitory");
@@ -125,7 +123,7 @@ export default function AddRoomModal({
             setFormData((prev) => ({ ...prev, genderRestriction: "female" }));
           }
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     })();
@@ -367,7 +365,7 @@ export default function AddRoomModal({
       setNewRule("");
       if (onAmenityAdded) onAmenityAdded();
       toast.success("Rule added");
-    } catch (err) {
+    } catch {
       toast.error("Failed to add rule");
     }
   };
@@ -436,7 +434,9 @@ export default function AddRoomModal({
     }));
     try {
       e.target.value = "";
-    } catch (err) {}
+    } catch {
+      // ignore
+    }
     // re-validate after adding images
     const { valid, errors } = validateForm({
       ...formData,
@@ -446,77 +446,6 @@ export default function AddRoomModal({
     setIsFormValid(valid);
   };
 
-  const moveImage = (index, direction) => {
-    setPreviewImages((prev) => {
-      const arr = [...prev];
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= arr.length) return prev;
-      const [item] = arr.splice(index, 1);
-      arr.splice(newIndex, 0, item);
-      return arr;
-    });
-    setFormData((prev) => {
-      const arr = [...prev.images];
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= arr.length) return prev;
-      const [item] = arr.splice(index, 1);
-      arr.splice(newIndex, 0, item);
-      return { ...prev, images: arr };
-    });
-  };
-
-  const setCover = (index) => {
-    // move selected image to index 0
-    if (index === 0) return;
-    setPreviewImages((prev) => {
-      const arr = [...prev];
-      const [item] = arr.splice(index, 1);
-      arr.unshift(item);
-      return arr;
-    });
-    setFormData((prev) => {
-      const arr = [...prev.images];
-      const [item] = arr.splice(index, 1);
-      arr.unshift(item);
-      return { ...prev, images: arr };
-    });
-  };
-
-  const handleReplaceClick = (index) => {
-    // create and trigger a temporary input
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/png,image/jpeg,image/jpg";
-    input.onchange = (ev) => {
-      const file = ev.target.files && ev.target.files[0];
-      if (!file) return;
-      const MAX_SIZE = 10 * 1024 * 1024;
-      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error("Unsupported file type");
-        return;
-      }
-      if (file.size > MAX_SIZE) {
-        toast.error("File too large (max 10 MB)");
-        return;
-      }
-      setPreviewImages((prev) => {
-        const arr = [...prev];
-        try {
-          URL.revokeObjectURL(arr[index]);
-        } catch (e) {}
-        arr[index] = URL.createObjectURL(file);
-        return arr;
-      });
-      setFormData((prev) => {
-        const arr = [...prev.images];
-        arr[index] = file;
-        return { ...prev, images: arr };
-      });
-    };
-    input.click();
-  };
-
   const removeImage = (index) => {
     setPreviewImages((prev) => {
       const url = prev[index];
@@ -524,7 +453,7 @@ export default function AddRoomModal({
         if (typeof url === "string" && url.startsWith("blob:")) {
           URL.revokeObjectURL(url);
         }
-      } catch (e) {
+      } catch {
         // ignore revoke errors
       }
       return prev.filter((_, i) => i !== index);
@@ -650,7 +579,9 @@ export default function AddRoomModal({
       setError(msg);
       try {
         toast.error(msg);
-      } catch (e) {
+      } catch {
+        /* ignore toast errors */
+      }
         /* ignore toast errors */
       }
     } finally {
@@ -660,26 +591,28 @@ export default function AddRoomModal({
 
   // Revoke preview URLs when modal closes or unmounts to prevent memory leaks
   useEffect(() => {
-    if (!isOpen) {
-      try {
-        previewImages.forEach((u) => {
-          if (u && typeof u === "string" && u.startsWith("blob:"))
-            URL.revokeObjectURL(u);
-        });
-      } catch (e) {}
-      setPreviewImages([]);
-      // clear any staged files
-      setFormData((prev) => ({ ...prev, images: [] }));
-    }
     return () => {
       try {
         previewImages.forEach((u) => {
           if (u && typeof u === "string" && u.startsWith("blob:"))
             URL.revokeObjectURL(u);
         });
-      } catch (e) {}
+      } catch {
+        // ignore
+      }
+      setPreviewImages([]);
+      // clear any staged files
+      setFormData((prev) => ({ ...prev, images: [] }));
     };
-  }, [isOpen]);
+    return () => {
+      try {
+        previewImages.forEach((u) => {
+          if (u && typeof u === "string" && u.startsWith("blob:"))
+            URL.revokeObjectURL(u);
+        });
+      } catch {}
+    };
+  }, [isOpen, previewImages]);
 
   if (!isOpen) return null;
 
@@ -738,6 +671,7 @@ export default function AddRoomModal({
                   }
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.roomNumber ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                 />
+                {fieldErrors.roomNumber && <p className="text-red-500 text-xs mt-1">{fieldErrors.roomNumber}</p>}
               </div>
 
               <div>
@@ -842,6 +776,7 @@ export default function AddRoomModal({
                   step="0.01"
                   disabled={formData.billingPolicy === "daily"}
                 />
+                {fieldErrors.monthlyRate && <p className="text-red-500 text-xs mt-1">{fieldErrors.monthlyRate}</p>}
               </div>
 
               <div>
@@ -870,6 +805,7 @@ export default function AddRoomModal({
                     )
                   }
                 />
+                {fieldErrors.dailyRate && <p className="text-red-500 text-xs mt-1">{fieldErrors.dailyRate}</p>}
               </div>
             </div>
 

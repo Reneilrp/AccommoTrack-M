@@ -71,6 +71,8 @@ const initialForm = {
   nearbyLandmarks: "",
   totalRooms: "",
   maxOccupants: "",
+  totalFloors: "1",
+  floorLevel: [],
   amenities: [],
   rules: [],
   isEligible: false,
@@ -234,6 +236,16 @@ export default function AddProperty({ navigation }) {
     if (!newAmenity.trim()) return;
     updateForm("amenities", [...form.amenities, newAmenity.trim()]);
     setNewAmenity("");
+  };
+
+  const toggleFloor = (floorNumberStr) => {
+    setForm((prev) => {
+      const current = prev.floorLevel;
+      const updated = current.includes(floorNumberStr)
+        ? current.filter((f) => f !== floorNumberStr)
+        : [...current, floorNumberStr].sort((a, b) => Number(a) - Number(b));
+      return { ...prev, floorLevel: updated };
+    });
   };
 
   const handlePickImages = async () => {
@@ -449,6 +461,8 @@ export default function AddProperty({ navigation }) {
       nearby_landmarks: form.nearbyLandmarks.trim(),
       total_rooms: form.totalRooms || 0,
       max_occupants: form.maxOccupants || 0,
+      total_floors: form.totalFloors || 1,
+      floor_level: form.floorLevel.length > 0 ? form.floorLevel.join(",") : "",
       property_rules: form.rules.length ? JSON.stringify(form.rules) : null,
       is_eligible: form.isEligible ? "1" : "0",
       is_draft: isDraft ? "1" : "0",
@@ -727,6 +741,73 @@ export default function AddProperty({ navigation }) {
                 value={form.description}
                 onChangeText={(text) => updateForm("description", text)}
               />
+            </View>
+
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Property Specifications</Text>
+              <Text style={styles.sectionSubtitle}>Define room capacities and managed floors</Text>
+
+              <View style={styles.inputRow}>
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Total Rooms</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., 10"
+                    keyboardType="numeric"
+                    value={form.totalRooms}
+                    onChangeText={(text) => updateForm("totalRooms", text)}
+                  />
+                </View>
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Max Occupants</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., 20"
+                    keyboardType="numeric"
+                    value={form.maxOccupants}
+                    onChangeText={(text) => updateForm("maxOccupants", text)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputRow}>
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Total Floors</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., 2"
+                    keyboardType="numeric"
+                    value={form.totalFloors}
+                    onChangeText={(text) => updateForm("totalFloors", text)}
+                  />
+                </View>
+              </View>
+
+              {parseInt(form.totalFloors) > 1 && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.label}>Managed Floors</Text>
+                  <Text style={[styles.sectionSubtitle, { marginBottom: 8 }]}>Select the floors you manage</Text>
+                  <View style={styles.floorsGrid}>
+                    {Array.from({ length: parseInt(form.totalFloors) || 0 }, (_, i) => String(i + 1)).map((floor) => (
+                      <TouchableOpacity
+                        key={floor}
+                        style={[
+                          styles.floorButton,
+                          form.floorLevel.includes(floor) && styles.floorButtonActive
+                        ]}
+                        onPress={() => toggleFloor(floor)}
+                      >
+                        <Text style={[
+                          styles.floorButtonText,
+                          form.floorLevel.includes(floor) && styles.floorButtonTextActive
+                        ]}>
+                          {floor}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.sectionCard}>

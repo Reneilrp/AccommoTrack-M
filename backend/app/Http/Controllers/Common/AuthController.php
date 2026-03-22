@@ -179,7 +179,7 @@ class AuthController extends Controller
             // Add verification info for landlords on successful login
             if ($user->role === 'landlord') {
                 $verification = $user->landlordVerification;
-                $responseData['verification_status'] = $verification ? $verification->status : ($user->is_verified ? 'approved' : 'pending');
+                $responseData['verification_status'] = $verification ? $verification->status : 'not_submitted';
                 $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
             }
 
@@ -234,6 +234,18 @@ class AuthController extends Controller
 
         // Security Check: If switching TO landlord, must be verified/approved
         if ($user->role === 'tenant' && $newRole === 'landlord') {
+            if ($user->date_of_birth) {
+                if (\Carbon\Carbon::parse($user->date_of_birth)->age < 20) {
+                    return response()->json([
+                        'message' => 'You must be at least 20 years old to become a landlord.',
+                    ], 403);
+                }
+            } else {
+                return response()->json([
+                    'message' => 'Date of birth is required to become a landlord.',
+                ], 403);
+            }
+
             $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
 
             if (! $verification || $verification->status !== 'approved') {

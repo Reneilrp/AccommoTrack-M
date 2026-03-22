@@ -31,6 +31,7 @@ class LandlordVerificationController extends Controller
             'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'agree' => 'accepted',
+            'dob' => 'required|date',
         ]);
 
         if ($validator->fails()) {
@@ -40,6 +41,15 @@ class LandlordVerificationController extends Controller
         try {
             DB::beginTransaction();
 
+            // Age validation
+            $birthDate = \Carbon\Carbon::parse($request->dob);
+            if ($birthDate->diffInYears(\Carbon\Carbon::now()) < 20) {
+                return response()->json([
+                    'message' => 'Registration failed: You must be at least 20 years old to register as a landlord.',
+                    'errors' => ['dob' => ['Age restriction: Minimum 20 years old required.']],
+                ], 422);
+            }
+
             // 1. Create User
             $user = User::create([
                 'first_name' => $request->first_name,
@@ -47,6 +57,7 @@ class LandlordVerificationController extends Controller
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'phone' => $request->phone,
+                'date_of_birth' => $request->dob,
                 'password' => Hash::make($request->password),
                 'role' => 'landlord',
                 'is_active' => true,
@@ -208,6 +219,20 @@ class LandlordVerificationController extends Controller
     public function resubmit(Request $request)
     {
         $user = Auth::user();
+
+        // Check age verification
+        if ($user->date_of_birth) {
+            $age = \Carbon\Carbon::parse($user->date_of_birth)->age;
+            if ($age < 20) {
+                 return response()->json([
+                     'message' => 'You must be at least 20 years old to become a landlord.',
+                 ], 403);
+            }
+        } else {
+             return response()->json([
+                 'message' => 'Date of birth is required to become a landlord. Please update your profile.',
+             ], 403);
+        }
 
         $verification = LandlordVerification::where('user_id', $user->id)->first();
 

@@ -163,8 +163,8 @@ export const tenantService = {
         try {
             const response = await api.post('/tenant/change-password', {
                 current_password: currentPassword,
-                password: newPassword,
-                password_confirmation: newPasswordConfirmation
+                new_password: newPassword,
+                new_password_confirmation: newPasswordConfirmation
             });
             return response.data;
         } catch (error) {

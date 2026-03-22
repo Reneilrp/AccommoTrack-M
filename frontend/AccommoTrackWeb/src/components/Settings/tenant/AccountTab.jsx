@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { tenantService } from '../../../services/tenantService';
 import { SkeletonAccountTab } from '../../Shared/Skeleton';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 const AccountTab = ({ user }) => {
 	const [saving, setSaving] = useState(false);
-	const [message, setMessage] = useState({ type: '', text: '' });
 	const [isEditing, setIsEditing] = useState(false);
   
 	const [passwordData, setPasswordData] = useState({
@@ -16,6 +16,22 @@ const AccountTab = ({ user }) => {
 
 	const [passwordsMatch, setPasswordsMatch] = useState(true);
 
+	// --- Password complexity checks (matches backend: min 8, uppercase, lowercase, number) ---
+	const complexity = useMemo(() => {
+		const pw = passwordData.new_password;
+		return {
+			minLength: pw.length >= 8,
+			hasUppercase: /[A-Z]/.test(pw),
+			hasLowercase: /[a-z]/.test(pw),
+			hasNumber: /[0-9]/.test(pw),
+		};
+	}, [passwordData.new_password]);
+
+	const allComplexityMet = complexity.minLength && complexity.hasUppercase && complexity.hasLowercase && complexity.hasNumber;
+
+	// --- Same password check ---
+	const isSameAsOld = passwordData.new_password.length > 0 && passwordData.current_password.length > 0 && passwordData.new_password === passwordData.current_password;
+
 	useEffect(() => {
 		if (passwordData.confirm_password) {
 			setPasswordsMatch(passwordData.new_password === passwordData.confirm_password);
@@ -24,6 +40,11 @@ const AccountTab = ({ user }) => {
 		}
 	}, [passwordData.new_password, passwordData.confirm_password]);
 
+	const canSubmit = !saving && passwordsMatch && allComplexityMet && !isSameAsOld
+		&& passwordData.current_password.length > 0
+		&& passwordData.new_password.length > 0
+		&& passwordData.confirm_password.length > 0;
+
 	const toggleEdit = () => {
 		if (isEditing) {
 			setPasswordData({
@@ -31,7 +52,6 @@ const AccountTab = ({ user }) => {
 				new_password: '',
 				confirm_password: '',
 			});
-			setMessage({ type: '', text: '' });
 		}
 		setIsEditing(!isEditing);
 	};
@@ -44,16 +64,21 @@ const AccountTab = ({ user }) => {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setSaving(true);
-		setMessage({ type: '', text: '' });
 
 		if (passwordData.new_password !== passwordData.confirm_password) {
-			setMessage({ type: 'error', text: 'New passwords do not match.' });
+			toast.error('New passwords do not match.');
 			setSaving(false);
 			return;
 		}
 
-		if (passwordData.new_password.length < 8) {
-			setMessage({ type: 'error', text: 'Password must be at least 8 characters long.' });
+		if (!allComplexityMet) {
+			toast.error('Password does not meet complexity requirements.');
+			setSaving(false);
+			return;
+		}
+
+		if (isSameAsOld) {
+			toast.error('New password must be different from current password.');
 			setSaving(false);
 			return;
 		}
@@ -64,19 +89,29 @@ const AccountTab = ({ user }) => {
 				passwordData.new_password,
 				passwordData.confirm_password
 			);
-			setMessage({ type: 'success', text: 'Password changed successfully!' });
+			toast.success('Password changed successfully!');
 			setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
 			setIsEditing(false);
 		} catch (error) {
 			console.error('Password change failed', error);
-			setMessage({ 
-				type: 'error', 
-				text: error.response?.data?.message || 'Failed to change password. Please check your current password.' 
-			});
+			toast.error(
+				error.response?.data?.message || 'Failed to change password. Please check your current password.'
+			);
 		} finally {
 			setSaving(false);
 		}
 	};
+
+	// --- Complexity indicator item ---
+	const ComplexityItem = ({ met, label }) => (
+		<li className={`flex items-center gap-1.5 text-xs ${met ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+			{met
+				? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+				: <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+			}
+			{label}
+		</li>
+	);
 
 	return (
 		<div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all">
@@ -94,12 +129,6 @@ const AccountTab = ({ user }) => {
 					</button>
 				)}
 			</div>
-
-			{message.text && (
-				<div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-					{message.text}
-				</div>
-			)}
 
 			<div className="w-full md:w-[40%] min-w-[300px] space-y-8">
 				<div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
@@ -139,10 +168,27 @@ const AccountTab = ({ user }) => {
 								value={passwordData.new_password}
 								onChange={handleChange}
 								required
-								minLength={8}
 								disabled={!isEditing}
 								className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
 							/>
+
+							{/* Same-as-old warning */}
+							{isSameAsOld && (
+								<p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+									<AlertTriangle className="w-3.5 h-3.5" />
+									New password must be different from your current password
+								</p>
+							)}
+
+							{/* Complexity indicator */}
+							{isEditing && passwordData.new_password.length > 0 && (
+								<ul className="mt-2 space-y-1">
+									<ComplexityItem met={complexity.minLength} label="At least 8 characters" />
+									<ComplexityItem met={complexity.hasUppercase} label="One uppercase letter" />
+									<ComplexityItem met={complexity.hasLowercase} label="One lowercase letter" />
+									<ComplexityItem met={complexity.hasNumber} label="One number" />
+								</ul>
+							)}
 						</div>
 
 						<div>
@@ -153,7 +199,6 @@ const AccountTab = ({ user }) => {
 								value={passwordData.confirm_password}
 								onChange={handleChange}
 								required
-								minLength={8}
 								disabled={!isEditing}
 								className={`w-full px-4 py-2 border rounded-lg focus:ring-2 outline-none transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 ${
 									!passwordsMatch && passwordData.confirm_password 
@@ -190,9 +235,9 @@ const AccountTab = ({ user }) => {
 								</button>
 								<button
 									type="submit"
-									disabled={saving || !passwordsMatch}
+									disabled={!canSubmit}
 									className={`px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow-sm hover:bg-green-700 transition-colors ${
-										(saving || !passwordsMatch) ? 'opacity-70 cursor-not-allowed' : ''
+										!canSubmit ? 'opacity-70 cursor-not-allowed' : ''
 									}`}
 								>
 									{saving ? 'Updating...' : 'Update Password'}

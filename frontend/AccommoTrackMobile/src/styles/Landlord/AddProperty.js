@@ -444,6 +444,34 @@ export const getStyles = (theme) => StyleSheet.create({
     gap: 8,
     marginTop: 8
   },
+  floorsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8
+  },
+  floorButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface
+  },
+  floorButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  floorButtonText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '600'
+  },
+  floorButtonTextActive: {
+    color: theme.colors.textInverse
+  },
 });
 
 export default getStyles;

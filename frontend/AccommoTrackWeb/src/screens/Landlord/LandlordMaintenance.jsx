@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { maintenanceService } from '../../services/maintenanceService';
 import { 
   Wrench, 
@@ -20,6 +20,9 @@ import { cacheManager } from '../../utils/cache';
 
 export default function LandlordMaintenance() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const propertyId = queryParams.get('property_id');
   const { uiState, updateScreenState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_maintenance || cacheManager.get('landlord_maintenance');
   const savedState = uiState.maintenance || {};
@@ -32,7 +35,9 @@ export default function LandlordMaintenance() {
   const fetchRequests = useCallback(async (statusToLoad) => {
     try {
       setLoading(true);
-      const response = await maintenanceService.getLandlordRequests({ status: statusToLoad });
+      const payload = { status: statusToLoad };
+      if (propertyId) payload.property_id = propertyId;
+      const response = await maintenanceService.getLandlordRequests(payload);
       const list = Array.isArray(response?.data)
         ? response.data
         : Array.isArray(response)
@@ -51,7 +56,7 @@ export default function LandlordMaintenance() {
     } finally {
       setLoading(false);
     }
-  }, [updateData]);
+  }, [updateData, propertyId]);
 
   useEffect(() => {
     fetchRequests(filterStatus);

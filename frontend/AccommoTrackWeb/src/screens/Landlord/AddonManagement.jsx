@@ -91,8 +91,10 @@ const AddonManagement = ({ propertyId }) => {
 
       if (editingAddon) {
         await addonService.updateAddon(propertyId, editingAddon.id, data);
+        toast.success("Addon updated successfully!");
       } else {
         await addonService.createAddon(propertyId, data);
+        toast.success("Addon created successfully!");
       }
 
       setShowModal(false);
@@ -107,6 +109,7 @@ const AddonManagement = ({ propertyId }) => {
     if (!confirm("Are you sure you want to delete this addon?")) return;
     try {
       await addonService.deleteAddon(propertyId, addonId);
+      toast.success("Addon deleted successfully!");
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete addon");
@@ -135,6 +138,7 @@ const AddonManagement = ({ propertyId }) => {
       action === "reject" ? prompt("Reason for rejection (optional):") : null;
     try {
       await addonService.handleAddonRequest(bookingId, addonId, action, note);
+      toast.success(`Request ${action}ed successfully!`);
       fetchData();
     } catch (error) {
       toast.error(

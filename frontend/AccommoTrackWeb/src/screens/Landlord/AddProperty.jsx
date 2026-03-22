@@ -122,7 +122,7 @@ export default function AddProperty({ onBack, onSave }) {
       try {
         const res = await api.get('/landlord/my-verification');
         setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
-      } catch (err) {
+      } catch {
         // If 404 or error, assume not verified
         setIsVerified(false);
       }
@@ -150,7 +150,7 @@ export default function AddProperty({ onBack, onSave }) {
               barangay: data.address.suburb || data.address.neighbourhood || prev.barangay,
             }));
           }
-        } catch (err) {
+        } catch {
           // Optionally handle error
         }
       })();
@@ -265,7 +265,7 @@ export default function AddProperty({ onBack, onSave }) {
         }));
         setNewRule('');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to add rule. Please try again.');
     }
   };
@@ -276,7 +276,7 @@ export default function AddProperty({ onBack, onSave }) {
         ...prev,
         rules: Array.isArray(prev.rules) ? prev.rules.filter((_, i) => i !== index) : []
       }));
-    } catch (err) {
+    } catch {
       setError('Failed to remove rule. Please try again.');
     }
   };
@@ -290,7 +290,7 @@ export default function AddProperty({ onBack, onSave }) {
         }));
         setNewAmenity('');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to add amenity. Please try again.');
     }
   };
@@ -301,17 +301,43 @@ export default function AddProperty({ onBack, onSave }) {
         ...prev,
         amenities: Array.isArray(prev.amenities) ? prev.amenities.filter((_, i) => i !== index) : []
       }));
-    } catch (err) {
+    } catch {
       setError('Failed to remove amenity. Please try again.');
     }
   };
 
+  const validateStep = (step) => {
+    const errors = {};
+    if (step === 1) {
+      if (!formData.propertyName) errors.propertyName = 'Property name is required';
+      if (!formData.propertyType) errors.propertyType = 'Property type is required';
+      if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.otherPropertyType = 'Please specify the property type';
+      if (!Array.isArray(formData.images) || formData.images.length === 0) {
+        errors.images = 'At least 1 property image is required';
+      }
+    } else if (step === 2) {
+      if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
+      if (!formData.city) errors.city = 'City is required';
+      if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix highlighted errors');
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
   const handleNext = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
-      setTimeout(() => {
-        formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+    if (validateStep(currentStep)) {
+      if (currentStep < steps.length) {
+        setCurrentStep(currentStep + 1);
+        setTimeout(() => {
+          formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
     }
   };
 
@@ -422,10 +448,17 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const handleSubmit = async (isDraft = false) => {
-    if (!isDraft && !validateForm(isDraft)) return;
+    if (!isDraft) {
+       // Validate all steps when submitting
+       if (!validateStep(1) || !validateStep(2)) {
+         return;
+       }
+       if (!validateForm(isDraft)) return;
+    } else {
+       setError('');
+    }
 
     setLoading(true);
-    setError('');
 
     // Use FormData (multipart/form-data)
     const payload = new FormData();
@@ -470,15 +503,18 @@ export default function AddProperty({ onBack, onSave }) {
           'Content-Type': 'multipart/form-data'
         }
       });
-      const data = result.data;
+      toast.success(isDraft ? 'Property draft saved successfully!' : 'Property submitted for approval!');
       setShowSuccessModal({ visible: true, isDraft, result });
     } catch (err) {
       const errData = err.response?.data;
       if (errData?.errors) {
-        const messages = Object.values(errData.errors).flat().join(' ');
-        setError(messages);
+        setFieldErrors(errData.errors);
+        setError('Submission failed. Please review the errors below and try again.');
+        toast.error('Please fix the validation errors.');
       } else {
-        setError(errData?.message || err.message || 'Something went wrong');
+        const errorMessage = errData?.message || err.message || 'Something went wrong';
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -595,6 +631,7 @@ export default function AddProperty({ onBack, onSave }) {
                     onChange={(e) => handleInputChange('propertyName', e.target.value)}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.propertyName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.propertyName && <p className="text-red-500 text-xs mt-1">{fieldErrors.propertyName[0]}</p>}
                 </div>
 
                 <div className={formData.propertyType === 'others' ? 'col-span-1' : 'col-span-2'}>
@@ -613,6 +650,7 @@ export default function AddProperty({ onBack, onSave }) {
                     <option value="bedSpacer">Bed Spacer</option>
                     <option value="others">Others</option>
                   </select>
+                  {fieldErrors.propertyType && <p className="text-red-500 text-xs mt-1">{fieldErrors.propertyType[0]}</p>}
                 </div>
 
                 {formData.propertyType === 'others' && (
@@ -627,6 +665,7 @@ export default function AddProperty({ onBack, onSave }) {
                       onChange={(e) => handleInputChange('otherPropertyType', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.otherPropertyType ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     />
+                    {fieldErrors.otherPropertyType && <p className="text-red-500 text-xs mt-1">{fieldErrors.otherPropertyType[0]}</p>}
                   </div>
                 )}
               </div>
@@ -692,18 +731,6 @@ export default function AddProperty({ onBack, onSave }) {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Floor Level (e.g., Basement, Penthouse)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., 2nd Floor"
-                      value={formData.floor_level}
-                      onChange={(e) => handleInputChange('floor_level', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
                   {parseInt(formData.total_floors) > 1 && (
                     <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -759,7 +786,14 @@ export default function AddProperty({ onBack, onSave }) {
 
             {/* Property Images */}
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property Images</h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Property Images</h2>
+                {fieldErrors.images && (
+                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                    {fieldErrors.images[0]}
+                  </p>
+                )}
+              </div>
 
               <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 hover:border-green-500 dark:hover:border-green-500 transition-colors group">
                 <input
@@ -950,6 +984,7 @@ export default function AddProperty({ onBack, onSave }) {
                     onChange={(e) => handleInputChange('streetAddress', e.target.value)}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.streetAddress && <p className="text-red-500 text-xs mt-1">{fieldErrors.streetAddress[0]}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -962,6 +997,7 @@ export default function AddProperty({ onBack, onSave }) {
                     onChange={(e) => handleInputChange('barangay', e.target.value)}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.barangay && <p className="text-red-500 text-xs mt-1">{fieldErrors.barangay[0]}</p>}
                 </div>
               </div>
 
@@ -977,6 +1013,7 @@ export default function AddProperty({ onBack, onSave }) {
                     onChange={(e) => handleInputChange('city', e.target.value)}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
+                  {fieldErrors.city && <p className="text-red-500 text-xs mt-1">{fieldErrors.city[0]}</p>}
                 </div>
 
                 <div>
@@ -991,6 +1028,7 @@ export default function AddProperty({ onBack, onSave }) {
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
                   />
+                  {fieldErrors.provinceRegion && <p className="text-red-500 text-xs mt-1">{fieldErrors.provinceRegion[0]}</p>}
                 </div>
               </div>
 

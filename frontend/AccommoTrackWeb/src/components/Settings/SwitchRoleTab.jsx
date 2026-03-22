@@ -80,7 +80,7 @@ export default function SwitchRoleTab() {
       }
     } catch (error) {
       console.error('Failed to switch role:', error);
-      alert('Failed to switch role. Please try again.');
+      alert(error.response?.data?.message || 'Failed to switch role. Please try again.');
     }
   };
 
