@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, RefreshCw, X, Loader2, AlertTriangle, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, Send, FileDown, UserX } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, FileDown, UserX, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown } from 'lucide-react';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -45,9 +45,14 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
   // New state for bulk actions & modals
   const [selectedTenants, setSelectedTenants] = useState([]);
-  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [showEvictModal, setShowEvictModal] = useState(false);
   const [evictingTenant, setEvictingTenant] = useState(null);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('tenantViewMode') || 'card');
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('tenantViewMode', mode);
+  };
 
   const normalizedRole = accessRole || user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
@@ -201,12 +206,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
-  const handleExport = () => {
-    const tenantsToExport = tenants.filter(t => selectedTenants.includes(t.id));
+  const handleExport = (ids) => {
+    const source = ids?.length ? tenants.filter(t => ids.includes(t.id)) : filteredTenants;
     const headers = ["ID", "First Name", "Last Name", "Email", "Phone", "Property", "Room"];
     const csvContent = [
       headers.join(','),
-      ...tenantsToExport.map(t => [
+      ...source.map(t => [
         t.id,
         `"${t.first_name}"`,
         `"${t.last_name}"`,
@@ -223,7 +228,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     link.download = `tenants_export_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
-    toast.success(`${tenantsToExport.length} tenants exported!`);
+    toast.success(`${source.length} tenant${source.length !== 1 ? 's' : ''} exported!`);
   };
   
   const stats = {
@@ -274,6 +279,18 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
+              {/* View Toggle */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
+                <button onClick={() => handleSetViewMode('card')} title="Card view" className={`p-1.5 rounded-md transition-colors ${viewMode === 'card' ? 'bg-white dark:bg-gray-600 shadow text-green-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button onClick={() => handleSetViewMode('list')} title="List view" className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow text-green-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                  <LayoutList className="w-4 h-4" />
+                </button>
+              </div>
+              <button onClick={handleExport} title="Export tenants as CSV" className="p-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center shadow-md">
+                <FileDown className="w-5 h-5" />
+              </button>
               <button onClick={loadTenants} disabled={loading} title="Refresh" className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
               </button>
@@ -282,44 +299,52 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         </div>
 
         {selectedTenants.length > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 mb-6 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
-              <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedTenants.length} selected</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowBroadcastModal(true)} className="px-4 py-2.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center gap-2.5 hover:bg-gray-50">
-                <Send className="w-3.5 h-3.5"/> Send Broadcast
-              </button>
-              <button onClick={handleExport} className="px-4 py-2.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center gap-2.5 hover:bg-gray-50">
-                <FileDown className="w-3.5 h-3.5"/> Export CSV
-              </button>
-            </div>
+          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-700 mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+            <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
+            <span className="text-sm font-bold text-green-700 dark:text-green-300 flex-1">{selectedTenants.length} tenant{selectedTenants.length !== 1 ? 's' : ''} selected</span>
+            <button onClick={() => handleExport(selectedTenants)} className="px-3 py-1.5 text-xs font-bold bg-gray-700 text-white rounded-lg flex items-center gap-2 hover:bg-gray-800">
+              <FileDown className="w-3.5 h-3.5"/> Export Selected
+            </button>
+            <button onClick={() => setSelectedTenants([])} className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg" title="Clear selection">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTenants.length === 0 ? (
-            <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-              <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
-              <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
-            </div>
-          ) : (
-            filteredTenants.map(tenant => (
-              <div key={tenant.id} className="relative">
-                <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
-                  <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
-                </div>
-                <TenantCard tenant={tenant} onTransfer={handleTransferInitiate} onEvict={handleEvictInitiate} canTransfer={!isCaretaker} />
+        {viewMode === 'card' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTenants.length === 0 ? (
+              <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+                <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
+                <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              filteredTenants.map(tenant => (
+                <div key={tenant.id} className="relative">
+                  <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
+                    <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
+                  </div>
+                  <TenantCard tenant={tenant} onTransfer={handleTransferInitiate} onEvict={handleEvictInitiate} canTransfer={!isCaretaker} />
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <TenantListView
+            tenants={filteredTenants}
+            selectedTenants={selectedTenants}
+            onSelect={handleSelectTenant}
+            onSelectAll={handleSelectAll}
+            onTransfer={handleTransferInitiate}
+            onEvict={handleEvictInitiate}
+            canTransfer={!isCaretaker}
+            searchQuery={searchQuery}
+          />
+        )}
       </div>
 
       {showTransferModal && <TransferModal tenant={transferringTenant} availableRooms={availableRooms} loading={loadingRoomsForTransfer} isSubmitting={isTransferring} data={transferData} setData={setTransferData} onClose={() => setShowTransferModal(false)} onSubmit={handleTransferSubmit} />}
       {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
-      {showBroadcastModal && <BroadcastModal tenantIds={selectedTenants} onClose={() => setShowBroadcastModal(false)} />}
     </div>
   );
 }
@@ -429,39 +454,222 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
       </div>
     </div>
   );
-};
+}; 
 
-const BroadcastModal = ({ tenantIds, onClose }) => {
-  const [message, setMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
+// ─── List View ────────────────────────────────────────────────────────────────
 
-  const handleSend = async () => {
-    if (!message) return toast.error("Message cannot be empty.");
-    setIsSending(true);
-    try {
-      await api.post('/landlord/broadcast', { recipients: tenantIds, message });
-      toast.success(`Message sent to ${tenantIds.length} tenant(s).`);
-      onClose();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to send broadcast.");
-    } finally {
-      setIsSending(false);
-    }
+const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTransfer, onEvict, canTransfer, searchQuery }) => {
+  const navigate = useNavigate();
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [expandedEmergency, setExpandedEmergency] = useState(null);
+  const menuRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const isLate = (t) => t.has_overdue_invoices;
+  const isExpiring = (t) => {
+    if (!t.latestBooking?.end_date) return false;
+    const diff = Math.ceil((new Date(t.latestBooking.end_date) - new Date()) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 30;
   };
 
+  const statusBadge = (status) => {
+    const map = {
+      active:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+      inactive: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+    };
+    return map[status] || 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';
+  };
+
+  const allSelected = tenants.length > 0 && selectedTenants.length === tenants.length;
+
+  if (tenants.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+        <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
+        <p className="text-sm mt-2 text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2"><Send/> Send Broadcast Message</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">This message will be sent to the <strong>{tenantIds.length}</strong> selected tenant(s).</p>
-        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your message here..." className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white h-32 resize-none text-sm" />
-        <div className="flex gap-4 mt-4">
-          <button onClick={onClose} disabled={isSending} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
-          <button onClick={handleSend} disabled={isSending || !message} className="flex-1 px-4 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-            {isSending ? <Loader2 className="w-4 h-4 animate-spin"/> : "Send Message"}
-          </button>
-        </div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+              <th className="px-4 py-3 text-left">
+                <input type="checkbox" checked={allSelected} onChange={onSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Full Name</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Room</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Contract End</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60" ref={menuRef}>
+            {tenants.map((tenant) => {
+              const profile = tenant.tenantProfile;
+              const late = isLate(tenant);
+              const expiring = isExpiring(tenant);
+              const isOpen = openMenuId === tenant.id;
+              const showEmergency = expandedEmergency === tenant.id;
+
+              return (
+                <React.Fragment key={tenant.id}>
+                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
+                    {/* Checkbox */}
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => onSelect(tenant.id)} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
+                    </td>
+
+                    {/* Full Name + behavioral badges */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                          {tenant.first_name} {tenant.last_name}
+                        </span>
+                        {late && (
+                          <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-red-200 dark:border-red-800">
+                            <AlertCircle className="w-2.5 h-2.5" /> Late
+                          </span>
+                        )}
+                        {expiring && !late && (
+                          <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-orange-200 dark:border-orange-800">
+                            <Clock className="w-2.5 h-2.5" /> Expiring
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Email */}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[180px]">{tenant.email}</span>
+                      </span>
+                    </td>
+
+                    {/* Room */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {tenant.room ? (
+                        <span className="text-gray-700 dark:text-gray-300 flex items-center gap-1.5 font-medium">
+                          <Home className="w-3 h-3 text-gray-400 shrink-0" /> {tenant.room.room_number}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">None</span>
+                      )}
+                    </td>
+
+                    {/* Contract End */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      <span className={`flex items-center gap-1.5 ${expiring ? 'text-orange-600 dark:text-orange-400 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        {tenant.latestBooking?.end_date
+                          ? new Date(tenant.latestBooking.end_date).toLocaleDateString()
+                          : 'N/A'}
+                      </span>
+                    </td>
+
+                    {/* Status Badge */}
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${statusBadge(profile?.status)}`}>
+                        {profile?.status || 'Active'}
+                      </span>
+                    </td>
+
+                    {/* Manage Dropdown */}
+                    <td className="px-4 py-3 text-right relative">
+                      <button
+                        onClick={() => setOpenMenuId(isOpen ? null : tenant.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        Manage <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isOpen && (
+                        <div className="absolute right-4 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-30 animate-in fade-in zoom-in-95 duration-150 origin-top-right overflow-hidden">
+                          <button
+                            onClick={() => { setOpenMenuId(null); navigate('/messages', { state: { startConversation: true, recipient: { id: tenant.id }, property: tenant.room ? { id: tenant.room.property_id } : null } }); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-green-600" /> Message
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); navigate(`/payments?search=${tenant.email}`); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <CreditCard className="w-3.5 h-3.5 text-blue-600" /> Payments
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); navigate(`/tenants/${tenant.id}`); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <Users className="w-3.5 h-3.5 text-gray-500" /> View Logs
+                          </button>
+                          <div className="border-t border-gray-100 dark:border-gray-700" />
+                          <button
+                            onClick={() => { setOpenMenuId(null); onTransfer?.(tenant); }}
+                            disabled={!canTransfer || !tenant.room}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer Room
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); setExpandedEmergency(showEmergency ? null : tenant.id); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5 text-purple-500" /> Emergency Contact
+                          </button>
+                          <div className="border-t border-gray-100 dark:border-gray-700" />
+                          <button
+                            onClick={() => { setOpenMenuId(null); onEvict?.(tenant); }}
+                            disabled={!canTransfer}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                          >
+                            <UserX className="w-3.5 h-3.5" /> Evict Tenant
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Emergency Contact Expandable Row */}
+                  {showEmergency && profile && (
+                    <tr key={`${tenant.id}-emergency`} className="bg-purple-50 dark:bg-purple-900/10">
+                      <td colSpan={7} className="px-8 py-3">
+                        <div className="flex items-center gap-6 text-xs text-gray-700 dark:text-gray-300">
+                          <span className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-400 uppercase text-[10px]">
+                            <ShieldAlert className="w-3 h-3" /> Emergency Contact
+                          </span>
+                          <span className="font-semibold">{profile.emergency_contact_name || '—'}</span>
+                          <span className="flex items-center gap-1 text-gray-500"><Phone className="w-3 h-3" />{profile.emergency_contact_phone || '—'}</span>
+                          {profile.emergency_contact_relationship && (
+                            <span className="text-gray-400 italic">({profile.emergency_contact_relationship})</span>
+                          )}
+                          <button onClick={() => setExpandedEmergency(null)} className="ml-auto text-gray-400 hover:text-gray-600">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
+

@@ -151,8 +151,8 @@ class AnalyticsService
 
         // Monthly revenue = payments collected in the current calendar month
         $monthlyRevenue = (clone $paymentsQuery)
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
+            ->whereMonth('payment_date', now()->month)
+            ->whereYear('payment_date', now()->year)
             ->sum('amount');
 
         // Tenant stats

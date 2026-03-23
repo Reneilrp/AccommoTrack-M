@@ -1,0 +1,2262 @@
+{
+  "mobile": [
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/components/ForgotPasswordModal.jsx",
+      "line": 21,
+      "column": 18,
+      "varName": "isDarkMode",
+      "endLine": 21,
+      "endColumn": 28
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/components/ForgotPasswordModal.jsx",
+      "line": 57,
+      "column": 14,
+      "varName": "err",
+      "endLine": 57,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/components/ForgotPasswordModal.jsx",
+      "line": 86,
+      "column": 14,
+      "varName": "err",
+      "endLine": 86,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/components/ForgotPasswordModal.jsx",
+      "line": 125,
+      "column": 14,
+      "varName": "err",
+      "endLine": 125,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/config/toastConfig.jsx",
+      "line": 2,
+      "column": 10,
+      "varName": "View",
+      "endLine": 2,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/config/toastConfig.jsx",
+      "line": 2,
+      "column": 16,
+      "varName": "Text",
+      "endLine": 2,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/config/toastConfig.jsx",
+      "line": 2,
+      "column": 22,
+      "varName": "StyleSheet",
+      "endLine": 2,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/AuthScreen.jsx",
+      "line": 1,
+      "column": 38,
+      "varName": "useRef",
+      "endLine": 1,
+      "endColumn": 44
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/AuthScreen.jsx",
+      "line": 26,
+      "column": 23,
+      "varName": "showError",
+      "endLine": 26,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/AuthScreen.jsx",
+      "line": 219,
+      "column": 14,
+      "varName": "err",
+      "endLine": 219,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/AuthScreen.jsx",
+      "line": 373,
+      "column": 20,
+      "varName": "err",
+      "endLine": 373,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/LandingPages.jsx",
+      "line": 5,
+      "column": 3,
+      "varName": "StyleSheet",
+      "endLine": 5,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/LandingPages.jsx",
+      "line": 8,
+      "column": 3,
+      "varName": "FlatList",
+      "endLine": 8,
+      "endColumn": 11
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/LandlordRegisterScreen.jsx",
+      "line": 19,
+      "column": 8,
+      "varName": "AsyncStorage",
+      "endLine": 19,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/LandlordRegisterScreen.jsx",
+      "line": 22,
+      "column": 10,
+      "varName": "showSuccess",
+      "endLine": 22,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/LandlordRegisterScreen.jsx",
+      "line": 22,
+      "column": 23,
+      "varName": "showError",
+      "endLine": 22,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/auth/screens/OtpVerificationScreen.jsx",
+      "line": 15,
+      "column": 23,
+      "varName": "showError",
+      "endLine": 15,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/components/Button.jsx",
+      "line": 2,
+      "column": 53,
+      "varName": "View",
+      "endLine": 2,
+      "endColumn": 57
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/components/LandlordBottomNavigation.jsx",
+      "line": 57,
+      "column": 7,
+      "varName": "styles",
+      "endLine": 57,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/components/LandlordBottomNavigation.jsx",
+      "line": 82,
+      "column": 16,
+      "varName": "e",
+      "endLine": 82,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/navigation/LandlordLayout.jsx",
+      "line": 5,
+      "column": 8,
+      "varName": "Header",
+      "endLine": 5,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/navigation/LandlordLayout.jsx",
+      "line": 61,
+      "column": 9,
+      "varName": "showHeader",
+      "endLine": 61,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/navigation/LandlordLayout.jsx",
+      "line": 63,
+      "column": 9,
+      "varName": "title",
+      "endLine": 63,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/navigation/LandlordNavigator.jsx",
+      "line": 53,
+      "column": 16,
+      "varName": "e",
+      "endLine": 53,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Addons/AddonManagement.jsx",
+      "line": 105,
+      "column": 14,
+      "varName": "error",
+      "endLine": 105,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Analytics/Analytics.jsx",
+      "line": 134,
+      "column": 14,
+      "varName": "err",
+      "endLine": 134,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Bookings/AddBooking.jsx",
+      "line": 1,
+      "column": 38,
+      "varName": "useCallback",
+      "endLine": 1,
+      "endColumn": 49
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Bookings/AddBooking.jsx",
+      "line": 67,
+      "column": 16,
+      "varName": "error",
+      "endLine": 67,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Bookings/AddBooking.jsx",
+      "line": 182,
+      "column": 14,
+      "varName": "error",
+      "endLine": 182,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Bookings/Bookings.jsx",
+      "line": 1,
+      "column": 30,
+      "varName": "useEffect",
+      "endLine": 1,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Bookings/Bookings.jsx",
+      "line": 117,
+      "column": 14,
+      "varName": "err",
+      "endLine": 117,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Bookings/Bookings.jsx",
+      "line": 130,
+      "column": 14,
+      "varName": "err",
+      "endLine": 130,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Dashboard/AllActivities.jsx",
+      "line": 62,
+      "column": 19,
+      "varName": "setLoading",
+      "endLine": 62,
+      "endColumn": 29
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Dashboard/DashboardPage.jsx",
+      "line": 11,
+      "column": 3,
+      "varName": "Dimensions",
+      "endLine": 11,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Dashboard/DashboardPage.jsx",
+      "line": 121,
+      "column": 18,
+      "varName": "e",
+      "endLine": 121,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Dashboard/DashboardPage.jsx",
+      "line": 215,
+      "column": 14,
+      "varName": "error",
+      "endLine": 215,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Dashboard/DashboardPage.jsx",
+      "line": 311,
+      "column": 9,
+      "varName": "pendingNotifications",
+      "endLine": 311,
+      "endColumn": 29
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Messages/ChatScreen.jsx",
+      "line": 12,
+      "column": 10,
+      "varName": "API_BASE_URL",
+      "endLine": 12,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Messages/ChatScreen.jsx",
+      "line": 12,
+      "column": 24,
+      "varName": "BASE_URL",
+      "endLine": 12,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Messages/ChatScreen.jsx",
+      "line": 90,
+      "column": 82,
+      "varName": "e",
+      "endLine": 90,
+      "endColumn": 83
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Messages/MessagesList.jsx",
+      "line": 2,
+      "column": 73,
+      "varName": "ActivityIndicator",
+      "endLine": 2,
+      "endColumn": 90
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Messages/MessagesPage.jsx",
+      "line": 15,
+      "column": 12,
+      "varName": "currentUserId",
+      "endLine": 15,
+      "endColumn": 25
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Notifications/Notifications.jsx",
+      "line": 10,
+      "column": 3,
+      "varName": "Alert",
+      "endLine": 10,
+      "endColumn": 8
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Payments/Payments.jsx",
+      "line": 132,
+      "column": 10,
+      "varName": "refundAmount",
+      "endLine": 132,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Payments/Payments.jsx",
+      "line": 132,
+      "column": 24,
+      "varName": "setRefundAmount",
+      "endLine": 132,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Payments/Payments.jsx",
+      "line": 133,
+      "column": 10,
+      "varName": "showRefundConfirm",
+      "endLine": 133,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Payments/Payments.jsx",
+      "line": 133,
+      "column": 29,
+      "varName": "setShowRefundConfirm",
+      "endLine": 133,
+      "endColumn": 49
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/AddProperty.jsx",
+      "line": 28,
+      "column": 10,
+      "varName": "getImageUrl",
+      "endLine": 28,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/AddProperty.jsx",
+      "line": 30,
+      "column": 9,
+      "varName": "width",
+      "endLine": 30,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/AddProperty.jsx",
+      "line": 138,
+      "column": 14,
+      "varName": "err",
+      "endLine": 138,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/DormProfile.jsx",
+      "line": 14,
+      "column": 3,
+      "varName": "Dimensions",
+      "endLine": 14,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/DormProfile.jsx",
+      "line": 91,
+      "column": 14,
+      "varName": "err",
+      "endLine": 91,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/DormProfileSettings.jsx",
+      "line": 107,
+      "column": 12,
+      "varName": "e",
+      "endLine": 107,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/PropertyActivityLogs.jsx",
+      "line": 8,
+      "column": 3,
+      "varName": "ActivityIndicator",
+      "endLine": 8,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Properties/PropertyActivityLogs.jsx",
+      "line": 26,
+      "column": 10,
+      "varName": "loading",
+      "endLine": 26,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Reviews/Reviews.jsx",
+      "line": 5,
+      "column": 3,
+      "varName": "ScrollView",
+      "endLine": 5,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 6,
+      "column": 3,
+      "varName": "useRef",
+      "endLine": 6,
+      "endColumn": 9
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 21,
+      "column": 3,
+      "varName": "Dimensions",
+      "endLine": 21,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 73,
+      "column": 14,
+      "varName": "err",
+      "endLine": 73,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 107,
+      "column": 10,
+      "varName": "loadingProperties",
+      "endLine": 107,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 108,
+      "column": 10,
+      "varName": "loadingRooms",
+      "endLine": 108,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 110,
+      "column": 10,
+      "varName": "error",
+      "endLine": 110,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 233,
+      "column": 14,
+      "varName": "err",
+      "endLine": 233,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 260,
+      "column": 16,
+      "varName": "err",
+      "endLine": 260,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Rooms/RoomManagement.jsx",
+      "line": 1376,
+      "column": 28,
+      "varName": "err",
+      "endLine": 1376,
+      "endColumn": 31
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/Caretakers.jsx",
+      "line": 1,
+      "column": 38,
+      "varName": "useMemo",
+      "endLine": 1,
+      "endColumn": 45
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/Caretakers.jsx",
+      "line": 1,
+      "column": 47,
+      "varName": "useRef",
+      "endLine": 1,
+      "endColumn": 53
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/Caretakers.jsx",
+      "line": 295,
+      "column": 14,
+      "varName": "err",
+      "endLine": 295,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/MyProfile.jsx",
+      "line": 1,
+      "column": 27,
+      "varName": "useEffect",
+      "endLine": 1,
+      "endColumn": 36
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/MyProfile.jsx",
+      "line": 22,
+      "column": 8,
+      "varName": "Button",
+      "endLine": 22,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/MyProfile.jsx",
+      "line": 166,
+      "column": 14,
+      "varName": "error",
+      "endLine": 166,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/VerificationStatus.jsx",
+      "line": 1,
+      "column": 27,
+      "varName": "useEffect",
+      "endLine": 1,
+      "endColumn": 36
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Account/VerificationStatus.jsx",
+      "line": 148,
+      "column": 14,
+      "varName": "error",
+      "endLine": 148,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/SettingsHub.jsx",
+      "line": 10,
+      "column": 3,
+      "varName": "Linking",
+      "endLine": 10,
+      "endColumn": 10
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/SettingsHub.jsx",
+      "line": 134,
+      "column": 10,
+      "varName": "loading",
+      "endLine": 134,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Settings/Support/About.jsx",
+      "line": 2,
+      "column": 52,
+      "varName": "StyleSheet",
+      "endLine": 2,
+      "endColumn": 62
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Tenants/TenantLogs.jsx",
+      "line": 9,
+      "column": 3,
+      "varName": "FlatList",
+      "endLine": 9,
+      "endColumn": 11
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Tenants/TenantManagement.jsx",
+      "line": 57,
+      "column": 10,
+      "varName": "loadingProperties",
+      "endLine": 57,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Tenants/TenantManagement.jsx",
+      "line": 60,
+      "column": 10,
+      "varName": "error",
+      "endLine": 60,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Tenants/TenantManagement.jsx",
+      "line": 60,
+      "column": 17,
+      "varName": "setError",
+      "endLine": 60,
+      "endColumn": 25
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/landlord/screens/Tenants/TenantManagement.jsx",
+      "line": 88,
+      "column": 9,
+      "varName": "selectedProperty",
+      "endLine": 88,
+      "endColumn": 25
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/BottomNavigation.jsx",
+      "line": 11,
+      "column": 9,
+      "varName": "navigation",
+      "endLine": 11,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/BottomNavigation.jsx",
+      "line": 33,
+      "column": 14,
+      "varName": "e",
+      "endLine": 33,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/MapModal.jsx",
+      "line": 165,
+      "column": 85,
+      "varName": "e",
+      "endLine": 165,
+      "endColumn": 86
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/MapModal.jsx",
+      "line": 171,
+      "column": 20,
+      "varName": "err",
+      "endLine": 171,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/PropertyCard.jsx",
+      "line": 5,
+      "column": 10,
+      "varName": "API_BASE_URL",
+      "endLine": 5,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/PropertyCard.jsx",
+      "line": 5,
+      "column": 24,
+      "varName": "BASE_URL",
+      "endLine": 5,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/components/ScreenLayout.jsx",
+      "line": 3,
+      "column": 10,
+      "varName": "SafeAreaView",
+      "endLine": 3,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/navigation/TenantLayout.jsx",
+      "line": 3,
+      "column": 10,
+      "varName": "SafeAreaView",
+      "endLine": 3,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/navigation/TenantLayout.jsx",
+      "line": 164,
+      "column": 14,
+      "varName": "err",
+      "endLine": 164,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/navigation/TenantNavigator.jsx",
+      "line": 41,
+      "column": 11,
+      "varName": "theme",
+      "endLine": 41,
+      "endColumn": 16
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Addons/AddonsScreen.jsx",
+      "line": 29,
+      "column": 29,
+      "varName": "propertyId",
+      "endLine": 29,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Addons/AddonsScreen.jsx",
+      "line": 108,
+      "column": 14,
+      "varName": "err",
+      "endLine": 108,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Addons/AddonsScreen.jsx",
+      "line": 134,
+      "column": 26,
+      "varName": "err",
+      "endLine": 134,
+      "endColumn": 29
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Bookings/BookingDetails.jsx",
+      "line": 27,
+      "column": 16,
+      "varName": "screenWidth",
+      "endLine": 27,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Bookings/BookingDetails.jsx",
+      "line": 140,
+      "column": 11,
+      "varName": "insets",
+      "endLine": 140,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Bookings/BookingDetails.jsx",
+      "line": 146,
+      "column": 12,
+      "varName": "isCanceling",
+      "endLine": 146,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Bookings/BookingDetails.jsx",
+      "line": 252,
+      "column": 30,
+      "varName": "err",
+      "endLine": 252,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Bookings/BookingDetails.jsx",
+      "line": 262,
+      "column": 11,
+      "varName": "handleCancelBooking",
+      "endLine": 262,
+      "endColumn": 30
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Bookings/BookingDetails.jsx",
+      "line": 278,
+      "column": 30,
+      "varName": "err",
+      "endLine": 278,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Dashboard/DashboardScreen.jsx",
+      "line": 10,
+      "column": 10,
+      "varName": "SafeAreaView",
+      "endLine": 10,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Dashboard/DashboardScreen.jsx",
+      "line": 20,
+      "column": 8,
+      "varName": "Header",
+      "endLine": 20,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Dashboard/DashboardScreen.jsx",
+      "line": 22,
+      "column": 10,
+      "varName": "BASE_URL",
+      "endLine": 22,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 10,
+      "column": 3,
+      "varName": "ActivityIndicator",
+      "endLine": 10,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 11,
+      "column": 3,
+      "varName": "RefreshControl",
+      "endLine": 11,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 23,
+      "column": 8,
+      "varName": "Header",
+      "endLine": 23,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 35,
+      "column": 21,
+      "varName": "setActiveTab",
+      "endLine": 35,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 36,
+      "column": 10,
+      "varName": "filterModalVisible",
+      "endLine": 36,
+      "endColumn": 28
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 36,
+      "column": 30,
+      "varName": "setFilterModalVisible",
+      "endLine": 36,
+      "endColumn": 51
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 43,
+      "column": 10,
+      "varName": "activeNavTab",
+      "endLine": 43,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 43,
+      "column": 24,
+      "varName": "setActiveNavTab",
+      "endLine": 43,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/ExploreScreen.jsx",
+      "line": 370,
+      "column": 9,
+      "varName": "handleProfilePress",
+      "endLine": 370,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/PropertyDetailsScreen.jsx",
+      "line": 24,
+      "column": 8,
+      "varName": "homeStyles",
+      "endLine": 24,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/PropertyDetailsScreen.jsx",
+      "line": 66,
+      "column": 16,
+      "varName": "e",
+      "endLine": 66,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 25,
+      "column": 8,
+      "varName": "homeStyles",
+      "endLine": 25,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 32,
+      "column": 9,
+      "varName": "width",
+      "endLine": 32,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 63,
+      "column": 10,
+      "varName": "optionsLoading",
+      "endLine": 63,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 88,
+      "column": 9,
+      "varName": "isMounted",
+      "endLine": 88,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 91,
+      "column": 14,
+      "varName": "e",
+      "endLine": 91,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 95,
+      "column": 14,
+      "varName": "e",
+      "endLine": 95,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 102,
+      "column": 16,
+      "varName": "e",
+      "endLine": 102,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 103,
+      "column": 72,
+      "varName": "e",
+      "endLine": 103,
+      "endColumn": 73
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 109,
+      "column": 9,
+      "varName": "isMounted",
+      "endLine": 109,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 111,
+      "column": 86,
+      "varName": "e",
+      "endLine": 111,
+      "endColumn": 87
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 118,
+      "column": 16,
+      "varName": "e",
+      "endLine": 118,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 177,
+      "column": 9,
+      "varName": "allowedMethods",
+      "endLine": 177,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/RoomDetailsScreen.jsx",
+      "line": 178,
+      "column": 9,
+      "varName": "gcashDetails",
+      "endLine": 178,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/TenantMenuModal.jsx",
+      "line": 2,
+      "column": 16,
+      "varName": "Alert",
+      "endLine": 2,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/TenantMenuModal.jsx",
+      "line": 11,
+      "column": 9,
+      "varName": "route",
+      "endLine": 11,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Explore/TenantMenuModal.jsx",
+      "line": 12,
+      "column": 11,
+      "varName": "theme",
+      "endLine": 12,
+      "endColumn": 16
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Maintenance/MyRequests.jsx",
+      "line": 2,
+      "column": 67,
+      "varName": "StyleSheet",
+      "endLine": 2,
+      "endColumn": 77
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/ChatScreen.jsx",
+      "line": 13,
+      "column": 10,
+      "varName": "API_BASE_URL",
+      "endLine": 13,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/ChatScreen.jsx",
+      "line": 13,
+      "column": 24,
+      "varName": "BASE_URL",
+      "endLine": 13,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/ChatScreen.jsx",
+      "line": 89,
+      "column": 82,
+      "varName": "e",
+      "endLine": 89,
+      "endColumn": 83
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/MessagesList.jsx",
+      "line": 150,
+      "column": 54,
+      "varName": "e",
+      "endLine": 150,
+      "endColumn": 55
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/MessagesList.jsx",
+      "line": 152,
+      "column": 108,
+      "varName": "err",
+      "endLine": 152,
+      "endColumn": 111
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/MessagesPage.jsx",
+      "line": 18,
+      "column": 12,
+      "varName": "currentUserId",
+      "endLine": 18,
+      "endColumn": 25
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Messages/MessagesPage.jsx",
+      "line": 77,
+      "column": 22,
+      "varName": "e",
+      "endLine": 77,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Payments/PaymentHistory.jsx",
+      "line": 1,
+      "column": 27,
+      "varName": "useEffect",
+      "endLine": 1,
+      "endColumn": 36
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Payments/PaymentHistory.jsx",
+      "line": 2,
+      "column": 87,
+      "varName": "Alert",
+      "endLine": 2,
+      "endColumn": 92
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Payments/PaymentHistory.jsx",
+      "line": 2,
+      "column": 94,
+      "varName": "Linking",
+      "endLine": 2,
+      "endColumn": 101
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Payments/PaymentsScreen.jsx",
+      "line": 25,
+      "column": 8,
+      "varName": "homeStyles",
+      "endLine": 25,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Payments/PaymentsScreen.jsx",
+      "line": 36,
+      "column": 9,
+      "varName": "navigation",
+      "endLine": 36,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Payments/PaymentsScreen.jsx",
+      "line": 54,
+      "column": 16,
+      "varName": "e",
+      "endLine": 54,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Profile/ProfilePage.jsx",
+      "line": 16,
+      "column": 10,
+      "varName": "SafeAreaView",
+      "endLine": 16,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Profile/UpdatePassword.jsx",
+      "line": 62,
+      "column": 14,
+      "varName": "e",
+      "endLine": 62,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Profile/UpdatePassword.jsx",
+      "line": 237,
+      "column": 7,
+      "varName": "localStyles",
+      "endLine": 237,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Reviews/MyReviews.jsx",
+      "line": 7,
+      "column": 10,
+      "varName": "Ionicons",
+      "endLine": 7,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/ServiceRequests/ServiceRequests.jsx",
+      "line": 5,
+      "column": 8,
+      "varName": "Header",
+      "endLine": 5,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/ServiceRequests/ServiceRequests.jsx",
+      "line": 11,
+      "column": 9,
+      "varName": "navigation",
+      "endLine": 11,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Settings/NotificationPreferences.jsx",
+      "line": 2,
+      "column": 41,
+      "varName": "TouchableOpacity",
+      "endLine": 2,
+      "endColumn": 57
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Settings/NotificationPreferences.jsx",
+      "line": 3,
+      "column": 10,
+      "varName": "SafeAreaView",
+      "endLine": 3,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Settings/NotificationPreferences.jsx",
+      "line": 4,
+      "column": 10,
+      "varName": "Ionicons",
+      "endLine": 4,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Settings/NotificationPreferences.jsx",
+      "line": 6,
+      "column": 10,
+      "varName": "STORAGE_KEYS",
+      "endLine": 6,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Settings/Settings.jsx",
+      "line": 2,
+      "column": 94,
+      "varName": "Linking",
+      "endLine": 2,
+      "endColumn": 101
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Settings/Settings.jsx",
+      "line": 11,
+      "column": 10,
+      "varName": "WEB_BASE_URL",
+      "endLine": 11,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Support/HelpSupport.jsx",
+      "line": 2,
+      "column": 22,
+      "varName": "StyleSheet",
+      "endLine": 2,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/features/tenant/screens/Support/HelpSupport.jsx",
+      "line": 3,
+      "column": 10,
+      "varName": "SafeAreaView",
+      "endLine": 3,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/navigation/AppNavigator.jsx",
+      "line": 35,
+      "column": 16,
+      "varName": "e",
+      "endLine": 35,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/navigation/RootNavigation.js",
+      "line": 41,
+      "column": 31,
+      "varName": "e",
+      "endLine": 41,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/BookingService.js",
+      "line": 2,
+      "column": 26,
+      "varName": "API_URL",
+      "endLine": 2,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/CaretakerService.js",
+      "line": 2,
+      "column": 26,
+      "varName": "API_URL",
+      "endLine": 2,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/MaintenanceService.js",
+      "line": 2,
+      "column": 26,
+      "varName": "API_URL",
+      "endLine": 2,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/PaymentService.js",
+      "line": 3,
+      "column": 26,
+      "varName": "API_URL",
+      "endLine": 3,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/ProfileService.js",
+      "line": 19,
+      "column": 14,
+      "varName": "e",
+      "endLine": 19,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/ProfileService.js",
+      "line": 184,
+      "column": 14,
+      "varName": "error",
+      "endLine": 184,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/PropertyService.js",
+      "line": 2,
+      "column": 24,
+      "varName": "BASE_URL",
+      "endLine": 2,
+      "endColumn": 32
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/PropertyService.js",
+      "line": 7,
+      "column": 7,
+      "varName": "LANDLORD_PREFIX",
+      "endLine": 7,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/ReviewService.js",
+      "line": 2,
+      "column": 26,
+      "varName": "API_URL",
+      "endLine": 2,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/TenantService.js",
+      "line": 2,
+      "column": 26,
+      "varName": "API_URL",
+      "endLine": 2,
+      "endColumn": 33
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/api.js",
+      "line": 16,
+      "column": 5,
+      "varName": "tokenWarningShown",
+      "endLine": 16,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/services/api.js",
+      "line": 28,
+      "column": 16,
+      "varName": "e",
+      "endLine": 28,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/styles/Landlord/AddonManagement.js",
+      "line": 3,
+      "column": 9,
+      "varName": "width",
+      "endLine": 3,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/styles/Landlord/DashboardPage.js",
+      "line": 3,
+      "column": 16,
+      "varName": "screenWidth",
+      "endLine": 3,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/styles/Tenant/AddonsStyles.js",
+      "line": 3,
+      "column": 9,
+      "varName": "width",
+      "endLine": 3,
+      "endColumn": 14
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/styles/Tenant/HomePage.js",
+      "line": 4,
+      "column": 7,
+      "varName": "sideWidth",
+      "endLine": 4,
+      "endColumn": 16
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackMobile/src/styles/Tenant/WalletStyles.js",
+      "line": 3,
+      "column": 9,
+      "varName": "width",
+      "endLine": 3,
+      "endColumn": 14
+    }
+  ],
+  "web": [
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/Navigation/PropertyDetailRoute.jsx",
+      "line": 15,
+      "column": 14,
+      "varName": "e",
+      "endLine": 15,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Layout/LandlordLayout.jsx",
+      "line": 6,
+      "column": 8,
+      "varName": "api",
+      "endLine": 6,
+      "endColumn": 11
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/RequireAdmin.jsx",
+      "line": 6,
+      "column": 9,
+      "varName": "location",
+      "endLine": 6,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/RequireAdmin.jsx",
+      "line": 24,
+      "column": 20,
+      "varName": "e",
+      "endLine": 24,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Rooms/RoomDetails.jsx",
+      "line": 34,
+      "column": 9,
+      "varName": "payments",
+      "endLine": 34,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Rooms/RoomDetails.jsx",
+      "line": 181,
+      "column": 40,
+      "varName": "e",
+      "endLine": 181,
+      "endColumn": 41
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Rooms/RoomDetails.jsx",
+      "line": 204,
+      "column": 38,
+      "varName": "e",
+      "endLine": 204,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Settings/landlord/Notifications.jsx",
+      "line": 40,
+      "column": 14,
+      "varName": "err",
+      "endLine": 40,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Settings/landlord/PaymentMethods.jsx",
+      "line": 41,
+      "column": 30,
+      "varName": "setConnectingPaymongo",
+      "endLine": 41,
+      "endColumn": 51
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Settings/landlord/PaymentMethods.jsx",
+      "line": 86,
+      "column": 14,
+      "varName": "err",
+      "endLine": 86,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Settings/landlord/PaymentMethods.jsx",
+      "line": 142,
+      "column": 14,
+      "varName": "e",
+      "endLine": 142,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Settings/tenant/PreferencesTab.jsx",
+      "line": 41,
+      "column": 16,
+      "varName": "e",
+      "endLine": 41,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Settings/tenant/ProfileTab.jsx",
+      "line": 49,
+      "column": 49,
+      "varName": "e",
+      "endLine": 49,
+      "endColumn": 50
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/Messaging/ChatArea.jsx",
+      "line": 3,
+      "column": 10,
+      "varName": "getImageUrl",
+      "endLine": 3,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/Messaging/ChatArea.jsx",
+      "line": 17,
+      "column": 3,
+      "varName": "normalizedRole",
+      "endLine": 17,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/Messaging/ChatArea.jsx",
+      "line": 79,
+      "column": 19,
+      "varName": "isFromLandlordSide",
+      "endLine": 79,
+      "endColumn": 37
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/Messaging/useMessaging.js",
+      "line": 170,
+      "column": 18,
+      "varName": "e",
+      "endLine": 170,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/Messaging/useMessaging.js",
+      "line": 177,
+      "column": 14,
+      "varName": "err",
+      "endLine": 177,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/PropertyMap.jsx",
+      "line": 95,
+      "column": 33,
+      "varName": "e",
+      "endLine": 95,
+      "endColumn": 34
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/components/Shared/ReportPropertyModal.jsx",
+      "line": 29,
+      "column": 13,
+      "varName": "res",
+      "endLine": 29,
+      "endColumn": 16
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/contexts/UIStateContext.jsx",
+      "line": 65,
+      "column": 14,
+      "varName": "e",
+      "endLine": 65,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Admin/InquiryManagement.jsx",
+      "line": 45,
+      "column": 14,
+      "varName": "err",
+      "endLine": 45,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Admin/InquiryManagement.jsx",
+      "line": 89,
+      "column": 14,
+      "varName": "err",
+      "endLine": 89,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Admin/Reports.jsx",
+      "line": 53,
+      "column": 14,
+      "varName": "err",
+      "endLine": 53,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 138,
+      "column": 67,
+      "varName": "_e",
+      "endLine": 138,
+      "endColumn": 69
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 366,
+      "column": 108,
+      "varName": "e",
+      "endLine": 366,
+      "endColumn": 109
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 402,
+      "column": 86,
+      "varName": "e",
+      "endLine": 402,
+      "endColumn": 87
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 561,
+      "column": 57,
+      "varName": "e",
+      "endLine": 561,
+      "endColumn": 58
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 580,
+      "column": 65,
+      "varName": "err",
+      "endLine": 580,
+      "endColumn": 68
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 783,
+      "column": 121,
+      "varName": "e",
+      "endLine": 783,
+      "endColumn": 122
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/LandlordRegister.jsx",
+      "line": 816,
+      "column": 119,
+      "varName": "e",
+      "endLine": 816,
+      "endColumn": 120
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/Web-Auth.jsx",
+      "line": 32,
+      "column": 44,
+      "varName": "theme",
+      "endLine": 32,
+      "endColumn": 49
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/Web-Auth.jsx",
+      "line": 35,
+      "column": 10,
+      "varName": "idTypesLoading",
+      "endLine": 35,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/Web-Auth.jsx",
+      "line": 443,
+      "column": 10,
+      "varName": "isMobileDevice",
+      "endLine": 443,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/Web-Auth.jsx",
+      "line": 775,
+      "column": 18,
+      "varName": "e",
+      "endLine": 775,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/Web-Auth.jsx",
+      "line": 834,
+      "column": 20,
+      "varName": "e",
+      "endLine": 834,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Auth/Web-Auth.jsx",
+      "line": 1002,
+      "column": 26,
+      "varName": "e",
+      "endLine": 1002,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/HomePage.jsx",
+      "line": 12,
+      "column": 10,
+      "varName": "currentImageIndex",
+      "endLine": 12,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/HomePage.jsx",
+      "line": 39,
+      "column": 9,
+      "varName": "scrollToHowItWorks",
+      "endLine": 39,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/HomePage.jsx",
+      "line": 46,
+      "column": 9,
+      "varName": "openModal",
+      "endLine": 46,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/HomePage.jsx",
+      "line": 51,
+      "column": 9,
+      "varName": "closeModal",
+      "endLine": 51,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/HomePage.jsx",
+      "line": 56,
+      "column": 9,
+      "varName": "nextImage",
+      "endLine": 56,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/HomePage.jsx",
+      "line": 61,
+      "column": 9,
+      "varName": "prevImage",
+      "endLine": 61,
+      "endColumn": 18
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Guest/LandingPage.jsx",
+      "line": 166,
+      "column": 29,
+      "varName": "theme",
+      "endLine": 166,
+      "endColumn": 34
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/Bookings.jsx",
+      "line": 23,
+      "column": 10,
+      "varName": "error",
+      "endLine": 23,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/CaretakerDashboard.jsx",
+      "line": 20,
+      "column": 46,
+      "varName": "user",
+      "endLine": 20,
+      "endColumn": 50
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/CaretakerDashboard.jsx",
+      "line": 21,
+      "column": 9,
+      "varName": "navigate",
+      "endLine": 21,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DashboardPage.jsx",
+      "line": 20,
+      "column": 9,
+      "varName": "navigate",
+      "endLine": 20,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 39,
+      "column": 7,
+      "varName": "defaultMarkerIcon",
+      "endLine": 39,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 68,
+      "column": 3,
+      "varName": "onDeleteRequested",
+      "endLine": 68,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 72,
+      "column": 9,
+      "varName": "navigate",
+      "endLine": 72,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 340,
+      "column": 21,
+      "varName": "key",
+      "endLine": 340,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 350,
+      "column": 19,
+      "varName": "key",
+      "endLine": 350,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 507,
+      "column": 9,
+      "varName": "handleRemoveCustomAmenity",
+      "endLine": 507,
+      "endColumn": 34
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 521,
+      "column": 13,
+      "varName": "existingImages",
+      "endLine": 521,
+      "endColumn": 27
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 524,
+      "column": 13,
+      "varName": "newFiles",
+      "endLine": 524,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/DormProfileSettings.jsx",
+      "line": 766,
+      "column": 9,
+      "varName": "response",
+      "endLine": 766,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 23,
+      "column": 40,
+      "varName": "user",
+      "endLine": 23,
+      "endColumn": 44
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 30,
+      "column": 10,
+      "varName": "selectedPropertyId",
+      "endLine": 30,
+      "endColumn": 28
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 32,
+      "column": 21,
+      "varName": "setIsSidebarOpen",
+      "endLine": 32,
+      "endColumn": 37
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 32,
+      "column": 39,
+      "varName": "open",
+      "endLine": 32,
+      "endColumn": 43
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 66,
+      "column": 14,
+      "varName": "err",
+      "endLine": 66,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 126,
+      "column": 14,
+      "varName": "err",
+      "endLine": 126,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/MyProperties.jsx",
+      "line": 139,
+      "column": 9,
+      "varName": "handleDeleteProperty",
+      "endLine": 139,
+      "endColumn": 29
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/Payments.jsx",
+      "line": 155,
+      "column": 9,
+      "varName": "navigate",
+      "endLine": 155,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/Payments.jsx",
+      "line": 425,
+      "column": 20,
+      "varName": "err",
+      "endLine": 425,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/Payments.jsx",
+      "line": 464,
+      "column": 14,
+      "varName": "e",
+      "endLine": 464,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 58,
+      "column": 10,
+      "varName": "isSyncing",
+      "endLine": 58,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 68,
+      "column": 10,
+      "varName": "imageAspects",
+      "endLine": 68,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 68,
+      "column": 24,
+      "varName": "setImageAspects",
+      "endLine": 68,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 69,
+      "column": 10,
+      "varName": "currentAspect",
+      "endLine": 69,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 69,
+      "column": 25,
+      "varName": "setCurrentAspect",
+      "endLine": 69,
+      "endColumn": 41
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 71,
+      "column": 10,
+      "varName": "containerWidth",
+      "endLine": 71,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 71,
+      "column": 26,
+      "varName": "setContainerWidth",
+      "endLine": 71,
+      "endColumn": 43
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 156,
+      "column": 9,
+      "varName": "prev",
+      "endLine": 156,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 157,
+      "column": 9,
+      "varName": "next",
+      "endLine": 157,
+      "endColumn": 13
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/PropertySummary.jsx",
+      "line": 167,
+      "column": 14,
+      "varName": "e",
+      "endLine": 167,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 3,
+      "column": 15,
+      "varName": "getImageUrl",
+      "endLine": 3,
+      "endColumn": 26
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 58,
+      "column": 26,
+      "varName": "setIsFromProperty",
+      "endLine": 58,
+      "endColumn": 43
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 129,
+      "column": 14,
+      "varName": "err",
+      "endLine": 129,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 147,
+      "column": 14,
+      "varName": "err",
+      "endLine": 147,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 167,
+      "column": 16,
+      "varName": "err",
+      "endLine": 167,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 294,
+      "column": 13,
+      "varName": "response",
+      "endLine": 294,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 375,
+      "column": 14,
+      "varName": "error",
+      "endLine": 375,
+      "endColumn": 19
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/RoomManagement.jsx",
+      "line": 385,
+      "column": 9,
+      "varName": "getStatusColor",
+      "endLine": 385,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/TenantManagement.jsx",
+      "line": 28,
+      "column": 10,
+      "varName": "properties",
+      "endLine": 28,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Landlord/TenantManagement.jsx",
+      "line": 41,
+      "column": 10,
+      "varName": "error",
+      "endLine": 41,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 1,
+      "column": 38,
+      "varName": "useRef",
+      "endLine": 1,
+      "endColumn": 44
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 49,
+      "column": 10,
+      "varName": "error",
+      "endLine": 49,
+      "endColumn": 15
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 74,
+      "column": 10,
+      "varName": "selectedMapProperty",
+      "endLine": 74,
+      "endColumn": 29
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 82,
+      "column": 10,
+      "varName": "modalError",
+      "endLine": 82,
+      "endColumn": 20
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 92,
+      "column": 10,
+      "varName": "videoModalOpen",
+      "endLine": 92,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 92,
+      "column": 26,
+      "varName": "setVideoModalOpen",
+      "endLine": 92,
+      "endColumn": 43
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 93,
+      "column": 10,
+      "varName": "videoToPlay",
+      "endLine": 93,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/ExploreProperties.jsx",
+      "line": 93,
+      "column": 23,
+      "varName": "setVideoToPlay",
+      "endLine": 93,
+      "endColumn": 37
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/MyBookings.jsx",
+      "line": 67,
+      "column": 10,
+      "varName": "cancelConfirm",
+      "endLine": 67,
+      "endColumn": 23
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/MyBookings.jsx",
+      "line": 130,
+      "column": 14,
+      "varName": "err",
+      "endLine": 130,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/PropertyDetails.jsx",
+      "line": 81,
+      "column": 10,
+      "varName": "videoModalOpen",
+      "endLine": 81,
+      "endColumn": 24
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/PropertyDetails.jsx",
+      "line": 81,
+      "column": 26,
+      "varName": "setVideoModalOpen",
+      "endLine": 81,
+      "endColumn": 43
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/TenantPayments.jsx",
+      "line": 27,
+      "column": 10,
+      "varName": "isRefreshing",
+      "endLine": 27,
+      "endColumn": 22
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/screens/Tenant/TenantPayments.jsx",
+      "line": 27,
+      "column": 24,
+      "varName": "setIsRefreshing",
+      "endLine": 27,
+      "endColumn": 39
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/utils/api.js",
+      "line": 61,
+      "column": 16,
+      "varName": "e",
+      "endLine": 61,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/utils/api.js",
+      "line": 70,
+      "column": 16,
+      "varName": "e",
+      "endLine": 70,
+      "endColumn": 17
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/utils/imageUtils.js",
+      "line": 42,
+      "column": 18,
+      "varName": "err",
+      "endLine": 42,
+      "endColumn": 21
+    },
+    {
+      "filePath": "/home/pheinz/AccommoTrack-M/frontend/AccommoTrackWeb/src/utils/price.js",
+      "line": 15,
+      "column": 12,
+      "varName": "e",
+      "endLine": 15,
+      "endColumn": 13
+    }
+  ]
+}
