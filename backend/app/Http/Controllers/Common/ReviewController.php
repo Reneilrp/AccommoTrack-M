@@ -24,7 +24,7 @@ class ReviewController extends Controller
 
             $reviews = Review::where('property_id', $propertyId)
                 ->where('is_published', true)
-                ->with(['tenant:id,first_name,last_name,profile_image'])
+                ->with(['tenant:id,first_name,last_name,profile_image', 'booking.room:id,room_number'])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($review) {
@@ -38,6 +38,7 @@ class ReviewController extends Controller
                         'comment' => $review->comment,
                         'reviewer_name' => $review->reviewer_name,
                         'reviewer_image' => $review->tenant?->profile_image,
+                        'room_number' => $review->booking?->room?->room_number,
                         'time_ago' => $review->time_ago,
                         'created_at' => $review->created_at->toISOString(),
                         'landlord_response' => $review->landlord_response,
@@ -214,7 +215,8 @@ class ReviewController extends Controller
             $reviews = $query->with([
                 'tenant:id,first_name,last_name,profile_image',
                 'property:id,title',
-                'booking:id,start_date,end_date',
+                'booking:id,start_date,end_date,room_id',
+                'booking.room:id,room_number',
             ])
                 ->orderBy('created_at', 'desc')
                 ->get()
@@ -227,6 +229,7 @@ class ReviewController extends Controller
                         'comment' => $review->comment,
                         'reviewer_name' => $review->reviewer_name,
                         'reviewer_image' => $review->tenant?->profile_image,
+                        'room_number' => $review->booking?->room?->room_number,
                         'time_ago' => $review->time_ago,
                         'created_at' => $review->created_at->toISOString(),
                         'landlord_response' => $review->landlord_response,
@@ -255,7 +258,7 @@ class ReviewController extends Controller
             $user = Auth::user();
 
             $reviews = Review::where('tenant_id', $user->id)
-                ->with(['property:id,title,street_address,city'])
+                ->with(['property:id,title,street_address,city', 'booking.room:id,room_number'])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($review) {
@@ -270,6 +273,7 @@ class ReviewController extends Controller
                             : null,
                         'rating' => $review->rating,
                         'comment' => $review->comment,
+                        'room_number' => $review->booking?->room?->room_number,
                         'time_ago' => $review->time_ago,
                         'created_at' => $review->created_at->toISOString(),
                         'landlord_response' => $review->landlord_response,

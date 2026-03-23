@@ -37,6 +37,12 @@ const PROPERTY_TYPES = [
   { label: "Others", value: "others" },
 ];
 
+const GENDER_OPTIONS = [
+  { label: "Mixed (Any Gender)", value: "mixed" },
+  { label: "Boys Only", value: "male" },
+  { label: "Girls Only", value: "female" },
+];
+
 const AMENITIES_SUGGESTIONS = [
   'WiFi', 
   'Air Conditioning',
@@ -59,6 +65,7 @@ const initialForm = {
   title: "",
   propertyType: "",
   otherType: "",
+  genderRestriction: "mixed",
   description: "",
   street: "",
   barangay: "",
@@ -449,6 +456,7 @@ export default function AddProperty({ navigation }) {
       title: form.title.trim(),
       description: form.description.trim(),
       property_type: propertyType,
+      gender_restriction: form.genderRestriction,
       current_status: isDraft ? "draft" : "pending",
       street_address: form.street.trim(),
       barangay: form.barangay.trim(),
@@ -731,6 +739,28 @@ export default function AddProperty({ navigation }) {
                   value={form.otherType}
                   onChangeText={(text) => updateForm("otherType", text)}
                 />
+              )}
+
+              {form.propertyType !== "" && form.propertyType !== "apartment" && (
+                <>
+                  <Text style={styles.label}>
+                    Gender Restriction <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={form.genderRestriction}
+                      onValueChange={(value) => updateForm("genderRestriction", value)}
+                    >
+                      {GENDER_OPTIONS.map((opt) => (
+                        <Picker.Item
+                          key={opt.value}
+                          label={opt.label}
+                          value={opt.value}
+                        />
+                      ))}
+                    </Picker>
+                  </View>
+                </>
               )}
 
               <Text style={styles.label}>Description</Text>

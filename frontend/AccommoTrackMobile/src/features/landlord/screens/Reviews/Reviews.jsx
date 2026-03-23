@@ -98,7 +98,7 @@ export default function Reviews() {
       </View>
 
       <Text style={[styles.propertyName, { color: theme.colors.primary }]}>
-        {item.property_title} • Room {item.room_number}
+        {item.property_title}
       </Text>
 
       <Text style={[styles.comment, { color: theme.colors.text }]}>

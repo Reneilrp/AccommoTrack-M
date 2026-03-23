@@ -85,15 +85,29 @@ export default function PropertyCard({ accommodation, property, onPress }) {
           </Text>
         </View>
 
-        {/* Curfew */}
-        {item.curfew_time && (
-          <View style={styles.curfewContainer}>
-            <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.curfewText} numberOfLines={2}>
-              Curfew: {item.curfew_time}
-            </Text>
-          </View>
-        )}
+        {/* Curfew & Gender */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          {item.curfew_time && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
+              <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
+                {item.curfew_time}
+              </Text>
+            </View>
+          )}
+          {item.gender_restriction && item.gender_restriction !== 'mixed' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons 
+                name={item.gender_restriction === 'male' ? 'male-outline' : 'female-outline'} 
+                size={16} 
+                color={theme.colors.primary} 
+              />
+              <Text style={{ fontSize: 13, color: theme.colors.primary, fontWeight: '600' }}>
+                {item.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Availability */}
         {availableRooms > 0 ? (

@@ -64,7 +64,10 @@ export default function MyReviews() {
     <View style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.propertyName, { color: theme.colors.text }]}>{item.property_title || 'Property'}</Text>
+          <Text style={[styles.propertyName, { color: theme.colors.text }]}>
+            {item.property_title || 'Property'}
+            {item.room_number ? ` (Room ${item.room_number})` : ''}
+          </Text>
           {item.property_location ? <Text style={[styles.propertyLocation, { color: theme.colors.textSecondary }]}>{item.property_location}</Text> : null}
         </View>
         <View style={styles.ratingContainer}>

@@ -106,19 +106,26 @@ class Review extends Model
      */
     public function getReviewerNameAttribute()
     {
+        $name = 'Anonymous';
         if ($this->tenant) {
             $firstName = $this->tenant->first_name ?? '';
             $lastName = $this->tenant->last_name ?? '';
 
             // Return first name and last initial for privacy
             if ($firstName && $lastName) {
-                return $firstName.' '.strtoupper(substr($lastName, 0, 1)).'.';
+                $name = $firstName.' '.strtoupper(substr($lastName, 0, 1)).'.';
+            } else {
+                $name = $firstName ?: 'Anonymous';
             }
-
-            return $firstName ?: 'Anonymous';
         }
 
-        return 'Anonymous';
+        // Add room number if booking exists
+        $roomNumber = $this->booking?->room?->room_number;
+        if ($roomNumber) {
+            $name .= " (Room {$roomNumber})";
+        }
+
+        return $name;
     }
 
     /**

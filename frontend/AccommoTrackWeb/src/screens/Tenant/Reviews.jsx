@@ -207,6 +207,11 @@ export default function Reviews() {
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 dark:text-white">
                       {review.property?.title || `Property #${review.property_id}`}
+                      {review.room_number && (
+                        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                          (Room {review.room_number})
+                        </span>
+                      )}
                     </h4>
                     <div className="mt-1.5">
                       <StarRating rating={review.rating} />

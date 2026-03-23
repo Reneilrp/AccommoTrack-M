@@ -559,6 +559,16 @@ export default function PropertyDetailsScreen({ route }) {
             </View>
           </View>
 
+          {/* Gender Restriction Badge */}
+          {active.gender_restriction && active.gender_restriction !== 'mixed' && (
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 12, gap: 4 }}>
+                <Ionicons name={active.gender_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>
+                   {active.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}
+                </Text>
+             </View>
+          )}
+
           {/* Media Section */}
           <View style={styles.mediaContainer}>
             <ScrollView

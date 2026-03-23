@@ -81,4 +81,14 @@ export const authService = {
     }
     return response.data;
   },
+
+  async checkEmail(email, signal) {
+    const response = await api.get('/check-email', { params: { email }, signal });
+    return response.data;
+  },
+
+  async getValidIdTypes() {
+    const response = await api.get('/valid-id-types');
+    return response.data;
+  },
 };

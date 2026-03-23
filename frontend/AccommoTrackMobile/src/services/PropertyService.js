@@ -2,10 +2,17 @@ import api from "./api.js";
 import { API_BASE_URL, BASE_URL } from "../config/index.js";
 import { getImageUrl } from "../utils/imageUtils.js";
 import { extractErrorMessage } from "../utils/error.js";
+import cacheManager from "../utils/cache.js";
 
 const LANDLORD_PREFIX = `${API_BASE_URL}/landlord`;
 
 const isFormData = (data) => data instanceof FormData;
+
+const CACHE_KEYS = {
+  PUBLIC_PROPERTIES: "public_properties",
+  PUBLIC_PROPERTY: "public_property_", // + id
+  LANDLORD_PROPERTIES: "landlord_properties",
+};
 
 const PropertyService = {
   /**
@@ -15,7 +22,11 @@ const PropertyService = {
    * @returns {Promise<Object>} - { success: boolean, data: array, error: string }
    */
   async getPublicProperties(filters = {}) {
+    const cacheKey = `${CACHE_KEYS.PUBLIC_PROPERTIES}_${JSON.stringify(filters)}`;
     try {
+      const cached = await cacheManager.get(cacheKey);
+      if (cached) return { success: true, data: cached, error: null };
+
       const params = new URLSearchParams();
 
       // Add filters if provided
@@ -34,10 +45,13 @@ const PropertyService = {
 
       const url = `/public/properties${params.toString() ? "?" + params.toString() : ""}`;
       const response = await api.get(url);
+      const data = response.data?.data || response.data || [];
+
+      await cacheManager.set(cacheKey, data);
 
       return {
         success: true,
-        data: response.data?.data || response.data || [],
+        data,
         error: null,
       };
     } catch (error) {
@@ -59,12 +73,19 @@ const PropertyService = {
    * @returns {Promise<Object>} - { success: boolean, data: object, error: string }
    */
   async getPublicProperty(propertyId) {
+    const cacheKey = `${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`;
     try {
+      const cached = await cacheManager.get(cacheKey);
+      if (cached) return { success: true, data: cached, error: null };
+
       const response = await api.get(`/public/properties/${propertyId}`);
+      const data = response.data?.data || response.data || null;
+
+      await cacheManager.set(cacheKey, data);
 
       return {
         success: true,
-        data: response.data?.data || response.data || null,
+        data,
         error: null,
       };
     } catch (error) {
@@ -170,6 +191,7 @@ const PropertyService = {
       title: property.title,
       type: property.type || property.property_type || "Property",
       property_type: property.property_type, // Raw property type from backend
+      gender_restriction: property.gender_restriction || 'mixed',
       has_bedspacer_room: property.has_bedspacer_room || false, // Flag for bedspacer filter
       location: property.location || property.city,
       address: property.full_address || property.address,
@@ -262,11 +284,17 @@ const PropertyService = {
    */
   async getMyProperties() {
     try {
+      const cached = await cacheManager.get(CACHE_KEYS.LANDLORD_PROPERTIES);
+      if (cached) return { success: true, data: cached, error: null };
+
       const response = await api.get(`/landlord/properties`);
+      const data = response.data?.data || response.data || [];
+
+      await cacheManager.set(CACHE_KEYS.LANDLORD_PROPERTIES, data);
 
       return {
         success: true,
-        data: response.data?.data || response.data || [],
+        data,
         error: null,
       };
     } catch (error) {
@@ -325,6 +353,9 @@ const PropertyService = {
         headers,
       });
 
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+      await cacheManager.clearAll(); // Invalidate public caches too
+
       return {
         success: true,
         data: response.data?.data || response.data || null,
@@ -370,6 +401,10 @@ const PropertyService = {
         { headers },
       );
 
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+      await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
+      await cacheManager.clearAll(); // Invalidate search results
+
       return {
         success: true,
         data: response.data?.data || response.data || null,
@@ -400,6 +435,10 @@ const PropertyService = {
       await api.delete(`/landlord/properties/${propertyId}`, {
         data: { password },
       });
+
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+      await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
+      await cacheManager.clearAll();
 
       return {
         success: true,

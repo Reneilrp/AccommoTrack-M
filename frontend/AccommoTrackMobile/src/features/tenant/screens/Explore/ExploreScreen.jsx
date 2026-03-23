@@ -36,8 +36,10 @@ export default function TenantHomePage({
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [selectedGender, setSelectedGender] = useState("All");
   const [selectedCurfew, setSelectedCurfew] = useState(null);
   const [curfewModalVisible, setCurfewModalVisible] = useState(false);
+  const [genderModalVisible, setGenderModalVisible] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("Explore");
 
   const { theme } = useTheme();
@@ -58,9 +60,16 @@ export default function TenantHomePage({
     { label: "Bed Spacer", value: "bedSpacer" },
   ];
 
+  const genderOptions = [
+    { label: "All Genders", value: "All" },
+    { label: "Mixed", value: "mixed" },
+    { label: "Boys Only", value: "male" },
+    { label: "Girls Only", value: "female" },
+  ];
+
   useEffect(() => {
     filterProperties();
-  }, [properties, searchQuery, activeTab, selectedCurfew]);
+  }, [properties, searchQuery, activeTab, selectedCurfew, selectedGender]);
 
   const loadProperties = useCallback(async () => {
     try {
@@ -141,6 +150,13 @@ export default function TenantHomePage({
           (typeMap[filterType] &&
             typeMap[filterType].some((t) => propType.includes(t)))
         );
+      });
+    }
+
+    if (selectedGender !== "All") {
+      filtered = filtered.filter((prop) => {
+        const propGender = (prop.gender_restriction || "mixed").toLowerCase();
+        return propGender === selectedGender.toLowerCase();
       });
     }
 
@@ -425,6 +441,28 @@ export default function TenantHomePage({
               {selectedCurfew ? `${selectedCurfew}` : "Curfew"}
             </Text>
           </TouchableOpacity>
+
+          {/* New Gender Filter Button */}
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              selectedGender !== "All" && {
+                backgroundColor: theme.colors.primary,
+              },
+            ]}
+            onPress={() => setGenderModalVisible(true)}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                selectedGender !== "All" && styles.filterButtonTextActive,
+              ]}
+            >
+              {selectedGender !== "All"
+                ? genderOptions.find((o) => o.value === selectedGender)?.label
+                : "Gender"}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
 
         <ScrollView contentContainerStyle={styles.contentContainerPadding}>
@@ -556,6 +594,51 @@ export default function TenantHomePage({
             <TouchableOpacity
               style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10}]}
               onPress={() => handleCurfewSelect(null)}
+            >
+              <Text style={[styles.modalButtonText, {color: theme.colors.primary}]}>Clear Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={genderModalVisible}
+        onRequestClose={() => {
+          setGenderModalVisible(!genderModalVisible);
+        }}
+      >
+        <TouchableOpacity 
+            style={styles.centeredView} 
+            activeOpacity={1} 
+            onPressOut={() => setGenderModalVisible(false)}
+        >
+          <View style={styles.modalView} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalText}>Select Gender Restriction</Text>
+            {genderOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.modalButton,
+                  selectedGender === opt.value && { backgroundColor: theme.colors.primary + "20" }
+                ]}
+                onPress={() => {
+                  setSelectedGender(opt.value);
+                  setGenderModalVisible(false);
+                }}
+              >
+                <Text style={[
+                  styles.modalButtonText,
+                  selectedGender === opt.value && { color: theme.colors.primary, fontWeight: '700' }
+                ]}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10}]}
+              onPress={() => {
+                setSelectedGender("All");
+                setGenderModalVisible(false);
+              }}
             >
               <Text style={[styles.modalButtonText, {color: theme.colors.primary}]}>Clear Filter</Text>
             </TouchableOpacity>

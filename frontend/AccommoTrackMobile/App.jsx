@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import AppNavigator from './src/navigation/AppNavigator.jsx';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext.jsx';
+import { UIStateProvider } from './src/contexts/UIStateContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
 
 import { getToastConfig } from './src/config/toastConfig.jsx';
@@ -61,7 +62,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AppContent />
+          <UIStateProvider>
+            <AppContent />
+          </UIStateProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>

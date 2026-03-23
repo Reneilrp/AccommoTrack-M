@@ -598,7 +598,7 @@ export default function RoomDetailsModal({
                           {formatMoney(primaryRate)}
                         </p>
                       </div>
-                      {billingPolicy !== "daily" && dailyRate > 0 && (
+                      {billingPolicy === "monthly_with_daily" && dailyRate > 0 && (
                         <div className="text-right">
                           <p className="text-xs text-green-600 dark:text-green-400">
                             Daily Rate
