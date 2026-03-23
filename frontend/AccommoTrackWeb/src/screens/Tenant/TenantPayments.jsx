@@ -246,7 +246,7 @@ export default function TenantPayments({ user }) {
         )}
 
         {/* Desktop View */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto no-scrollbar">
           <table className="w-full">
             <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
               <tr>

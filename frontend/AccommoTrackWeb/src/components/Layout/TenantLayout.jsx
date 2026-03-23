@@ -74,15 +74,14 @@ export default function TenantLayout({ user, onLogout, children }) {
   return (
     <div className="flex h-screen bg-gray-200 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside 
+      <aside
         ref={asideRef}
         className={`
           fixed left-0 top-0 bottom-0 z-30
-          bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col
+          bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 transition-all duration-300 ease-in-out hidden lg:flex flex-col
           ${isSidebarOpen ? 'w-64' : 'w-20'}
         `}
-      >
-        {/* Logo & Toggle */}
+      >        {/* Logo & Toggle */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 
             className="cursor-pointer" 

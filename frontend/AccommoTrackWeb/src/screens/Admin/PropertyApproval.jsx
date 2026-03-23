@@ -148,6 +148,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
           </div>
         ) : (
           <div className="w-full overflow-x-auto shadow-sm rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>

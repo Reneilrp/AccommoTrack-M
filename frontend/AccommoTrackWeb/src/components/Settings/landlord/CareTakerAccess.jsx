@@ -640,7 +640,7 @@ export default function CareTakerAccess({
                 <p className="text-sm max-w-xs">Once you add staff members, they will appear here with their assigned properties.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full text-left">
                   <thead className="bg-gray-50/50 dark:bg-gray-700/50 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
                     <tr>

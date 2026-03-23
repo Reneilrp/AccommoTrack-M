@@ -116,7 +116,8 @@ export default function Reports() {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 text-left">Reporter</th>
@@ -167,6 +168,7 @@ export default function Reports() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

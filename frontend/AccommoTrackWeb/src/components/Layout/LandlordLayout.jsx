@@ -139,7 +139,7 @@ export default function LandlordLayout({
       {/* Sidebar */}
       <aside ref={asideRef} className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
         isSidebarOpen ? 'w-64' : 'w-20'
-      } flex flex-col min-h-0`}>
+      } hidden lg:flex flex-col min-h-0`}>
         {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
           <div 

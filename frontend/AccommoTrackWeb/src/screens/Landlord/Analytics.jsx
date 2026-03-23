@@ -475,7 +475,7 @@ export default function Analytics() {
                 <div className="p-6 border-b border-gray-300 dark:border-gray-700">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Property Performance Breakdown</h2>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto no-scrollbar">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">
                       <tr>

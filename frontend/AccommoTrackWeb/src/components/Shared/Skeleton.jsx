@@ -311,7 +311,7 @@ export const SkeletonFinancials = () => (
         <Skeleton className="h-5 w-48" />
         <Skeleton className="h-10 w-28 rounded-lg" />
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700">
@@ -337,7 +337,7 @@ export const SkeletonFinancials = () => (
         <Skeleton className="h-5 w-36" />
         <Skeleton className="h-8 w-24 rounded-lg" />
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700">
@@ -493,7 +493,7 @@ export const SkeletonWallet = () => (
       </div>
 
       {/* Desktop Table View skeleton (matches classes and structure) */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>

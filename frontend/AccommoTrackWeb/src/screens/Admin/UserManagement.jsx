@@ -120,7 +120,7 @@ const UserManagement = () => {
             <p className="text-gray-600 dark:text-gray-400">No users found.</p>
           </div>
         ) : (
-          <div className="w-full overflow-x-auto shadow-sm rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="w-full overflow-x-auto no-scrollbar shadow-sm rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>

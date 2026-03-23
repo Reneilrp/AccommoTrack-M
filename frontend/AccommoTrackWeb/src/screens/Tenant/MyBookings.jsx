@@ -1050,7 +1050,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
           </button>
         </div>
         {recentTransactions.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
@@ -1341,7 +1341,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                 {showCustomForm ? 'Describe what you need and the owner will review it' : 'Select an extra service to add to your stay'}
               </p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+            <button onClick={onClose} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
               <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>
@@ -1541,7 +1541,7 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
         <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Extend Stay</h3>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+            <button onClick={onClose} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
               <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>
@@ -1675,7 +1675,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
         <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Room Transfer</h3>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+            <button onClick={onClose} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
               <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>

@@ -78,13 +78,12 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside 
+      <aside
         ref={asideRef}
         className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
           isSidebarOpen ? 'w-64' : 'w-20'
-        } flex flex-col min-h-0`}
-      >
-        {/* Logo */}
+        } hidden lg:flex flex-col min-h-0`}
+      >        {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div 
             className="cursor-pointer flex items-center gap-2"

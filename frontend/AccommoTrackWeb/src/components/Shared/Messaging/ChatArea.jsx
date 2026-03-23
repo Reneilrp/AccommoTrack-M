@@ -55,10 +55,10 @@ const ChatArea = ({
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+          <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
             <Phone className="w-5 h-5" />
           </button>
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+          <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
@@ -143,7 +143,7 @@ const ChatArea = ({
               <img src={imagePreview} alt="Preview" className="h-32 w-auto object-cover" />
               <button 
                 onClick={removeSelectedImage}
-                className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-sm transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -161,7 +161,7 @@ const ChatArea = ({
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
             disabled={!canSendMessages}
             title="Attach photo"
           >

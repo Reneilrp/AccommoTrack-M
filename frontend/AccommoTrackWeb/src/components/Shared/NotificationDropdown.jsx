@@ -199,7 +199,7 @@ const NotificationDropdown = () => {
         }}
         aria-haspopup="true"
         aria-expanded={isOpen}
-        className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors focus:outline-none"
+        className="relative p-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors focus:outline-none"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
