@@ -93,6 +93,8 @@ class PropertyResource extends JsonResource
             'rooms' => RoomResource::collection($this->whenLoaded('rooms')),
             'current_status' => $this->current_status,
             'require_1month_advance' => (bool) $this->require_1month_advance,
+            'require_reservation_fee' => (bool) $this->require_reservation_fee,
+            'reservation_fee_amount' => (float) $this->reservation_fee_amount,
             'is_published' => (bool) $this->is_published,
             'is_available' => (bool) $this->is_available,
             'is_eligible' => (bool) $this->is_eligible,

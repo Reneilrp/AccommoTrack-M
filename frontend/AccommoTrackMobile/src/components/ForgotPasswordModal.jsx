@@ -162,7 +162,12 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
           style={styles.container}
         >
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.backButton}>
+            <TouchableOpacity 
+              onPress={handleClose} 
+              style={styles.backButton}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
               <Ionicons name="arrow-back" size={28} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Reset Password</Text>
@@ -201,7 +206,13 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                   />
                 </View>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleSendCode} disabled={loading}>
+                <TouchableOpacity 
+                  style={styles.primaryButton} 
+                  onPress={handleSendCode} 
+                  disabled={loading}
+                  accessibilityLabel="Send Reset Code"
+                  accessibilityRole="button"
+                >
                   {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Send Reset Code</Text>}
                 </TouchableOpacity>
               </View>
@@ -233,11 +244,22 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                   ))}
                 </View>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleVerifyCode} disabled={loading}>
+                <TouchableOpacity 
+                  style={styles.primaryButton} 
+                  onPress={handleVerifyCode} 
+                  disabled={loading}
+                  accessibilityLabel="Verify Code"
+                  accessibilityRole="button"
+                >
                   {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Verify Code</Text>}
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setStep(1)} disabled={loading}>
+                <TouchableOpacity 
+                  onPress={() => setStep(1)} 
+                  disabled={loading}
+                  accessibilityLabel="Change Email"
+                  accessibilityRole="button"
+                >
                   <Text style={styles.linkText}>Change Email</Text>
                 </TouchableOpacity>
               </View>
@@ -264,7 +286,11 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                     secureTextEntry={!showPassword}
                     editable={!loading}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <TouchableOpacity 
+                    onPress={() => setShowPassword(!showPassword)}
+                    accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                    accessibilityRole="button"
+                  >
                     <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
@@ -280,12 +306,22 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                     secureTextEntry={!showConfirmPassword}
                     editable={!loading}
                   />
-                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <TouchableOpacity 
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    accessibilityRole="button"
+                  >
                     <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleResetPassword} disabled={loading}>
+                <TouchableOpacity 
+                  style={styles.primaryButton} 
+                  onPress={handleResetPassword} 
+                  disabled={loading}
+                  accessibilityLabel="Reset Password"
+                  accessibilityRole="button"
+                >
                   {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Reset Password</Text>}
                 </TouchableOpacity>
               </View>

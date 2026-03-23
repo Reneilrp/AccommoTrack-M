@@ -537,7 +537,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   profileScroll: {
     marginTop: 16, 
-    backgroundColor: '#16A34A', 
+    backgroundColor: '#059669', 
     paddingVertical: 12, 
     borderRadius: 8, 
     alignItems: 'center', 
@@ -603,7 +603,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface
   },
   roomOptionActive: {
-    borderColor: '#16A34A',
+    borderColor: '#059669',
     backgroundColor: theme.isDark ? 'rgba(22, 163, 74, 0.18)' : '#DCFCE7'
   },
   roomOptionTitle: {
@@ -688,7 +688,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 11,
-    backgroundColor: '#16A34A'
+    backgroundColor: '#059669'
   },
   modalConfirmText: {
     color: '#FFFFFF',

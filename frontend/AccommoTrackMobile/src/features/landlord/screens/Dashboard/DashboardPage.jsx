@@ -102,7 +102,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     { id: 2, title: 'Rooms', icon: 'bed', color: '#8B5CF6', screen: 'RoomManagement', show: !isCaretaker || hasPermission('rooms') },
     { id: 3, title: 'Tenants', icon: 'people', color: '#2196F3', screen: 'Tenants', show: !isCaretaker || hasPermission('tenants') },
     { id: 4, title: 'Bookings', icon: 'calendar', color: '#FF9800', screen: 'Bookings', show: !isCaretaker || hasPermission('bookings') },
-    { id: 5, title: 'Payments', icon: 'cash', color: '#16a34a', screen: 'Payments', show: !isCaretaker },
+    { id: 5, title: 'Payments', icon: 'cash', color: '#059669', screen: 'Payments', show: !isCaretaker },
     { id: 6, title: 'Analytics', icon: 'bar-chart', color: '#9C27B0', screen: 'Analytics', show: !isCaretaker },
     { id: 7, title: 'Messages', icon: 'chatbubbles', color: theme.colors.primary, screen: 'Messages', show: !isCaretaker || hasPermission('messages') },
     { id: 8, title: 'Maintenance', icon: 'construct', color: '#F59E0B', screen: 'MaintenanceRequests', show: !isCaretaker || hasPermission('rooms') },

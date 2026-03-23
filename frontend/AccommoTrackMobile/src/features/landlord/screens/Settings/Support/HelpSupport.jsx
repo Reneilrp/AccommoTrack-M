@@ -38,7 +38,7 @@ export default function HelpSupportScreen({ navigation }) {
       title: 'Live Chat (9am - 5pm PST)', 
       subtitle: 'Connect with a live agent instantly', 
       icon: 'chatbubbles-outline', 
-      color: '#16a34a',
+      color: '#059669',
       action: () => Alert.alert("Live Chat", "Connecting you to a support agent...") 
     },
     { 

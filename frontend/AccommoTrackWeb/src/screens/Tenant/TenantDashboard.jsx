@@ -117,6 +117,41 @@ const TenantDashboard = () => {
   const unpaidBalance = stats?.payments?.totalDue || stats?.payments?.monthlyDue || 0;
   const totalPaid = stats?.payments?.totalPaid || 0;
 
+  const generateUpcomingSchedule = () => {
+    const primaryStay = stays.length > 0 ? stays[0].booking : null;
+    if (!primaryStay) return [];
+    
+    const plan = primaryStay.payment_plan || primaryStay.paymentPlan;
+    if (plan !== 'monthly' && plan !== 'term') return [];
+    
+    const startDate = new Date(primaryStay.start_date || primaryStay.startDate);
+    const monthsTotal = parseInt(primaryStay.total_months || primaryStay.totalMonths || 1);
+    const rentAmount = parseFloat(primaryStay.monthly_rent || primaryStay.monthlyRent || 0);
+    
+    const schedules = [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    for (let i = 0; i < monthsTotal; i++) {
+        const dueDate = new Date(startDate);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        
+        if (dueDate >= currentMonthStart && schedules.length < 3) {
+            schedules.push({
+                date: dueDate,
+                amount: rentAmount,
+                isNext: false
+            });
+        }
+    }
+    
+    if (schedules.length > 0) schedules[0].isNext = true;
+    return schedules;
+  };
+
+  const upcomingSchedule = generateUpcomingSchedule();
+
   // ── Loading State ──
   if (loading) {
     return (
@@ -360,11 +395,11 @@ const TenantDashboard = () => {
         </div>
       </div>
 
-      {/* ── Bottom Row: Activity & Simplified Payment Summary ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+      {/* ── Bottom Row: Activity, Schedule & Simplified Payment Summary ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
 
         {/* Recent Activity */}
-        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
           <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Recent Activity</h3>
             <button
@@ -407,8 +442,46 @@ const TenantDashboard = () => {
           </div>
         </div>
 
+        {/* Upcoming Payment Schedule */}
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045]">
+            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Payment Schedule</h3>
+            <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-0.5">Estimated lease dues</p>
+          </div>
+          <div className="px-6 py-5 flex-1 flex flex-col justify-center">
+            {upcomingSchedule.length > 0 ? (
+               <div className="space-y-0 relative">
+                  {upcomingSchedule.map((schedule, idx) => (
+                    <div key={idx} className="flex gap-4">
+                       <div className="flex flex-col items-center">
+                          <div className={`w-3.5 h-3.5 rounded-full mt-1.5 flex-shrink-0 relative z-10 ${schedule.isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
+                          {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-1 flex-1"></div>}
+                       </div>
+                       <div className="pb-5">
+                          <p className={`text-[15px] font-bold leading-tight ${schedule.isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
+                            {schedule.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
+                              {formatCurrency(schedule.amount)}
+                            </span>
+                            {schedule.isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
+                          </div>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+            ) : (
+               <div className="py-8 flex flex-col items-center justify-center text-center h-full">
+                 <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-3" />
+                 <p className="text-[14px] text-gray-400 dark:text-slate-500">No upcoming scheduled payments.</p>
+               </div>
+            )}
+          </div>
+        </div>
+
         {/* Simplified Payment Summary */}
-        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
           <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045]">
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Current Payment Cycle</h3>
             <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>

@@ -34,7 +34,7 @@ class StoreRoomRequest extends FormRequest
 
         $propertyGender = $property ? strtolower($property->gender_restriction) : 'mixed';
         $allowedGenders = ['male', 'female'];
-        if ($property && !in_array($property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
+        if ($property && ! in_array($property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
             $allowedGenders[] = 'mixed';
         }
 
@@ -64,7 +64,9 @@ class StoreRoomRequest extends FormRequest
                 'integer',
                 'min:1',
                 function ($attribute, $value, $fail) use ($property) {
-                    if (!$property) return;
+                    if (! $property) {
+                        return;
+                    }
 
                     $floorLevel = $property->floor_level;
                     $totalFloors = $property->total_floors;
@@ -72,9 +74,9 @@ class StoreRoomRequest extends FormRequest
                     // Check if floor_level is a comma-separated list of numbers
                     $managedFloors = array_filter(explode(',', $floorLevel), 'is_numeric');
 
-                    if (!empty($managedFloors)) {
-                        if (!in_array($value, $managedFloors)) {
-                            $fail("The selected floor is not one of the managed floors for this property (" . implode(', ', $managedFloors) . ").");
+                    if (! empty($managedFloors)) {
+                        if (! in_array($value, $managedFloors)) {
+                            $fail('The selected floor is not one of the managed floors for this property ('.implode(', ', $managedFloors).').');
                         }
                     } elseif ($totalFloors > 0) {
                         if ($value > $totalFloors) {

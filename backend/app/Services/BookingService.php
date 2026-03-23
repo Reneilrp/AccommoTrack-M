@@ -105,7 +105,7 @@ class BookingService
 
             // Calculate pricing (use calendar-period-aware calculation)
             $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
-            
+
             // If per_bed, price is per bed; if full_room, price is for the whole unit
             if (($room->pricing_model ?? 'full_room') === 'per_bed') {
                 $totalAmount = $priceResult['total'] * $requestedBeds;
@@ -135,6 +135,25 @@ class BookingService
                 'payment_plan' => $data['payment_plan'] ?? 'full',
                 'notes' => $data['notes'] ?? null,
             ]);
+
+            // GENERATE RESERVATION FEE INVOICE IF REQUIRED
+            if ($room->property->require_reservation_fee && $room->property->reservation_fee_amount > 0) {
+                $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
+
+                \App\Models\Invoice::create([
+                    'reference' => $reference,
+                    'landlord_id' => $room->property->landlord_id,
+                    'property_id' => $room->property->id,
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $tenantId,
+                    'description' => 'Reservation Fee for booking '.$bookingReference,
+                    'amount_cents' => (int) round($room->property->reservation_fee_amount * 100),
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => now(),
+                    'due_date' => now()->addHours(24), // Pay within 24 hours
+                ]);
+            }
 
             // Update room status to occupied if it's now full (confirmed + pending)
             if ($effectiveOccupancy + $requestedBeds >= $room->capacity) {
@@ -244,7 +263,7 @@ class BookingService
         $existingInvoice = \App\Models\Invoice::where('booking_id', $booking->id)->first();
         if (! $existingInvoice) {
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
-            
+
             // Default amount is total
             $amount = $booking->total_amount;
             $description = 'Initial invoice for booking '.$booking->booking_reference;
@@ -253,13 +272,13 @@ class BookingService
             if ($booking->payment_plan === 'monthly' && $booking->total_months > 1) {
                 $amount = $booking->monthly_rent;
                 $description = 'First month rent for booking '.$booking->booking_reference;
-                
+
                 // Add recurring addons to first invoice if any
                 $recurringAddonAmount = $booking->addons()
                     ->where('booking_addons.status', 'active')
                     ->where('price_type', 'monthly')
                     ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
-                
+
                 $amount += $recurringAddonAmount;
             }
 
@@ -310,7 +329,14 @@ class BookingService
             'status' => $status,
             'room_still_occupied' => true,
         ]);
-        // Room stays occupied - no changes needed
+
+        // If the landlord skipped "confirmed" and jumped straight to "completed" or "partial-completed",
+        // we MUST still execute the underlying assignment logic to place the tenant securely
+        // into the room so its occupancy status correctly flips to 'occupied'.
+        if (empty($booking->confirmed_at)) {
+            Log::info('Completed booking lacked confirmation. Firing handleConfirmation.', ['booking_id' => $booking->id]);
+            $this->handleConfirmation($booking);
+        }
     }
 
     /**

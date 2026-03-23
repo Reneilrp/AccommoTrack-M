@@ -87,9 +87,16 @@ class LandlordBookingController extends Controller
                 $tenantId
             );
 
+            // Fetch the reservation invoice if one was generated
+            $reservationInvoice = \App\Models\Invoice::where('booking_id', $booking->id)
+                ->where('description', 'like', 'Reservation Fee%')
+                ->where('status', 'pending')
+                ->first();
+
             return response()->json([
                 'message' => 'Booking created successfully',
                 'booking' => (new BookingResource($booking->load(['property', 'tenant', 'room'])))->resolve(),
+                'reservation_invoice' => $reservationInvoice,
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed', ['errors' => $e->errors()]);

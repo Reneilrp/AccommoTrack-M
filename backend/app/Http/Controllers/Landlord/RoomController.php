@@ -163,12 +163,12 @@ class RoomController extends Controller
             }
 
             $result = $room->calculatePriceForPeriod($start, $end);
-            
+
             // Adjust total based on pricing model
             if (($room->pricing_model ?? 'full_room') === 'per_bed') {
                 $result['total'] = round($result['total'] * $bedCount, 2);
             }
-            
+
             $result['days'] = Carbon::parse($start)->diffInDays(Carbon::parse($end));
 
             return response()->json($result, 200);

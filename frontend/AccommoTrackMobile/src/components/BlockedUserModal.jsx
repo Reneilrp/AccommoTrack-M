@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext.jsx';
@@ -31,20 +31,24 @@ const BlockedUserModal = ({ visible, onClose }) => {
             Your account has been blocked by the administrator. Please contact support for assistance.
           </Text>
 
-          <View style={{ width: '100%', gap: 12 }}>
+          <View style={styles.buttonWrapper}>
             <TouchableOpacity 
               onPress={handleContactSupport}
-              style={{ backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+              style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+              accessibilityLabel="Contact Support"
+              accessibilityRole="button"
             >
               <Ionicons name="mail-outline" size={20} color={theme.colors.textInverse} />
-              <Text style={{ color: theme.colors.textInverse, fontWeight: 'bold', fontSize: 16 }}>Contact Support</Text>
+              <Text style={[styles.buttonText, { color: theme.colors.textInverse }]}>Contact Support</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               onPress={onClose}
-              style={{ backgroundColor: theme.colors.backgroundSecondary, paddingVertical: 14, borderRadius: 12, width: '100%' }}
+              style={[styles.secondaryButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
             >
-              <Text style={{ color: theme.colors.textSecondary, fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
+              <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -54,5 +58,34 @@ const BlockedUserModal = ({ visible, onClose }) => {
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  buttonWrapper: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  secondaryButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    width: '100%',
+  },
+  secondaryButtonText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+});
 
 export default BlockedUserModal;

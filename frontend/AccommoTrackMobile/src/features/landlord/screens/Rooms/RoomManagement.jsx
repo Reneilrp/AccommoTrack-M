@@ -765,7 +765,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   <Text
                     style={[
                       styles.filterText,
-                      filter === f.value && { color: "#16A34A" },
+                      filter === f.value && { color: "#059669" },
                     ]}
                   >
                     {f.label}
@@ -1001,7 +1001,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                       size={20}
                       color={
                         formData.pricingModel === "full_room"
-                          ? "#16A34A"
+                          ? "#059669"
                           : "#6B7280"
                       }
                     />
@@ -1010,7 +1010,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                         style={[
                           styles.pricingCardTitle,
                           formData.pricingModel === "full_room" && {
-                            color: "#16A34A",
+                            color: "#059669",
                           },
                         ]}
                       >
@@ -1046,7 +1046,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                       size={20}
                       color={
                         formData.pricingModel === "per_bed"
-                          ? "#16A34A"
+                          ? "#059669"
                           : "#6B7280"
                       }
                     />
@@ -1055,7 +1055,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                         style={[
                           styles.pricingCardTitle,
                           formData.pricingModel === "per_bed" && {
-                            color: "#16A34A",
+                            color: "#059669",
                           },
                         ]}
                       >
@@ -1080,7 +1080,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               <Switch
                 value={formData.require1MonthAdvance}
                 onValueChange={(v) => handleInputChange("require1MonthAdvance", v)}
-                trackColor={{ true: "#16A34A", false: "#CBD5E1" }}
+                trackColor={{ true: "#059669", false: "#CBD5E1" }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -1122,12 +1122,12 @@ export default function RoomManagementScreen({ navigation, route }) {
                   {
                     paddingVertical: 0,
                     justifyContent: "center",
-                    borderColor: "#16A34A",
+                    borderColor: "#059669",
                   },
                 ]}
                 onPress={handleAddRule}
               >
-                <Ionicons name="add" size={20} color="#16A34A" />
+                <Ionicons name="add" size={20} color="#059669" />
               </TouchableOpacity>
             </View>
             <Text style={[styles.helperText, { marginTop: 8 }]}>
@@ -1163,12 +1163,12 @@ export default function RoomManagementScreen({ navigation, route }) {
                   {
                     paddingVertical: 0,
                     justifyContent: "center",
-                    borderColor: "#16A34A",
+                    borderColor: "#059669",
                   },
                 ]}
                 onPress={handleAddAmenity}
               >
-                <Ionicons name="add" size={20} color="#16A34A" />
+                <Ionicons name="add" size={20} color="#059669" />
               </TouchableOpacity>
             </View>
             <Text style={[styles.helperText, { marginTop: 8 }]}>
@@ -1190,7 +1190,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                         position: "absolute",
                         left: 6,
                         top: 6,
-                        backgroundColor: "#16A34A",
+                        backgroundColor: "#059669",
                         paddingHorizontal: 6,
                         paddingVertical: 2,
                         borderRadius: 4,

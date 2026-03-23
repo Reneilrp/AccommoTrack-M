@@ -1,14 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
-const IconWithBadge = ({ iconName, label, badgeCount, onPress }) => {
+const IconWithBadge = ({ iconName, label, badgeCount, onPress, accessibilityLabel }) => {
   const { theme } = useTheme();
   const styles = getStyles(theme);
 
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container} 
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || label}
+    >
       <View style={styles.iconWrapper}>
         <Ionicons name={iconName} size={28} color={theme.colors.primary} />
         {badgeCount > 0 && (
@@ -18,7 +24,7 @@ const IconWithBadge = ({ iconName, label, badgeCount, onPress }) => {
         )}
       </View>
       <Text style={styles.label}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 };
 

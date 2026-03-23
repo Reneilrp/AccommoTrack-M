@@ -100,7 +100,7 @@ class TenantDashboardService
                 // Bookings that are confirmed, completed, or partial-completed
                 $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
                       // And lease hasn't historically ended
-                      ->where('end_date', '>=', now()->startOfDay());
+                    ->where('end_date', '>=', now()->startOfDay());
             })
             // Only bookings where the tenant is actually still actively assigned to the room!
             ->whereHas('room.tenants', function ($query) use ($tenantId) {
@@ -255,10 +255,10 @@ class TenantDashboardService
                         ->where('end_date', '>=', now());
                 })
                 // OR recently completed bookings (last 30 days)
-                ->orWhere(function ($q) {
-                    $q->whereIn('status', ['completed', 'partial-completed'])
-                        ->where('end_date', '>=', now()->subDays(30));
-                });
+                    ->orWhere(function ($q) {
+                        $q->whereIn('status', ['completed', 'partial-completed'])
+                            ->where('end_date', '>=', now()->subDays(30));
+                    });
             })
             ->with($relations)
             ->orderByDesc('start_date')

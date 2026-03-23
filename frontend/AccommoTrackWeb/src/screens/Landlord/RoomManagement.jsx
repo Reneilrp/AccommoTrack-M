@@ -238,6 +238,7 @@ export default function RoomManagement() {
       billingPolicy: room.billing_policy || 'monthly',
       pricingModel: room.pricing_model || 'full_room',
       minStayDays: room.min_stay_days || 1,
+      require1MonthAdvance: room.require_1month_advance || false,
       amenities: room.amenities || [],
       rules: room.rules || []
     });
@@ -281,6 +282,7 @@ export default function RoomManagement() {
         daily_rate: selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '' ? parseFloat(selectedRoom.dailyRate) : null,
         billing_policy: selectedRoom.billingPolicy || null,
         pricing_model: selectedRoom.pricingModel || 'full_room',
+        require_1month_advance: selectedRoom.require1MonthAdvance ? 1 : 0,
         min_stay_days: parseInt(selectedRoom.minStayDays) || 1,
         capacity: parseInt(selectedRoom.capacity),
         status: selectedRoom.status,
@@ -864,6 +866,30 @@ export default function RoomManagement() {
                   </select>
                 </div>
               </div>
+
+              {/* Advance Payment Toggle */}
+              {(selectedRoom.billingPolicy === 'monthly' || selectedRoom.billingPolicy === 'monthly_with_daily') && (
+                <div className="mt-4 col-span-full">
+                  <label className="flex items-start space-x-3 cursor-pointer group p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                    <div className="flex items-center h-5 mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedRoom.require1MonthAdvance}
+                        onChange={(e) => setSelectedRoom({ ...selectedRoom, require1MonthAdvance: e.target.checked })}
+                        className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        Require 1-Month Advance
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Tenants will be billed for their first month's rent + an additional month as advance payment upon confirmation.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              )}
 
               {/* Short-stay options simplified: billing policy and daily rate are handled above. */}
 

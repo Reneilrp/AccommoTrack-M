@@ -1,20 +1,20 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
-$app = require_once __DIR__ . '/bootstrap/app.php';
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-use App\Models\User;
 use App\Models\Room;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 $landlord = User::where('role', 'landlord')->first();
-$room = Room::whereHas('property', function($q) use ($landlord) {
+$room = Room::whereHas('property', function ($q) use ($landlord) {
     $q->where('landlord_id', $landlord->id);
 })->first();
 
-if (!$room) {
+if (! $room) {
     echo "No room found for testing.\n";
     exit;
 }
@@ -37,7 +37,7 @@ $payload = [
     'status' => $room->status,
     'description' => 'Test Room Rules and Amenities',
     'rules' => ['No Smoking', 'No Pets'],
-    'amenities' => ['Wi-Fi', 'Gym']
+    'amenities' => ['Wi-Fi', 'Gym'],
 ];
 
 $request = Request::create("/api/landlord/rooms/{$room->id}", 'PUT', $payload);
@@ -48,6 +48,5 @@ $request->setUserResolver(function () use ($landlord) {
 
 $response = app()->handle($request);
 
-echo "Status Code: " . $response->getStatusCode() . "\n";
-echo "Response Body: " . $response->getContent() . "\n";
-
+echo 'Status Code: '.$response->getStatusCode()."\n";
+echo 'Response Body: '.$response->getContent()."\n";

@@ -124,6 +124,7 @@ class TenantController extends Controller
                     'email' => $tenant->email,
                     'phone' => $tenant->phone,
                     'is_active' => $tenant->is_active,
+                    'has_overdue_invoices' => $hasOverdue, // Fix #3: was computed but missing from response
                     'room' => $room ? [
                         'id' => $room->id,
                         'room_number' => $room->room_number,
@@ -460,21 +461,40 @@ class TenantController extends Controller
 
         $room = $tenant->room;
 
-        $room->update([
-            'current_tenant_id' => null,
-            'status' => 'available',
-        ]);
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
 
-        if ($tenant->tenantProfile) {
-            $tenant->tenantProfile->update([
-                'status' => 'inactive',
-                'move_out_date' => now()->format('Y-m-d'),
-            ]);
+            // Fix #2: Cancel the active booking via BookingService so status, counters, and hooks are correct
+            $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
+                ->where('room_id', $room->id)
+                ->whereIn('status', ['confirmed', 'active'])
+                ->first();
+
+            if ($activeBooking) {
+                $this->bookingService->updateStatus($activeBooking, ['status' => 'cancelled']);
+            }
+
+            // Remove tenant from room (handles status + occupancy counter)
+            $room->removeTenant($tenant->id);
+
+            if ($tenant->tenantProfile) {
+                $tenant->tenantProfile->update([
+                    'status' => 'inactive',
+                    'move_out_date' => now()->format('Y-m-d'),
+                ]);
+            }
+
+            $room->property->updateAvailableRooms();
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json($tenant->load(['tenantProfile', 'room']));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            Log::error('Unassign room failed: '.$e->getMessage());
+
+            return response()->json(['error' => 'Failed to unassign room', 'message' => $e->getMessage()], 500);
         }
-
-        $room->property->updateAvailableRooms();
-
-        return response()->json($tenant->load(['tenantProfile', 'room']));
     }
 
     /**
@@ -556,12 +576,14 @@ class TenantController extends Controller
 
             // 3. Start new booking for the new room
             $moveInDate = now()->format('Y-m-d');
-            
+
             if ($originalEndDate) {
-                if (\Carbon\Carbon::parse($originalEndDate)->lte(\Carbon\Carbon::parse($moveInDate))) {
+                // Fix #4: Wrap in Carbon::parse() — end_date may be a raw string, not a Carbon instance
+                $parsedOriginalEnd = \Carbon\Carbon::parse($originalEndDate);
+                if ($parsedOriginalEnd->lte(\Carbon\Carbon::parse($moveInDate))) {
                     $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(1)->format('Y-m-d');
                 } else {
-                    $endDate = $originalEndDate->format('Y-m-d');
+                    $endDate = $parsedOriginalEnd->format('Y-m-d');
                 }
             } else {
                 $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');

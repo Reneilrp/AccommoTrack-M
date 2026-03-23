@@ -37,6 +37,7 @@ export default function AddRoomModal({
     minStayDays: "1",
     capacity: isBedSpacerProperty ? "1" : "1",
     pricingModel: initialPricingModel,
+    require1MonthAdvance: false,
     description: "",
     rules: [],
     amenities: [],
@@ -135,10 +136,17 @@ export default function AddRoomModal({
   // Reset form when modal opens or property changes
   useEffect(() => {
     if (isOpen) {
+      // Derive sensible gender default from the property's own setting
+      const defaultGender = (propertyGender === 'male' || propertyGender === 'boys')
+        ? 'male'
+        : (propertyGender === 'female' || propertyGender === 'girls')
+          ? 'female'
+          : 'mixed';
+
       setFormData({
         roomNumber: "",
         roomType: initialRoomType,
-        genderRestriction: "male",
+        genderRestriction: defaultGender,
         floor: "1",
         monthlyRate: "",
         dailyRate: "",
@@ -146,6 +154,7 @@ export default function AddRoomModal({
         minStayDays: "1",
         capacity: isBedSpacerProperty ? "1" : "1",
         pricingModel: initialPricingModel,
+        require1MonthAdvance: false,
         description: "",
         rules: [],
         amenities: [],
@@ -162,6 +171,7 @@ export default function AddRoomModal({
     initialRoomType,
     initialPricingModel,
     isBedSpacerProperty,
+    propertyGender,
   ]);
 
   const allRoomTypes = [
@@ -532,6 +542,7 @@ export default function AddRoomModal({
         if (Number.isFinite(v)) payload.append("min_stay_days", v);
       }
       payload.append("pricing_model", formData.pricingModel);
+      payload.append("require_1month_advance", formData.require1MonthAdvance ? 1 : 0);
       payload.append("description", formData.description || "");
       payload.append("status", "available");
       formData.amenities.forEach((amenity, idx) => {
@@ -560,6 +571,7 @@ export default function AddRoomModal({
         minStayDays: "1",
         capacity: "1",
         pricingModel: "full_room",
+        require1MonthAdvance: false,
         description: "",
         rules: [],
         amenities: [],
@@ -609,14 +621,6 @@ export default function AddRoomModal({
       setPreviewImages([]);
       // clear any staged files
       setFormData((prev) => ({ ...prev, images: [] }));
-    };
-    return () => {
-      try {
-        previewImages.forEach((u) => {
-          if (u && typeof u === "string" && u.startsWith("blob:"))
-            URL.revokeObjectURL(u);
-        });
-      } catch {}
     };
   }, [isOpen, previewImages]);
 
@@ -814,6 +818,30 @@ export default function AddRoomModal({
                 {fieldErrors.dailyRate && <p className="text-red-500 text-xs mt-1">{fieldErrors.dailyRate}</p>}
               </div>
             </div>
+
+            {/* Advance Payment Toggle */}
+            {(formData.billingPolicy === 'monthly' || formData.billingPolicy === 'monthly_with_daily') && (
+              <div className="mt-4 col-span-full">
+                <label className="flex items-start space-x-3 cursor-pointer group p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                  <div className="flex items-center h-5 mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={formData.require1MonthAdvance}
+                      onChange={(e) => handleInputChange('require1MonthAdvance', e.target.checked)}
+                      className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                      Require 1-Month Advance
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Tenants will be billed for their first month's rent + an additional month as advance payment upon confirmation.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* Row 3: Minimum Stay | Capacity */}
             <div className="grid grid-cols-3 gap-4 mt-2">

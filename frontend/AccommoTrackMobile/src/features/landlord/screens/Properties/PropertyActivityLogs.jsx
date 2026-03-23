@@ -108,7 +108,7 @@ export default function PropertyActivityLogs({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -154,7 +154,7 @@ export default function PropertyActivityLogs({ route, navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchLogs(true)}
-            colors={['#16a34a']}
+            colors={['#059669']}
           />
         }
         ListEmptyComponent={

@@ -157,7 +157,7 @@ export default function VerificationStatus({ navigation }) {
       case "approved":
         return {
           icon: "checkmark-circle",
-          color: "#16a34a",
+          color: "#059669",
           bg: "#DCFCE7",
           border: "#86EFAC",
           label: "Verified",
@@ -203,7 +203,7 @@ export default function VerificationStatus({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#16a34a" />
+          <ActivityIndicator size="large" color="#059669" />
           <Text style={styles.loadingText}>Loading status...</Text>
         </View>
       </SafeAreaView>
@@ -212,7 +212,7 @@ export default function VerificationStatus({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -231,7 +231,7 @@ export default function VerificationStatus({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchData(true)}
-            colors={["#16a34a"]}
+            colors={["#059669"]}
           />
         }
       >
@@ -289,7 +289,7 @@ export default function VerificationStatus({ navigation }) {
             <View style={styles.documentGrid}>
               <View style={styles.documentCard}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="image-outline" size={18} color="#16a34a" />
+                  <Ionicons name="image-outline" size={18} color="#059669" />
                   <Text style={styles.documentLabel}>
                     Valid ID ({verification.valid_id_type})
                   </Text>
@@ -505,7 +505,7 @@ export default function VerificationStatus({ navigation }) {
                   style={styles.uploadBox}
                   onPress={() => handlePickDocument("validId")}
                 >
-                  <Ionicons name="camera-outline" size={32} color="#16a34a" />
+                  <Ionicons name="camera-outline" size={32} color="#059669" />
                   <Text style={styles.uploadBoxText}>
                     Capture or Pick ID Image
                   </Text>
@@ -529,7 +529,7 @@ export default function VerificationStatus({ navigation }) {
                   <Ionicons
                     name="document-attach-outline"
                     size={32}
-                    color="#16a34a"
+                    color="#059669"
                   />
                   <Text style={styles.uploadBoxText}>
                     Upload Permit Document

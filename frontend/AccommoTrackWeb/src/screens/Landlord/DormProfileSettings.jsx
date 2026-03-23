@@ -20,6 +20,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import api from "../../utils/api";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Editable map (react-leaflet)
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -68,6 +69,7 @@ export default function DormProfileSettings({
   onDeleteRequested,
 }) {
   const { effectiveTheme } = usePreferences();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -207,6 +209,10 @@ export default function DormProfileSettings({
         floor_area: data.floor_area || 0,
         floor_level: data.floor_level || "",
         total_floors: data.total_floors || 1,
+        require_1month_advance: Boolean(data.require_1month_advance),
+        allow_partial_payments: data.allow_partial_payments !== undefined ? Boolean(data.allow_partial_payments) : true,
+        require_reservation_fee: Boolean(data.require_reservation_fee),
+        reservation_fee_amount: data.reservation_fee_amount || '',
         latitude: data.latitude,
         longitude: data.longitude,
         images: images,
@@ -633,6 +639,10 @@ export default function DormProfileSettings({
         floor_level: dormData.floor_level,
         total_floors: parseInt(dormData.total_floors) || 1,
         total_rooms: parseInt(dormData.total_rooms) || 0,
+        require_1month_advance: dormData.require_1month_advance ? 1 : 0,
+        allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
+        require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
+        reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         current_status: dormData.status,
@@ -1213,6 +1223,88 @@ export default function DormProfileSettings({
                         </p>
                       </div>
                     )}
+                    
+                    <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
+                       <label className="flex items-start space-x-3 cursor-pointer group mb-6">
+                         <div className="flex items-center h-5 mt-0.5">
+                           <input
+                             type="checkbox"
+                             disabled={!isEditing}
+                             checked={dormData.require_1month_advance || false}
+                             onChange={(e) => handleInputChange('require_1month_advance', e.target.checked)}
+                             className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                           />
+                         </div>
+                         <div className="flex flex-col">
+                           <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                             Require 1-Month Advance Payment
+                           </span>
+                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                             If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This acts as the default for new rooms.
+                           </span>
+                         </div>
+                       </label>
+
+                       <label className={`flex items-start space-x-3 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6`}>
+                         <div className="flex items-center h-5 mt-0.5">
+                           <input
+                             type="checkbox"
+                             disabled={!isEditing || !user?.is_paymongo_ready}
+                             checked={dormData.require_reservation_fee || false}
+                             onChange={(e) => handleInputChange('require_reservation_fee', e.target.checked)}
+                             className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                           />
+                         </div>
+                         <div className="flex flex-col w-full">
+                           <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
+                             Require Instant Reservation Fee
+                           </span>
+                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                             If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
+                             {!user?.is_paymongo_ready && (
+                               <span className="text-red-500 block mt-1">You must complete PayMongo onboarding to enable instant payments.</span>
+                             )}
+                           </span>
+                           {dormData.require_reservation_fee && (
+                              <div className="mt-3">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                  Reservation Fee Amount (₱)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  disabled={!isEditing}
+                                  value={dormData.reservation_fee_amount}
+                                  onChange={(e) => handleInputChange('reservation_fee_amount', e.target.value)}
+                                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                  placeholder="e.g. 500"
+                                />
+                              </div>
+                           )}
+                         </div>
+                       </label>
+
+                       <label className="flex items-start space-x-3 cursor-pointer group mt-6">
+                         <div className="flex items-center h-5 mt-0.5">
+                           <input
+                             type="checkbox"
+                             disabled={!isEditing}
+                             checked={dormData.allow_partial_payments !== false}
+                             onChange={(e) => handleInputChange('allow_partial_payments', e.target.checked)}
+                             className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                           />
+                         </div>
+                         <div className="flex flex-col">
+                           <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                             Allow Partial Payments
+                           </span>
+                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                             If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
+                           </span>
+                         </div>
+                       </label>
+                    </div>
                   </div>
                 </div>
               </div>

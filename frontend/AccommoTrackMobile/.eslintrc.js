@@ -4,6 +4,16 @@ module.exports = {
   globals: {
     Intl: 'readonly',
     URLSearchParams: 'readonly',
-    setTimeout: 'readonly'
+    setTimeout: 'readonly',
+    clearTimeout: 'readonly',
+    setInterval: 'readonly',
+    clearInterval: 'readonly',
+    requestAnimationFrame: 'readonly',
+    cancelAnimationFrame: 'readonly',
+    alert: 'readonly',
+    fetch: 'readonly',
+    FormData: 'readonly',
+    console: 'readonly',
+    __DEV__: 'readonly'
   }
 };

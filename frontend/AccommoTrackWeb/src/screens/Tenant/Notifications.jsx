@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
-import { tenantService } from '../../services/tenantService';
 import { Bell, BellOff, Check, Calendar, CreditCard, MessageSquare, AlertCircle, RefreshCw } from 'lucide-react';
 
 const TYPE_CONFIG = {
   booking: { icon: Calendar, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' },
   payment: { icon: CreditCard, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
   message: { icon: MessageSquare, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  maintenance: { icon: AlertCircle, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-900/30' },
   default: { icon: Bell, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-700' },
 };
 
@@ -28,65 +28,24 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const [notifRes, bookingsRes, paymentsRes] = await Promise.allSettled([
-        api.get('/notifications'),
-        tenantService.getBookings(),
-        tenantService.getPayments(),
-      ]);
+      const res = await api.get('/notifications');
+      const rawNotifs = res.data?.data || res.data || [];
 
-      const items = [];
-
-      // Backend notifications
-      const rawNotifs = notifRes.status === 'fulfilled'
-        ? (notifRes.value.data?.data || notifRes.value.data || [])
-        : [];
-      (Array.isArray(rawNotifs) ? rawNotifs : []).forEach((n) => {
-        items.push({
-          id: `n-${n.id}`,
-          type: n.data?.type || 'default',
-          title: n.data?.title || 'Notification',
-          message: n.data?.message || n.data?.body || '',
-          timestamp: n.created_at,
-          read: !!n.read_at,
-          raw: n,
-        });
-      });
-
-      // Booking activity
-      const bookings = bookingsRes.status === 'fulfilled'
-        ? (bookingsRes.value?.data || bookingsRes.value || [])
-        : [];
-      (Array.isArray(bookings) ? bookings : []).forEach((b) => {
-        items.push({
-          id: `b-${b.id}`,
-          type: 'booking',
-          title: `Booking ${b.reference || b.id}`,
-          message: `Status: ${b.status}`,
-          timestamp: b.updated_at || b.created_at,
-          read: b.status === 'confirmed' || b.status === 'cancelled',
-          raw: b,
-        });
-      });
-
-      // Payment activity
-      const payments = paymentsRes.status === 'fulfilled'
-        ? (paymentsRes.value?.data || paymentsRes.value || [])
-        : [];
-      (Array.isArray(payments) ? payments : []).forEach((p) => {
-        items.push({
-          id: `p-${p.id}`,
-          type: 'payment',
-          title: `Invoice ${p.invoice_reference || p.id}`,
-          message: `Payment status: ${p.status}`,
-          timestamp: p.updated_at || p.created_at,
-          read: p.status === 'paid',
-          raw: p,
-        });
-      });
+      // Only use real backend notifications — no synthetic booking/payment injection
+      const items = (Array.isArray(rawNotifs) ? rawNotifs : []).map((n) => ({
+        id: `n-${n.id}`,
+        type: n.data?.type || 'default',
+        title: n.data?.title || 'Notification',
+        message: n.data?.message || n.data?.body || '',
+        timestamp: n.created_at,
+        read: !!n.read_at,
+        raw: n,
+      }));
 
       items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       setNotifications(items);
@@ -103,10 +62,8 @@ export default function Notifications() {
 
   const markAsRead = async (id) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    if (id.startsWith('n-')) {
-      const backendId = id.replace('n-', '');
-      await api.patch(`/notifications/${backendId}/read`).catch(() => {});
-    }
+    const backendId = id.replace('n-', '');
+    await api.patch(`/notifications/${backendId}/read`).catch(() => {});
   };
 
   const markAllRead = async () => {
@@ -117,6 +74,7 @@ export default function Notifications() {
   const displayed = notifications.filter((n) => {
     if (filterType === 'bookings' && n.type !== 'booking') return false;
     if (filterType === 'payments' && n.type !== 'payment') return false;
+    if (unreadOnly && n.read) return false;
     return true;
   });
 
@@ -156,21 +114,33 @@ export default function Notifications() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-6">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilterType(f.key)}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-              filterType === f.key
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Filter Tabs + Unread Toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl flex-1">
+          {filters.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilterType(f.key)}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                filterType === f.key
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setUnreadOnly((v) => !v)}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
+            unreadOnly
+              ? 'bg-green-600 text-white border-green-600'
+              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Unread only
+        </button>
       </div>
 
       {/* Notification List */}
@@ -186,7 +156,9 @@ export default function Notifications() {
               <BellOff className="w-8 h-8 text-gray-400 dark:text-gray-500" />
             </div>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">No notifications</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">You're all caught up!</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {unreadOnly ? 'No unread notifications.' : "You're all caught up!"}
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-700">

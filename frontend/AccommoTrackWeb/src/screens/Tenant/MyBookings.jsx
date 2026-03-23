@@ -63,6 +63,8 @@ const MyBookings = () => {
   const [extendingStay, setExtendingStay] = useState(false);
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
+  // cancelConfirm stores the bookingId pending user confirmation (null = none)
+  const [cancelConfirm, setCancelConfirm] = useState(null);
 
   const invalidateTenantStayCache = useCallback(() => {
     invalidateData(['dashboard', 'bookings']);
@@ -118,11 +120,13 @@ const MyBookings = () => {
     try {
       const nextPage = history.pagination.currentPage + 1;
       const data = await tenantService.getHistory(nextPage);
-      setHistory(prev => ({
-        bookings: [...(prev.bookings || []), ...data.bookings],
+      const merged = {
+        bookings: [...(history.bookings || []), ...data.bookings],
         pagination: data.pagination
-      }));
-      updateData('bookings', { ...uiState.data.bookings, history });
+      };
+      setHistory(merged);
+      // Fix: use the fresh `merged` object, not the stale `history` closure
+      updateData('bookings', { ...(uiState.data?.bookings || {}), history: merged });
     } catch (err) {
       toast.error('Failed to load more history');
     } finally {
@@ -235,9 +239,35 @@ const MyBookings = () => {
     };
   }, [activeTab, invalidateTenantStayCache, fetchData]);
 
-  const handleCancelBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) return;
-    
+  const handleCancelBooking = (bookingId) => {
+    // Show inline confirmation toast instead of browser native confirm()
+    setCancelConfirm(bookingId);
+    toast(
+      (t) => (
+        <span className="flex flex-col gap-2">
+          <span className="font-semibold text-gray-800">Cancel this booking?</span>
+          <span className="text-sm text-gray-500">This action cannot be undone.</span>
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => { toast.dismiss(t.id); setCancelConfirm(null); }}
+              className="flex-1 px-3 py-1.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Keep
+            </button>
+            <button
+              onClick={() => { toast.dismiss(t.id); confirmCancelBooking(bookingId); }}
+              className="flex-1 px-3 py-1.5 text-sm font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+            >
+              Cancel Booking
+            </button>
+          </div>
+        </span>
+      ),
+      { duration: 8000, icon: '⚠️' }
+    );
+  };
+
+  const confirmCancelBooking = async (bookingId) => {
     setCancellingBooking(bookingId);
     try {
       await tenantService.cancelBooking(bookingId, 'Tenant cancelled the booking');
@@ -249,6 +279,7 @@ const MyBookings = () => {
       toast.error(err.response?.data?.message || 'Failed to cancel booking');
     } finally {
       setCancellingBooking(null);
+      setCancelConfirm(null);
     }
   };
 
@@ -269,9 +300,9 @@ const MyBookings = () => {
   };
 
   const handleCancelAddonRequest = async (addonId) => {
-    if (!confirm('Cancel this addon request?')) return;
     try {
       await tenantService.cancelAddonRequest(addonId);
+      toast.success('Add-on request cancelled');
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
@@ -361,7 +392,8 @@ const MyBookings = () => {
           {activeTab === 'history' && (
             <HistoryTab 
               data={history} 
-              onLoadMore={() => {}} 
+              onLoadMore={loadMoreHistory}
+              loadingMore={historyLoadingMore}
               onReview={handleReview}
               onReport={handleReport}
               onCancelBooking={handleCancelBooking}
@@ -710,7 +742,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                             <span className="font-bold dark:text-gray-300">Lease:</span> 
-                            {booking.startDate} to {booking.endDate}
+                            {formatDate(booking.startDate)} to {formatDate(booking.endDate)}
                             <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} Months</span>
                           </p>
                           
@@ -1053,7 +1085,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
 };
 
 // ==================== History Tab ====================
-const HistoryTab = ({ data, onLoadMore, onReview, onReport, onCancelBooking, isCancelling }) => {
+const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport, onCancelBooking, isCancelling }) => {
   const { bookings, pagination } = data;
 
   const formatDateTime = (dateString) => {
@@ -1197,9 +1229,11 @@ const HistoryTab = ({ data, onLoadMore, onReview, onReport, onCancelBooking, isC
       {pagination && pagination.currentPage < pagination.lastPage && (
         <button
           onClick={onLoadMore}
-          className="w-full py-3 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 rounded-xl transition-all border border-green-100 dark:border-green-900/30"
+          disabled={loadingMore}
+          className="w-full py-3 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 rounded-xl transition-all border border-green-100 dark:border-green-900/30 disabled:opacity-60 flex items-center justify-center gap-2"
         >
-          Load More
+          {loadingMore ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+          {loadingMore ? 'Loading...' : 'Load More'}
         </button>
       )}
     </div>

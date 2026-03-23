@@ -950,7 +950,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                 <View style={styles.form}>
                   {/* Back Button */}
                   <TouchableOpacity style={styles.backButton} onPress={handleBackStep}>
-                    <Ionicons name="arrow-back" size={20} color="#16a34a" />
+                    <Ionicons name="arrow-back" size={20} color="#059669" />
                     <Text style={styles.backButtonText}>Back</Text>
                   </TouchableOpacity>
 

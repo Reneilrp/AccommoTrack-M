@@ -224,14 +224,14 @@ class LandlordVerificationController extends Controller
         if ($user->date_of_birth) {
             $age = \Carbon\Carbon::parse($user->date_of_birth)->age;
             if ($age < 20) {
-                 return response()->json([
-                     'message' => 'You must be at least 20 years old to become a landlord.',
-                 ], 403);
+                return response()->json([
+                    'message' => 'You must be at least 20 years old to become a landlord.',
+                ], 403);
             }
         } else {
-             return response()->json([
-                 'message' => 'Date of birth is required to become a landlord. Please update your profile.',
-             ], 403);
+            return response()->json([
+                'message' => 'Date of birth is required to become a landlord. Please update your profile.',
+            ], 403);
         }
 
         $verification = LandlordVerification::where('user_id', $user->id)->first();

@@ -505,6 +505,20 @@ export const getStyles = (theme) => StyleSheet.create({
   floorButtonTextActive: {
     color: theme.colors.textInverse
   },
+  switchRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  switchHelpText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2
+  },
 });
+
 
 export default getStyles;

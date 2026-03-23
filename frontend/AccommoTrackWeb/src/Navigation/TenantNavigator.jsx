@@ -27,7 +27,7 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
           <Route path="/explore" element={<ExploreProperties />} />
           <Route path="/property/:id" element={<TenantPropertyDetails />} />
           <Route path="/bookings" element={<MyBookings />} />
-          <Route path="/payments" element={<TenantPayments />} />
+          <Route path="/payments" element={<TenantPayments user={user} />} />
           <Route path="/maintenance" element={<TenantMaintenance />} />
           <Route path="/checkout/:id" element={<InvoiceCheckout />} />
           <Route path="/messages" element={<TenantMessages user={user} />} />

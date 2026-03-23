@@ -330,6 +330,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         {/* Search & Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700 flex flex-col lg:flex-row gap-4 lg:items-center">
           <div className="relative flex-1 w-full">
+            {filterStatus !== 'extensions' && filterStatus !== 'transfers' && (
+            <>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
@@ -338,6 +340,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               placeholder="Search by name, room, property..."
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm"
             />
+            </>
+            )}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
             {['all', 'confirmed', 'pending', 'completed', 'cancelled', 'extensions', 'transfers'].map((s) => (
@@ -562,10 +566,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               </p>
                             </div>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (window.confirm('Mark this booking as fully completed and paid?')) {
+                                  // Fix #1: await payment update FIRST to avoid race condition
                                   if (paymentStatus !== 'paid') {
-                                    handleUpdatePayment(selectedBooking.id, 'paid');
+                                    await handleUpdatePayment(selectedBooking.id, 'paid');
                                   }
                                   handleUpdateStatus(selectedBooking.id, 'completed');
                                 }

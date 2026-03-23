@@ -439,7 +439,7 @@ const BroadcastModal = ({ tenantIds, onClose }) => {
     if (!message) return toast.error("Message cannot be empty.");
     setIsSending(true);
     try {
-      await api.post('/landlord/broadcast', { tenant_ids: tenantIds, message });
+      await api.post('/landlord/broadcast', { recipients: tenantIds, message });
       toast.success(`Message sent to ${tenantIds.length} tenant(s).`);
       onClose();
     } catch (err) {

@@ -177,6 +177,17 @@ class PaymongoController extends Controller
                     'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
                 ], 422);
             }
+
+            // --- Guard: check allow_partial_payments ---
+            $invoice->load(['property', 'booking.property']);
+            $property = $invoice->property ?? $invoice->booking?->property;
+            $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
+            if (! $allowPartial && $requestedAmountCents < $remainingBalanceCents) {
+                return response()->json([
+                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
+                ], 422);
+            }
+
             $amountToPayCents = $requestedAmountCents;
         } else {
             $amountToPayCents = $remainingBalanceCents;

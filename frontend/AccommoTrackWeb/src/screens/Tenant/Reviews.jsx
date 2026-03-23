@@ -32,7 +32,11 @@ export default function Reviews() {
     try {
       const res = await api.get('/tenant/bookings');
       const data = res.data?.data || res.data || [];
-      setBookings(Array.isArray(data) ? data : []);
+      // Fix #1: Only show confirmed/completed bookings — backend rejects others
+      const eligible = (Array.isArray(data) ? data : []).filter(
+        (b) => ['confirmed', 'completed'].includes(b.status)
+      );
+      setBookings(eligible);
     } catch (err) {
       console.error('Failed to load bookings', err);
     }
@@ -40,7 +44,7 @@ export default function Reviews() {
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
-    if (!form.property_id) { toast.error('Please select a booking'); return; }
+    if (!form.booking_id) { toast.error('Please select a confirmed or completed booking'); return; }
     setSubmitting(true);
     try {
       const payload = { property_id: form.property_id, booking_id: form.booking_id, rating: form.rating, comment: form.comment };

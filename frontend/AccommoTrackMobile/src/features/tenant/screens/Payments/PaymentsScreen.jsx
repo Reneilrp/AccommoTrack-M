@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,9 @@ import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
 import { showError } from '../../../../utils/toast.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
+import createEcho from '../../../../services/echo.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +37,62 @@ export default function PaymentsScreen() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('1m');
   const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          if (user.id) setUserId(user.id);
+        }
+        if (!userId) {
+          const storedId = await AsyncStorage.getItem('user_id');
+          if (storedId) setUserId(storedId);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    getUserId();
+  }, []);
+
+  // Real-time updates
+  useEffect(() => {
+    if (!userId) return;
+
+    let echoInstance = null;
+    let channel = null;
+
+    const setupEcho = async () => {
+      echoInstance = await createEcho();
+      if (!echoInstance) return;
+
+      channel = echoInstance.private(`user.${userId}`)
+        .listen('.invoice.updated', (e) => {
+          console.log('[PaymentsScreen] Real-time update:', e);
+          onRefresh();
+          Toast.show({
+            type: 'success',
+            text1: 'Payment Updated',
+            text2: 'Your payment status has been updated.',
+            position: 'bottom'
+          });
+        });
+    };
+
+    setupEcho();
+
+    return () => {
+      if (channel) {
+        channel.stopListening('.invoice.updated');
+      }
+      if (echoInstance) {
+        echoInstance.disconnect();
+      }
+    };
+  }, [userId]);
 
   // Fetch payments
   const { data: payments = [], isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({

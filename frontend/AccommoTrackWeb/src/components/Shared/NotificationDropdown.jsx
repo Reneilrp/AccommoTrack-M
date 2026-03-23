@@ -143,6 +143,7 @@ const NotificationDropdown = () => {
       return (
         <li
           key={`activity-${item.type}-${item.id}-${item._sortKey}`}
+          role="menuitem"
           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
           onClick={() => handleNotificationClick(item)}
         >
@@ -166,6 +167,7 @@ const NotificationDropdown = () => {
     return (
       <li
         key={`notif-${item.id}`}
+        role="menuitem"
         className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!item.read_at ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
         onClick={() => handleNotificationClick(item)}
       >
@@ -190,10 +192,13 @@ const NotificationDropdown = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        id="notification-trigger"
         onClick={() => {
           setIsOpen(!isOpen);
           if (!isOpen) fetchNotifications();
         }}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
         className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors focus:outline-none"
       >
         <Bell className="w-6 h-6" />
@@ -205,7 +210,11 @@ const NotificationDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right border border-gray-100 dark:border-gray-700">
+        <div 
+          role="menu"
+          aria-labelledby="notification-trigger"
+          className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right border border-gray-100 dark:border-gray-700"
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
             {unreadCount > 0 && (

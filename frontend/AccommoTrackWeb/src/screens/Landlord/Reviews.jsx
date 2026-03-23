@@ -261,7 +261,7 @@ export default function LandlordReviews() {
                       </div>
                     ) : (
                       <button 
-                        onClick={() => setReplyingTo(review.id)}
+                        onClick={() => { setReplyingTo(review.id); setReplyText(''); }}
                         className="flex items-center gap-2 px-4 py-2 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-lg font-bold text-sm transition-all"
                       >
                         <Reply className="w-4 h-4" />

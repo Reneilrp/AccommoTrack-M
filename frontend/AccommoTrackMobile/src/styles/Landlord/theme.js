@@ -1,7 +1,7 @@
 const COLORS = {
-  primary: '#16A34A',
+  primary: '#059669',
   primaryDark: '#15803D',
-  accent: '#16a34a',
+  accent: '#059669',
   background: '#F8FAFC',
   cardBg: '#FFFFFF',
   text: '#111827',

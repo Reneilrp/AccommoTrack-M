@@ -307,7 +307,7 @@ export default function TenantsScreen({ navigation, route }) {
           <Ionicons
             name={selectedTenants.includes(item.id) ? 'checkbox' : 'square-outline'}
             size={20}
-            color={selectedTenants.includes(item.id) ? '#16A34A' : '#94A3B8'}
+            color={selectedTenants.includes(item.id) ? '#059669' : '#94A3B8'}
           />
         </TouchableOpacity>
         <View style={styles.avatarCircle}>
@@ -321,7 +321,7 @@ export default function TenantsScreen({ navigation, route }) {
             </View>
           </View>
           <View style={styles.roomRow}>
-            <Ionicons name="bed-outline" size={16} color="#16A34A" />
+            <Ionicons name="bed-outline" size={16} color="#059669" />
             <Text style={styles.roomText}>
               {currentRoom ? `Room ${currentRoom.room_number}` : 'No room assigned'}
             </Text>
@@ -363,7 +363,7 @@ export default function TenantsScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -397,7 +397,7 @@ export default function TenantsScreen({ navigation, route }) {
 
             <View style={styles.statsGrid}>
               <View style={styles.statCard}><Text style={styles.statLabel}>Total</Text><Text style={styles.statValue}>{stats.total}</Text></View>
-              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#16A34A'}]}>Active</Text><Text style={[styles.statValue, {color: '#16A34A'}]}>{stats.active}</Text></View>
+              <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#059669'}]}>Active</Text><Text style={[styles.statValue, {color: '#059669'}]}>{stats.active}</Text></View>
               <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#2563EB'}]}>Paid</Text><Text style={[styles.statValue, {color: '#2563EB'}]}>{stats.paid}</Text></View>
               <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#D97706'}]}>Pending</Text><Text style={[styles.statValue, {color: '#D97706'}]}>{stats.pending}</Text></View>
               <View style={styles.statCard}><Text style={[styles.statLabel, {color: '#DC2626'}]}>Overdue</Text><Text style={[styles.statValue, {color: '#DC2626'}]}>{stats.overdue}</Text></View>
@@ -423,7 +423,7 @@ export default function TenantsScreen({ navigation, route }) {
                     <Ionicons
                       name={selectedTenants.length === filteredTenants.length ? 'checkbox' : 'square-outline'}
                       size={18}
-                      color="#16A34A"
+                      color="#059669"
                     />
                     <Text style={styles.selectAllText}>Select All</Text>
                   </TouchableOpacity>
@@ -440,8 +440,8 @@ export default function TenantsScreen({ navigation, route }) {
           </View>
         )}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTenants(true)} tintColor="#16a34a" />}
-        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#16a34a" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTenants(true)} tintColor="#059669" />}
+        ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#059669" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
       />
 
       <Modal visible={detailVisible} animationType="slide" onRequestClose={() => setDetailVisible(false)}>
@@ -483,7 +483,7 @@ export default function TenantsScreen({ navigation, route }) {
                   <View style={styles.assignmentCard}>
                     <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
                     <Text style={styles.assignmentMeta}>{detailTenant.room.type_label}</Text>
-                    <Text style={[styles.assignmentMeta, {color: '#16A34A', fontWeight: '700'}]}>{formatCurrency(detailTenant.room.monthly_rate)} / month</Text>
+                    <Text style={[styles.assignmentMeta, {color: '#059669', fontWeight: '700'}]}>{formatCurrency(detailTenant.room.monthly_rate)} / month</Text>
                   </View>
                 ) : <Text style={styles.helperText}>No room assigned</Text>}
               </View>

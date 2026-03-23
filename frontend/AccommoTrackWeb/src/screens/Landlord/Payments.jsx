@@ -596,11 +596,13 @@ export default function Payments() {
         : 0;
     const paidAmount =
       inv.transactions
-        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid' || tx.status === 'partially_refunded')
         .reduce(
-          (sum, tx) =>
-            sum +
-            (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)),
+          (sum, tx) => {
+            const txAmt = tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0);
+            const txRef = tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
+            return sum + (txAmt - txRef);
+          },
           0,
         ) || 0;
     const balance = Math.max(0, price - paidAmount);
@@ -999,7 +1001,11 @@ export default function Payments() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowInvoiceModal(false)}
+                  onClick={() => {
+                    setShowInvoiceModal(false);
+                    setRefundConfirmTx(null);
+                    setRefundAmount("");
+                  }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-gray-500" />

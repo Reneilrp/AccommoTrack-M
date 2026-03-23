@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Room;
 use Illuminate\Support\Facades\DB;
@@ -234,7 +235,25 @@ class LandlordDashboardService
             $propertiesQuery->whereIn('id', $assignedPropertyIds);
         }
 
-        return $propertiesQuery->get();
+        $properties = $propertiesQuery->get();
+
+        // Pre-fetch actual paid revenue per property in one query to avoid N+1
+        $revenueByProperty = Payment::where('status', 'paid')
+            ->whereHas('booking', function ($q) use ($landlordId, $assignedPropertyIds) {
+                $q->where('landlord_id', $landlordId);
+                if ($assignedPropertyIds) {
+                    $q->whereIn('property_id', $assignedPropertyIds);
+                }
+            })
+            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
+            ->select('bookings.property_id', DB::raw('SUM(payments.amount) as total_paid'))
+            ->groupBy('bookings.property_id')
+            ->pluck('total_paid', 'property_id');
+
+        return [
+            'properties' => $properties,
+            'revenueByProperty' => $revenueByProperty,
+        ];
     }
 
     public function getRevenueChart(int $landlordId)

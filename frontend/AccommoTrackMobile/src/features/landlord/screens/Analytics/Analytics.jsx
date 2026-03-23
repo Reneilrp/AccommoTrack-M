@@ -236,7 +236,7 @@ export default function Analytics({ navigation }) {
             label="Total Revenue" 
             value={formatCurrency(overview.total_revenue)} 
             tag="Cumulative"
-            icon="cash-outline" color="#16a34a" bgColor="#DCFCE7"
+            icon="cash-outline" color="#059669" bgColor="#DCFCE7"
             styles={styles}
           />
           <MetricCard 
@@ -314,7 +314,7 @@ export default function Analytics({ navigation }) {
                 propsForDots: {
                   r: "4",
                   strokeWidth: "2",
-                  stroke: "#16a34a"
+                  stroke: "#059669"
                 }
               }}
               bezier
@@ -370,7 +370,7 @@ export default function Analytics({ navigation }) {
                 <View style={styles.progressBarBg}>
                   <View style={[
                     styles.progressBarFill, 
-                    { width: `${p.occupancy_rate}%`, backgroundColor: p.occupancy_rate >= 80 ? '#22c55e' : p.occupancy_rate >= 50 ? '#3b82f6' : '#f97316' }
+                    { width: `${p.occupancy_rate}%`, backgroundColor: p.occupancy_rate >= 80 ? '#10b981' : p.occupancy_rate >= 50 ? '#3b82f6' : '#f97316' }
                   ]} />
                 </View>
               </View>
@@ -398,7 +398,7 @@ export default function Analytics({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
       {/* Standard Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
@@ -424,7 +424,7 @@ export default function Analytics({ navigation }) {
         <View style={{ zIndex: 2000 }}>
           <TouchableOpacity style={styles.dropdownButton} onPress={() => setDropdownOpen(!dropdownOpen)}>
             <Text style={styles.dropdownButtonText}>{selectedPropertyName}</Text>
-            <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#16a34a" />
+            <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#059669" />
           </TouchableOpacity>
           {dropdownOpen && (
             <View style={styles.dropdownList}>
@@ -436,7 +436,7 @@ export default function Analytics({ navigation }) {
                     onPress={() => { setSelectedProperty(p.id); setDropdownOpen(false); }}
                   >
                     <Text style={styles.dropdownItemText}>{p.name}</Text>
-                    {selectedProperty === p.id && <Ionicons name="checkmark" size={18} color="#16a34a" />}
+                    {selectedProperty === p.id && <Ionicons name="checkmark" size={18} color="#059669" />}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -459,7 +459,7 @@ export default function Analytics({ navigation }) {
 
       <ScrollView
         style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#16a34a" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />}
         showsVerticalScrollIndicator={false}
       >
         {errorMessage ? (
@@ -468,7 +468,7 @@ export default function Analytics({ navigation }) {
 
         {loading && !analytics ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color="#16a34a" />
+            <ActivityIndicator size="large" color="#059669" />
             <Text style={styles.loadingLabel}>Synchronizing analytics...</Text>
           </View>
         ) : renderContent()}

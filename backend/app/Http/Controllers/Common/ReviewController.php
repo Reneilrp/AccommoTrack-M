@@ -262,6 +262,8 @@ class ReviewController extends Controller
                     return [
                         'id' => $review->id,
                         'property_id' => $review->property_id,
+                        'booking_id' => $review->booking_id,   // Fix #2: needed for edit form
+                        'property' => $review->property,        // Fix #2: needed for dropdown label
                         'property_title' => $review->property?->title,
                         'property_location' => $review->property
                             ? ($review->property->city ?? $review->property->street_address)
@@ -278,6 +280,69 @@ class ReviewController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch reviews',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Fix #2: Update a tenant review (rating + comment only)
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $review = Review::findOrFail($id);
+
+            if ($review->tenant_id !== $user->id) {
+                return response()->json(['message' => 'You can only edit your own reviews'], 403);
+            }
+
+            $review->update([
+                'rating' => $request->rating,
+                'comment' => $request->comment,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Review updated successfully',
+                'data' => $review,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update review',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Fix #2: Delete a tenant's own review
+     */
+    public function destroy($id)
+    {
+        try {
+            $user = Auth::user();
+            $review = Review::findOrFail($id);
+
+            if ($review->tenant_id !== $user->id) {
+                return response()->json(['message' => 'You can only delete your own reviews'], 403);
+            }
+
+            $review->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Review deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete review',
                 'error' => $e->getMessage(),
             ], 500);
         }

@@ -57,7 +57,7 @@ class ExtensionController extends Controller
                 if ($booking->status === 'completed' || $booking->status === 'partial-completed') {
                     // Create a NEW booking as a renewal
                     $newBooking = $booking->replicate(['id', 'booking_reference', 'created_at', 'updated_at', 'status', 'payment_status', 'cancelled_at', 'cancellation_reason', 'refund_amount', 'refund_processed_at', 'confirmed_at']);
-                    
+
                     $newBooking->previous_booking_id = $booking->id;
                     $newBooking->booking_reference = 'BK-REN-'.strtoupper(Str::random(8));
                     $newBooking->start_date = $booking->end_date;
@@ -66,14 +66,14 @@ class ExtensionController extends Controller
                     $newBooking->status = 'confirmed';
                     $newBooking->payment_status = 'unpaid';
                     $newBooking->confirmed_at = now();
-                    $newBooking->notes = ($newBooking->notes ? $newBooking->notes . "\n" : "") . "Renewal of booking #" . $booking->booking_reference;
+                    $newBooking->notes = ($newBooking->notes ? $newBooking->notes."\n" : '').'Renewal of booking #'.$booking->booking_reference;
                     $newBooking->save();
 
                     // Re-assign tenant if needed (ensure active assignment exists)
                     if (! $newBooking->room->tenants()->where('tenant_id', $ext->tenant_id)->exists()) {
                         $newBooking->room->assignTenant($ext->tenant_id, $newBooking->start_date, $newBooking->bed_count);
                     }
-                    
+
                     $targetBooking = $newBooking;
                 } else {
                     // Simply extend the existing one

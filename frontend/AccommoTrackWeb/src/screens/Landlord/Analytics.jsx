@@ -174,11 +174,19 @@ export default function Analytics() {
       [''],
       ['=== PAYMENT PERFORMANCE ==='],
       ['Payment Status', 'Count', 'Percentage of Total'],
-      ['Paid', analytics.payments.paid, formatPercent((analytics.payments.paid / totalPaymentCount) * 100)],
-      ['Pending/Unpaid', analytics.payments.unpaid, formatPercent((analytics.payments.unpaid / totalPaymentCount) * 100)],
-      ['Partial Payments', analytics.payments.partial, formatPercent((analytics.payments.partial / totalPaymentCount) * 100)],
-      ['Overdue Invoices', analytics.payments.overdue, formatPercent((analytics.payments.overdue / totalPaymentCount) * 100)],
-      ['Overall Payment Success Rate', formatPercent(analytics.payments.payment_rate)],
+      ...(() => {
+        // Fix #5: Compute locally to avoid closure dependency on outer totalPaymentCount
+        const p = analytics.payments;
+        const localTotal = Number(p.paid || 0) + Number(p.unpaid || 0) + Number(p.partial || 0) + Number(p.overdue || 0);
+        const pct = (val) => localTotal > 0 ? formatPercent((Number(val) / localTotal) * 100) : '0%';
+        return [
+          ['Paid', p.paid, pct(p.paid)],
+          ['Pending/Unpaid', p.unpaid, pct(p.unpaid)],
+          ['Partial Payments', p.partial, pct(p.partial)],
+          ['Overdue Invoices', p.overdue, pct(p.overdue)],
+          ['Overall Payment Success Rate', formatPercent(p.payment_rate)],
+        ];
+      })(),
       [''],
       ['=== PROPERTY PERFORMANCE BREAKDOWN ==='],
       ['Property Name', 'Occupancy Rate', 'Rooms (Occ/Total)', 'Monthly Revenue', 'Efficiency Status'],

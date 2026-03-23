@@ -14,6 +14,7 @@ export default function InvoiceCheckout() {
   const [error, setError] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [remainingBalance, setRemainingBalance] = useState(0);
+  const [pendingOffline, setPendingOffline] = useState(0);
   const [offlineDetails, setOfflineDetails] = useState({ method: '', reference: '', notes: '', show: false });
 
   useEffect(() => {
@@ -28,12 +29,19 @@ export default function InvoiceCheckout() {
       setInvoice(invData);
       
       const totalAmount = invData.amount_cents ? invData.amount_cents / 100 : Number(invData.amount || 0);
+      // Only count verified/succeeded transactions toward remaining balance shown at top
+      // pending_offline is shown separately as a notice, not deducted from accessible balance
       const paidAmount = invData.transactions
-        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid' || tx.status === 'pending_offline')
+        ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid')
+        .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
+      
+      const pendingOfflineAmount = invData.transactions
+        ?.filter(tx => tx.status === 'pending_offline')
         .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
         
       const balance = Math.max(0, totalAmount - paidAmount);
       setRemainingBalance(balance);
+      setPendingOffline(pendingOfflineAmount);
       setPaymentAmount(balance.toString());
       
     } catch (err) {
@@ -48,6 +56,13 @@ export default function InvoiceCheckout() {
     if (isNaN(amountToPay) || amountToPay <= 0) {
       return toast.error('Please enter a valid amount');
     }
+    
+    const prop = invoice?.property || invoice?.booking?.property;
+    const allowPartial = prop?.allow_partial_payments !== 0 && prop?.allow_partial_payments !== false;
+    if (!allowPartial && amountToPay !== remainingBalance) {
+      return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
+    }
+
     if (amountToPay > remainingBalance) {
       return toast.error(`Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
     }
@@ -75,6 +90,12 @@ export default function InvoiceCheckout() {
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
       return toast.error('Please enter a valid amount');
+    }
+
+    const prop = invoice?.property || invoice?.booking?.property;
+    const allowPartial = prop?.allow_partial_payments !== 0 && prop?.allow_partial_payments !== false;
+    if (!allowPartial && amountToPay !== remainingBalance) {
+      return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
     }
 
     setProcessing(true);
@@ -129,12 +150,14 @@ export default function InvoiceCheckout() {
   const acceptedPayments = property?.accepted_payments || ['cash'];
   const globalSettings = landlord?.payment_methods_settings || { allowed: ['cash'], details: {} };
   
+  const allowPartialPayments = property?.allow_partial_payments !== 0 && property?.allow_partial_payments !== false;
+  
   const showOnline = acceptedPayments.includes('online') && globalSettings.allowed?.includes('online');
   const showCash = acceptedPayments.includes('cash') && globalSettings.allowed?.includes('cash');
   const showManualGcash = globalSettings.allowed?.includes('gcash');
 
   return (
-    <div className="max-w-2xl mx-auto py-8 px-4">
+    <div className="max-w-5xl mx-auto py-8 px-4">
       <button 
         onClick={() => navigate('/payments')}
         className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 transition-colors font-bold text-sm uppercase tracking-wider"
@@ -143,8 +166,11 @@ export default function InvoiceCheckout() {
         Back to Billing
       </button>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-700 overflow-hidden">
-        <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Left Column: Payment Actions */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div>
               <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-green-200 dark:border-green-800">
@@ -155,15 +181,8 @@ export default function InvoiceCheckout() {
               </h1>
               <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-1 uppercase">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
             </div>
-            <div className="text-left md:text-right bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md md:shadow-none md:border-none md:bg-transparent">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Remaining Balance</p>
-              <p className="text-4xl font-bold text-green-600 dark:text-green-400">
-                <PriceRow amount={remainingBalance} />
-              </p>
             </div>
           </div>
-        </div>
-
         <div className="p-8 md:p-10">
           {isFullyPaid ? (
             <div className="text-center py-12">
@@ -247,13 +266,20 @@ export default function InvoiceCheckout() {
                     onChange={(e) => setPaymentAmount(e.target.value)}
                     max={remainingBalance}
                     min={1}
-                    className="w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                    disabled={!allowPartialPayments}
+                    className={`w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${!allowPartialPayments ? 'opacity-70 cursor-not-allowed' : ''}`}
                     placeholder="Enter amount to pay"
                   />
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                  You can pay the full remaining balance of ₱{remainingBalance.toLocaleString()} or enter a partial amount.
-                </p>
+                {allowPartialPayments ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                    You can pay the full remaining balance of ₱{remainingBalance.toLocaleString()} or enter a partial amount.
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-2 font-semibold">
+                    Partial payments are disabled by the landlord. You must pay the full remaining balance.
+                  </p>
+                )}
               </div>
 
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
@@ -310,7 +336,12 @@ export default function InvoiceCheckout() {
                 {/* Manual GCash */}
                 {showManualGcash && (
                   <button
-                    onClick={() => setOfflineDetails({ method: 'gcash', reference: '', notes: '', show: true })}
+                    onClick={() => {
+                      const parsed = Number(paymentAmount);
+                      if (isNaN(parsed) || parsed <= 0) return toast.error('Please enter a valid amount first.');
+                      if (parsed > remainingBalance) return toast.error(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
+                      setOfflineDetails({ method: 'gcash', reference: '', notes: '', show: true });
+                    }}
                     disabled={processing}
                     className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                   >
@@ -329,7 +360,12 @@ export default function InvoiceCheckout() {
                 {/* Cash */}
                 {showCash && (
                   <button
-                    onClick={() => setOfflineDetails({ method: 'cash', reference: '', notes: '', show: true })}
+                    onClick={() => {
+                      const parsed = Number(paymentAmount);
+                      if (isNaN(parsed) || parsed <= 0) return toast.error('Please enter a valid amount first.');
+                      if (parsed > remainingBalance) return toast.error(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
+                      setOfflineDetails({ method: 'cash', reference: '', notes: '', show: true });
+                    }}
                     disabled={processing}
                     className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                   >
@@ -357,7 +393,16 @@ export default function InvoiceCheckout() {
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                  Payments are securely tracked. By proceeding, you agree to our <span className="text-green-600 dark:text-green-400 font-bold underline cursor-pointer">Payment Terms</span> and confirm this is a valid accommodation payment.
+                  Payments are securely tracked. By proceeding, you agree to our{' '}
+                  <a
+                    href="/help"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 dark:text-green-400 font-bold underline hover:text-green-700 dark:hover:text-green-300 transition-colors"
+                  >
+                    Payment Terms
+                  </a>{' '}
+                  and confirm this is a valid accommodation payment.
                 </p>
               </div>
             </>
@@ -365,5 +410,59 @@ export default function InvoiceCheckout() {
         </div>
       </div>
     </div>
+
+    {/* Right Column: Order Summary */}
+    <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-700 p-6 lg:sticky lg:top-8 order-first lg:order-last">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 uppercase tracking-wide flex items-center gap-2">
+        <Landmark className="w-5 h-5 text-green-600 dark:text-green-500" />
+        Order Summary
+      </h2>
+      
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-5 mb-6 border border-gray-200 dark:border-gray-700">
+        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Remaining Balance</p>
+        <p className="text-4xl font-bold text-green-600 dark:text-green-400">
+          <PriceRow amount={remainingBalance} />
+        </p>
+        {pendingOffline > 0 && (
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 font-semibold leading-snug">
+            ₱{pendingOffline.toLocaleString()} is pending landlord verification and not yet deducted.
+          </p>
+        )}
+      </div>
+
+      {invoice.booking && (
+        <div className="space-y-4">
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 uppercase tracking-wide">Plan Details</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Plan Type</span>
+                <span className="text-gray-900 dark:text-white font-bold capitalize">
+                  {invoice.booking.payment_plan === 'full' ? 'Full Duration' : 'Monthly Rent'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Base Monthly Rate</span>
+                <span className="text-gray-900 dark:text-white font-bold">
+                  <PriceRow amount={invoice.booking.monthly_rent} />
+                </span>
+              </div>
+              {(invoice.booking.room?.require_1month_advance || invoice.description?.toLowerCase().includes('1 month advance')) && (
+                <div className="pt-3 mt-3 border-t border-dashed border-gray-200 dark:border-gray-700 flex justify-between items-start">
+                  <span className="text-gray-600 dark:text-gray-400 text-xs font-medium">
+                    1-Month Advance Applied
+                  </span>
+                  <span className="text-green-600 dark:text-green-400 text-xs font-bold pl-2 text-right">
+                    +<PriceRow amount={invoice.booking.monthly_rent} />
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
   );
 }

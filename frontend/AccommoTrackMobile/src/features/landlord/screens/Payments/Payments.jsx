@@ -213,7 +213,7 @@ export default function Payments({ navigation }) {
 
         setShowModal(false);
         setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
-        fetchInvoices(true);
+        await fetchInvoices(true);
         Alert.alert('Success', 'Payment recorded successfully.');
       } else {
         Alert.alert('Error', res.error || 'Failed to record payment');
@@ -393,7 +393,7 @@ export default function Payments({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#16a34a" />
+          <ActivityIndicator size="large" color="#059669" />
           <Text style={styles.loadingText}>Loading payments...</Text>
         </View>
       </SafeAreaView>
@@ -402,7 +402,7 @@ export default function Payments({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -456,9 +456,9 @@ export default function Payments({ navigation }) {
       {invoices.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 10 }}>
           {[
-            { label: 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
+            { label: 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
             { label: 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
-            { label: 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
+            { label: 'Paid', value: stats.paidCount, icon: 'receipt-outline', color: '#059669', bg: '#DCFCE7' },
             { label: 'Pending', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
             { label: 'Overdue', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
           ].map((card, i) => (
@@ -480,8 +480,8 @@ export default function Payments({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchInvoices(true)}
-            colors={['#16a34a']}
-            tintColor="#16a34a"
+            colors={['#059669']}
+            tintColor="#059669"
           />
         }
         ListEmptyComponent={
@@ -524,7 +524,7 @@ export default function Payments({ navigation }) {
                   </View>
                   <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Invoice Total</Text>
-                    <Text style={[styles.summaryValue, { color: '#16a34a' }]}>
+                    <Text style={[styles.summaryValue, { color: '#059669' }]}>
                       ₱{parseFloat(selectedInvoice?.amount || ((selectedInvoice?.amount_cents ?? 0) / 100)).toLocaleString()}
                     </Text>
                   </View>

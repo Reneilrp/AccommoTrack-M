@@ -33,7 +33,9 @@ class UpdatePropertyRequest extends FormRequest
                 'in:boys,girls,mixed,male,female',
                 function ($attribute, $value, $fail) {
                     $propertyId = $this->route('id');
-                    if (!$propertyId) return;
+                    if (! $propertyId) {
+                        return;
+                    }
 
                     $val = strtolower($value);
                     $newRestriction = match ($val) {
@@ -43,11 +45,15 @@ class UpdatePropertyRequest extends FormRequest
                     };
 
                     // If switching to mixed, it's always allowed
-                    if ($newRestriction === 'mixed') return;
+                    if ($newRestriction === 'mixed') {
+                        return;
+                    }
 
                     // If switching to male/female, check if there are rooms of the opposite gender
                     $property = \App\Models\Property::find($propertyId);
-                    if (!$property) return;
+                    if (! $property) {
+                        return;
+                    }
 
                     $roomConflicts = \App\Models\Room::where('property_id', $propertyId)
                         ->where('gender_restriction', '!=', $newRestriction)
@@ -80,6 +86,8 @@ class UpdatePropertyRequest extends FormRequest
             'is_available' => 'sometimes|boolean',
             'is_eligible' => 'sometimes|boolean',
             'require_1month_advance' => 'sometimes|boolean',
+            'require_reservation_fee' => 'sometimes|boolean',
+            'reservation_fee_amount' => 'nullable|numeric|min:0',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',

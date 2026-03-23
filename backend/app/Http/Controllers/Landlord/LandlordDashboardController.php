@@ -172,9 +172,12 @@ class LandlordDashboardController extends Controller
             $context = $this->resolveLandlordContext($request);
             $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
 
-            $properties = $this->dashboardService->getPropertyPerformance($context['landlord_id'], $assignedPropertyIds);
+            // Service now returns ['properties' => ..., 'revenueByProperty' => ...]
+            $result = $this->dashboardService->getPropertyPerformance($context['landlord_id'], $assignedPropertyIds);
+            $properties = $result['properties'];
+            $revenueByProperty = $result['revenueByProperty'];
 
-            $formattedProperties = $properties->map(function ($property) use ($context) {
+            $formattedProperties = $properties->map(function ($property) use ($context, $revenueByProperty) {
                 $totalRooms = $property->rooms->count();
                 $occupiedRooms = $property->rooms->where('status', 'occupied')->count();
                 $data = [
@@ -184,8 +187,10 @@ class LandlordDashboardController extends Controller
                     'status' => $property->current_status,
                 ];
                 if (! $context['is_caretaker']) {
+                    // potentialRevenue = sum of all room rates (what you could earn if full)
                     $data['potentialRevenue'] = (float) $property->rooms->sum('monthly_rate');
-                    $data['actualRevenue'] = (float) $property->rooms->where('status', 'occupied')->sum('monthly_rate');
+                    // actualRevenue = sum of payments actually received for this property
+                    $data['actualRevenue'] = (float) ($revenueByProperty[$property->id] ?? 0);
                 }
 
                 return $data;

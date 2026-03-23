@@ -198,7 +198,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   requestApproveBtn: {
     flex: 1,
-    backgroundColor: '#16A34A',
+    backgroundColor: '#059669',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',

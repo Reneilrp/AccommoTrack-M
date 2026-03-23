@@ -246,7 +246,7 @@ export default function TenantMaintenance() {
                     <option value="">Select a room...</option>
                     {stayData.stays.map(stay => (
                       <option key={stay.booking.id} value={stay.booking.id}>
-                        {stay.property?.title} — Room {stay.room?.roomNumber}
+                        {stay.property?.title} — Room {stay.room?.room_number}
                       </option>
                     ))}
                   </select>
@@ -260,7 +260,7 @@ export default function TenantMaintenance() {
                      <div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Request for</p>
                         <p className="text-sm font-bold text-gray-900 dark:text-white">
-                          {stayData.stays[0].property?.title} — Room {stayData.stays[0].room?.roomNumber}
+                          {stayData.stays[0].property?.title} — Room {stayData.stays[0].room?.room_number}
                         </p>
                      </div>
                   </div>

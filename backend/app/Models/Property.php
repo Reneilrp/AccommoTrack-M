@@ -152,6 +152,9 @@ class Property extends Model
         // Payment Methods
         'accepted_payments',
         'require_1month_advance',
+        'allow_partial_payments',
+        'require_reservation_fee',
+        'reservation_fee_amount',
     ];
 
     protected $casts = [
@@ -171,6 +174,9 @@ class Property extends Model
         'is_available' => 'boolean',
         'is_eligible' => 'boolean',
         'require_1month_advance' => 'boolean',
+        'allow_partial_payments' => 'boolean',
+        'require_reservation_fee' => 'boolean',
+        'reservation_fee_amount' => 'decimal:2',
         'property_rules' => 'array',
         'accepted_payments' => 'array',
     ];

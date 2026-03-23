@@ -235,7 +235,7 @@ export default function PropertyPaymentSettings({ navigation }) {
               {/* Cash toggle */}
               <View style={styles.methodRow}>
                 <View style={styles.methodLeft}>
-                  <Ionicons name="cash-outline" size={20} color="#16A34A" />
+                  <Ionicons name="cash-outline" size={20} color="#059669" />
                   <View>
                     <Text style={styles.methodLabel}>Cash</Text>
                     <Text style={styles.methodDesc}>In-person cash payment</Text>

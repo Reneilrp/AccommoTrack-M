@@ -205,7 +205,16 @@ export default function RoomDetailsModal({
       // bookingService.createBooking throws on error; returns data on success
       const res = await svc.createBooking(payload);
       // res may be the full response object or data depending on service
-      const bookingObj = res?.booking || res?.data || res;
+      const bookingObj = res?.booking || res?.data?.booking || res?.data || res;
+      const invoiceObj = res?.reservation_invoice || res?.data?.reservation_invoice;
+
+      // If there's an instant reservation invoice, immediately route to PayMongo
+      if (invoiceObj && invoiceObj.checkout_url) {
+        toast.loading('Redirecting to secure checkout...');
+        window.location.href = invoiceObj.checkout_url;
+        return; // Halt execution and wait for redirect
+      }
+
       // show confirmation panel with booking id/status
       setBookingResult(bookingObj);
       // Inform parent to optimistically mark the room as occupied and reserved by current user
@@ -674,6 +683,18 @@ export default function RoomDetailsModal({
                           )}
                         </span>
                       </div>
+                      {/* Reservation Fee UI Details */}
+                      {(property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1) && (
+                        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
+                          <div className="flex justify-between text-amber-800 dark:text-amber-300 font-semibold mb-1">
+                            <span>Instant Reservation Fee:</span>
+                            <span>₱{(property?.reservation_fee_amount || 0).toLocaleString()}</span>
+                          </div>
+                          <p className="text-xs text-amber-700 dark:text-amber-400">
+                            A non-refundable reservation fee is required to secure this booking. You will be redirected to PayMongo to pay this amount immediately.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -741,7 +762,9 @@ export default function RoomDetailsModal({
                       >
                         {isSubmitting
                           ? "Processing..."
-                          : "Confirm Booking Request"}
+                          : ((property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1)
+                              ? `Pay ₱${(property?.reservation_fee_amount || 0).toLocaleString()} to Reserve`
+                              : "Confirm Booking Request")}
                       </button>
                     ) : (
                       <button

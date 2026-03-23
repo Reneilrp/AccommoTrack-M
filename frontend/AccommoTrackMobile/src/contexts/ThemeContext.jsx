@@ -6,24 +6,24 @@ const ThemeContext = createContext();
 
 // Color palettes matching web app's Tailwind config exactly
 // Brand colors from tailwind.config.js: brand-50 to brand-900
-// Updated to use the Green palette from the Web Guest UI
+// Updated to use the Emerald palette from the Web Guest UI
 export const lightTheme = {
   isDark: false,
   colors: {
-    // Brand/Primary colors (Green palette - matching web guest brand colors)
-    primary: '#16a34a', // green-600
-    primaryDark: '#15803d', // green-700
-    primaryLight: '#dcfce7', // green-100
-    brand50: '#f0fdf4', // green-50
-    brand100: '#dcfce7', // green-100
-    brand200: '#bbf7d0', // green-200
-    brand300: '#86efac', // green-300
-    brand400: '#4ade80', // green-400
-    brand500: '#22c55e', // green-500
-    brand600: '#16a34a', // green-600
-    brand700: '#15803d', // green-700
-    brand800: '#166534', // green-800
-    brand900: '#14532d', // green-900
+    // Brand/Primary colors (Emerald palette - matching web guest brand colors)
+    primary: '#059669', // emerald-600
+    primaryDark: '#047857', // emerald-700
+    primaryLight: '#d1fae5', // emerald-100
+    brand50: '#ecfdf5', // emerald-50
+    brand100: '#d1fae5', // emerald-100
+    brand200: '#a7f3d0', // emerald-200
+    brand300: '#6ee7b7', // emerald-300
+    brand400: '#34d399', // emerald-400
+    brand500: '#10b981', // emerald-500
+    brand600: '#059669', // emerald-600
+    brand700: '#047857', // emerald-700
+    brand800: '#065f46', // emerald-800
+    brand900: '#064e3b', // emerald-900
     
     // Background colors (matching CSS variables)
     background: '#ffffff', // --bg-primary
@@ -45,9 +45,9 @@ export const lightTheme = {
     borderLight: '#f3f4f6', // --border-light / gray-100
     
     // Status colors (matching web app usage)
-    success: '#16a34a', // green-600
-    successLight: '#dcfce7', // green-100
-    successDark: '#15803d', // green-700
+    success: '#059669', // emerald-600
+    successLight: '#d1fae5', // emerald-100
+    successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500
     errorLight: '#fee2e2', // red-100
     errorDark: '#dc2626', // red-600
@@ -75,20 +75,20 @@ export const lightTheme = {
 export const darkTheme = {
   isDark: true,
   colors: {
-    // Brand/Primary colors (Green palette - matching web guest brand colors)
-    primary: '#16a34a', // green-600 (matching web guest primary)
-    primaryDark: '#15803d', // green-700
-    primaryLight: '#14532d', // green-900
-    brand50: '#f0fdf4', // green-50
-    brand100: '#dcfce7', // green-100
-    brand200: '#bbf7d0', // green-200
-    brand300: '#86efac', // green-300
-    brand400: '#4ade80', // green-400
-    brand500: '#22c55e', // green-500
-    brand600: '#16a34a', // green-600
-    brand700: '#15803d', // green-700
-    brand800: '#166534', // green-800
-    brand900: '#14532d', // green-900
+    // Brand/Primary colors (Emerald palette - matching web guest brand colors)
+    primary: '#059669', // emerald-600 (matching web guest primary)
+    primaryDark: '#047857', // emerald-700
+    primaryLight: '#064e3b', // emerald-900
+    brand50: '#ecfdf5', // emerald-50
+    brand100: '#d1fae5', // emerald-100
+    brand200: '#a7f3d0', // emerald-200
+    brand300: '#6ee7b7', // emerald-300
+    brand400: '#34d399', // emerald-400
+    brand500: '#10b981', // emerald-500
+    brand600: '#059669', // emerald-600
+    brand700: '#047857', // emerald-700
+    brand800: '#065f46', // emerald-800
+    brand900: '#064e3b', // emerald-900
     
     // Background colors (matching CSS variables)
     background: '#111827', // --bg-primary / gray-900
@@ -110,9 +110,9 @@ export const darkTheme = {
     borderLight: '#4b5563', // --border-light / gray-600
     
     // Status colors (matching web app usage)
-    success: '#16a34a', // green-600
-    successLight: '#14532d', // green-900 (dark mode)
-    successDark: '#15803d', // green-700
+    success: '#059669', // emerald-600
+    successLight: '#064e3b', // emerald-900 (dark mode)
+    successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500
     errorLight: '#7f1d1d', // red-900 (dark mode)
     errorDark: '#dc2626', // red-600

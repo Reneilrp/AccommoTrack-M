@@ -81,7 +81,7 @@ export default function DevTeam({ navigation }) {
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>{member.name}</Text>
               <View style={styles.roleContainer}>
-                <Ionicons name="briefcase-outline" size={16} color="#16a34a" />
+                <Ionicons name="briefcase-outline" size={16} color="#059669" />
                 <Text style={styles.memberRole}>{member.role}</Text>
               </View>
               <Text style={styles.memberDescription}>{member.description}</Text>

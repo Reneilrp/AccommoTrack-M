@@ -603,7 +603,7 @@ export default function AddProperty({ navigation }) {
             <Ionicons
               name={successModal.isDraft ? "document-text" : "checkmark-circle"}
               size={48}
-              color="#16A34A"
+              color="#059669"
             />
           </View>
           <Text style={styles.successTitle}>
@@ -1097,7 +1097,7 @@ export default function AddProperty({ navigation }) {
                       <Ionicons
                         name="checkmark-circle"
                         size={18}
-                        color="#16A34A"
+                        color="#059669"
                       />
                       <Text style={[styles.inputHalf, { fontSize: 14 }]}>
                         {rule}
@@ -1358,7 +1358,7 @@ export default function AddProperty({ navigation }) {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#16A34A" />
+              <ActivityIndicator size="small" color="#059669" />
             ) : (
               <Text style={[styles.buttonText, styles.buttonTextDraft]}>
                 Save Draft

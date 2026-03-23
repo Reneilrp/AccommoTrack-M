@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Common;
 
+use App\Events\InvoiceUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Invoice;
@@ -228,6 +229,9 @@ class InvoiceController extends Controller
             $invoice->status = 'paid';
             $invoice->save();
 
+            // Broadcast the update to the tenant
+            broadcast(new InvoiceUpdated($invoice))->toOthers();
+
             DB::commit();
 
             return response()->json($tx->fresh(), 200);
@@ -294,6 +298,9 @@ class InvoiceController extends Controller
                 $booking->save();
             }
 
+            // Broadcast the update to the tenant
+            broadcast(new InvoiceUpdated($invoice))->toOthers();
+
             DB::commit();
 
             return response()->json($tx->fresh(), 201);
@@ -318,11 +325,34 @@ class InvoiceController extends Controller
         }
 
         $validated = $request->validate([
-            'amount_cents' => 'required|integer|min:0',
+            'amount_cents' => 'required|integer|min:1',
             'method' => 'required|string',
             'reference' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
+
+        // --- Guard: amount must not exceed remaining balance ---
+        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+        $alreadyPaidCents = $invoice->transactions()
+            ->whereIn('status', ['succeeded', 'paid', 'pending_offline', 'partially_refunded'])
+            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->value('net_cents') ?? 0;
+        $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
+
+        if ($validated['amount_cents'] > $remainingCents) {
+            return response()->json([
+                'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
+            ], 422);
+        }
+
+        // --- Guard: check allow_partial_payments ---
+        $property = $invoice->property ?? $invoice->booking?->property;
+        $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
+        if (! $allowPartial && $validated['amount_cents'] < $remainingCents) {
+            return response()->json([
+                'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents / 100, 2),
+            ], 422);
+        }
 
         DB::beginTransaction();
         try {

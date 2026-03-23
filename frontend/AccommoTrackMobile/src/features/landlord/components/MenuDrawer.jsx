@@ -18,7 +18,7 @@ const menuItems = [
     id: 1,
     title: "My Properties",
     icon: "business-outline",
-    color: "#16a34a",
+    color: "#059669",
     screen: "MyProperties",
   },
   {

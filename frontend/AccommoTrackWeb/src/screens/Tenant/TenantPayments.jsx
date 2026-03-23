@@ -6,8 +6,9 @@ import { SkeletonWallet } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
 import toast from 'react-hot-toast';
 import { CircleDollarSign, ClipboardCheck, Calendar } from 'lucide-react';
+import createEcho from '../../utils/echo';
 
-export default function TenantPayments() {
+export default function TenantPayments({ user }) {
   const navigate = useNavigate();
   const { uiState, updateScreenState, updateData } = useUIState();
   const { statusFilter, timeRange, searchQuery } = uiState.wallet || {
@@ -23,7 +24,7 @@ export default function TenantPayments() {
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
-  const [isRefreshing, setIsRecording] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     // Only set loading if we have NO data
@@ -75,6 +76,26 @@ export default function TenantPayments() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Real-time updates
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const echo = createEcho();
+    if (!echo) return;
+
+    const channel = echo.private(`user.${user.id}`)
+      .listen('.invoice.updated', (e) => {
+        console.log('Real-time invoice update received:', e);
+        loadData();
+        toast.success('Payment status updated!', { icon: '💰' });
+      });
+
+    return () => {
+      channel.stopListening('.invoice.updated');
+      echo.disconnect();
+    };
+  }, [user?.id, loadData]);
 
   const filterOptions = [
     { value: 'all', label: 'All Payments' },
@@ -278,6 +299,64 @@ export default function TenantPayments() {
               })()}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+          {(() => {
+            const filtered = getFilteredPayments();
+            if (!Array.isArray(filtered) || filtered.length === 0) {
+              return (
+                <div className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                  No payments found
+                </div>
+              );
+            }
+            return filtered.map((payment) => (
+              <div key={payment.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm leading-tight truncate">
+                      {payment.propertyName}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Room {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
+                    </p>
+                  </div>
+                  <span className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentService.getStatusColor(payment.status)}`}>
+                    {payment.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold">Amount</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold">Date</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{payment.date}</p>
+                  </div>
+                  {payment.dueDate && (
+                    <div className="text-right">
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold">Due</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{payment.dueDate}</p>
+                    </div>
+                  )}
+                </div>
+                {payment.referenceNo && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
+                )}
+                {['pending', 'unpaid', 'partial', 'overdue', 'refunded'].includes(payment.status?.toLowerCase()) && (
+                  <button
+                    onClick={() => navigate(`/checkout/${payment.id}`)}
+                    className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors"
+                  >
+                    Pay Now
+                  </button>
+                )}
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>

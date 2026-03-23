@@ -28,7 +28,7 @@ class UpdateRoomRequest extends FormRequest
 
         $propertyGender = ($room && $room->property) ? strtolower($room->property->gender_restriction) : 'mixed';
         $allowedGenders = ['male', 'female'];
-        if ($room && $room->property && !in_array($room->property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
+        if ($room && $room->property && ! in_array($room->property->property_type, ['dormitory', 'boardingHouse', 'bedSpacer'])) {
             $allowedGenders[] = 'mixed';
         }
 
@@ -57,7 +57,9 @@ class UpdateRoomRequest extends FormRequest
                 'integer',
                 'min:1',
                 function ($attribute, $value, $fail) use ($room) {
-                    if (!$room || !$room->property) return;
+                    if (! $room || ! $room->property) {
+                        return;
+                    }
 
                     $property = $room->property;
                     $floorLevel = $property->floor_level;
@@ -66,9 +68,9 @@ class UpdateRoomRequest extends FormRequest
                     // Check if floor_level is a comma-separated list of numbers
                     $managedFloors = array_filter(explode(',', $floorLevel), 'is_numeric');
 
-                    if (!empty($managedFloors)) {
-                        if (!in_array($value, $managedFloors)) {
-                            $fail("The selected floor is not one of the managed floors for this property (" . implode(', ', $managedFloors) . ").");
+                    if (! empty($managedFloors)) {
+                        if (! in_array($value, $managedFloors)) {
+                            $fail('The selected floor is not one of the managed floors for this property ('.implode(', ', $managedFloors).').');
                         }
                     } elseif ($totalFloors > 0) {
                         if ($value > $totalFloors) {

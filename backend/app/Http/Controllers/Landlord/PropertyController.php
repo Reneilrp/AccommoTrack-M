@@ -169,6 +169,13 @@ class PropertyController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
+            if ($request->boolean('require_reservation_fee')) {
+                $isPaymongoReady = $context['user']->paymongo_child_id && $context['user']->paymongo_verification_status === 'verified';
+                if (! $isPaymongoReady) {
+                    return response()->json(['message' => 'You must complete PayMongo onboarding to require reservation fees.', 'verification_required' => true], 403);
+                }
+            }
+
             $property = $this->propertyService->createProperty($request->validated(), $context['user']);
 
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
@@ -195,6 +202,13 @@ class PropertyController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
             $property = Property::where('landlord_id', $context['landlord_id'])->findOrFail($id);
+
+            if ($request->boolean('require_reservation_fee')) {
+                $isPaymongoReady = $context['user']->paymongo_child_id && $context['user']->paymongo_verification_status === 'verified';
+                if (! $isPaymongoReady) {
+                    return response()->json(['message' => 'You must complete PayMongo onboarding to require reservation fees.', 'verification_required' => true], 403);
+                }
+            }
 
             if (! $context['user']->is_verified) {
                 if ($request->has('current_status') && $request->current_status !== 'draft') {

@@ -185,7 +185,7 @@ export default function DashboardPage({ user }) {
   return (
     <div className="space-y-6">
       {/* Verification Status Banner */}
-      {verificationStatus && verificationStatus.status !== 'approved' && verificationStatus.user?.is_verified !== true && (
+      {verificationStatus && verificationStatus.status !== 'approved' && (
         <div className={`rounded-xl border p-4 ${
           verificationStatus.status === 'rejected' ? 'bg-red-50 border-red-200' : 
           verificationStatus.status === 'pending' ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200'

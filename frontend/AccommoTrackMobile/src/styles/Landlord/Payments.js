@@ -325,7 +325,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   recordButton: {
     marginTop: 16,
-    backgroundColor: '#16a34a',
+    backgroundColor: '#059669',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',

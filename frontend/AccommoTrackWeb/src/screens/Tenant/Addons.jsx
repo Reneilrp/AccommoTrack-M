@@ -36,8 +36,10 @@ export default function Addons() {
         const initial = {};
         (Array.isArray(addonList) ? addonList : []).forEach(a => { initial[a.id] = 1; });
         setQtys(initial);
-      } else if (addonRes.status === 404) {
-        setNoBooking(true);
+      } else if (res.status === 'rejected') {
+        // Fix #5: Check HTTP status on the actual axios error, not on the resolved value
+        const httpStatus = res.reason?.response?.status;
+        if (httpStatus === 404) setNoBooking(true);
       }
 
       const reqResult = reqRes.status === 'fulfilled' ? reqRes.value : {};

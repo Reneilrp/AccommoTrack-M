@@ -6,7 +6,6 @@ use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Room;
-use App\Models\TenantProfile;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -137,24 +136,24 @@ class AnalyticsService
             $q->withCount('tenants');
         }])->get();
 
-        $totalRooms = $properties->sum('total_rooms');
-        // Sum the actual number of tenants from withCount results
+        // Fix #1: Use actual room record count, not the configurable 'total_rooms' field
+        $totalRooms = (int) $properties->sum(fn ($p) => $p->rooms->count());
         $occupiedSlots = (int) $properties->sum(fn ($property) => $property->rooms->sum('tenants_count'));
-        $availableRooms = $properties->sum('available_rooms');
+        $availableRooms = (int) $properties->sum(fn ($p) => $p->rooms->where('status', 'available')->count());
         $occupancyRate = $totalRooms > 0 ? round(($occupiedSlots / $totalRooms) * 100, 1) : 0;
 
-        // Revenue calculation
-        $bookingsQuery = Booking::forLandlord($landlordId)->confirmed();
-
+        // Fix #4: Use actual collected payment amounts, not contracted booking amounts
+        $paymentsQuery = Payment::forLandlord($landlordId)->where('status', 'paid');
         if ($propertyId) {
-            $bookingsQuery->where('property_id', $propertyId);
+            $paymentsQuery->whereHas('booking', fn ($q) => $q->where('property_id', $propertyId));
         }
+        $totalRevenue = $paymentsQuery->sum('amount');
 
-        $totalRevenue = $bookingsQuery->sum('total_amount');
-        $monthlyRevenue = (clone $bookingsQuery)
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->sum('total_amount');
+        // Monthly revenue = payments collected in the current calendar month
+        $monthlyRevenue = (clone $paymentsQuery)
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->sum('amount');
 
         // Tenant stats
         $activeTenants = $this->countActiveTenants($landlordId, $propertyId);
@@ -377,14 +376,17 @@ class AnalyticsService
         $activeTenants = $this->countActiveTenants($landlordId, $propertyId);
         $newTenants = $this->countNewTenantsThisMonth($landlordId, $propertyId);
 
-        // Average stay duration
-        $avgStayDuration = DB::table('tenant_profiles')
-            ->join('bookings', 'tenant_profiles.booking_id', '=', 'bookings.id')
-            ->where('bookings.landlord_id', $landlordId)
-            ->when($propertyId, fn ($q) => $q->where('bookings.property_id', $propertyId))
-            ->whereNotNull('tenant_profiles.move_in_date')
-            ->whereNotNull('tenant_profiles.move_out_date')
-            ->selectRaw('AVG(TIMESTAMPDIFF(MONTH, tenant_profiles.move_in_date, tenant_profiles.move_out_date)) as avg_months')
+        // Fix #2: Average stay via bookings directly — tenant_profiles.booking_id is nullable
+        // and misses manually assigned tenants; use start/end_date from bookings instead.
+        $avgStayQuery = Booking::forLandlord($landlordId)
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            ->whereNotNull('start_date')
+            ->whereNotNull('end_date');
+        if ($propertyId) {
+            $avgStayQuery->where('property_id', $propertyId);
+        }
+        $avgStayDuration = $avgStayQuery
+            ->selectRaw('AVG(TIMESTAMPDIFF(MONTH, start_date, end_date)) as avg_months')
             ->value('avg_months');
 
         $moveIns = $this->countMoveInsInPeriod($landlordId, $propertyId, $dateRange);
@@ -514,40 +516,39 @@ class AnalyticsService
     }
 
     /**
-     * Helper: Count move-ins in date range (for landlord's properties)
+     * Fix #2: Count move-ins using booking start_date directly,
+     * avoiding the nullable tenant_profiles.booking_id join.
      */
     protected function countMoveInsInPeriod(int $landlordId, ?int $propertyId, array $dateRange): int
     {
-        $q = TenantProfile::query()
-            ->join('bookings', 'tenant_profiles.booking_id', '=', 'bookings.id')
-            ->where('bookings.landlord_id', $landlordId)
-            ->whereNotNull('tenant_profiles.move_in_date')
-            ->whereBetween('tenant_profiles.move_in_date', [
+        $q = Booking::forLandlord($landlordId)
+            ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            ->whereNotNull('start_date')
+            ->whereBetween('start_date', [
                 $dateRange['start']->format('Y-m-d'),
                 $dateRange['end']->format('Y-m-d'),
             ]);
         if ($propertyId) {
-            $q->where('bookings.property_id', $propertyId);
+            $q->where('property_id', $propertyId);
         }
 
         return $q->count();
     }
 
     /**
-     * Helper: Count move-outs in date range (for landlord's properties)
+     * Fix #2: Count move-outs using booking end_date directly.
      */
     protected function countMoveOutsInPeriod(int $landlordId, ?int $propertyId, array $dateRange): int
     {
-        $q = TenantProfile::query()
-            ->join('bookings', 'tenant_profiles.booking_id', '=', 'bookings.id')
-            ->where('bookings.landlord_id', $landlordId)
-            ->whereNotNull('tenant_profiles.move_out_date')
-            ->whereBetween('tenant_profiles.move_out_date', [
+        $q = Booking::forLandlord($landlordId)
+            ->whereIn('status', ['completed', 'cancelled'])
+            ->whereNotNull('end_date')
+            ->whereBetween('end_date', [
                 $dateRange['start']->format('Y-m-d'),
                 $dateRange['end']->format('Y-m-d'),
             ]);
         if ($propertyId) {
-            $q->where('bookings.property_id', $propertyId);
+            $q->where('property_id', $propertyId);
         }
 
         return $q->count();
