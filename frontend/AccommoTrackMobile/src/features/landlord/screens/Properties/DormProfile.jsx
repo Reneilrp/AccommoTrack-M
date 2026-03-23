@@ -791,7 +791,7 @@ export default function DormProfileScreen({ route, navigation }) {
               </Picker>
             </View>
             {isEditing && (baseline.status === 'pending' || baseline.status === 'draft') && (
-              <Text style={{ fontSize: 11, color: '#92400E', marginTop: 4, fontStyle: 'italic' }}>
+              <Text style={{ fontSize: 11, color: '#92400E', marginTop: 8, fontStyle: 'italic' }}>
                 * Properties with Pending or Draft status cannot be set to Active/Inactive until approved by the admin.
               </Text>
             )}
@@ -1025,7 +1025,7 @@ export default function DormProfileScreen({ route, navigation }) {
             )}
 
             {isEditing && (
-              <TouchableOpacity style={[styles.addImageButton, { marginTop: 12 }]} onPress={handlePickImages}>
+              <TouchableOpacity style={[styles.addImageButton, { marginTop: 16 }]} onPress={handlePickImages}>
                 <Ionicons name="add" size={28} color="#94A3B8" />
                 <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>Add Photo (Max 5MB)</Text>
               </TouchableOpacity>
@@ -1064,7 +1064,7 @@ export default function DormProfileScreen({ route, navigation }) {
             )}
 
             {isEditing && (
-              <TouchableOpacity style={[styles.addImageButton, { marginTop: 12 }]} onPress={handlePickVideo}>
+              <TouchableOpacity style={[styles.addImageButton, { marginTop: 16 }]} onPress={handlePickVideo}>
                 <Ionicons name="videocam" size={28} color="#94A3B8" />
                 <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2, textAlign: 'center' }}>Add Video{'\n'}(Max 45s, 90MB)</Text>
               </TouchableOpacity>
@@ -1105,7 +1105,7 @@ export default function DormProfileScreen({ route, navigation }) {
                       )}
                       {isEditing && (
                         <TouchableOpacity 
-                          style={[styles.credActionBtn, { marginLeft: 10 }]}
+                          style={[styles.credActionBtn, { marginLeft: 8 }]}
                           onPress={() => {
                             setForm(prev => {
                               const creds = [...prev.credentials];
@@ -1126,7 +1126,7 @@ export default function DormProfileScreen({ route, navigation }) {
               })
             )}
             {isEditing && (
-              <Text style={[styles.helperText, { marginTop: 10, fontStyle: 'italic' }]}>
+              <Text style={[styles.helperText, { marginTop: 8, fontStyle: 'italic' }]}>
                 To upload new credentials, please use the web dashboard.
               </Text>
             )}
@@ -1142,7 +1142,7 @@ export default function DormProfileScreen({ route, navigation }) {
             {/* Cash row */}
             <TouchableOpacity
               disabled={!isEditing}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, opacity: isEditing ? 1 : 0.95 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 8, opacity: isEditing ? 1 : 0.95 }}
               onPress={() => {
                 if (!isEditing) return;
                 const current = form.acceptedPayments;
@@ -1175,7 +1175,7 @@ export default function DormProfileScreen({ route, navigation }) {
             {/* Online row */}
             <TouchableOpacity
               disabled={!isEditing}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, opacity: (isEditing && isPayMongoVerified) ? 1 : 0.5 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 8, opacity: (isEditing && isPayMongoVerified) ? 1 : 0.5 }}
               onPress={() => {
                 if (!isEditing) return;
                 if (!isPayMongoVerified) {
@@ -1213,7 +1213,7 @@ export default function DormProfileScreen({ route, navigation }) {
             </TouchableOpacity>
 
             {isEditing && !isPayMongoVerified && (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 8, marginTop: 6 }}>
                 <Ionicons name="alert-circle-outline" size={15} color="#92400E" />
                 <Text style={{ flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 }}>
                   PayMongo not connected. Go to{' '}

@@ -321,7 +321,7 @@ const ManageTab = ({ addons, onEdit, onDelete, onToggleActive, togglingAddonId }
       {addons.map((addon) => (
         <div
           key={addon.id}
-          className={`border rounded-xl p-5 transition-all shadow-sm ${addon.isActive ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700" : "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50"}`}
+          className={`border rounded-xl p-6 transition-all shadow-sm ${addon.isActive ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700" : "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50"}`}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -356,33 +356,33 @@ const ManageTab = ({ addons, onEdit, onDelete, onToggleActive, togglingAddonId }
                 </span>
               </div>
               {addon.description && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 leading-relaxed">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 leading-relaxed">
                   {addon.description}
                 </p>
               )}
-              <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-3">
+              <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-4">
                 ₱{addon.price.toLocaleString()}
                 {addon.priceType === "monthly" && (
-                  <span className="text-xs font-bold text-gray-400 dark:text-gray-500 ml-1">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-500 ml-2">
                     / mo
                   </span>
                 )}
               </p>
               {addon.stock !== null && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-medium">
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
                   Available Stock: {addon.stock}
                 </p>
               )}
             </div>
-            <div className="flex gap-1 ml-2">
+            <div className="flex gap-2 ml-2">
               <button
                 onClick={() => onToggleActive(addon)}
                 disabled={togglingAddonId === addon.id}
                 title={addon.isActive ? "Deactivate add-on" : "Activate add-on"}
                 className={`p-2 rounded-lg transition-colors disabled:opacity-60 ${
                   addon.isActive
-                    ? "text-gray-400 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
-                    : "text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                    ? "text-gray-500 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                    : "text-gray-500 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                 }`}
               >
                 {togglingAddonId === addon.id ? (
@@ -395,13 +395,13 @@ const ManageTab = ({ addons, onEdit, onDelete, onToggleActive, togglingAddonId }
               </button>
               <button
                 onClick={() => onEdit(addon)}
-                className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                className="p-2 text-gray-500 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
               >
                 <Pencil className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDelete(addon.id)}
-                className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                className="p-2 text-gray-500 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -429,7 +429,7 @@ const RequestsTab = ({ requests, onHandle }) => {
       {requests.map((request) => (
         <div
           key={request.requestId}
-          className="border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 shadow-sm"
+          className="border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 shadow-sm"
         >
           <div className="flex justify-between items-start">
             <div>
@@ -454,7 +454,7 @@ const RequestsTab = ({ requests, onHandle }) => {
                 <div>
                   <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
                     {request.tenant.name}{" "}
-                    <span className="mx-1 font-normal text-gray-400 dark:text-gray-500">
+                    <span className="mx-2 font-normal text-gray-500 dark:text-gray-500">
                       •
                     </span>{" "}
                     <span className="text-amber-700 dark:text-amber-400">
@@ -467,13 +467,13 @@ const RequestsTab = ({ requests, onHandle }) => {
                 </div>
               </div>
               {request.requestNote && (
-                <div className="mt-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-amber-100 dark:border-amber-900/20">
+                <div className="mt-4 p-4 bg-white/50 dark:bg-black/20 rounded-lg border border-amber-100 dark:border-amber-900/20">
                   <p className="text-xs text-gray-600 dark:text-gray-300 italic leading-relaxed">
                     "{request.requestNote}"
                   </p>
                 </div>
               )}
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-3 uppercase">
+              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mt-4 uppercase">
                 Requested: {new Date(request.requestedAt).toLocaleDateString()}
               </p>
             </div>
@@ -485,7 +485,7 @@ const RequestsTab = ({ requests, onHandle }) => {
                 )}
               </p>
               {request.stock !== null && (
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-1">
+                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mt-2">
                   STOCK: {request.stock}
                 </p>
               )}
@@ -494,7 +494,7 @@ const RequestsTab = ({ requests, onHandle }) => {
                   onClick={() =>
                     onHandle(request.bookingId, request.addonId, "approve")
                   }
-                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all active:scale-95 shadow-sm"
+                  className="flex items-center gap-2.5 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all active:scale-95 shadow-sm"
                 >
                   <Check className="w-3.5 h-3.5" />
                   Approve
@@ -503,7 +503,7 @@ const RequestsTab = ({ requests, onHandle }) => {
                   onClick={() =>
                     onHandle(request.bookingId, request.addonId, "reject")
                   }
-                  className="flex items-center gap-1.5 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all active:scale-95"
+                  className="flex items-center gap-2.5 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all active:scale-95"
                 >
                   <X className="w-3.5 h-3.5" />
                   Reject
@@ -526,16 +526,16 @@ const ActiveTab = ({ data }) => {
       {/* Summary */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-xl p-5 shadow-sm">
-            <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-xl p-6 shadow-sm">
+            <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-2">
               Active Subscriptions
             </p>
             <p className="text-3xl font-bold text-green-700 dark:text-green-300">
               {summary.totalActive || 0}
             </p>
           </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-5 shadow-sm">
-            <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-6 shadow-sm">
+            <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">
               Monthly Revenue
             </p>
             <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
@@ -551,11 +551,11 @@ const ActiveTab = ({ data }) => {
           {activeAddons.map((item) => (
             <div
               key={item.requestId}
-              className="border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 rounded-xl p-5 shadow-sm transition-all hover:shadow-md"
+              className="border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
             >
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="font-bold text-gray-900 dark:text-white text-lg block mb-1">
+                  <span className="font-bold text-gray-900 dark:text-white text-lg block mb-2">
                     {item.addonName}
                   </span>
                   <div className="flex items-center gap-2">
@@ -564,7 +564,7 @@ const ActiveTab = ({ data }) => {
                     </div>
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                       {item.tenantName}{" "}
-                      <span className="mx-1 opacity-30">•</span>{" "}
+                      <span className="mx-2 opacity-30">•</span>{" "}
                       <span className="text-green-700 dark:text-green-400 font-bold">
                         Room {item.roomNumber}
                       </span>
@@ -620,26 +620,26 @@ const AddonFormModal = ({
           onClick={onClose}
           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors"
         >
-          <X className="w-5 h-5 text-gray-400" />
+          <X className="w-5 h-5 text-gray-500" />
         </button>
       </div>
-      <form onSubmit={onSubmit} className="p-6 space-y-5">
+      <form onSubmit={onSubmit} className="p-6 space-y-6">
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
             Add-on Name *
           </label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
+            className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
             required
             placeholder="e.g., Rice Cooker, Wi-Fi Upgrade"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
             Description
           </label>
           <textarea
@@ -647,7 +647,7 @@ const AddonFormModal = ({
             onChange={(e) =>
               setFormData({ ...formData, description: e.target.value })
             }
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all h-24 resize-none"
+            className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all h-24 resize-none"
             rows={2}
             placeholder="Briefly describe what this service covers..."
           />
@@ -655,7 +655,7 @@ const AddonFormModal = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
               Price (₱) *
             </label>
             <input
@@ -664,7 +664,7 @@ const AddonFormModal = ({
               onChange={(e) =>
                 setFormData({ ...formData, price: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
               required
               min="0"
               step="0.01"
@@ -672,7 +672,7 @@ const AddonFormModal = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
               Price Type *
             </label>
             <select
@@ -680,7 +680,7 @@ const AddonFormModal = ({
               onChange={(e) =>
                 setFormData({ ...formData, price_type: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
             >
               <option value="monthly">Monthly (Recurring)</option>
               <option value="one_time">One-time Fee</option>
@@ -690,7 +690,7 @@ const AddonFormModal = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
               Add-on Type *
             </label>
             <select
@@ -698,14 +698,14 @@ const AddonFormModal = ({
               onChange={(e) =>
                 setFormData({ ...formData, addon_type: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
             >
               <option value="fee">Usage Fee (Tenant Item)</option>
               <option value="rental">Rental (Owner Provided)</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
               Stock (Optional)
             </label>
             <input
@@ -714,14 +714,14 @@ const AddonFormModal = ({
               onChange={(e) =>
                 setFormData({ ...formData, stock: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none"
               min="0"
               placeholder="Unlimited"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
           <input
             type="checkbox"
             id="is_active"
@@ -739,17 +739,17 @@ const AddonFormModal = ({
           </label>
         </div>
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex gap-4 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+            className="flex-1 px-4 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 active:scale-95 transition-all"
           >
             {isEditing ? "Save Changes" : "Create Add-on"}
           </button>

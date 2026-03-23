@@ -23,10 +23,10 @@ const BlockedUserModal = ({ visible, onClose }) => {
     >
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
         <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, padding: 25, width: '85%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, borderWidth: theme.isDark ? 1 : 0, borderColor: theme.colors.border }}>
-          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
             <Ionicons name="shield-half-outline" size={45} color={theme.colors.error} />
           </View>
-          <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10, textAlign: 'center' }}>Account Blocked</Text>
+          <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8, textAlign: 'center' }}>Account Blocked</Text>
           <Text style={{ fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 25, lineHeight: 24 }}>
             Your account has been blocked by the administrator. Please contact support for assistance.
           </Text>
@@ -62,7 +62,7 @@ const BlockedUserModal = ({ visible, onClose }) => {
 const styles = StyleSheet.create({
   buttonWrapper: {
     width: '100%',
-    gap: 12,
+    gap: 16,
   },
   primaryButton: {
     paddingVertical: 14,

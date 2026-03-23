@@ -41,7 +41,7 @@ const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    marginBottom: 4,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },

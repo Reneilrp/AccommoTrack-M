@@ -15,18 +15,18 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   headerSubtitle: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -36,12 +36,12 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   addServiceButton: {
-    marginTop: 12,
+    marginTop: 16,
     backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
     gap: 8,
   },
@@ -65,7 +65,7 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     borderRadius: 8,
-    marginHorizontal: 4,
+    marginHorizontal: 8,
     gap: 6,
   },
   activeTab: {
@@ -107,7 +107,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
@@ -177,7 +177,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   addonActions: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 8,
   },
   actionIconButton: {
     padding: 6,
@@ -242,7 +242,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.primary,
-    marginTop: 12,
+    marginTop: 16,
   },
   priceUnit: {
     fontSize: 12,
@@ -252,7 +252,7 @@ export const getStyles = (theme) => StyleSheet.create({
   addonStock: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
   },
 
   // Requests Tab Styles
@@ -289,9 +289,9 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   requestNote: {
     backgroundColor: theme.colors.surface,
-    padding: 10,
+    padding: 8,
     borderRadius: 8,
-    marginTop: 10,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: theme.isDark ? theme.colors.border : '#FEF3C7',
     fontStyle: 'italic',
@@ -301,7 +301,7 @@ export const getStyles = (theme) => StyleSheet.create({
   requestDate: {
     fontSize: 11,
     color: theme.colors.textTertiary,
-    marginTop: 10,
+    marginTop: 8,
   },
   requestActions: {
     flexDirection: 'row',
@@ -316,7 +316,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
     paddingVertical: 8,
     borderRadius: 8,
-    gap: 4,
+    gap: 8,
   },
   approveButtonText: {
     color: theme.colors.textInverse,
@@ -331,7 +331,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
     paddingVertical: 8,
     borderRadius: 8,
-    gap: 4,
+    gap: 8,
   },
   rejectButtonText: {
     color: theme.colors.error,
@@ -342,8 +342,8 @@ export const getStyles = (theme) => StyleSheet.create({
   // Active Tab Styles
   activeSummary: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
   },
   summaryCard: {
     flex: 1,
@@ -356,7 +356,7 @@ export const getStyles = (theme) => StyleSheet.create({
   summaryLabel: {
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 8,
     color: theme.colors.textSecondary,
   },
   summaryValue: {
@@ -368,7 +368,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.successLight,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.primary,
     flexDirection: 'row',
@@ -379,7 +379,7 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    marginTop: 4,
+    marginTop: 8,
     alignSelf: 'flex-end',
   },
   activeStatusBadge: {
@@ -409,7 +409,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
@@ -419,10 +419,10 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   closeButton: {
-    padding: 4,
+    padding: 8,
   },
   formContainer: {
-    padding: 20,
+    padding: 16,
   },
   inputGroup: {
     marginBottom: 16,
@@ -438,8 +438,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     fontSize: 15,
     color: theme.colors.text,
   },
@@ -449,7 +449,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   flex1: {
     flex: 1,
@@ -471,7 +471,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   checkbox: {
     width: 20,
@@ -491,13 +491,13 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginTop: 8,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -511,7 +511,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   submitButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderRadius: 8,
     backgroundColor: theme.colors.primary,
     alignItems: 'center',
@@ -523,7 +523,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEF2F2',
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     marginBottom: 16,
     flexDirection: 'row',

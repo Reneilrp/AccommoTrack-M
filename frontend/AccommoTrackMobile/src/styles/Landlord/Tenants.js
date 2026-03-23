@@ -32,14 +32,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   propertyScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 12
+    paddingVertical: 16
   },
   propertyChip: {
     width: 200,
     padding: 16,
     borderRadius: 18,
     backgroundColor: theme.colors.surface,
-    marginRight: 12,
+    marginRight: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: theme.isDark ? 0.3 : 0.08,
@@ -60,7 +60,7 @@ export const getStyles = (theme) => StyleSheet.create({
   propertyChipMeta: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   // Stats Grid (5 columns)
   statsGrid: {
@@ -74,7 +74,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     minWidth: '30%',
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 8,
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
@@ -101,14 +101,14 @@ export const getStyles = (theme) => StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 8,
     fontSize: 14,
     color: theme.colors.text
   },
@@ -149,7 +149,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     elevation: 2,
@@ -199,8 +199,8 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight
   },
@@ -217,8 +217,8 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 2
   },
   paymentBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 6
   },
   paymentText: {
@@ -230,7 +230,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 16,
-    gap: 10
+    gap: 8
   },
   primaryBtn: {
     flex: 1,
@@ -238,7 +238,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     gap: 6
   },
@@ -253,7 +253,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     gap: 6
   },
@@ -269,7 +269,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     gap: 6
   },
@@ -285,7 +285,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     gap: 6
   },
@@ -296,22 +296,22 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   selectCheckbox: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 16,
+    left: 16,
     zIndex: 2,
     backgroundColor: theme.colors.surface,
     borderRadius: 10,
     padding: 2
   },
   bulkActionsBar: {
-    marginTop: 12,
+    marginTop: 16,
     marginHorizontal: 16,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    padding: 12,
-    gap: 10
+    padding: 16,
+    gap: 8
   },
   bulkSelectionRow: {
     flexDirection: 'row',
@@ -340,7 +340,7 @@ export const getStyles = (theme) => StyleSheet.create({
   bulkPrimaryBtn: {
     backgroundColor: theme.colors.primary,
     borderRadius: 10,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -405,18 +405,18 @@ export const getStyles = (theme) => StyleSheet.create({
   detailEmail: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   detailTags: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginTop: 16
   },
   detailTag: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.backgroundSecondary,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 8,
     gap: 6
@@ -453,7 +453,7 @@ export const getStyles = (theme) => StyleSheet.create({
   assignmentMeta: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   assignmentEmpty: {
     alignItems: 'center',
@@ -466,7 +466,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14
   },
   detailList: {
-    gap: 12
+    gap: 16
   },
   detailLabel: {
     fontSize: 11,
@@ -493,7 +493,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   centerText: {
-    marginTop: 12,
+    marginTop: 16,
     color: theme.colors.textSecondary,
     fontSize: 14
   },
@@ -518,7 +518,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: theme.isDark ? theme.colors.errorLight : '#FEE2E2',
-    padding: 12,
+    padding: 16,
     margin: 16,
     borderRadius: 10,
     borderWidth: 1,
@@ -538,7 +538,7 @@ export const getStyles = (theme) => StyleSheet.create({
   profileScroll: {
     marginTop: 16, 
     backgroundColor: '#059669', 
-    paddingVertical: 12, 
+    paddingVertical: 16, 
     borderRadius: 8, 
     alignItems: 'center', 
     flexDirection: 'row', 
@@ -592,13 +592,13 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.backgroundSecondary
   },
   modalLoader: {
-    marginVertical: 12
+    marginVertical: 16
   },
   roomOption: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
     marginBottom: 8,
     backgroundColor: theme.colors.surface
   },
@@ -621,8 +621,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 10,
     backgroundColor: theme.colors.backgroundSecondary,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     color: theme.colors.text
   },
   actionTextArea: {
@@ -630,8 +630,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 10,
     backgroundColor: theme.colors.backgroundSecondary,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     minHeight: 86,
     textAlignVertical: 'top',
     color: theme.colors.text
@@ -641,15 +641,15 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 10,
     backgroundColor: theme.colors.backgroundSecondary,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     minHeight: 120,
     textAlignVertical: 'top',
     color: theme.colors.text
   },
   modalActionsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     marginTop: 14
   },
   modalCancelBtn: {

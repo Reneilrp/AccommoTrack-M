@@ -7,7 +7,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
         {/* Left: Copyright */}
         <div className="flex flex-col items-center md:items-start gap-2 order-2 md:order-1">
-          <div className="text-green-600 dark:text-green-600 font-bold text-xl mb-1">
+          <div className="text-green-600 dark:text-green-600 font-bold text-xl mb-2">
             AccommoTrack
           </div>
           <div className="text-gray-500 dark:text-gray-400 text-sm">
@@ -28,7 +28,7 @@ const Footer = () => {
         </div>
 
         {/* Right: DigitalOcean Logo */}
-        <div className="flex flex-col items-center md:items-end gap-3 order-3">
+        <div className="flex flex-col items-center md:items-end gap-4 order-3">
           <div className="transition-transform hover:scale-105 active:scale-95">
             <a href="https://www.digitalocean.com/" target="_blank" rel="noopener noreferrer" className="block">
               <img

@@ -454,7 +454,7 @@ export default function Payments({ navigation }) {
 
       {/* ── Stats Summary Cards (W4) ── */}
       {invoices.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 10 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
           {[
             { label: 'Collected', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#059669', bg: '#DCFCE7' },
             { label: 'Outstanding', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
@@ -558,7 +558,7 @@ export default function Payments({ navigation }) {
                       />
 
                       {/* Payment Method */}
-                      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Payment Method *</Text>
+                      <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Payment Method *</Text>
                       <View style={styles.methodRow}>
                         {[
                           { id: 'cash', label: 'Cash' },
@@ -584,7 +584,7 @@ export default function Payments({ navigation }) {
                       </View>
 
                       {/* Reference */}
-                      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Reference # (Optional)</Text>
+                      <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Reference # (Optional)</Text>
                       <TextInput
                         style={styles.fieldInput}
                         placeholder="Transaction / OR number…"
@@ -594,7 +594,7 @@ export default function Payments({ navigation }) {
                       />
 
                       {/* Notes */}
-                      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Notes (Optional)</Text>
+                      <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Notes (Optional)</Text>
                       <TextInput
                         style={[styles.fieldInput, styles.fieldTextarea]}
                         placeholder="Add any internal notes…"
@@ -694,7 +694,7 @@ export default function Payments({ navigation }) {
                 )}
 
                 <TouchableOpacity
-                  style={[styles.cancelButton, { marginTop: 20 }]}
+                  style={[styles.cancelButton, { marginTop: 24 }]}
                   onPress={() => setShowModal(false)}
                 >
                   <Text style={styles.cancelButtonText}>Close</Text>

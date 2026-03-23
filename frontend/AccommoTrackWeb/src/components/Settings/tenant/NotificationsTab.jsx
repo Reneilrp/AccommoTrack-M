@@ -164,7 +164,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 				</div>
         
 				{isEditing && (
-					<div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
+					<div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-100 dark:border-gray-700">
 						<button
 							onClick={handleCancel}
 							disabled={saving}

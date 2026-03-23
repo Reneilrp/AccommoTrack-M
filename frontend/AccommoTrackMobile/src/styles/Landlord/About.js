@@ -28,21 +28,21 @@ export const getStyles = (theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
   },
   tempScreenContent: {
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   tempTextBold: {
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.text,
     marginTop: 16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   tempTextNormal: {
     fontSize: 15,
@@ -51,18 +51,18 @@ export const getStyles = (theme) => StyleSheet.create({
     lineHeight: 22,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   settingsCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 4,
+    padding: 8,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
   },
@@ -76,7 +76,7 @@ export const getStyles = (theme) => StyleSheet.create({
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   settingLabel: {
     fontSize: 15,
@@ -84,7 +84,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   versionContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 24,
   },
   versionText: {
     fontSize: 13,

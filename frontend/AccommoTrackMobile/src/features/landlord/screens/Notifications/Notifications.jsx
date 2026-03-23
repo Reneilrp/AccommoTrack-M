@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
   },
@@ -217,17 +217,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginLeft: 12,
+    marginLeft: 16,
   },
   markAllButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 16,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 14,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 8,
   },
   notificationItem: {
     flexDirection: 'row',
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   notificationTitle: {
     fontSize: 15,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   notificationTime: {
     fontSize: 12,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 8,
   },
   unreadDot: {
     width: 10,

@@ -14,7 +14,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     fontSize: 18,
@@ -53,7 +53,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   userInfo: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   avatar: {
     width: 40,
@@ -86,13 +86,13 @@ export const getStyles = (theme) => StyleSheet.create({
   comment: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 16,
     fontStyle: 'italic',
     color: theme.colors.text,
   },
   responseContainer: {
     backgroundColor: theme.colors.backgroundSecondary,
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.textTertiary,
@@ -101,7 +101,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: theme.colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   responseText: {
     fontSize: 13,
@@ -112,7 +112,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -128,7 +128,7 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 40,
   },
   emptyText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
@@ -141,7 +141,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
@@ -170,7 +170,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     height: 120,
     textAlignVertical: 'top',
     fontSize: 16,

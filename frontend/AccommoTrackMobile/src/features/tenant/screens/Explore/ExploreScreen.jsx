@@ -592,7 +592,7 @@ export default function TenantHomePage({
               <Text style={styles.modalButtonText}>No Curfew</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10}]}
+              style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 8}]}
               onPress={() => handleCurfewSelect(null)}
             >
               <Text style={[styles.modalButtonText, {color: theme.colors.primary}]}>Clear Filter</Text>
@@ -634,7 +634,7 @@ export default function TenantHomePage({
               </TouchableOpacity>
             ))}
             <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 10}]}
+              style={[styles.modalButton, {backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.primary, marginTop: 8}]}
               onPress={() => {
                 setSelectedGender("All");
                 setGenderModalVisible(false);

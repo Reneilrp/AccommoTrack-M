@@ -912,7 +912,7 @@ export default function DormProfileSettings({
             </div>
 
             {/* Right: Actions */}
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex items-center justify-end gap-4">
               <Toaster />
               {isEditing && (
                 <>
@@ -1118,7 +1118,7 @@ export default function DormProfileSettings({
                       <option value="maintenance">Maintenance</option>
                     </select>
                     {isEditing && dormData.status === 'pending' && (
-                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 italic">
+                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 italic">
                         * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
                       </p>
                     )}
@@ -1196,7 +1196,7 @@ export default function DormProfileSettings({
                               } ${
                                 (dormData.floor_level || "").split(",").includes(String(floor))
                                   ? "bg-green-500 border-green-500 text-white"
-                                  : "border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-green-200"
+                                  : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200"
                               }`}
                             >
                               <input
@@ -1224,7 +1224,7 @@ export default function DormProfileSettings({
                     )}
                     
                     <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
-                       <label className="flex items-start space-x-3 cursor-pointer group mb-6">
+                       <label className="flex items-start space-x-4 cursor-pointer group mb-6">
                          <div className="flex items-center h-5 mt-0.5">
                            <input
                              type="checkbox"
@@ -1238,13 +1238,13 @@ export default function DormProfileSettings({
                            <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                              Require 1-Month Advance Payment
                            </span>
-                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                              If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This acts as the default for new rooms.
                            </span>
                          </div>
                        </label>
 
-                       <label className={`flex items-start space-x-3 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6`}>
+                       <label className={`flex items-start space-x-4 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6`}>
                          <div className="flex items-center h-5 mt-0.5">
                            <input
                              type="checkbox"
@@ -1258,15 +1258,15 @@ export default function DormProfileSettings({
                            <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
                              Require Instant Reservation Fee
                            </span>
-                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                              If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
                              {!user?.is_paymongo_ready && (
-                               <span className="text-red-500 block mt-1">You must complete PayMongo onboarding to enable instant payments.</span>
+                               <span className="text-red-500 block mt-2">You must complete PayMongo onboarding to enable instant payments.</span>
                              )}
                            </span>
                            {dormData.require_reservation_fee && (
-                              <div className="mt-3">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   Reservation Fee Amount (₱)
                                 </label>
                                 <input
@@ -1284,7 +1284,7 @@ export default function DormProfileSettings({
                          </div>
                        </label>
 
-                       <label className="flex items-start space-x-3 cursor-pointer group mt-6">
+                       <label className="flex items-start space-x-4 cursor-pointer group mt-6">
                          <div className="flex items-center h-5 mt-0.5">
                            <input
                              type="checkbox"
@@ -1298,7 +1298,7 @@ export default function DormProfileSettings({
                            <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                              Allow Partial Payments
                            </span>
-                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                           <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                              If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
                            </span>
                          </div>
@@ -1517,7 +1517,7 @@ export default function DormProfileSettings({
               </h2>
 
               {dormData.images.length > 0 ? (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-4">
                   {dormData.images.map((img, index) => {
                     // Handle both File objects and image objects from server
                     const isFile = img instanceof File;
@@ -1557,7 +1557,7 @@ export default function DormProfileSettings({
 
                         {/* Primary badge */}
                         {isPrimary && (
-                          <div className="absolute top-2 left-2 px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded-full flex items-center gap-1">
+                          <div className="absolute top-2 left-2 px-2 py-2 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded-full flex items-center gap-2">
                             <Star className="w-3 h-3 fill-current" />
                             Cover
                           </div>
@@ -1565,14 +1565,14 @@ export default function DormProfileSettings({
 
                         {/* Drag handle indicator */}
                         {isEditing && (
-                          <div className="absolute top-2 left-2 p-1 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute top-2 left-2 p-2 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
                             <GripVertical className="w-4 h-4" />
                           </div>
                         )}
 
                         {/* Action buttons on hover */}
                         {isEditing && (
-                          <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             {/* Set as primary button (only for non-primary, non-File images) */}
                             {!isPrimary && !isFile && (
                               <button
@@ -1580,7 +1580,7 @@ export default function DormProfileSettings({
                                   e.stopPropagation();
                                   handleSetPrimaryImage(index);
                                 }}
-                                className="p-1.5 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition-colors"
+                                className="p-2.5 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition-colors"
                                 title="Set as cover image"
                               >
                                 <Star className="w-3 h-3" />
@@ -1592,7 +1592,7 @@ export default function DormProfileSettings({
                                 e.stopPropagation();
                                 handleRemoveImage(index);
                               }}
-                              className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                              className="p-2.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                               title="Remove image"
                             >
                               <X className="w-3 h-3" />
@@ -1607,17 +1607,17 @@ export default function DormProfileSettings({
                       htmlFor="image-upload-edit"
                       className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
                     >
-                      <Plus className="w-8 h-8 text-gray-400" />
+                      <Plus className="w-8 h-8 text-gray-500" />
                     </label>
                   )}
                 </div>
               ) : (
                 <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <Image className="w-12 h-12 text-gray-500 mx-auto mb-4" />
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     No images added yet
                   </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
+                  <p className="text-gray-500 dark:text-gray-500 text-xs mt-2">
                     At least 1 image is required
                   </p>
                 </div>
@@ -1654,7 +1654,7 @@ export default function DormProfileSettings({
                     (Optional)
                   </span>
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   Max <strong>45 seconds</strong> and <strong>90MB</strong>.
                   Uploading a new video replaces the existing one.
                 </p>
@@ -1671,13 +1671,13 @@ export default function DormProfileSettings({
                     <button
                       type="button"
                       onClick={removeVideo}
-                      className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
+                      className="absolute top-2 right-2 p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
                       title="Remove video"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   )}
-                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-2 rounded font-bold flex items-center gap-2">
                     <Video className="w-3 h-3" />
                     {videoPreview ? "NEW VIDEO (unsaved)" : "VIDEO TOUR"}
                   </div>
@@ -1687,7 +1687,7 @@ export default function DormProfileSettings({
                   htmlFor="video-upload-edit"
                   className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-green-500 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50 transition-colors group"
                 >
-                  <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-green-500 transition-colors">
+                  <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
                     <Play className="w-10 h-10" />
                     <span className="text-sm font-medium">
                       Click to upload video
@@ -1706,7 +1706,7 @@ export default function DormProfileSettings({
                 </label>
               ) : (
                 <div className="text-center py-6 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <Play className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                  <Play className="w-10 h-10 text-gray-500 mx-auto mb-2" />
                   <p className="text-gray-500 dark:text-gray-400 text-sm">
                     No video tour uploaded
                   </p>
@@ -1716,7 +1716,7 @@ export default function DormProfileSettings({
               {isEditing &&
                 (videoPreview || videoUrl) &&
                 !deleteExistingVideo && (
-                  <div className="mt-3">
+                  <div className="mt-4">
                     <label
                       htmlFor="video-replace-edit"
                       className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium text-sm"
@@ -1744,7 +1744,7 @@ export default function DormProfileSettings({
                 Amenities
               </h2>
 
-              <div className="space-y-3 mb-4">
+              <div className="space-y-4 mb-4">
                 {!dormData.amenities || dormData.amenities.length === 0 ? (
                   <p className="text-gray-500 dark:text-gray-400 text-sm">
                     No amenities added yet
@@ -1753,7 +1753,7 @@ export default function DormProfileSettings({
                   dormData.amenities.map((amenity, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
                     >
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         {amenity}
@@ -1782,11 +1782,11 @@ export default function DormProfileSettings({
                       handleAddCustomAmenity(newCustomAmenity)
                     }
                     placeholder="Add an amenity..."
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
                   />
                   <button
                     onClick={() => handleAddCustomAmenity(newCustomAmenity)}
-                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
                     Add
                   </button>
@@ -1800,7 +1800,7 @@ export default function DormProfileSettings({
                 Property Rules
               </h2>
 
-              <div className="space-y-3 mb-4">
+              <div className="space-y-4 mb-4">
                 {dormData.rules.length === 0 ? (
                   <p className="text-gray-500 dark:text-gray-400 text-sm">
                     No rules added yet
@@ -1809,7 +1809,7 @@ export default function DormProfileSettings({
                   dormData.rules.map((rule, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
                     >
                       <span className="text-green-600 mt-0.5">•</span>
                       <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
@@ -1858,7 +1858,7 @@ export default function DormProfileSettings({
                   No credential documents uploaded
                 </p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {dormData.credentials.map((cred, idx) => {
                     const name =
                       cred.original_name ||
@@ -1872,15 +1872,15 @@ export default function DormProfileSettings({
                     return (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                           <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                           <div className="text-sm text-gray-700 dark:text-gray-300">
                             {name}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                           {url ? (
                             <a
                               href={url}
@@ -1891,7 +1891,7 @@ export default function DormProfileSettings({
                               View
                             </a>
                           ) : (
-                            <span className="text-sm text-gray-400 dark:text-gray-500">
+                            <span className="text-sm text-gray-500 dark:text-gray-500">
                               Unavailable
                             </span>
                           )}
@@ -1899,7 +1899,7 @@ export default function DormProfileSettings({
                             <button
                               onClick={() => handleRemoveCredential(idx)}
                               title="Remove"
-                              className="p-1 text-red-600 hover:text-red-800"
+                              className="p-2 text-red-600 hover:text-red-800"
                             >
                               <Trash className="w-4 h-4" />
                             </button>
@@ -1977,7 +1977,7 @@ export default function DormProfileSettings({
                   </p>
                 )}
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-4">
                 <button
                   onClick={() => {
                     setPasswordModal({ show: false, property: null });
@@ -2024,7 +2024,7 @@ export default function DormProfileSettings({
                   This action cannot be undone.
                 </span>
               </p>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-4">
                 <button
                   onClick={() => {
                     setDeleteConfirm({ show: false, property: null });

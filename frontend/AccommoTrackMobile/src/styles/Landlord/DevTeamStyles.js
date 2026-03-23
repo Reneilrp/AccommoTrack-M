@@ -19,7 +19,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     fontSize: 20,
@@ -33,8 +33,8 @@ export const getStyles = (theme) => StyleSheet.create({
   introCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    padding: 16,
+    marginBottom: 24,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -85,7 +85,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   roleContainer: {
     flexDirection: 'row',
@@ -96,7 +96,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '600',
-    marginLeft: 4,
+    marginLeft: 8,
   },
   memberDescription: {
     fontSize: 13,

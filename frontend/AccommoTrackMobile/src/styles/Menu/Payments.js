@@ -9,7 +9,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: theme.colors.primary,
   },
@@ -23,7 +23,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   balanceCard: {
     backgroundColor: theme.colors.primary,
-    margin: 20,
+    margin: 24,
     padding: 24,
     borderRadius: 16,
     shadowColor: '#000',
@@ -57,7 +57,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textInverse,
   },
   section: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginBottom: 24,
   },
   sectionTitle: {
@@ -88,7 +88,7 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     position: 'relative',
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
   },
@@ -110,7 +110,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   methodNameDisabled: {
     color: theme.colors.textTertiary,
@@ -126,7 +126,7 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
-    marginTop: 4,
+    marginTop: 8,
   },
   methodAvailableText: {
     fontSize: 10,
@@ -137,9 +137,9 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: theme.colors.backgroundSecondary,
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
-    marginTop: 12,
+    marginTop: 16,
   },
   paymentNoteText: {
     flex: 1,
@@ -152,7 +152,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: theme.isDark ? 0.2 : 0.1,
@@ -164,8 +164,8 @@ export const getStyles = (theme) => StyleSheet.create({
   paymentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
+    marginBottom: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
@@ -176,7 +176,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   paymentInfo: {
     flex: 1,
@@ -192,8 +192,8 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 12,
   },
   statusText: {
@@ -227,7 +227,7 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingVertical: 40,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 14,
     color: theme.colors.textSecondary,
   },
@@ -247,10 +247,10 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   detailContainer: {
-    padding: 20,
+    padding: 16,
   },
   invoiceTitle: {
     fontSize: 16, 
@@ -280,7 +280,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row', 
-    gap: 12,
+    gap: 16,
   },
   payBtn: {
     padding: 14, 

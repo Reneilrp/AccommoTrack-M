@@ -203,7 +203,7 @@ export default function TenantPayments({ user }) {
                 value={searchQuery}
                 onChange={(e) => updateScreenState('wallet', { searchQuery: e.target.value })}
                 placeholder="Search property, room, ref..."
-                className="px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white w-48"
+                className="px-4 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white w-48"
               />
               {searchQuery && (
                 <button
@@ -224,12 +224,12 @@ export default function TenantPayments({ user }) {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
-            <div className="inline-flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg p-1">
+            <div className="inline-flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg p-2">
               {timeRanges.map(r => (
                 <button
                   key={r.value}
                   onClick={() => updateScreenState('wallet', { timeRange: r.value })}
-                  className={`px-3 py-1 text-sm rounded-md font-medium ${timeRange === r.value ? 'bg-green-600 text-white' : 'text-gray-600 dark:text-gray-300'}`}
+                  className={`px-4 py-2 text-sm rounded-md font-medium ${timeRange === r.value ? 'bg-green-600 text-white' : 'text-gray-600 dark:text-gray-300'}`}
                 >
                   {r.label}
                 </button>
@@ -250,14 +250,14 @@ export default function TenantPayments({ user }) {
           <table className="w-full">
             <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Property</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Room</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Due Date</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Property</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Room</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Due Date</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
@@ -283,7 +283,7 @@ export default function TenantPayments({ user }) {
                         {['pending', 'unpaid', 'partial', 'overdue', 'refunded'].includes(payment.status?.toLowerCase()) && (
                           <button
                             onClick={() => navigate(`/checkout/${payment.id}`)}
-                            className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
+                            className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
                           >
                             Pay Now
                           </button>
@@ -313,8 +313,8 @@ export default function TenantPayments({ user }) {
               );
             }
             return filtered.map((payment) => (
-              <div key={payment.id} className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
+              <div key={payment.id} className="p-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 dark:text-white text-sm leading-tight truncate">
                       {payment.propertyName}
@@ -329,22 +329,22 @@ export default function TenantPayments({ user }) {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold">Amount</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Amount</p>
                     <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold">Date</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Date</p>
                     <p className="text-sm text-gray-700 dark:text-gray-300">{payment.date}</p>
                   </div>
                   {payment.dueDate && (
                     <div className="text-right">
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold">Due</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Due</p>
                       <p className="text-sm text-gray-700 dark:text-gray-300">{payment.dueDate}</p>
                     </div>
                   )}
                 </div>
                 {payment.referenceNo && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
                 )}
                 {['pending', 'unpaid', 'partial', 'overdue', 'refunded'].includes(payment.status?.toLowerCase()) && (
                   <button

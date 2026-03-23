@@ -202,7 +202,7 @@ const ProfileTab = ({ onUserUpdate }) => {
                {imagePreview ? (
                   <img src={imagePreview} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                  <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-500">
                     <CircleUser className="w-12 h-12" />
                   </div>
                 )}
@@ -231,7 +231,7 @@ const ProfileTab = ({ onUserUpdate }) => {
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
-            {nameErrors.first_name && <p className="mt-1 text-xs text-red-500">{nameErrors.first_name}</p>}
+            {nameErrors.first_name && <p className="mt-2 text-xs text-red-500">{nameErrors.first_name}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Last Name</label>
@@ -244,7 +244,7 @@ const ProfileTab = ({ onUserUpdate }) => {
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
-            {nameErrors.last_name && <p className="mt-1 text-xs text-red-500">{nameErrors.last_name}</p>}
+            {nameErrors.last_name && <p className="mt-2 text-xs text-red-500">{nameErrors.last_name}</p>}
           </div>
           
           {/* Gender Section */}
@@ -265,7 +265,7 @@ const ProfileTab = ({ onUserUpdate }) => {
           
           {/* Pronouns Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Pronouns <span className="text-gray-400 text-xs font-normal">(e.g., He/Him, She/Her)</span></label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Pronouns <span className="text-gray-500 text-xs font-normal">(e.g., He/Him, She/Her)</span></label>
             <input
               type="text"
               name="identified_as"
@@ -359,7 +359,7 @@ const ProfileTab = ({ onUserUpdate }) => {
         </div>
 
         {isEditing && (
-          <div className="flex justify-end pt-4 gap-3">
+          <div className="flex justify-end pt-4 gap-4">
             <button
                 type="button"
                 onClick={toggleEdit}

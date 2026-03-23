@@ -115,7 +115,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
               // Edit Mode - Form inputs with green accent
               <>
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
+                  <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-4 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
@@ -132,7 +132,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                           onChange={e => handleNameChange('firstName', e.target.value)}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
-                        {nameErrors.firstName && <p className="mt-1 text-xs text-red-500">{nameErrors.firstName}</p>}
+                        {nameErrors.firstName && <p className="mt-2 text-xs text-red-500">{nameErrors.firstName}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
@@ -143,7 +143,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                           onChange={e => handleNameChange('lastName', e.target.value)}
                           className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         />
-                        {nameErrors.lastName && <p className="mt-1 text-xs text-red-500">{nameErrors.lastName}</p>}
+                        {nameErrors.lastName && <p className="mt-2 text-xs text-red-500">{nameErrors.lastName}</p>}
                       </div>
                     </div>
                     <div>
@@ -189,7 +189,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pronouns <span className="text-gray-400 text-xs font-normal">(e.g., He/Him)</span></label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pronouns <span className="text-gray-500 text-xs font-normal">(e.g., He/Him)</span></label>
                         <input
                           type="text"
                           maxLength={50}
@@ -214,7 +214,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                     </p>
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
+                <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
                   <button 
                     onClick={() => {
                       setProfileData({
@@ -251,20 +251,20 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">First Name</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">First Name</label>
                     <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.firstName || '-'}</p>
                   </div>
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Last Name</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Last Name</label>
                     <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.lastName || '-'}</p>
                   </div>
                 </div>
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Email Address</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Email Address</label>
                   <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.email || '-'}</p>
                 </div>
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Phone Number</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Phone Number</label>
                   <p className="text-gray-900 dark:text-white font-medium text-lg">
                     {(!profileData.phone || profileData.phone === '-') ? (
                       <button
@@ -278,7 +278,7 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                  <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Date of Birth</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Date of Birth</label>
                   <p className="text-gray-900 dark:text-white font-medium text-lg">
                     {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                   </p>
@@ -286,11 +286,11 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                 {/* Gender and Pronouns View */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Gender</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Gender</label>
                     <p className="text-gray-900 dark:text-white font-medium text-lg capitalize">{profileData.gender ? profileData.gender.replace(/_/g, ' ') : '-'}</p>
                   </div>
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Pronouns</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide mb-2">Pronouns</label>
                     <p className="text-gray-900 dark:text-white font-medium text-lg">{profileData.identified_as || '-'}</p>
                   </div>
                 </div>

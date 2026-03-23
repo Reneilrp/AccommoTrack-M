@@ -37,10 +37,10 @@ export const getStyles = (theme) => StyleSheet.create({
   filtersContainer: {
     backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    gap: 10,
+    gap: 8,
     zIndex: 1000,
     elevation: 4
   },
@@ -50,7 +50,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -70,7 +70,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginTop: 4,
+    marginTop: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -99,9 +99,9 @@ export const getStyles = (theme) => StyleSheet.create({
   timeButtonContainer: {
     flexDirection: 'row',
     backgroundColor: theme.colors.backgroundSecondary,
-    padding: 4,
+    padding: 8,
     borderRadius: 10,
-    gap: 4
+    gap: 8
   },
   timeButton: {
     flex: 1,
@@ -132,8 +132,8 @@ export const getStyles = (theme) => StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 12,
-    gap: 12
+    padding: 16,
+    gap: 16
   },
   metricCard: {
     backgroundColor: theme.colors.surface,
@@ -152,7 +152,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 16
   },
   metricIconBox: {
     width: 44,
@@ -170,7 +170,7 @@ export const getStyles = (theme) => StyleSheet.create({
   metricLabel: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginBottom: 4
+    marginBottom: 8
   },
   metricValue: {
     fontSize: 18,
@@ -196,7 +196,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 20
+    marginBottom: 24
   },
   // Horizontal Bar Chart
   hBarContainer: {
@@ -205,7 +205,7 @@ export const getStyles = (theme) => StyleSheet.create({
   hBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12
+    gap: 16
   },
   hBarLabel: {
     width: 45,
@@ -300,7 +300,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderRadius: 6,
     marginTop: 6,
     alignSelf: 'flex-start'
@@ -331,7 +331,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   loadingLabel: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 14,
     color: theme.colors.textSecondary
   }

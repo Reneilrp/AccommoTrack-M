@@ -515,7 +515,7 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('barangay', val)}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.label}>City</Text>
               <TextInput
                 style={styles.input}
@@ -536,7 +536,7 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('province', val)}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.label}>Zip Code</Text>
               <TextInput
                 style={styles.input}
@@ -560,7 +560,7 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('latitude', val)}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={[styles.label, { fontSize: 11 }]}>Longitude</Text>
               <TextInput
                 style={styles.input}
@@ -625,7 +625,7 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('totalRooms', val)}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.label}>Max Occupants</Text>
               <TextInput
                 style={styles.input}
@@ -646,7 +646,7 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('bathrooms', val)}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.label}>Bedrooms</Text>
               <TextInput
                 style={styles.input}
@@ -667,7 +667,7 @@ export default function DormProfileSettings({ route, navigation }) {
                 onChangeText={(val) => updateForm('totalFloors', val)}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.label}>Floor Area (sqm)</Text>
               <TextInput
                 style={styles.input}
@@ -745,7 +745,7 @@ export default function DormProfileSettings({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          <View style={{ marginTop: 12 }}>
+          <View style={{ marginTop: 16 }}>
             {form.rules.map((rule, index) => (
               <View key={index} style={styles.ruleItem}>
                 <Ionicons name="remove-circle-outline" size={20} color="#EF4444" onPress={() => removeRule(index)} />
@@ -770,7 +770,7 @@ export default function DormProfileSettings({ route, navigation }) {
             {form.images.length < 10 && (
               <TouchableOpacity style={styles.addImageButton} onPress={pickImages}>
                 <Ionicons name="camera-outline" size={28} color={theme.colors.primary} />
-                <Text style={{ fontSize: 10, color: theme.colors.primary, marginTop: 4 }}>Add Photo</Text>
+                <Text style={{ fontSize: 10, color: theme.colors.primary, marginTop: 8 }}>Add Photo</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -811,7 +811,7 @@ export default function DormProfileSettings({ route, navigation }) {
               </TouchableOpacity>
             </View>
           ))}
-          <TouchableOpacity style={[styles.outlineBtn, { marginTop: 12 }]} onPress={pickCredential}>
+          <TouchableOpacity style={[styles.outlineBtn, { marginTop: 16 }]} onPress={pickCredential}>
             <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
             <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Add Document</Text>
           </TouchableOpacity>

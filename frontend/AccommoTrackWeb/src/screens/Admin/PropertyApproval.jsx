@@ -151,12 +151,12 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold">Title</th>
-                  <th className="px-6 py-3 text-left font-semibold">Property Type</th>
-                  <th className="px-6 py-3 text-left font-semibold">Location</th>
-                  <th className="px-6 py-3 text-left font-semibold">Owner</th>
-                  <th className="px-6 py-3 text-left font-semibold">Submitted</th>
-                  <th className="px-6 py-3 text-center font-semibold">Actions</th>
+                  <th className="px-6 py-4 text-left font-semibold">Title</th>
+                  <th className="px-6 py-4 text-left font-semibold">Property Type</th>
+                  <th className="px-6 py-4 text-left font-semibold">Location</th>
+                  <th className="px-6 py-4 text-left font-semibold">Owner</th>
+                  <th className="px-6 py-4 text-left font-semibold">Submitted</th>
+                  <th className="px-6 py-4 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
@@ -218,7 +218,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white text-center flex-1">Property Details</h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold w-10"
+                className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold w-10"
               >
                 ×
               </button>
@@ -228,8 +228,8 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {/* Property Images */}
               {selectedProperty.image && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Property Images</h4>
-                  <div className="grid grid-cols-3 gap-3">
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Property Images</h4>
+                  <div className="grid grid-cols-3 gap-4">
                     {selectedProperty.images && selectedProperty.images.length > 0 ? (
                       selectedProperty.images.map((img, idx) => (
                         <img
@@ -254,7 +254,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
               {/* Basic Information */}
               <div>
-                <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Basic Information</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Basic Information</h4>
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Property Name</p>
@@ -278,14 +278,14 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {/* Description */}
               {selectedProperty.description && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Description</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Description</h4>
                   <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">{selectedProperty.description}</p>
                 </div>
               )}
 
               {/* Location */}
               <div>
-                <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Location</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Location</h4>
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-2 border border-gray-100 dark:border-gray-700">
                   <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Address:</span> {selectedProperty.street_address || 'N/A'}</p>
                   <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">City:</span> {selectedProperty.city || 'N/A'}</p>
@@ -305,10 +305,10 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {/* Amenities */}
               {selectedProperty.amenities_list && selectedProperty.amenities_list.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Amenities</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Amenities</h4>
                   <div className="grid grid-cols-3 gap-2">
                     {selectedProperty.amenities_list.map((amenity, idx) => (
-                      <div key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-lg text-sm font-medium border border-blue-100 dark:border-blue-800">
+                      <div key={idx} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium border border-blue-100 dark:border-blue-800">
                         {amenity}
                       </div>
                     ))}
@@ -319,7 +319,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {/* Property Rules */}
               {selectedProperty.property_rules && selectedProperty.property_rules.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Property Rules</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Property Rules</h4>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     <ul className="list-disc list-inside space-y-2">
                       {selectedProperty.property_rules.map((rule, idx) => (
@@ -332,7 +332,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
               {/* Owner Information */}
               <div>
-                <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Owner Information</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Owner Information</h4>
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-2 border border-gray-100 dark:border-gray-700">
                   <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Name:</span> {selectedProperty.landlord?.first_name} {selectedProperty.landlord?.last_name || 'N/A'}</p>
                   <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Email:</span> {selectedProperty.landlord?.email || 'N/A'}</p>
@@ -345,19 +345,19 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               {/* Credentials (Read-only for admin review) */}
               {selectedProperty.credentials && selectedProperty.credentials.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Credentials</h4>
-                  <div className="space-y-3">
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Credentials</h4>
+                  <div className="space-y-4">
                     {selectedProperty.credentials.map((cred, idx) => {
                       const url = getImageUrl(cred.file_url || cred.file_path || cred.url);
                       const name = cred.original_name || cred.name || `Document ${idx + 1}`;
                       return (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
                           <div className="text-sm text-gray-700 dark:text-gray-300">{name}</div>
                           <div>
                             {url ? (
                               <a href={url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">View</a>
                             ) : (
-                              <span className="text-sm text-gray-400 dark:text-gray-500">Unavailable</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-500">Unavailable</span>
                             )}
                           </div>
                         </div>
@@ -369,7 +369,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
             </div>
 
             {/* Modal Actions */}
-            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
+            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-4 rounded-b-xl">
               <button
                 onClick={() => setShowModal(false)}
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"

@@ -49,7 +49,7 @@ export default function NotificationPreferences() {
       />
 
       <View style={homeStyles.contentContainerPadding}>
-        <View style={[settingsStyles.settingsCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
+        <View style={[settingsStyles.settingsCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
           <View style={settingsStyles.cardInner}>
             <Text style={[settingsStyles.cardTitle, { color: theme.colors.text }]}>Email Notifications</Text>
             <View style={[homeStyles.surfaceCardSmall, { backgroundColor: 'transparent', padding: 0, marginBottom: 0 }] }>
@@ -69,7 +69,7 @@ export default function NotificationPreferences() {
           </View>
         </View>
 
-        <View style={[settingsStyles.settingsCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
+        <View style={[settingsStyles.settingsCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
           <View style={settingsStyles.cardInner}>
             <Text style={[settingsStyles.cardTitle, { color: theme.colors.text }]}>Push Notifications</Text>
             <View style={[homeStyles.surfaceCardSmall, { backgroundColor: 'transparent', padding: 0, marginBottom: 0 }] }>

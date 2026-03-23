@@ -298,7 +298,7 @@ export default function BookingDetails() {
             <ScrollView 
                 style={styles.fullFlex}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 20 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
             >
                 {/* Hero Image Section */}
@@ -379,7 +379,7 @@ export default function BookingDetails() {
                             <Text style={[styles.paymentValue, { color: theme.colors.text, fontWeight: '700' }]}>₱{(booking.amount || 0).toLocaleString()}</Text>
                         </View>
                         {booking.payment_plan === 'monthly' && (
-                            <Text style={[styles.infoLabel, { color: theme.colors.primary, fontSize: 11, marginTop: 4, fontStyle: 'italic' }]}>
+                            <Text style={[styles.infoLabel, { color: theme.colors.primary, fontSize: 11, marginTop: 8, fontStyle: 'italic' }]}>
                                 * You are on a monthly payment plan. Check individual invoices in the Payments tab.
                             </Text>
                         )}
@@ -496,7 +496,7 @@ export default function BookingDetails() {
                         recipient: landlord,
                         property: { id: property.id, title: property.title }
                     })}
-                    style={[styles.actionBtn, { backgroundColor: theme.colors.primary, flex: 1, marginTop: 10 }]}
+                    style={[styles.actionBtn, { backgroundColor: theme.colors.primary, flex: 1, marginTop: 8 }]}
                 >
                     <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
                     <Text style={styles.actionBtnText}>Contact Landlord</Text>

@@ -93,7 +93,7 @@ export default function ReviewsTab() {
   };
 
   const StarRating = ({ rating, onChange, interactive = false }) => (
-    <div className="flex gap-1">
+    <div className="flex gap-2">
       {[1, 2, 3, 4, 5].map((s) => (
         <button
           key={s}
@@ -135,7 +135,7 @@ export default function ReviewsTab() {
             </h4>
             <form onSubmit={handleSubmitReview} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Select Booking</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select Booking</label>
                 <select
                   value={form.booking_id}
                   onChange={(e) => {
@@ -158,7 +158,7 @@ export default function ReviewsTab() {
                 <StarRating rating={form.rating} onChange={(r) => setForm({ ...form, rating: r })} interactive={true} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Your Comment</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Your Comment</label>
                 <textarea
                   value={form.comment}
                   onChange={(e) => setForm({ ...form, comment: e.target.value })}
@@ -167,7 +167,7 @@ export default function ReviewsTab() {
                   className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-4">
                 <button type="button" onClick={() => { setShowForm(false); setEditingReview(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
                   Cancel
                 </button>
@@ -183,13 +183,13 @@ export default function ReviewsTab() {
         <div className="space-y-4">
           {loading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-3" />
+              <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-4" />
               <p className="text-sm text-gray-500">Loading reviews...</p>
             </div>
           ) : reviews.length === 0 ? (
             <div className="py-12 text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="w-8 h-8 text-gray-400" />
+                <MessageSquare className="w-8 h-8 text-gray-500" />
               </div>
               <p className="font-bold text-gray-900 dark:text-white">No reviews found</p>
               <p className="text-sm text-gray-500">You haven't left any reviews yet.</p>
@@ -207,7 +207,7 @@ export default function ReviewsTab() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEdit(review)}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            className="p-2.5 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                             title="Edit"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -215,26 +215,26 @@ export default function ReviewsTab() {
                           <button
                             onClick={() => handleDelete(review.id)}
                             disabled={deletingId === review.id}
-                            className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                            className="p-2.5 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                             title="Delete"
                           >
                             {deletingId === review.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
-                      <div className="mt-1">
+                      <div className="mt-2">
                         <StarRating rating={review.rating} />
                       </div>
                       {review.comment && (
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">"{review.comment}"</p>
                       )}
                       {review.landlord_response && (
-                        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                          <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase mb-1">Landlord Response</p>
+                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                          <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase mb-2">Landlord Response</p>
                           <p className="text-sm text-blue-600 dark:text-blue-300">{review.landlord_response}</p>
                         </div>
                       )}
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3 font-medium uppercase">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-500 mt-4 font-medium uppercase">
                         Left on {review.created_at ? new Date(review.created_at).toLocaleDateString() : 'Unknown Date'}
                       </p>
                     </div>

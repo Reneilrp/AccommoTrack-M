@@ -124,11 +124,11 @@ const DashboardScreen = () => {
             }
           >
             {/* Header Greeting */}
-            <View style={{ marginBottom: 20, marginTop: 10 }}>
+            <View style={{ marginBottom: 24, marginTop: 8 }}>
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>
                 Welcome back, {userName || 'User'}!
               </Text>
-              <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>
+              <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 8 }}>
                 Here's what's happening with your stay today.
               </Text>
             </View>

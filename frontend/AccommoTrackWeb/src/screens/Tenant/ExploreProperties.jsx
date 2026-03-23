@@ -387,9 +387,9 @@ const ExploreProperties = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border border-gray-300 dark:border-gray-700 flex flex-col items-center gap-4 md:gap-6">
             {/* Search Row */}
-            <div className="w-full flex items-center gap-3 md:gap-4">
+            <div className="w-full flex items-center gap-4 md:gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400 dark:text-gray-500" />
+                <Search className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-500 dark:text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search properties, locations..."
@@ -425,7 +425,7 @@ const ExploreProperties = () => {
 
             {/* Filters Row */}
             <div className="w-full overflow-x-auto no-scrollbar">
-              <div className="flex items-center justify-start md:justify-center gap-2 px-1">
+              <div className="flex items-center justify-start md:justify-center gap-2 px-2">
                 {PROPERTY_TYPES.map((type) => (
                   <button
                     key={type}
@@ -436,7 +436,7 @@ const ExploreProperties = () => {
                       })
                     }
                     className={`
-                              px-4 md:px-5 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all border
+                              px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all border
                               ${
                                 selectedType === type
                                   ? "bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20"
@@ -473,7 +473,7 @@ const ExploreProperties = () => {
                 {/* Header skeleton */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-4 mb-2">
                       <Skeleton className="h-7 w-48" />
                       <Skeleton className="h-5 w-16 rounded-md" />
                     </div>
@@ -501,7 +501,7 @@ const ExploreProperties = () => {
 
         {!loading && filteredProperties.length === 0 && (
           <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md">
-            <p className="text-gray-400 dark:text-gray-500 text-lg font-medium">
+            <p className="text-gray-500 dark:text-gray-500 text-lg font-medium">
               No properties found matching your filters.
             </p>
             <button
@@ -539,7 +539,7 @@ const ExploreProperties = () => {
                 onClick={() => handlePropertyClick(property.id)}
               >
                 <div>
-                  <div className="flex items-center gap-3 mb-1">
+                  <div className="flex items-center gap-4 mb-2">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-500 transition-colors flex items-center gap-2">
                       {property.name}
                       <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-green-600 dark:text-green-500" />
@@ -549,7 +549,7 @@ const ExploreProperties = () => {
                     </span>
                   </div>
                   {property.location && (
-                    <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 mt-1">
+                    <div className="flex items-center gap-2.5 text-gray-500 dark:text-gray-400 mt-2">
                       <MapPin className="w-4 h-4" />
                       <span className="text-sm font-medium">
                         {property.location}
@@ -566,7 +566,7 @@ const ExploreProperties = () => {
                           state: { openVideo: true },
                         });
                       }}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                      className="flex items-center gap-2.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                     >
                       <Play className="w-4 h-4 fill-current" /> Video Tour
                     </button>
@@ -623,7 +623,7 @@ const ExploreProperties = () => {
                 <div
                   className={`absolute top-6 left-6 z-[1000] w-[calc(100%-100px)] md:w-[calc(35%-48px)] animate-in slide-in-from-top-4 duration-500 shadow-2xl transition-all ease-in-out ${drawerOpen ? "opacity-0 pointer-events-none -translate-y-4" : "opacity-100 translate-y-0"}`}
                 >
-                  <div className="bg-white dark:bg-gray-800 rounded-full flex items-center p-1.5 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-lg focus-within:shadow-xl">
+                  <div className="bg-white dark:bg-gray-800 rounded-full flex items-center p-2.5 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-lg focus-within:shadow-xl">
                     {/* Maps Icon / Menu Trigger */}
                     <div className="p-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full cursor-pointer transition-colors group">
                       <Map className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white" />
@@ -633,7 +633,7 @@ const ExploreProperties = () => {
                     <input
                       type="text"
                       placeholder="Search properties..."
-                      className="flex-1 ml-2 bg-transparent border-none outline-none text-gray-800 dark:text-white text-sm font-medium h-10 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                      className="flex-1 ml-2 bg-transparent border-none outline-none text-gray-800 dark:text-white text-sm font-medium h-10 placeholder:text-gray-500 dark:placeholder:text-gray-500"
                       value={search}
                       onChange={handleSearchChange}
                     />
@@ -644,13 +644,13 @@ const ExploreProperties = () => {
                         onClick={() =>
                           handleSearchChange({ target: { value: "" } })
                         }
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400 dark:text-gray-500 mr-1"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 dark:text-gray-500 mr-2"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     )}
 
-                    <button className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 ml-1">
+                    <button className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 ml-2">
                       <Search className="w-4 h-4" />
                     </button>
                   </div>
@@ -667,7 +667,7 @@ const ExploreProperties = () => {
                               onMapMarkerClick(prop);
                               updateScreenState("explore", { search: "" });
                             }}
-                            className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-700 last:border-0 flex items-center gap-3 transition-colors"
+                            className="px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-700 last:border-0 flex items-center gap-4 transition-colors"
                           >
                             <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-gray-500 dark:text-gray-400">
                               <MapPin className="w-4 h-4" />
@@ -738,7 +738,7 @@ const ExploreProperties = () => {
 
                             {/* See Photos Badge (Bottom Left) */}
                             <div className="absolute bottom-4 left-4 z-10">
-                              <button className="bg-black/60 hover:bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all">
+                              <button className="bg-black/60 hover:bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all">
                                 <div className="w-4 h-4 grid grid-cols-2 gap-px opacity-80">
                                   <div className="bg-white rounded-[1px]"></div>
                                   <div className="bg-white rounded-[1px]"></div>
@@ -751,15 +751,15 @@ const ExploreProperties = () => {
                           </div>
 
                           {/* HEADER INFO SECTION */}
-                          <div className="p-5 pb-0 bg-white dark:bg-gray-800">
+                          <div className="p-6 pb-0 bg-white dark:bg-gray-800">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight mb-2">
                               {drawerData.name}
                             </h2>
 
-                            <div className="flex items-center gap-2 mb-3">
+                            <div className="flex items-center gap-2 mb-4">
                               <div className="flex items-center text-sm font-bold text-gray-900 dark:text-white">
                                 {drawerData.rating ? drawerData.rating : "New"}
-                                <div className="flex ml-1">
+                                <div className="flex ml-2">
                                   {[...Array(5)].map((_, i) => (
                                     <Star
                                       key={i}
@@ -768,35 +768,35 @@ const ExploreProperties = () => {
                                   ))}
                                 </div>
                               </div>
-                              <span className="text-gray-400 text-xs">•</span>
+                              <span className="text-gray-500 text-xs">•</span>
                               <span className="text-sm text-gray-500 dark:text-gray-400">
                                 ({drawerReviews.summary?.total_reviews || 0}{" "}
                                 reviews)
                               </span>
-                              <span className="text-gray-400 text-xs">•</span>
+                              <span className="text-gray-500 text-xs">•</span>
                               <span className="text-sm text-gray-500 dark:text-gray-400">
                                 {drawerData.type}
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-500 font-medium mb-3">
+                            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-500 font-medium mb-4">
                               <div className="w-4 h-4 rounded-full border border-green-600 dark:border-green-500 flex items-center justify-center">
                                 <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500"></div>
                               </div>
                               Open Now
-                              <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">
+                              <span className="text-gray-500 dark:text-gray-500 font-normal ml-2">
                                 • Closes 9PM
                               </span>
                             </div>
                           </div>
 
                           {/* TABS HEADER - STICKY */}
-                          <div className="flex items-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-30 px-5 pt-2 shadow-sm">
+                          <div className="flex items-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-30 px-6 pt-2 shadow-sm">
                             {["Overview", "Reviews", "About"].map((tab) => (
                               <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`mr-6 py-3 text-sm font-bold text-center relative transition-colors ${
+                                className={`mr-6 py-4 text-sm font-bold text-center relative transition-colors ${
                                   activeTab === tab
                                     ? "text-teal-700 dark:text-teal-400"
                                     : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -811,16 +811,16 @@ const ExploreProperties = () => {
                           </div>
 
                           {/* Scrollable Content (Tabbed) */}
-                          <div className="p-5 bg-gray-50/50 dark:bg-gray-900/50 min-h-[500px]">
+                          <div className="p-6 bg-gray-50/50 dark:bg-gray-900/50 min-h-[500px]">
                             {activeTab === "Overview" && (
                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                                 {/* Address Section */}
-                                <div className="flex items-start gap-4 border-b border-gray-100 dark:border-gray-700 pb-5">
+                                <div className="flex items-start gap-4 border-b border-gray-100 dark:border-gray-700 pb-6">
                                   <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
                                     <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                   </div>
                                   <div className="flex-1">
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-tight mb-1">
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-tight mb-2">
                                       {drawerData.address}
                                     </h4>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -833,7 +833,7 @@ const ExploreProperties = () => {
                                 </div>
 
                                 {/* Visit Schedule */}
-                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-3">
+                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md flex items-start gap-4">
                                   <div className="bg-orange-50 dark:bg-orange-900/30 p-2 rounded-lg">
                                     <div className="w-5 h-5 text-orange-500 dark:text-orange-400 font-bold flex items-center justify-center">
                                       🕒
@@ -854,7 +854,7 @@ const ExploreProperties = () => {
 
                                 {/* Gallery Preview */}
                                 <div>
-                                  <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center justify-between mb-4">
                                     <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
                                       Gallery
                                     </h4>
@@ -886,10 +886,10 @@ const ExploreProperties = () => {
                                         )}
                                         <div className="absolute inset-0 flex items-center justify-center">
                                           <div className="w-12 h-12 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/40 dark:border-white/20 group-hover:scale-110 transition-transform">
-                                            <Play className="w-6 h-6 text-white fill-white ml-1" />
+                                            <Play className="w-6 h-6 text-white fill-white ml-2" />
                                           </div>
                                         </div>
-                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-2">
                                           <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
                                           VIDEO TOUR
                                         </span>
@@ -909,7 +909,7 @@ const ExploreProperties = () => {
                                         ) : (
                                           <ImagePlaceholder className="w-full h-full" />
                                         )}
-                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-1.5 rounded">
+                                        <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-black/50 px-2.5 rounded">
                                           MAIN VIEW
                                         </span>
                                       </div>
@@ -937,7 +937,7 @@ const ExploreProperties = () => {
                                       ))}
                                     {(drawerData.rooms?.length || 0) > 2 && (
                                       <div
-                                        className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-xs font-bold text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                        className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                         onClick={() =>
                                           openFullGallery(drawerData)
                                         }
@@ -953,7 +953,7 @@ const ExploreProperties = () => {
                             {activeTab === "Reviews" && (
                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="flex items-center justify-center mb-6">
-                                  <div className="flex items-center gap-1 bg-yellow-400 text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                  <div className="flex items-center gap-2 bg-yellow-400 text-white px-4 py-2 rounded-full text-sm font-bold shadow-sm">
                                     <Star className="w-4 h-4 fill-white text-white" />
                                     {drawerReviews.summary?.average_rating ||
                                       drawerData.rating ||
@@ -1000,7 +1000,7 @@ const ExploreProperties = () => {
                                                 {review.reviewer_name ||
                                                   "Anonymous"}
                                               </p>
-                                              <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                                              <p className="text-[10px] text-gray-500 dark:text-gray-500">
                                                 {review.time_ago}
                                               </p>
                                             </div>
@@ -1020,8 +1020,8 @@ const ExploreProperties = () => {
                                           </p>
                                         )}
                                         {review.landlord_response && (
-                                          <div className="mt-3 pl-3 border-l-2 border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-900/20 p-2 rounded-r-lg">
-                                            <p className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold mb-1">
+                                          <div className="mt-4 pl-4 border-l-2 border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-900/20 p-2 rounded-r-lg">
+                                            <p className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold mb-2">
                                               Landlord Response:
                                             </p>
                                             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -1036,7 +1036,7 @@ const ExploreProperties = () => {
                                       <p className="text-sm text-gray-500 dark:text-gray-400">
                                         No reviews yet
                                       </p>
-                                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                                         Be the first to review this property
                                       </p>
                                     </div>
@@ -1049,7 +1049,7 @@ const ExploreProperties = () => {
                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                                 {/* Description (Moved from Overview) */}
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                                  <h4 className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">
                                     Description
                                   </h4>
                                   <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
@@ -1059,7 +1059,7 @@ const ExploreProperties = () => {
                                 </div>
 
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
+                                  <h4 className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">
                                     Amenities
                                   </h4>
                                   <div className="flex flex-wrap gap-2">
@@ -1081,14 +1081,14 @@ const ExploreProperties = () => {
                                         return amenitiesList.map((item, i) => (
                                           <span
                                             key={i}
-                                            className="px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-colors border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-xl shadow-sm"
+                                            className="px-4 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-colors border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-xl shadow-sm"
                                           >
                                             {item}
                                           </span>
                                         ));
                                       }
                                       return (
-                                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                                        <p className="text-xs text-gray-500 dark:text-gray-500">
                                           No amenities listed
                                         </p>
                                       );
@@ -1097,7 +1097,7 @@ const ExploreProperties = () => {
                                 </div>
 
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
+                                  <h4 className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">
                                     Room Rules
                                   </h4>
                                   <ul className="space-y-2 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
@@ -1117,7 +1117,7 @@ const ExploreProperties = () => {
                                         return rulesList.map((rule, idx) => (
                                           <li
                                             key={idx}
-                                            className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 py-1 border-b border-gray-50 dark:border-gray-700 last:border-0"
+                                            className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 py-2 border-b border-gray-50 dark:border-gray-700 last:border-0"
                                           >
                                             <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"></div>
                                             {rule}
@@ -1125,7 +1125,7 @@ const ExploreProperties = () => {
                                         ));
                                       }
                                       return (
-                                        <li className="text-xs text-gray-400 dark:text-gray-500">
+                                        <li className="text-xs text-gray-500 dark:text-gray-500">
                                           No room rules specified
                                         </li>
                                       );
@@ -1139,12 +1139,12 @@ const ExploreProperties = () => {
                         {/* END SINGLE SCROLLABLE CONTAINER */}
 
                         {/* Footer Action */}
-                        <div className="p-5 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] relative">
+                        <div className="p-6 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] relative">
                           <button
                             onClick={() =>
                               navigate(`/property/${drawerData.id}`)
                             }
-                            className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-xl shadow-lg shadow-teal-900/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
+                            className="w-full py-4.5 bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-xl shadow-lg shadow-teal-900/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
                           >
                             View Full Details
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -1214,14 +1214,14 @@ const ExploreProperties = () => {
                 <h3 className="font-bold text-lg md:text-xl tracking-tight line-clamp-1">
                   {drawerData?.name || "Property Gallery"}
                 </h3>
-                <p className="text-[10px] md:text-xs text-white/40 font-bold uppercase tracking-[0.2em] mt-1">
+                <p className="text-[10px] md:text-xs text-white/40 font-bold uppercase tracking-[0.2em] mt-2">
                   {galleryIndex + 1} / {galleryItems.length}
                 </p>
               </div>
 
               <button
                 onClick={() => setGalleryOpen(false)}
-                className="p-2 md:p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all hover:rotate-90 active:scale-90"
+                className="p-2 md:p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all hover:rotate-90 active:scale-90"
               >
                 <X className="w-6 h-6 md:w-7 md:h-7 text-white/80" />
               </button>
@@ -1386,13 +1386,13 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
-            <X className="w-6 h-6 text-gray-400" />
+            <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
 
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
               Price Range (Monthly)
             </h3>
             <div className="flex items-center gap-4">
@@ -1407,9 +1407,9 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
                     priceMin: e.target.value,
                   }))
                 }
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
               />
-              <span className="text-gray-400">-</span>
+              <span className="text-gray-500">-</span>
               <input
                 type="number"
                 min="0"
@@ -1421,13 +1421,13 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
                     priceMax: e.target.value,
                   }))
                 }
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
               Availability
             </h3>
             <button
@@ -1438,7 +1438,7 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
                   availabilityOnly: !prev.availabilityOnly,
                 }))
               }
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+              className={`w-full flex items-center justify-between px-4 py-4 rounded-xl border-2 transition-all ${
                 localFilters.availabilityOnly
                   ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                   : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
@@ -1450,10 +1450,10 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
               Minimum Rating
             </h3>
-            <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl">
+            <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
@@ -1478,7 +1478,7 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
               Amenities
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1487,7 +1487,7 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
                   key={amenity}
                   type="button"
                   onClick={() => toggleAmenity(amenity)}
-                  className={`px-4 py-3 rounded-lg text-sm font-medium border-2 transition-all ${
+                  className={`px-4 py-4 rounded-lg text-sm font-medium border-2 transition-all ${
                     localFilters.amenities.includes(amenity)
                       ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                       : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
@@ -1500,16 +1500,16 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
           </div>
         </div>
 
-        <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 flex gap-3">
+        <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 flex gap-4">
           <button
             onClick={clearAll}
-            className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            className="px-6 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
           >
             Clear All
           </button>
           <button
             onClick={() => onApply(localFilters)}
-            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
+            className="flex-1 px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
           >
             Apply Filters
           </button>

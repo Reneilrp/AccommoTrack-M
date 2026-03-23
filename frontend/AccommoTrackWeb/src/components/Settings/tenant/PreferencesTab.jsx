@@ -378,7 +378,7 @@ const PreferencesTab = () => {
         </div>
 
         {isEditing && (
-          <div className="flex justify-end pt-4 gap-3">
+          <div className="flex justify-end pt-4 gap-4">
             <button
               type="button"
               onClick={toggleEdit}

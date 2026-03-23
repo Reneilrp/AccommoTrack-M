@@ -381,16 +381,16 @@ export default function CareTakerAccess({
           <div className="p-6 space-y-8">
                       {/* Details Section */}
                       <section className="space-y-4">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                           <Users className="w-4 h-4" /> Personal Information
                         </h3>
             
                         {/* Centralized Error Summary */}
                         {Object.values(fieldErrors).some(err => err !== '') && (
                           <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl animate-in slide-in-from-top-2 duration-300">
-                            <div className="flex gap-3">
+                            <div className="flex gap-4">
                               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                              <div className="space-y-1">
+                              <div className="space-y-2">
                                 <p className="text-sm font-bold text-red-800 dark:text-red-300">Please correct the following:</p>
                                 <ul className="list-disc list-inside text-xs text-red-700 dark:text-red-400 space-y-0.5">
                                   {Object.entries(fieldErrors).map(([key, err]) => err && (
@@ -403,8 +403,8 @@ export default function CareTakerAccess({
                         )}
             
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">First Name</label>
+                          <div className="space-y-2.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">First Name</label>
                             <input
                               name="first_name"
                               type="text"
@@ -414,8 +414,8 @@ export default function CareTakerAccess({
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.first_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Middle Name (Optional)</label>
+                          <div className="space-y-2.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Middle Name (Optional)</label>
                             <input
                               name="middle_name"
                               type="text"
@@ -425,8 +425,8 @@ export default function CareTakerAccess({
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.middle_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Last Name</label>
+                          <div className="space-y-2.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Last Name</label>
                             <input
                               name="last_name"
                               type="text"
@@ -436,8 +436,8 @@ export default function CareTakerAccess({
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.last_name ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Email Address</label>
+                          <div className="space-y-2.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Email Address</label>
                             <input
                               name="email"
                               type="email"
@@ -447,8 +447,8 @@ export default function CareTakerAccess({
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.email ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Phone (Optional)</label>
+                          <div className="space-y-2.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Phone (Optional)</label>
                             <input
                               name="phone"
                               type="text"
@@ -458,8 +458,8 @@ export default function CareTakerAccess({
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.phone ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Date of Birth (Optional)</label>
+                          <div className="space-y-2.5">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Date of Birth (Optional)</label>
                             <input
                               name="date_of_birth"
                               type="date"
@@ -467,8 +467,8 @@ export default function CareTakerAccess({
                               onChange={handleInputChange}
                               className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 transition-all ${fieldErrors.date_of_birth ? 'border-red-500 ring-red-50' : 'border-gray-200 dark:border-gray-600 focus:ring-green-500'}`}
                             />
-                          </div>                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">
+                          </div>                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">
                     Account Password
                   </label>
                   <div className="relative">
@@ -482,14 +482,14 @@ export default function CareTakerAccess({
                     <button
                       type="button"
                       onClick={() => setShowPasswords(!showPasswords)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                     >
                       {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Confirm Password</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Confirm Password</label>
                   <div className="relative">
                     <input
                       type={showPasswords ? "text" : "password"}
@@ -501,7 +501,7 @@ export default function CareTakerAccess({
                     <button
                       type="button"
                       onClick={() => setShowPasswords(!showPasswords)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                     >
                       {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -512,10 +512,10 @@ export default function CareTakerAccess({
 
             {/* Permissions Section */}
             <section className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                 <Shield className="w-4 h-4" /> Module Permissions
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {CARETAKER_PERMISSION_FIELDS.map((field) => (
                   <label
                     key={field.key}
@@ -537,7 +537,7 @@ export default function CareTakerAccess({
                       />
                     </div>
                     <span className="font-bold text-gray-900 dark:text-white text-sm">{field.label}</span>
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">{field.description}</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-2">{field.description}</span>
                   </label>
                 ))}
               </div>
@@ -552,21 +552,21 @@ export default function CareTakerAccess({
               }`}>
                 <div className="flex items-center justify-between">
                   <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
-                    propertyError ? 'text-red-600 dark:text-red-400' : 'text-gray-400'
+                    propertyError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
                   }`}>
                     <Building2 className="w-4 h-4" /> Assigned Properties
                   </h3>
                   {propertyError && (
-                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1 animate-pulse">
+                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-2 animate-pulse">
                       <AlertCircle className="w-3 h-3" /> Still didn't assign a property
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-4">
                   {safeProperties.map((property) => (
                     <label 
                       key={property.id} 
-                      className={`flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
+                      className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
                         safeSelectedIds.includes(property.id)
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
                           : propertyError
@@ -587,16 +587,16 @@ export default function CareTakerAccess({
                         className="hidden"
                       />
                       <span className="whitespace-nowrap">{property.name || property.title || 'Unnamed Property'}</span>
-                      <Building2 className={`w-4 h-4 shrink-0 ${safeSelectedIds.includes(property.id) ? 'text-emerald-100' : 'text-gray-400'}`} />
+                      <Building2 className={`w-4 h-4 shrink-0 ${safeSelectedIds.includes(property.id) ? 'text-emerald-100' : 'text-gray-500'}`} />
                     </label>
                   ))}
                 </div>
               </section>
             )}
 
-            <div className="flex gap-3 pt-4 border-t border-gray-50 dark:border-gray-700">
+            <div className="flex gap-4 pt-4 border-t border-gray-50 dark:border-gray-700">
               <button
-                className="flex-1 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50"
                 onClick={handleRegister}
                 disabled={safeState.loading}
               >
@@ -604,7 +604,7 @@ export default function CareTakerAccess({
                 {safeState.loading ? 'Creating Account...' : 'Confirm & Add Caretaker'}
               </button>
               <button
-                className="px-6 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
+                className="px-6 py-4 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all"
                 onClick={resetCreationForm}
               >
                 Reset
@@ -616,7 +616,7 @@ export default function CareTakerAccess({
         {/* List Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
@@ -629,12 +629,12 @@ export default function CareTakerAccess({
 
           <div className="p-0">
             {safeState.loading && safeCaretakers.length === 0 ? (
-              <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-3">
+              <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-4">
                 <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
                 <p className="font-medium">Fetching team members...</p>
               </div>
             ) : safeCaretakers.length === 0 ? (
-              <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-3">
+              <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-4">
                 <Users className="w-16 h-16 text-gray-200" />
                 <p className="font-medium text-lg">No caretakers assigned yet</p>
                 <p className="text-sm max-w-xs">Once you add staff members, they will appear here with their assigned properties.</p>
@@ -642,7 +642,7 @@ export default function CareTakerAccess({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                  <thead className="bg-gray-50/50 dark:bg-gray-700/50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  <thead className="bg-gray-50/50 dark:bg-gray-700/50 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
                     <tr>
                       <th className="px-6 py-4">Identity</th>
                       <th className="px-6 py-4">Assigned to</th>
@@ -660,7 +660,7 @@ export default function CareTakerAccess({
                       return (
                         <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4">
                               {profileImage ? (
                                 <img 
                                   src={profileImage} 
@@ -674,26 +674,26 @@ export default function CareTakerAccess({
                               )}
                               <div>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">{name}</p>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{obj.email}</p>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">{obj.email}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-2">
                               {assigned.length > 0 ? assigned.map(p => (
-                                <span key={p.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-600 shadow-sm">
-                                  <Building2 className="w-3 h-3 text-gray-400" />
+                                <span key={p.id} className="inline-flex items-center gap-2.5 px-2.5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-600 shadow-sm">
+                                  <Building2 className="w-3 h-3 text-gray-500" />
                                   {p.name || p.title}
                                 </span>
                               )) : (
-                                <span className="text-xs text-amber-600 font-bold flex items-center gap-1">
+                                <span className="text-xs text-amber-600 font-bold flex items-center gap-2">
                                   <AlertCircle className="w-3.5 h-3.5" /> No assignment
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-2.5">
                               {Object.entries(c.permissions || {}).map(([key, val]) => (
                                 <div key={key} title={key} className={`w-2 h-2 rounded-full ${val ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'}`} />
                               ))}
@@ -702,7 +702,7 @@ export default function CareTakerAccess({
                           <td className="px-6 py-4 text-right">
                             <button
                               onClick={() => setSelectedCaretaker(c)}
-                              className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-green-600 hover:text-white rounded-lg text-xs font-bold transition-all"
+                              className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-green-600 hover:text-white rounded-lg text-xs font-bold transition-all"
                             >
                               View
                             </button>
@@ -729,7 +729,7 @@ export default function CareTakerAccess({
                 onClick={() => setSelectedCaretaker(null)}
                 className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
-                <XCircle className="w-6 h-6 text-gray-400" />
+                <XCircle className="w-6 h-6 text-gray-500" />
               </button>
             </div>
 
@@ -754,7 +754,7 @@ export default function CareTakerAccess({
                     )}
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-[0.2em] mb-1">Caretaker Account</p>
+                    <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-[0.2em] mb-2">Caretaker Account</p>
                     <h3 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                       {selectedCaretaker.caretaker?.first_name} {selectedCaretaker.caretaker?.last_name}
                     </h3>
@@ -762,13 +762,13 @@ export default function CareTakerAccess({
                 </div>
 
                 {/* Right Column: Key Details */}
-                <div className="flex flex-col justify-center space-y-5 border-l border-gray-200 dark:border-gray-600 md:pl-10">
+                <div className="flex flex-col justify-center space-y-6 border-l border-gray-200 dark:border-gray-600 md:pl-10">
                   <div className="flex items-center gap-4 group">
                     <div className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
                       <Mail className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email Address</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Email Address</p>
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate">{selectedCaretaker.caretaker?.email}</span>
                     </div>
                   </div>
@@ -778,7 +778,7 @@ export default function CareTakerAccess({
                       <Phone className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Phone Number</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Phone Number</p>
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedCaretaker.caretaker?.phone || 'Not provided'}</span>
                     </div>
                   </div>
@@ -788,7 +788,7 @@ export default function CareTakerAccess({
                       <User className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gender</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Gender</p>
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200 capitalize">{selectedCaretaker.caretaker?.gender || 'Not specified'}</span>
                     </div>
                   </div>
@@ -798,7 +798,7 @@ export default function CareTakerAccess({
                       <Calendar className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Age</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Age</p>
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
                         {selectedCaretaker.caretaker?.date_of_birth 
                           ? `${Math.floor((new Date() - new Date(selectedCaretaker.caretaker.date_of_birth)) / 31557600000)} Years Old`
@@ -810,8 +810,8 @@ export default function CareTakerAccess({
               </div>
 
               {/* Permissions Section */}
-              <div className="space-y-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <Shield className="w-3 h-3" /> Module Permissions
                 </p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
@@ -819,10 +819,10 @@ export default function CareTakerAccess({
                     .map(([key, val]) => (
                     <div 
                       key={key} 
-                      className={`flex items-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all ${
+                      className={`flex items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${
                         val 
                           ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 text-green-700 dark:text-green-400' 
-                          : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-400'
+                          : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-500'
                       }`}
                     >
                       {val ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
@@ -833,14 +833,14 @@ export default function CareTakerAccess({
               </div>
 
               {/* Properties Section in Modal */}
-              <div className="space-y-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <Building2 className="w-3 h-3" /> Managed Properties
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {Array.isArray(selectedCaretaker.assigned_properties) && selectedCaretaker.assigned_properties.length > 0 ? (
                     selectedCaretaker.assigned_properties.map(p => (
-                      <div key={p.id} className="flex items-center gap-4 p-5 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-[1.25rem] shadow-sm hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-colors group">
+                      <div key={p.id} className="flex items-center gap-4 p-6 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-[1.25rem] shadow-sm hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-colors group">
                         <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                           <Building2 className="w-6 h-6 text-emerald-600" />
                         </div>
@@ -859,10 +859,10 @@ export default function CareTakerAccess({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 grid grid-cols-2 sm:grid-cols-5 gap-4">
               <button
                 onClick={() => handleMessageCaretaker(selectedCaretaker)}
-                className="py-3 px-2 rounded-2xl border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex flex-col items-center justify-center gap-1"
+                className="py-4 px-2 rounded-2xl border border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex flex-col items-center justify-center gap-2"
                 title="Message Caretaker"
               >
                 <Mail className="w-4 h-4" />
@@ -870,7 +870,7 @@ export default function CareTakerAccess({
               </button>
               <button
                 onClick={() => handleResetPassword(selectedCaretaker)}
-                className="py-3 px-2 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all flex flex-col items-center justify-center gap-1"
+                className="py-4 px-2 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all flex flex-col items-center justify-center gap-2"
                 title="Reset Password"
               >
                 <Key className="w-4 h-4" />
@@ -878,7 +878,7 @@ export default function CareTakerAccess({
               </button>
               <button
                 onClick={() => handleEditClick(selectedCaretaker)}
-                className="py-3 px-2 rounded-2xl border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex flex-col items-center justify-center gap-1"
+                className="py-4 px-2 rounded-2xl border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex flex-col items-center justify-center gap-2"
                 title="Edit Details"
               >
                 <Plus className="w-4 h-4 rotate-45" />
@@ -886,7 +886,7 @@ export default function CareTakerAccess({
               </button>
               <button
                 onClick={() => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' })}
-                className="py-3 px-2 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex flex-col items-center justify-center gap-1"
+                className="py-4 px-2 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex flex-col items-center justify-center gap-2"
                 title="Revoke Access"
               >
                 <Trash2 className="w-4 h-4" />
@@ -894,7 +894,7 @@ export default function CareTakerAccess({
               </button>
               <button
                 onClick={() => setSelectedCaretaker(null)}
-                className="py-3 px-2 rounded-2xl bg-gray-900 dark:bg-green-600 text-white font-bold hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none flex flex-col items-center justify-center gap-1 col-span-2 sm:col-span-1"
+                className="py-4 px-2 rounded-2xl bg-gray-900 dark:bg-green-600 text-white font-bold hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none flex flex-col items-center justify-center gap-2 col-span-2 sm:col-span-1"
               >
                 <XCircle className="w-4 h-4" />
                 <span className="text-[10px]">Close</span>
@@ -920,25 +920,25 @@ export default function CareTakerAccess({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Reason for Revocation</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-2">Reason for Revocation</label>
                 <textarea
                   value={revocationModal.reason}
                   onChange={(e) => setRevocationModal({ ...revocationModal, reason: e.target.value })}
                   placeholder="e.g. End of contract, Security concerns..."
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-red-500 transition-all min-h-[100px]"
+                  className="w-full px-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-red-500 transition-all min-h-[100px]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-4 pt-2">
                 <button
                   onClick={() => setRevocationModal({ show: false, caretaker: null, reason: '' })}
-                  className="py-3 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleRevokeConfirm}
-                  className="py-3 px-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none"
+                  className="py-4 px-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none"
                 >
                   Confirm
                 </button>
@@ -960,16 +960,16 @@ export default function CareTakerAccess({
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Enabling <span className="font-bold text-gray-900 dark:text-white">Room Management</span> allows caretakers to modify availability and tenant placements. Are you sure?
               </p>
-              <div className="grid grid-cols-2 gap-3 pt-4">
+              <div className="grid grid-cols-2 gap-4 pt-4">
                 <button
                   onClick={() => setRoomPermissionPrompt(false)}
-                  className="py-3 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmRoomPermission}
-                  className="py-3 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none"
+                  className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none"
                 >
                   Grant Access
                 </button>
@@ -989,15 +989,15 @@ export default function CareTakerAccess({
                 onClick={() => setShowEditModal(false)}
                 className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
-                <XCircle className="w-6 h-6 text-gray-400" />
+                <XCircle className="w-6 h-6 text-gray-500" />
               </button>
             </div>
 
             <div className="p-8 overflow-y-auto custom-scrollbar space-y-8">
               {/* Info Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">First Name</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">First Name</label>
                   <input
                     type="text"
                     value={editFormData.first_name}
@@ -1005,8 +1005,8 @@ export default function CareTakerAccess({
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Middle Name</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Middle Name</label>
                   <input
                     type="text"
                     value={editFormData.middle_name}
@@ -1014,8 +1014,8 @@ export default function CareTakerAccess({
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Last Name</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Last Name</label>
                   <input
                     type="text"
                     value={editFormData.last_name}
@@ -1023,8 +1023,8 @@ export default function CareTakerAccess({
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Email Address</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Email Address</label>
                   <input
                     type="email"
                     value={editFormData.email}
@@ -1032,8 +1032,8 @@ export default function CareTakerAccess({
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Phone (Optional)</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Phone (Optional)</label>
                   <input
                     type="text"
                     value={editFormData.phone}
@@ -1041,8 +1041,8 @@ export default function CareTakerAccess({
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-green-500 transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-1">Date of Birth</label>
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">Date of Birth</label>
                   <input
                     type="date"
                     value={editFormData.date_of_birth}
@@ -1079,10 +1079,10 @@ export default function CareTakerAccess({
 
               {/* Permissions Section */}
               <div className="space-y-4">
-                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <Shield className="w-4 h-4" /> Update Permissions
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {CARETAKER_PERMISSION_FIELDS.map((field) => (
                     <label
                       key={field.key}
@@ -1104,7 +1104,7 @@ export default function CareTakerAccess({
                         />
                       </div>
                       <span className="font-bold text-gray-900 dark:text-white text-sm">{field.label}</span>
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">{field.description}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-2">{field.description}</span>
                     </label>
                   ))}
                 </div>
@@ -1118,21 +1118,21 @@ export default function CareTakerAccess({
               }`}>
                 <div className="flex items-center justify-between">
                   <h4 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${
-                    editFormData.property_ids.length === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'
+                    editFormData.property_ids.length === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
                   }`}>
                     <Building2 className="w-4 h-4" /> Assigned Properties
                   </h4>
                   {editFormData.property_ids.length === 0 && (
-                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1 animate-pulse">
+                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-2 animate-pulse">
                       <AlertCircle className="w-3 h-3" /> Still didn't assign a property
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-4">
                   {safeProperties.map((property) => (
                     <label 
                       key={property.id} 
-                      className={`flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
+                      className={`flex items-center gap-4 px-6 py-4 rounded-2xl border text-sm font-bold transition-all cursor-pointer select-none min-w-fit ${
                         editFormData.property_ids.includes(property.id)
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100 dark:shadow-none scale-[1.02]'
                           : editFormData.property_ids.length === 0
@@ -1155,23 +1155,23 @@ export default function CareTakerAccess({
                         className="hidden"
                       />
                       <span className="whitespace-nowrap">{property.name || property.title || 'Unnamed Property'}</span>
-                      <Building2 className={`w-4 h-4 shrink-0 ${editFormData.property_ids.includes(property.id) ? 'text-emerald-100' : 'text-gray-400'}`} />
+                      <Building2 className={`w-4 h-4 shrink-0 ${editFormData.property_ids.includes(property.id) ? 'text-emerald-100' : 'text-gray-500'}`} />
                     </label>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex gap-3">
+            <div className="p-6 border-t border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex gap-4">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
+                className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateSubmit}
-                className="flex-[2] py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
+                className="flex-[2] py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 Save Changes
@@ -1199,7 +1199,7 @@ export default function CareTakerAccess({
               {passwordResetModal.tempPassword ? (
                 <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
                   <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center mb-2">New Temporary Password</p>
-                  <div className="bg-white dark:bg-gray-800 py-3 px-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-700 flex items-center justify-between group">
+                  <div className="bg-white dark:bg-gray-800 py-4 px-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-700 flex items-center justify-between group">
                     <span className="text-xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">
                       {passwordResetModal.tempPassword}
                     </span>
@@ -1213,22 +1213,22 @@ export default function CareTakerAccess({
                       <Plus className="w-4 h-4 rotate-45" />
                     </button>
                   </div>
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-500 text-center mt-3 leading-relaxed">
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-500 text-center mt-4 leading-relaxed">
                     Please share this password with the caretaker. They should change it after logging in.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-2 gap-4 pt-2">
                   <button
                     onClick={() => setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
-                    className="py-3 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                    className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                     disabled={passwordResetModal.loading}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmResetPassword}
-                    className="py-3 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center gap-2"
+                    className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center gap-2"
                     disabled={passwordResetModal.loading}
                   >
                     {passwordResetModal.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
@@ -1240,7 +1240,7 @@ export default function CareTakerAccess({
               {passwordResetModal.tempPassword && (
                 <button
                   onClick={() => setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })}
-                  className="w-full py-3 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all"
+                  className="w-full py-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all"
                 >
                   Done
                 </button>

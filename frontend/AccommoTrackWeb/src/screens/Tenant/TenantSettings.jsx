@@ -32,7 +32,7 @@ const TenantSettings = ({ user, onUserUpdate }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-left border-l-4 ${
+                  className={`flex items-center gap-4 px-4 py-4 text-sm font-medium transition-colors text-left border-l-4 ${
                     activeTab === tab.id
                       ? 'border-green-600 dark:border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                       : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'

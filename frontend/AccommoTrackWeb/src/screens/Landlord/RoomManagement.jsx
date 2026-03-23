@@ -396,7 +396,7 @@ export default function RoomManagement() {
   //   return (
   //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
   //       <div className="text-center">
-  //         <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+  //         <Building2 className="w-16 h-16 text-gray-500 mx-auto mb-4" />
   //         <h3 className="text-lg font-medium text-gray-900 mb-2">No Properties Found</h3>
   //         <p className="text-gray-500 mb-4">Please add a property first before managing rooms.</p>
   //       </div>
@@ -460,7 +460,7 @@ export default function RoomManagement() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-4">
             <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -480,7 +480,7 @@ export default function RoomManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
                   {stats.total} / {stats.total_limit || stats.total}
                 </p>
               </div>
@@ -494,7 +494,7 @@ export default function RoomManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Occupied</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{stats.occupied}</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">{stats.occupied}</p>
               </div>
               <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -506,7 +506,7 @@ export default function RoomManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Available</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{stats.available}</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{stats.available}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -518,7 +518,7 @@ export default function RoomManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Maintenance</p>
-                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">{stats.maintenance}</p>
+                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">{stats.maintenance}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
                 <Wrench className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
@@ -593,22 +593,22 @@ export default function RoomManagement() {
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden animate-pulse flex flex-col h-full">
                   <div className="relative h-48 bg-gray-200 dark:bg-gray-700" />
                   <div className="p-4 flex flex-col h-full">
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="flex justify-between items-start mb-4">
                       <div>
                         <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
                         <div className="h-4 bg-gray-200 rounded w-24"></div>
                       </div>
                       <div className="h-8 bg-gray-200 rounded w-20"></div>
                     </div>
-                    <div className="flex items-center gap-4 mb-3">
+                    <div className="flex items-center gap-4 mb-4">
                       <div className="h-5 bg-gray-200 rounded w-16"></div>
                     </div>
-                    <div className="flex gap-1 mb-3">
+                    <div className="flex gap-2 mb-4">
                       <div className="h-6 bg-gray-200 rounded w-16"></div>
                       <div className="h-6 bg-gray-200 rounded w-16"></div>
                       <div className="h-6 bg-gray-200 rounded w-16"></div>
                     </div>
-                    <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
+                    <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100">
                       <div className="flex-1 h-10 bg-gray-200 rounded-lg"></div>
                       <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
                       <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
@@ -639,15 +639,15 @@ export default function RoomManagement() {
           ) : (
             <div className="col-span-full px-2">
               <div className="text-center py-12 mx-auto max-w-xl">
-                <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                <Building2 className="mx-auto h-12 w-12 text-gray-500" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by adding a new room.</p>
+                <p className="mt-2 text-sm text-gray-500">Get started by adding a new room.</p>
                 <div className="mt-6">
                   <button
                     onClick={() => setShowAddModal(true)}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                   >
-                    <Plus className="-ml-1 mr-2 h-5 w-5" />
+                    <Plus className="-ml-2 mr-2 h-5 w-5" />
                     Add Room
                   </button>
                 </div>
@@ -703,7 +703,7 @@ export default function RoomManagement() {
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, roomNumber: e.target.value })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.room_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
-                  {fieldErrors.room_number && <p className="text-red-500 text-xs mt-1">{fieldErrors.room_number[0]}</p>}
+                  {fieldErrors.room_number && <p className="text-red-500 text-xs mt-2">{fieldErrors.room_number[0]}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Type</label>
@@ -735,7 +735,7 @@ export default function RoomManagement() {
                     onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                   />
-                  {fieldErrors.monthly_rate && <p className="text-red-500 text-xs mt-1">{fieldErrors.monthly_rate[0]}</p>}
+                  {fieldErrors.monthly_rate && <p className="text-red-500 text-xs mt-2">{fieldErrors.monthly_rate[0]}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Floor</label>
@@ -769,7 +769,7 @@ export default function RoomManagement() {
                       <option value="female">Female Only</option>
                     </select>
                     {propertyGender !== "mixed" && (
-                      <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                      <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 italic">
                         * Property is restricted to {propertyGender} only.
                       </p>
                     )}
@@ -804,10 +804,10 @@ export default function RoomManagement() {
 
               {/* Pricing Model Section */}
               <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Pricing Model</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Pricing Model</h4>
                 <div className="space-y-2">
                   {selectedRoom.type !== 'Bed Spacer' && (
-                    <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'full_room' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                    <label className={`flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'full_room' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
                       <input
                         type="radio"
                         name="editPricingModel"
@@ -822,7 +822,7 @@ export default function RoomManagement() {
                       </div>
                     </label>
                   )}
-                  <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'per_bed' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                  <label className={`flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'per_bed' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
                     <input
                       type="radio"
                       name="editPricingModel"
@@ -870,7 +870,7 @@ export default function RoomManagement() {
               {/* Advance Payment Toggle */}
               {(selectedRoom.billingPolicy === 'monthly' || selectedRoom.billingPolicy === 'monthly_with_daily') && (
                 <div className="mt-4 col-span-full">
-                  <label className="flex items-start space-x-3 cursor-pointer group p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                  <label className="flex items-start space-x-4 cursor-pointer group p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-colors">
                     <div className="flex items-center h-5 mt-0.5">
                       <input
                         type="checkbox"
@@ -883,7 +883,7 @@ export default function RoomManagement() {
                       <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                         Require 1-Month Advance
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                         Tenants will be billed for their first month's rent + an additional month as advance payment upon confirmation.
                       </span>
                     </div>
@@ -920,13 +920,13 @@ export default function RoomManagement() {
               {/* Rules Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Rules</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
                   {propertyRules.map((rule) => (
                     <button
                       key={rule}
                       type="button"
                       onClick={() => toggleRule(rule)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all text-left ${selectedRoom.rules.includes(rule)
+                      className={`px-4 py-2 rounded-lg text-xs font-medium border transition-all text-left ${selectedRoom.rules.includes(rule)
                         ? 'bg-green-600 text-white border-green-600'
                         : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
@@ -941,11 +941,11 @@ export default function RoomManagement() {
                     value={newRule}
                     onChange={(e) => setNewRule(e.target.value)}
                     placeholder="New rule..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                   />
                   <button
                     onClick={addNewRule}
-                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                    className="px-4 py-2.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Add
                   </button>
@@ -955,13 +955,13 @@ export default function RoomManagement() {
               {/* Amenities Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Amenities</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
                   {propertyAmenitiesList.map((amenity) => (
                     <button
                       key={amenity}
                       type="button"
                       onClick={() => toggleAmenity(amenity)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all text-left ${selectedRoom.amenities.includes(amenity)
+                      className={`px-4 py-2 rounded-lg text-xs font-medium border transition-all text-left ${selectedRoom.amenities.includes(amenity)
                         ? 'bg-green-600 text-white border-green-600'
                         : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
@@ -976,11 +976,11 @@ export default function RoomManagement() {
                     value={newAmenity}
                     onChange={(e) => setNewAmenity(e.target.value)}
                     placeholder="New amenity..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                   />
                   <button
                     onClick={addNewAmenity}
-                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                    className="px-4 py-2.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Add
                   </button>
@@ -998,7 +998,7 @@ export default function RoomManagement() {
                 <Trash2 className="w-4 h-4" />
                 Delete
               </button>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <button
                   onClick={() => {
                     setShowEditModal(false);
@@ -1077,12 +1077,12 @@ export default function RoomManagement() {
             </p>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                 <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
               </div>
             )}
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-4 justify-end">
               <button
                 onClick={() => {
                   setDeleteConfirmModal({ show: false, room: null });

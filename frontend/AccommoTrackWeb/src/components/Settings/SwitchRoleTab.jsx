@@ -110,7 +110,7 @@ export default function SwitchRoleTab() {
             <ArrowLeftRight className="w-5 h-5 text-green-600 dark:text-green-400" />
             Switch Role
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             Switch between Landlord and Tenant modes. This will change your available features and dashboard.
           </p>
         </div>
@@ -123,7 +123,7 @@ export default function SwitchRoleTab() {
 
         {/* Verification status info for tenants */}
         {verificationInfo && (
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+          <div className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50">
             {verificationInfo.icon}
             <p className="text-sm text-gray-600 dark:text-gray-300 flex-1">{verificationInfo.text}</p>
           </div>
@@ -133,7 +133,7 @@ export default function SwitchRoleTab() {
           <button
             onClick={handleSwitchRole}
             disabled={loading}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-green-500/20 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-green-500/20 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             <ArrowLeftRight className="w-5 h-5" />
             {loading ? 'Loading...' : `Switch to ${newRole.charAt(0).toUpperCase() + newRole.slice(1)} Mode`}

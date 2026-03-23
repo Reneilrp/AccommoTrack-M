@@ -383,12 +383,12 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-            <nav className="space-y-1">
+            <nav className="space-y-2">
               {visibleTabs.map(tab => (
                 <button 
                   key={tab.id} 
                   onClick={() => handleTabChange(tab.id)} 
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}
+                  className={`w-full text-left px-4 py-4 rounded-lg font-medium flex items-center gap-2 ${activeTab === tab.id ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}
                 >
                   {tab.icon} {tab.label}
                 </button>

@@ -117,7 +117,7 @@ export default function LandlordApproval() {
   };
 
   const FilePreview = ({ path, label }) => {
-    if (!path) return <div className="h-40 flex items-center justify-center text-gray-400 dark:text-gray-500 italic">No {label} provided</div>;
+    if (!path) return <div className="h-40 flex items-center justify-center text-gray-500 dark:text-gray-500 italic">No {label} provided</div>;
   
     const url = getImageUrl(path);
     const ext = path.split('.').pop().toLowerCase();
@@ -210,7 +210,7 @@ export default function LandlordApproval() {
                     {v.valid_id_type || 'N/A'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
                       v.user?.is_verified || v.status === 'approved'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : v.status === 'rejected'
@@ -253,7 +253,7 @@ export default function LandlordApproval() {
                 onClick={() => setShowModal(false)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
-                <XCircle className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                <XCircle className="w-6 h-6 text-gray-500 dark:text-gray-500" />
               </button>
             </div>
 
@@ -279,7 +279,7 @@ export default function LandlordApproval() {
               </div>
             </div>
 
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 sticky bottom-0">
+            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4 sticky bottom-0">
               <button 
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
@@ -324,7 +324,7 @@ export default function LandlordApproval() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg">
             <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
                   <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
@@ -345,7 +345,7 @@ export default function LandlordApproval() {
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Please provide a detailed reason for rejection (e.g., 'The submitted ID is blurry and unreadable. Please upload a clearer image.')"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 rows={4}
                 disabled={actionLoading}
               />
@@ -354,7 +354,7 @@ export default function LandlordApproval() {
               </p>
             </div>
 
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4">
               <button 
                 onClick={() => {
                   setShowRejectModal(false);

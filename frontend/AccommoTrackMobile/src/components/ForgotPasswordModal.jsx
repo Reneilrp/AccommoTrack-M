@@ -340,7 +340,7 @@ const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -349,7 +349,7 @@ const getStyles = (theme) => StyleSheet.create({
   backButton: { padding: 5 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text },
   scrollContent: { padding: 25, alignItems: 'center' },
-  stepContainer: { flexDirection: 'row', gap: 8, marginBottom: 30 },
+  stepContainer: { flexDirection: 'row', gap: 8, marginBottom: 32 },
   stepDot: { width: 30, height: 4, borderRadius: 2, backgroundColor: theme.colors.border },
   stepDotActive: { backgroundColor: theme.colors.primary },
   content: { width: '100%', alignItems: 'center' },
@@ -360,10 +360,10 @@ const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 24
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10 },
-  description: { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 30, lineHeight: 22 },
+  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 },
+  description: { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 32, lineHeight: 22 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -373,10 +373,10 @@ const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
-    marginBottom: 20,
+    marginBottom: 24,
     width: '100%'
   },
-  inputIcon: { marginRight: 10 },
+  inputIcon: { marginRight: 8 },
   input: { flex: 1, fontSize: 16, color: theme.colors.text },
   primaryButton: {
     backgroundColor: theme.colors.primary,
@@ -385,7 +385,7 @@ const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
     shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -393,7 +393,7 @@ const getStyles = (theme) => StyleSheet.create({
     elevation: 3
   },
   buttonText: { color: theme.colors.textInverse, fontWeight: 'bold', fontSize: 16 },
-  otpContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 30 },
+  otpContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 32 },
   otpInput: {
     width: 45,
     height: 55,
@@ -406,7 +406,7 @@ const getStyles = (theme) => StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.text
   },
-  linkText: { color: theme.colors.textTertiary, marginTop: 20, fontWeight: '600' }
+  linkText: { color: theme.colors.textTertiary, marginTop: 24, fontWeight: '600' }
 });
 
 export default ForgotPasswordModal;

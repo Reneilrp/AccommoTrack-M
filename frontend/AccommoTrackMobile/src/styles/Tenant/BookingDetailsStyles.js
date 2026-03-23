@@ -7,7 +7,7 @@ export const getStyles = (theme) => StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: 16,
         backgroundColor: theme.colors.background
     },
     headerOverlay: {
@@ -38,7 +38,7 @@ export const getStyles = (theme) => StyleSheet.create({
         textShadowRadius: 10,
         flex: 1,
         textAlign: 'center',
-        marginHorizontal: 10
+        marginHorizontal: 8
     },
     heroSection: {
         height: 280,
@@ -56,16 +56,16 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     heroContent: {
         position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20
+        bottom: 24,
+        left: 24,
+        right: 24
     },
     heroBadge: {
         alignSelf: 'flex-start',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
         borderRadius: 6,
-        marginBottom: 10
+        marginBottom: 8
     },
     heroBadgeText: {
         fontSize: 12,
@@ -75,7 +75,7 @@ export const getStyles = (theme) => StyleSheet.create({
         color: '#fff',
         fontSize: 26,
         fontWeight: 'bold',
-        marginBottom: 4
+        marginBottom: 8
     },
     heroLocation: {
         flexDirection: 'row',
@@ -84,10 +84,10 @@ export const getStyles = (theme) => StyleSheet.create({
     heroLocationText: {
         color: 'rgba(255,255,255,0.9)',
         fontSize: 14,
-        marginLeft: 4
+        marginLeft: 8
     },
     content: {
-        padding: 20,
+        padding: 16,
         marginTop: -20,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
@@ -96,7 +96,7 @@ export const getStyles = (theme) => StyleSheet.create({
     sectionCard: {
         borderRadius: 16,
         padding: 16,
-        marginBottom: 20,
+        marginBottom: 24,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: theme.isDark ? 0.3 : 0.05,
@@ -114,7 +114,7 @@ export const getStyles = (theme) => StyleSheet.create({
     refText: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginTop: 4,
+        marginTop: 8,
         color: theme.colors.text
     },
     copyBtn: {
@@ -123,8 +123,8 @@ export const getStyles = (theme) => StyleSheet.create({
     dateCard: {
         flexDirection: 'row',
         borderRadius: 16,
-        padding: 20,
-        marginBottom: 20,
+        padding: 16,
+        marginBottom: 24,
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: theme.colors.surface,
@@ -149,12 +149,12 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     dateDivider: {
         alignItems: 'center',
-        paddingHorizontal: 10
+        paddingHorizontal: 8
     },
     durationLine: {
         width: 1,
         height: 30,
-        marginVertical: 4,
+        marginVertical: 8,
         backgroundColor: theme.colors.border
     },
     durationText: {
@@ -165,14 +165,14 @@ export const getStyles = (theme) => StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 12,
-        marginTop: 4,
+        marginBottom: 16,
+        marginTop: 8,
         color: theme.colors.text
     },
     infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 4
+        paddingVertical: 8
     },
     iconCircle: {
         width: 36,
@@ -194,7 +194,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     separator: {
         height: 1,
-        marginVertical: 12,
+        marginVertical: 16,
         opacity: 0.5,
         backgroundColor: theme.colors.border
     },
@@ -216,10 +216,10 @@ export const getStyles = (theme) => StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 4
+        marginTop: 8
     },
     statusPill: {
-        paddingHorizontal: 12,
+        paddingHorizontal: 16,
         paddingVertical: 6,
         borderRadius: 20
     },
@@ -230,7 +230,7 @@ export const getStyles = (theme) => StyleSheet.create({
     itemCard: {
         borderRadius: 12,
         padding: 14,
-        marginBottom: 12,
+        marginBottom: 16,
         backgroundColor: theme.colors.backgroundSecondary,
         borderWidth: 1,
         borderColor: theme.colors.border
@@ -239,7 +239,7 @@ export const getStyles = (theme) => StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4
+        marginBottom: 8
     },
     itemName: {
         fontSize: 15,
@@ -251,7 +251,7 @@ export const getStyles = (theme) => StyleSheet.create({
         color: theme.colors.textSecondary
     },
     itemAction: {
-        marginTop: 10,
+        marginTop: 8,
         alignSelf: 'flex-end'
     },
     cancelText: {
@@ -286,7 +286,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     actionRow: {
         flexDirection: 'row',
-        gap: 10
+        gap: 8
     },
     actionBtn: {
         height: 50,
@@ -320,12 +320,12 @@ export const getStyles = (theme) => StyleSheet.create({
     errorText: {
         fontSize: 16,
         marginTop: 16,
-        marginBottom: 20,
+        marginBottom: 24,
         color: theme.colors.textSecondary
     },
     backBtn: {
         paddingHorizontal: 24,
-        paddingVertical: 12,
+        paddingVertical: 16,
         borderRadius: 10,
         backgroundColor: theme.colors.primary
     },
@@ -354,11 +354,11 @@ export const getStyles = (theme) => StyleSheet.create({
     modalInner: {
         backgroundColor: theme.colors.surface, 
         borderRadius: 10, 
-        padding: 20, 
+        padding: 16, 
         width: '90%'
     },
     modalFooter: {
-        marginTop: 20
+        marginTop: 24
     },
     modalCloseBtn: {
         color: theme.colors.primary, 
@@ -372,7 +372,7 @@ export const getStyles = (theme) => StyleSheet.create({
         width: screenWidth * 0.6, 
         height: 150, 
         borderRadius: 8, 
-        marginRight: 10
+        marginRight: 8
     },
     noImagesBox: {
         alignItems: 'center', 
@@ -387,7 +387,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     descriptionLabel: {
         color: theme.colors.text, 
-        marginTop: 10, 
+        marginTop: 8, 
         marginBottom: 5, 
         fontWeight: 'bold'
     },

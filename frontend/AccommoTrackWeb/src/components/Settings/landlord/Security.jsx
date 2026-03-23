@@ -18,10 +18,10 @@ export default function Security({
     <div className="space-y-6">
       <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all ${isEditingPassword ? 'border-green-300 dark:border-green-600 ring-2 ring-green-100 dark:ring-green-900/30' : 'border-gray-100 dark:border-gray-700'}`}>
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Password</h2>
             {isEditingPassword && (
-              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
+              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
                 Editing
               </span>
             )}
@@ -65,7 +65,7 @@ export default function Security({
                     onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
                     className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 8 characters</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Minimum 8 characters</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm New Password</label>
@@ -78,7 +78,7 @@ export default function Security({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
                   setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -98,7 +98,7 @@ export default function Security({
           </div>
         ) : (
           <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
@@ -112,10 +112,10 @@ export default function Security({
       </div>
       <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all ${isEditingSecurity ? 'border-green-300 dark:border-green-600 ring-2 ring-green-100 dark:ring-green-900/30' : 'border-gray-100 dark:border-gray-700'}`}>
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security Settings</h2>
             {isEditingSecurity && (
-              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
+              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
                 Editing
               </span>
             )}
@@ -133,7 +133,7 @@ export default function Security({
           )}
         </div>
         {isEditingSecurity && (
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6 flex items-center gap-2">
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6 flex items-center gap-2">
             <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
@@ -183,7 +183,7 @@ export default function Security({
           </div>
         </div>
         {isEditingSecurity && (
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
+          <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
             <button
               onClick={handleCancelSecurityEdit}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"

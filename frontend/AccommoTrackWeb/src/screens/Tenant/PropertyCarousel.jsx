@@ -151,27 +151,27 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 <ImagePlaceholder className="w-full h-full" />
               )}
               {room.reserved_by_me ? (
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm bg-amber-50 text-amber-800 border border-amber-100">
+                <div className="absolute top-3 left-3 flex flex-col gap-2.5">
+                  <span className="px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm bg-amber-50 text-amber-800 border border-amber-100">
                     Reserved by you (Pending)
                   </span>
                   <span
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm w-fit ${genderBadge.className}`}
+                    className={`px-2.5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm w-fit ${genderBadge.className}`}
                   >
                     {genderBadge.label}
                   </span>
                 </div>
               ) : (
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                <div className="absolute top-3 left-3 flex flex-col gap-2.5">
                   <span
-                    className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm w-fit ${
+                    className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm w-fit ${
                       (room.status || '').toString().toLowerCase() === 'occupied' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'
                     }`}
                   >
                     {(room.status || '').toString().charAt(0).toUpperCase() + (room.status || '').toString().slice(1)}
                   </span>
                   <span
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm w-fit ${genderBadge.className}`}
+                    className={`px-2.5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm w-fit ${genderBadge.className}`}
                   >
                     {genderBadge.label}
                   </span>
@@ -179,7 +179,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               )}
             </div>
 
-            <div className="p-5 flex-1 flex flex-col">
+            <div className="p-6 flex-1 flex flex-col">
               <div className="flex justify-between items-start mb-2">
                 <h4
                   className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"

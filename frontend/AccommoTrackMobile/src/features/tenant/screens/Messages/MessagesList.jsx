@@ -69,7 +69,7 @@ export default function MessagesList({
 
                     {/* Property Filters */}
                     {!loading && properties.length > 0 && (
-                        <View style={{ marginBottom: 12 }}>
+                        <View style={{ marginBottom: 16 }}>
                             <ScrollView 
                                 horizontal 
                                 showsHorizontalScrollIndicator={false}

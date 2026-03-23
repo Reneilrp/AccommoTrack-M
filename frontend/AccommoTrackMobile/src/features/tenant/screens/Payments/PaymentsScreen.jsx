@@ -620,10 +620,10 @@ export default function PaymentsScreen() {
                     borderWidth: 1,
                     borderColor: theme.colors.border,
                     borderRadius: 10,
-                    padding: 12,
+                    padding: 16,
                     color: theme.colors.text,
                     backgroundColor: theme.colors.backgroundSecondary,
-                    marginBottom: 10,
+                    marginBottom: 8,
                     fontSize: 14
                   }}
                   value={offlineDetails.reference}
@@ -638,7 +638,7 @@ export default function PaymentsScreen() {
                     borderWidth: 1,
                     borderColor: theme.colors.border,
                     borderRadius: 10,
-                    padding: 12,
+                    padding: 16,
                     color: theme.colors.text,
                     backgroundColor: theme.colors.backgroundSecondary,
                     height: 80,

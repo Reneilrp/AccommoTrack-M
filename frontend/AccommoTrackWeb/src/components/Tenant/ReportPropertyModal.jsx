@@ -52,7 +52,7 @@ export default function ReportPropertyModal({ isOpen, onClose, propertyId, prope
         <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 z-10">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
@@ -61,12 +61,12 @@ export default function ReportPropertyModal({ isOpen, onClose, propertyId, prope
                 <p className="text-sm text-gray-500 dark:text-gray-400">{propertyTitle || 'Property'}</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button onClick={onClose} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Reasons */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reason for Report</label>
@@ -74,7 +74,7 @@ export default function ReportPropertyModal({ isOpen, onClose, propertyId, prope
                 {REASONS.map((r) => (
                   <label
                     key={r}
-                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
                       reason === r
                         ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
                         : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
@@ -98,7 +98,7 @@ export default function ReportPropertyModal({ isOpen, onClose, propertyId, prope
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -109,7 +109,7 @@ export default function ReportPropertyModal({ isOpen, onClose, propertyId, prope
             </div>
 
             {/* Warning */}
-            <div className="flex items-start gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-start gap-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
               <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-yellow-700 dark:text-yellow-400">
                 Reports are sent to Admins. Abuse of the reporting system may result in account restriction.
@@ -117,7 +117,7 @@ export default function ReportPropertyModal({ isOpen, onClose, propertyId, prope
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-4 pt-2">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                 Cancel
               </button>

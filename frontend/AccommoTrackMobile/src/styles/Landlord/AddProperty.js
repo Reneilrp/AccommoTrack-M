@@ -97,7 +97,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 16
   },
   sectionTitle: {
     fontSize: 18,
@@ -121,11 +121,11 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 14,
     color: theme.colors.text,
     backgroundColor: theme.colors.background,
-    marginBottom: 12
+    marginBottom: 16
   },
   textArea: {
     height: 120,
@@ -136,19 +136,19 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 16,
     backgroundColor: theme.colors.background
   },
   helperText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginBottom: 12
+    marginBottom: 16
   },
   mapContainer: {
     height: 280,
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border
   },
@@ -159,7 +159,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16
   },
   pill: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
@@ -181,7 +181,7 @@ export const getStyles = (theme) => StyleSheet.create({
   imagesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: 8
   },
   imagePreview: {
     width: 100,
@@ -217,8 +217,8 @@ export const getStyles = (theme) => StyleSheet.create({
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    gap: 10
+    paddingVertical: 8,
+    gap: 8
   },
   divider: {
     height: 1,
@@ -232,7 +232,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    gap: 12
+    gap: 16
   },
   prevButton: {
     flex: 1,
@@ -283,7 +283,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.error,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,7 +304,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12
+    gap: 16
   },
   warningTitle: {
     fontSize: 14,
@@ -325,13 +325,13 @@ export const getStyles = (theme) => StyleSheet.create({
   credentialItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginBottom: 8,
-    gap: 10
+    gap: 8
   },
   credentialName: {
     flex: 1,
@@ -339,7 +339,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text
   },
   removeCredential: {
-    padding: 4
+    padding: 8
   },
 
   // Enhanced Success Modal
@@ -377,7 +377,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center'
   },
   successMessage: {
@@ -416,10 +416,10 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   videoLabelBadge: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
+    bottom: 8,
+    left: 8,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     borderRadius: 4
   },
   videoLabelText: {
@@ -429,7 +429,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    gap: 12
+    gap: 16
   },
   inputHalf: {
     flex: 1

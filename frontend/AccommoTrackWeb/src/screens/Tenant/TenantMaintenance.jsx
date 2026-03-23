@@ -161,7 +161,7 @@ export default function TenantMaintenance() {
       </div>
 
       {!stayData?.hasActiveStay && (
-        <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3">
+        <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-4">
           <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
           <p className="text-sm text-amber-800">
             You currently don't have an active stay. You can only report issues for active bookings.
@@ -176,7 +176,7 @@ export default function TenantMaintenance() {
             <div className="w-16 h-16 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Wrench className="w-8 h-8 text-gray-300" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No maintenance requests</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No maintenance requests</h3>
             <p className="text-gray-500 text-sm max-w-xs mx-auto">Everything looks good! If something breaks, report it here.</p>
           </div>
         ) : (
@@ -185,7 +185,7 @@ export default function TenantMaintenance() {
               key={req.id}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-all group"
             >
-              <div className="p-5 flex items-start gap-4">
+              <div className="p-6 flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${maintenanceService.getStatusColor(req.status)}`}>
                   {req.status === 'completed' ? <CheckCircle2 className="w-6 h-6" /> : <Clock className="w-6 h-6" />}
                 </div>
@@ -198,15 +198,15 @@ export default function TenantMaintenance() {
                   </div>
                   
                   {/* Property & Room context */}
-                  <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-bold mb-2">
+                  <div className="flex items-center gap-2.5 text-xs text-green-600 dark:text-green-400 font-bold mb-2">
                     <Home className="w-3 h-3" />
                     <span>{req.property?.title}</span>
                     <span className="opacity-40">•</span>
                     <span>Room {req.booking?.room?.room_number}</span>
                   </div>
 
-                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{req.description}</p>
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4">{req.description}</p>
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
                     <span>Submitted {new Date(req.created_at).toLocaleDateString()}</span>
                     <span>•</span>
                     <span className="capitalize">Status: <span className="font-bold text-gray-600 dark:text-gray-300">{req.status.replace('_', ' ')}</span></span>
@@ -227,7 +227,7 @@ export default function TenantMaintenance() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-300 dark:border-gray-700">
             <div className="px-6 py-4 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/30">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">New Maintenance Request</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-600">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -236,10 +236,10 @@ export default function TenantMaintenance() {
               {/* Property/Room Selection if multi-stay */}
               {hasMultipleStays ? (
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Target Property / Room *</label>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Target Property / Room *</label>
                   <select
                     required
-                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white font-bold"
+                    className="w-full px-4 py-4 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white font-bold"
                     value={formData.booking_id}
                     onChange={e => setFormData({...formData, booking_id: e.target.value})}
                   >
@@ -253,12 +253,12 @@ export default function TenantMaintenance() {
                 </div>
               ) : (
                 stayData?.stays?.[0] && (
-                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center gap-3">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center gap-4">
                      <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-sm">
                         <Home className="w-5 h-5 text-green-600" />
                      </div>
                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Request for</p>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Request for</p>
                         <p className="text-sm font-bold text-gray-900 dark:text-white">
                           {stayData.stays[0].property?.title} — Room {stayData.stays[0].room?.room_number}
                         </p>
@@ -268,24 +268,24 @@ export default function TenantMaintenance() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Problem Title</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Problem Title</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Leaking faucet, Light bulb replacement"
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-4 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Details</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Details</label>
                 <textarea
                   required
                   rows="4"
                   placeholder="Please describe the issue in detail..."
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-4 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                 />
@@ -293,9 +293,9 @@ export default function TenantMaintenance() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Priority</label>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Priority</label>
                   <select
-                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl outline-none dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-4 border border-gray-200 dark:border-gray-600 rounded-xl outline-none dark:bg-gray-700 dark:text-white"
                     value={formData.priority}
                     onChange={e => setFormData({...formData, priority: e.target.value})}
                   >
@@ -307,7 +307,7 @@ export default function TenantMaintenance() {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Photos (Optional)</label>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Photos (Optional)</label>
                   <div className="relative">
                     <input
                       type="file"
@@ -319,7 +319,7 @@ export default function TenantMaintenance() {
                     />
                     <label 
                       htmlFor="m-images"
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-gray-500 transition-colors"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-gray-500 transition-colors"
                     >
                       <Camera className="w-5 h-5" />
                       <span className="text-sm font-medium">Add Photos</span>
@@ -345,18 +345,18 @@ export default function TenantMaintenance() {
                 </div>
               )}
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex gap-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-6 py-4 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Request'}
                 </button>

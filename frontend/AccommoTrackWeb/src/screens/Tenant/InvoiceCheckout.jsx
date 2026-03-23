@@ -134,7 +134,7 @@ export default function InvoiceCheckout() {
         <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">{error || 'Invoice details not found'}</p>
         <button 
           onClick={() => navigate('/payments')} 
-          className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm"
+          className="w-full py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm"
         >
           Return to Billing
         </button>
@@ -173,13 +173,13 @@ export default function InvoiceCheckout() {
             <div className="p-8 md:p-10 border-b border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div>
-              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-green-200 dark:border-green-800">
+              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-green-200 dark:border-green-800">
                 Secure Checkout
               </span>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4 uppercase tracking-tight leading-tight">
                 {invoice.propertyName || 'Property Payment'}
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-1 uppercase">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-2 uppercase">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
             </div>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function InvoiceCheckout() {
               <p className="text-gray-500 dark:text-gray-400 mb-8">This invoice has no remaining balance.</p>
               <button 
                 onClick={() => navigate('/payments')} 
-                className="py-3 px-8 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm inline-block"
+                className="py-4 px-8 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm inline-block"
               >
                 View History
               </button>
@@ -218,7 +218,7 @@ export default function InvoiceCheckout() {
                       value={offlineDetails.reference}
                       onChange={(e) => setOfflineDetails({ ...offlineDetails, reference: e.target.value })}
                       placeholder="Enter GCash reference number"
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+                      className="w-full px-4 py-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                     />
                   </div>
                 )}
@@ -231,7 +231,7 @@ export default function InvoiceCheckout() {
                     value={offlineDetails.notes}
                     onChange={(e) => setOfflineDetails({ ...offlineDetails, notes: e.target.value })}
                     placeholder={offlineDetails.method === 'cash' ? "e.g. Paid at the front desk" : "e.g. Transferred from mobile number ..."}
-                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none h-24 resize-none"
+                    className="w-full px-4 py-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none h-24 resize-none"
                   />
                 </div>
               </div>
@@ -282,7 +282,7 @@ export default function InvoiceCheckout() {
                 )}
               </div>
 
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-4">
                 <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400">
                   <CreditCard className="w-5 h-5" />
                 </div>
@@ -298,7 +298,7 @@ export default function InvoiceCheckout() {
                       disabled={processing}
                       className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                     >
-                      <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
                           <Wallet className="w-7 h-7" />
                         </div>
@@ -317,7 +317,7 @@ export default function InvoiceCheckout() {
                       disabled={processing}
                       className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-600 dark:hover:border-green-600 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                     >
-                      <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-700 dark:text-green-400 group-hover:scale-110 transition-transform">
                           <Wallet className="w-7 h-7" />
                         </div>
@@ -345,13 +345,13 @@ export default function InvoiceCheckout() {
                     disabled={processing}
                     className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                   >
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-6">
                       <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/10 rounded-xl flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
                         <Landmark className="w-7 h-7" />
                       </div>
                       <div>
                         <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Manual GCash</p>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-1">{globalSettings.details?.gcash_info || 'Transfer to Landlord'}</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2">{globalSettings.details?.gcash_info || 'Transfer to Landlord'}</p>
                       </div>
                     </div>
                   </button>
@@ -369,7 +369,7 @@ export default function InvoiceCheckout() {
                     disabled={processing}
                     className="flex items-center justify-between p-6 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50/30 dark:hover:bg-green-900/20 transition-all group disabled:opacity-50 active:scale-[0.99] text-left shadow-sm hover:shadow-md"
                   >
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-6">
                       <div className="w-14 h-14 bg-green-50 dark:bg-green-900/10 rounded-xl flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
                         <Landmark className="w-7 h-7" />
                       </div>
@@ -418,7 +418,7 @@ export default function InvoiceCheckout() {
         Order Summary
       </h2>
       
-      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-5 mb-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
         <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Remaining Balance</p>
         <p className="text-4xl font-bold text-green-600 dark:text-green-400">
           <PriceRow amount={remainingBalance} />
@@ -433,8 +433,8 @@ export default function InvoiceCheckout() {
       {invoice.booking && (
         <div className="space-y-4">
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 uppercase tracking-wide">Plan Details</h3>
-            <div className="space-y-3">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-wide">Plan Details</h3>
+            <div className="space-y-4">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">Plan Type</span>
                 <span className="text-gray-900 dark:text-white font-bold capitalize">
@@ -448,7 +448,7 @@ export default function InvoiceCheckout() {
                 </span>
               </div>
               {(invoice.booking.room?.require_1month_advance || invoice.description?.toLowerCase().includes('1 month advance')) && (
-                <div className="pt-3 mt-3 border-t border-dashed border-gray-200 dark:border-gray-700 flex justify-between items-start">
+                <div className="pt-4 mt-4 border-t border-dashed border-gray-200 dark:border-gray-700 flex justify-between items-start">
                   <span className="text-gray-600 dark:text-gray-400 text-xs font-medium">
                     1-Month Advance Applied
                   </span>

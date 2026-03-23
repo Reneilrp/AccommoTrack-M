@@ -284,23 +284,23 @@ const getStyles = () =>
       borderRadius: 12,
       borderWidth: 1,
       padding: 14,
-      marginBottom: 12,
+      marginBottom: 16,
     },
     sectionTitle: {
       fontSize: 16,
       fontWeight: '700',
-      marginBottom: 12,
+      marginBottom: 16,
     },
     optionRow: {
       flexDirection: 'row',
       gap: 8,
-      marginBottom: 12,
+      marginBottom: 16,
       flexWrap: 'wrap',
     },
     optionChip: {
       borderWidth: 1,
       borderRadius: 20,
-      paddingHorizontal: 12,
+      paddingHorizontal: 16,
       paddingVertical: 8,
     },
     label: {
@@ -312,10 +312,10 @@ const getStyles = () =>
     input: {
       borderWidth: 1,
       borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
       fontSize: 14,
-      marginBottom: 4,
+      marginBottom: 8,
     },
     textArea: {
       minHeight: 90,
@@ -324,7 +324,7 @@ const getStyles = () =>
     switchRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
+      paddingVertical: 16,
       borderBottomWidth: 1,
     },
     saveButton: {
@@ -333,7 +333,7 @@ const getStyles = () =>
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 8,
-      marginBottom: 20,
+      marginBottom: 24,
     },
     saveButtonDisabled: {
       opacity: 0.7,

@@ -15,7 +15,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: theme.colors.primary,
   },
@@ -31,7 +31,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    marginTop: 4,
+    marginTop: 8,
     color: 'rgba(255,255,255,0.8)',
   },
   backButton: {
@@ -49,8 +49,8 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
   },
   statCard: {
     flex: 1,
@@ -74,14 +74,15 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    marginTop: 4,
+    fontWeight: '500',
+    marginTop: 8,
     textAlign: 'center',
     color: theme.colors.textSecondary,
   },
   chartCard: {
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 24,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -97,7 +98,7 @@ export const getStyles = (theme) => StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 16,
     color: theme.colors.text,
   },
   timeRangeContainer: {
@@ -105,7 +106,7 @@ export const getStyles = (theme) => StyleSheet.create({
     gap: 8,
   },
   timeRangeButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: theme.colors.backgroundSecondary,
@@ -131,18 +132,18 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   noDataText: {
     fontSize: 14,
-    marginTop: 12,
+    marginTop: 16,
     color: theme.colors.textSecondary,
   },
   filterContainer: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
@@ -192,7 +193,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
     backgroundColor: theme.colors.backgroundTertiary,
   },
   paymentInfo: {
@@ -205,25 +206,25 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   paymentDate: {
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 8,
     color: theme.colors.textTertiary,
   },
   paymentRight: {
     alignItems: 'flex-end',
   },
   paymentAmount: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 6,
     color: theme.colors.text,
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderRadius: 6,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
   },
@@ -233,12 +234,12 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    marginTop: 12,
+    marginTop: 16,
     color: theme.colors.textTertiary,
   },
   payBtn: {
     marginTop: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: theme.colors.primary,
@@ -265,19 +266,19 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   checkoutInfo: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   checkoutPropName: {
     fontWeight: '700',
     color: theme.colors.text,
   },
   checkoutRoom: {
-    marginTop: 4,
+    marginTop: 8,
     color: theme.colors.textSecondary,
   },
   checkoutAmount: {
     marginTop: 8,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: theme.colors.primary,
   },
@@ -291,11 +292,11 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
-    gap: 12,
+    gap: 16,
   },
   methodBtn: {
     flex: 1,
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: theme.colors.backgroundSecondary,
@@ -315,14 +316,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   methodDesc: {
     fontSize: 11,
-    marginTop: 4,
+    marginTop: 8,
     textAlign: 'center',
     color: theme.colors.textSecondary,
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 16,
   },
   cancelBtn: {
     flex: 1,

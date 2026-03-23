@@ -47,7 +47,7 @@ const CustomTabBarButton = ({ children, onPress, theme }) => (
       fontSize: 11,
       fontWeight: '600',
       color: theme.colors.primary,
-      marginTop: 4
+      marginTop: 8
     }}>
       Bookings
     </Text>
@@ -161,7 +161,7 @@ export default function LandlordBottomNavigation({ onLogout }) {
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
-            marginTop: 4,
+            marginTop: 8,
             marginBottom: 6,
           }
         };

@@ -49,7 +49,7 @@ const DocumentPreview = ({ path, alt }) => {
   
   if (!normalizedPath) {
     return (
-      <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400 dark:text-gray-500">
+      <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-500">
         No document uploaded
       </div>
     );
@@ -67,7 +67,7 @@ const DocumentPreview = ({ path, alt }) => {
       >
         <FileText className="w-12 h-12 mb-2 text-red-500 dark:text-red-400" />
         <span className="text-sm font-medium">View PDF Document</span>
-        <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
+        <span className="text-xs text-gray-500 dark:text-gray-500 mt-2 flex items-center gap-2">
           <ExternalLink className="w-3 h-3" /> Opens in new tab
         </span>
       </a>
@@ -76,14 +76,14 @@ const DocumentPreview = ({ path, alt }) => {
 
   if (imageError) {
     return (
-      <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+      <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 dark:text-gray-500">
         <ImageIcon className="w-10 h-10 mb-2" />
         <span className="text-sm">Failed to load image</span>
         <a 
           href={normalizedPath} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-2 flex items-center gap-1"
+          className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-2 flex items-center gap-2"
         >
           <ExternalLink className="w-3 h-3" /> Open in new tab
         </a>
@@ -106,7 +106,7 @@ const DocumentPreview = ({ path, alt }) => {
         href={normalizedPath}
         target="_blank"
         rel="noopener noreferrer"
-        className="absolute top-2 right-2 p-1.5 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 rounded-md shadow-sm transition-colors"
+        className="absolute top-2 right-2 p-2.5 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 rounded-md shadow-sm transition-colors"
         title="Open in new tab"
       >
         <ExternalLink className="w-4 h-4 text-gray-600 dark:text-gray-300" />
@@ -287,7 +287,7 @@ export default function VerificationStatus() {
   if (error) {
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
           <div>
             <h3 className="font-semibold text-red-800 dark:text-red-300">Error</h3>
@@ -313,24 +313,24 @@ export default function VerificationStatus() {
       {/* Status Card */}
       <div className={`${statusConfig.bgColor} ${statusConfig.borderColor} border rounded-xl p-6 shadow-sm`}>
         <div className="flex items-start gap-4">
-          <div className={`p-3 ${statusConfig.bgColor} rounded-full`}>
+          <div className={`p-4 ${statusConfig.bgColor} rounded-full`}>
             <StatusIcon className={`w-8 h-8 ${statusConfig.color}`} />
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <h3 className={`text-xl font-bold ${statusConfig.color} uppercase tracking-tight`}>
                 {statusConfig.label}
               </h3>
               {verification?.status === 'pending' && (
-                <span className="px-2 py-1 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 text-[10px] font-bold uppercase rounded-full animate-pulse">
+                <span className="px-2 py-2 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 text-[10px] font-bold uppercase rounded-full animate-pulse">
                   Under Review
                 </span>
               )}
             </div>
-            <p className="text-gray-600 dark:text-gray-300 mt-1 font-medium">{statusConfig.description}</p>
+            <p className="text-gray-600 dark:text-gray-300 mt-2 font-medium">{statusConfig.description}</p>
             
             {verification?.reviewed_at && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium uppercase tracking-wider">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 font-medium uppercase tracking-wider">
                 Last reviewed: {new Date(verification.reviewed_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -342,7 +342,7 @@ export default function VerificationStatus() {
             {/* Switch back to Tenant option for pending/rejected landlords */}
             {(verification?.status === 'pending' || verification?.status === 'rejected' || verification?.status === 'not_submitted') && (
               <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   Want to go back to using the app as a tenant while waiting for verification?
                 </p>
                 <button
@@ -362,11 +362,11 @@ export default function VerificationStatus() {
       {/* Rejection Reason */}
       {verification?.status === 'rejected' && verification?.rejection_reason && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-4">
             <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div>
               <h4 className="font-semibold text-red-800 dark:text-red-300">Reason for Rejection</h4>
-              <p className="text-red-700 dark:text-red-400 mt-1">{verification.rejection_reason}</p>
+              <p className="text-red-700 dark:text-red-400 mt-2">{verification.rejection_reason}</p>
             </div>
           </div>
         </div>
@@ -382,14 +382,14 @@ export default function VerificationStatus() {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-3">
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
                   <ImageIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>Valid ID ({verification.valid_id_type})</span>
                 </div>
                 <DocumentPreview path={verification.valid_id_path} alt="Valid ID" />
               </div>
               <div>
-                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-3">
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-4">
                   <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   <span>Business/Accommodation Permit</span>
                 </div>
@@ -416,7 +416,7 @@ export default function VerificationStatus() {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
             <h4 className="font-semibold text-emerald-800 dark:text-emerald-300">Submit Documents for Verification</h4>
-            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">Please provide the following documents to become a landlord.</p>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">Please provide the following documents to become a landlord.</p>
           </div>
           <form onSubmit={handleResubmit} className="p-6 space-y-6">
             {/* ID Type Selection */}
@@ -427,7 +427,7 @@ export default function VerificationStatus() {
               <select
                 value={resubmitForm.validIdType}
                 onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdType: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 disabled={submitting}
               >
                 <option value="">Select ID Type</option>
@@ -448,7 +448,7 @@ export default function VerificationStatus() {
                   value={resubmitForm.validIdOther}
                   onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdOther: e.target.value }))}
                   placeholder="Enter your ID type"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   disabled={submitting}
                 />
               </div>
@@ -463,11 +463,11 @@ export default function VerificationStatus() {
                 type="file"
                 accept="image/*,.pdf"
                 onChange={(e) => setResubmitForm(prev => ({ ...prev, validId: e.target.files[0] }))}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
                 disabled={submitting}
               />
               {resubmitForm.validId && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selected: {resubmitForm.validId.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Selected: {resubmitForm.validId.name}</p>
               )}
             </div>
 
@@ -480,20 +480,20 @@ export default function VerificationStatus() {
                 type="file"
                 accept="image/*,.pdf"
                 onChange={(e) => setResubmitForm(prev => ({ ...prev, permit: e.target.files[0] }))}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
                 disabled={submitting}
               />
               {resubmitForm.permit && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selected: {resubmitForm.permit.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Selected: {resubmitForm.permit.name}</p>
               )}
             </div>
 
             {/* Form Actions */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-4 pt-4">
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                className="w-full px-4 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 {submitting ? (
                   <>
@@ -517,7 +517,7 @@ export default function VerificationStatus() {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
             <h4 className="font-semibold text-emerald-800 dark:text-emerald-300">Resubmit Verification Documents</h4>
-            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">Please ensure your documents are clear and legible.</p>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">Please ensure your documents are clear and legible.</p>
           </div>
           <form onSubmit={handleResubmit} className="p-6 space-y-6">
             {/* ID Type Selection */}
@@ -528,7 +528,7 @@ export default function VerificationStatus() {
               <select
                 value={resubmitForm.validIdType}
                 onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdType: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 disabled={submitting}
               >
                 <option value="">Select ID Type</option>
@@ -549,7 +549,7 @@ export default function VerificationStatus() {
                   value={resubmitForm.validIdOther}
                   onChange={(e) => setResubmitForm(prev => ({ ...prev, validIdOther: e.target.value }))}
                   placeholder="Enter your ID type"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   disabled={submitting}
                 />
               </div>
@@ -564,11 +564,11 @@ export default function VerificationStatus() {
                 type="file"
                 accept="image/*,.pdf"
                 onChange={(e) => setResubmitForm(prev => ({ ...prev, validId: e.target.files[0] }))}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
                 disabled={submitting}
               />
               {resubmitForm.validId && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selected: {resubmitForm.validId.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Selected: {resubmitForm.validId.name}</p>
               )}
             </div>
 
@@ -581,16 +581,16 @@ export default function VerificationStatus() {
                 type="file"
                 accept="image/*,.pdf"
                 onChange={(e) => setResubmitForm(prev => ({ ...prev, permit: e.target.files[0] }))}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-100 file:text-emerald-700 dark:file:bg-emerald-900/50 dark:file:text-emerald-300 file:font-medium hover:file:bg-emerald-200 dark:hover:file:bg-emerald-900/70"
                 disabled={submitting}
               />
               {resubmitForm.permit && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selected: {resubmitForm.permit.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Selected: {resubmitForm.permit.name}</p>
               )}
             </div>
 
             {/* Form Actions */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-4 pt-4">
               <button
                 type="button"
                 onClick={() => {
@@ -598,14 +598,14 @@ export default function VerificationStatus() {
                   setResubmitForm({ validIdType: '', validIdOther: '', validId: null, permit: null });
                 }}
                 disabled={submitting}
-                className="flex-1 px-4 py-3 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors disabled:opacity-70"
+                className="flex-1 px-4 py-4 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors disabled:opacity-70"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                className="flex-1 px-4 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 {submitting ? (
                   <>
@@ -639,9 +639,9 @@ export default function VerificationStatus() {
               </span>
             </div>
             {showHistory ? (
-              <ChevronUp className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <ChevronUp className="w-5 h-5 text-gray-500 dark:text-gray-500" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <ChevronDown className="w-5 h-5 text-gray-500 dark:text-gray-500" />
             )}
           </button>
           
@@ -650,8 +650,8 @@ export default function VerificationStatus() {
               {verification.history.map((entry, index) => (
                 <div key={entry.id || index} className="px-6 py-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    <div className="flex items-center gap-4">
+                      <span className={`px-2 py-2 rounded-full text-xs font-semibold ${
                         entry.status === 'approved' 
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                           : entry.status === 'rejected'

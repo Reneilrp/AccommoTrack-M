@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     minWidth: 18,
     height: 18,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 6,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: 8,
   },
   text: {
     color: '#fff',

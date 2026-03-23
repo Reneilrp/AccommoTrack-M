@@ -176,7 +176,7 @@ export default function TenantLogs({ route, navigation }) {
           </View>
         </View>
         <View style={styles.cardBody}>
-          <Text style={[styles.cardValue, { fontWeight: '400', marginBottom: 4 }]} numberOfLines={2}>
+          <Text style={[styles.cardValue, { fontWeight: '400', marginBottom: 8 }]} numberOfLines={2}>
             {item.description}
           </Text>
           <View style={styles.cardRow}>

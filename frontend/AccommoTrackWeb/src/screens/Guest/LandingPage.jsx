@@ -49,7 +49,7 @@ const LandingPage = ({ user }) => {
           <div className="flex items-center flex-none z-20">
             <a 
               href="#top" 
-              className="flex items-center gap-1.5 md:gap-2 no-underline group"
+              className="flex items-center gap-2.5 md:gap-2 no-underline group"
               onClick={e => { 
                 e.preventDefault(); 
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -72,12 +72,12 @@ const LandingPage = ({ user }) => {
           </div>
 
           {/* Center Desktop: Navigation */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center z-20">
+          <nav className="hidden lg:flex items-center gap-2 flex-1 justify-center z-20">
             {['Home', 'Explore', 'Service', 'About'].map((item) => (
               <a 
                 key={item}
                 href={`#${item.toLowerCase()}`}
-                className="px-4 py-1.5 rounded-full text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all duration-200"
+                className="px-4 py-2.5 rounded-full text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all duration-200"
                 onClick={e => { 
                   e.preventDefault(); 
                   document.getElementById(item.toLowerCase()).scrollIntoView({ behavior: 'smooth' }); 
@@ -89,19 +89,19 @@ const LandingPage = ({ user }) => {
           </nav>
 
           {/* Right: Login + Burger Menu */}
-          <div className="flex items-center gap-1.5 md:gap-2 flex-none relative z-20">
+          <div className="flex items-center gap-2.5 md:gap-2 flex-none relative z-20">
             {/* Sign In Button - Hidden on mobile/tablet (lg:flex) */}
             {user ? (
                <a 
                 href="/dashboard" 
-                className="hidden lg:flex items-center justify-center px-5 py-2 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
+                className="hidden lg:flex items-center justify-center px-6 py-2 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
               >
                 Dashboard
               </a>
             ) : (
               <a 
                 href="/login" 
-                className="hidden lg:flex items-center justify-center px-5 py-2 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
+                className="hidden lg:flex items-center justify-center px-6 py-2 text-sm font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 transform active:scale-95"
               >
                 Sign in
               </a>
@@ -179,7 +179,7 @@ function BurgerMenu({ user, theme, setTheme, effectiveTheme }) {
   return (
     <div className="relative" ref={menuRef}>
       <button
-        className="ml-1 md:ml-2 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm"
+        className="ml-2 md:ml-2 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm"
         aria-label="Menu"
         onClick={() => setOpen((v) => !v)}
       >
@@ -190,11 +190,11 @@ function BurgerMenu({ user, theme, setTheme, effectiveTheme }) {
           {/* Mobile Login/Dashboard Link */}
           <div className="lg:hidden border-b border-gray-100 dark:border-gray-700">
              {user ? (
-                <a href="/dashboard" className="block px-4 py-3 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+                <a href="/dashboard" className="block px-4 py-4 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
                    Dashboard
                 </a>
              ) : (
-                <a href="/login" className="block px-4 py-3 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+                <a href="/login" className="block px-4 py-4 text-green-600 dark:text-green-500 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
                    Sign In
                 </a>
              )}
@@ -202,21 +202,21 @@ function BurgerMenu({ user, theme, setTheme, effectiveTheme }) {
           
           <a
             href="/become-landlord"
-            className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold transition-colors"
+            className="block px-4 py-4 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold transition-colors"
             onClick={() => setOpen(false)}
           >
             Become a Landlord
           </a>
           <a
             href="/help"
-            className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold border-b border-gray-100 dark:border-gray-700 transition-colors"
+            className="block px-4 py-4 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-500 font-semibold border-b border-gray-100 dark:border-gray-700 transition-colors"
             onClick={() => setOpen(false)}
           >
             Help
           </a>
 
           {/* Theme Toggle in Burger Menu (Mobile Only) */}
-          <div className="lg:hidden px-4 py-3 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
+          <div className="lg:hidden px-4 py-4 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Appearance</span>
             <button
               onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}

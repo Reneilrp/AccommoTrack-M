@@ -213,10 +213,10 @@ const getStyles = (theme) => ({
     color: '#FFFFFF',
   },
   iconButton: {
-    padding: 4,
+    padding: 8,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
   },
   infoBox: {
     flexDirection: 'row',
@@ -225,7 +225,7 @@ const getStyles = (theme) => ({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 24,
-    gap: 12,
+    gap: 16,
   },
   infoText: {
     flex: 1,
@@ -234,7 +234,7 @@ const getStyles = (theme) => ({
     lineHeight: 18,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
     fontSize: 14,
@@ -248,7 +248,7 @@ const getStyles = (theme) => ({
     borderColor: theme.colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 15,
     color: theme.colors.text,
   },
@@ -266,7 +266,7 @@ const getStyles = (theme) => ({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
     shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

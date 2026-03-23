@@ -131,7 +131,7 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
             <Bell className="w-5 h-5 text-green-600 dark:text-green-400" />
           </div>
@@ -166,7 +166,7 @@ export default function NotificationsPage() {
           >
             {f.label}
             {f.id === 'unread' && unreadCount > 0 && (
-              <span className="ml-1.5 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+              <span className="ml-2.5 bg-white/20 text-xs px-2.5 py-0.5 rounded-full">{unreadCount}</span>
             )}
           </button>
         ))}
@@ -175,12 +175,12 @@ export default function NotificationsPage() {
       {/* List */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center p-12 gap-3 text-gray-400">
+          <div className="flex items-center justify-center p-12 gap-4 text-gray-500">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="text-sm">Loading notifications…</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-16 text-center gap-3">
+          <div className="flex flex-col items-center justify-center p-16 text-center gap-4">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
               <Bell className="w-8 h-8 text-gray-300 dark:text-gray-500" />
             </div>
@@ -197,7 +197,7 @@ export default function NotificationsPage() {
                 <li
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className={`flex items-start gap-4 px-5 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                     !n.read ? 'bg-green-50/40 dark:bg-green-900/10' : ''
                   }`}
                 >
@@ -214,12 +214,12 @@ export default function NotificationsPage() {
                       )}
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatRelativeTime(n.timestamp)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2.5">{formatRelativeTime(n.timestamp)}</p>
                   </div>
                   {n._kind === 'notification' && !n.read && (
                     <button
                       onClick={(e) => { e.stopPropagation(); markAsRead(n.id); }}
-                      className="p-1.5 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 flex-shrink-0 mt-1"
+                      className="p-2.5 text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 flex-shrink-0 mt-2"
                       title="Mark as read"
                     >
                       <Check className="w-4 h-4" />

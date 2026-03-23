@@ -124,12 +124,12 @@ const UserManagement = () => {
             <table className="w-full">
               <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wide">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold">Name</th>
-                  <th className="px-6 py-3 text-left font-semibold">Email</th>
-                  <th className="px-6 py-3 text-left font-semibold">Gender</th>
-                  <th className="px-6 py-3 text-left font-semibold">Role</th>
-                  <th className="px-6 py-3 text-left font-semibold">Status</th>
-                  <th className="px-6 py-3 text-center font-semibold">Actions</th>
+                  <th className="px-6 py-4 text-left font-semibold">Name</th>
+                  <th className="px-6 py-4 text-left font-semibold">Email</th>
+                  <th className="px-6 py-4 text-left font-semibold">Gender</th>
+                  <th className="px-6 py-4 text-left font-semibold">Role</th>
+                  <th className="px-6 py-4 text-left font-semibold">Status</th>
+                  <th className="px-6 py-4 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
@@ -141,11 +141,11 @@ const UserManagement = () => {
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300 capitalize">{u.role}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                       {u.is_blocked ? (
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        <span className="px-4 py-2 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                           Blocked
                         </span>
                       ) : u.role === 'landlord' ? (
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        <span className={`px-4 py-2 rounded-full text-xs font-medium ${
                           u.verification_status === 'approved' 
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
                             : u.verification_status === 'pending'
@@ -163,7 +163,7 @@ const UserManagement = () => {
                                 : 'Not Submitted'}
                         </span>
                       ) : (
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                        <span className="px-4 py-2 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                           Active
                         </span>
                       )}
@@ -194,7 +194,7 @@ const UserManagement = () => {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">User Details</h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold"
+                className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold"
               >
                 ×
               </button>
@@ -217,11 +217,11 @@ const UserManagement = () => {
                   <p className="text-sm text-gray-500 dark:text-gray-400 capitalize mb-2">{selectedUser.role}</p>
                   <div>
                     {selectedUser.is_blocked ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                      <span className="px-4 py-2 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                         Blocked
                       </span>
                     ) : selectedUser.role === 'landlord' ? (
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      <span className={`px-4 py-2 rounded-full text-xs font-semibold ${
                         selectedUser.verification_status === 'approved' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
                           : selectedUser.verification_status === 'pending'
@@ -239,7 +239,7 @@ const UserManagement = () => {
                               : 'Not Submitted'}
                       </span>
                     ) : (
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                      <span className="px-4 py-2 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                         Active
                       </span>
                     )}
@@ -249,7 +249,7 @@ const UserManagement = () => {
 
               {/* Basic Information */}
               <div>
-                <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Basic Information</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Basic Information</h4>
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
@@ -281,7 +281,7 @@ const UserManagement = () => {
               {/* Registration Date */}
               {selectedUser.created_at && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Registration Information</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Registration Information</h4>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     <p className="text-sm text-gray-600 dark:text-gray-400">Registered On</p>
                     <p className="font-semibold text-gray-900 dark:text-white">
@@ -294,7 +294,7 @@ const UserManagement = () => {
               {/* Landlord Properties */}
               {selectedUser.role === 'landlord' && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Properties ({selectedUser.properties_count || 0})</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Properties ({selectedUser.properties_count || 0})</h4>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     {selectedUser.properties_list && selectedUser.properties_list.length > 0 ? (
                       <ul className="space-y-2">
@@ -315,7 +315,7 @@ const UserManagement = () => {
               {/* Tenant Property/Room */}
               {selectedUser.role === 'tenant' && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Current Accommodation</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Current Accommodation</h4>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     {selectedUser.current_property ? (
                       <div className="space-y-2">
@@ -340,7 +340,7 @@ const UserManagement = () => {
               {/* Caretaker Assigned Landlord */}
               {selectedUser.role === 'caretaker' && (
                 <div>
-                  <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-white">Assigned Landlord</h4>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Assigned Landlord</h4>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     {selectedUser.assigned_landlord ? (
                       <div className="space-y-4">
@@ -357,7 +357,7 @@ const UserManagement = () => {
                         {selectedUser.assigned_landlord.properties && selectedUser.assigned_landlord.properties.length > 0 && (
                           <div>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Managed Properties</p>
-                            <ul className="space-y-1">
+                            <ul className="space-y-2">
                               {selectedUser.assigned_landlord.properties.map((property, index) => (
                                 <li key={property.id || index} className="flex items-center gap-2">
                                   <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -377,7 +377,7 @@ const UserManagement = () => {
             </div>
 
             {/* Modal Actions */}
-            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
+            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-4 rounded-b-xl">
               <button
                 onClick={() => setShowModal(false)}
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"

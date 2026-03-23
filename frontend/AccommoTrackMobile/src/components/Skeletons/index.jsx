@@ -57,7 +57,7 @@ export const PropertyCardSkeleton = () => {
         <Skeleton width="80%" height={20} style={{ marginBottom: 8 }} />
         
         {/* Location */}
-        <Skeleton width="60%" height={16} style={{ marginBottom: 12 }} />
+        <Skeleton width="60%" height={16} style={{ marginBottom: 16 }} />
         
         {/* Price row */}
         <View style={styles.row}>
@@ -66,7 +66,7 @@ export const PropertyCardSkeleton = () => {
         </View>
         
         {/* Amenities */}
-        <View style={[styles.row, { marginTop: 12 }]}>
+        <View style={[styles.row, { marginTop: 16 }]}>
           <Skeleton width={60} height={16} />
           <Skeleton width={60} height={16} />
           <Skeleton width={60} height={16} />
@@ -133,7 +133,7 @@ export const SettingsSkeleton = () => {
   return (
     <View style={[styles.settingsItem, { borderBottomColor: theme.colors.border }]}>
       <Skeleton width={40} height={40} borderRadius={8} />
-      <View style={{ flex: 1, marginLeft: 12 }}>
+      <View style={{ flex: 1, marginLeft: 16 }}>
         <Skeleton width="60%" height={18} style={{ marginBottom: 6 }} />
         <Skeleton width="40%" height={14} />
       </View>
@@ -166,7 +166,7 @@ export const DashboardStatSkeleton = () => {
 
   return (
     <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-      <Skeleton width={40} height={40} borderRadius={20} style={{ marginBottom: 12 }} />
+      <Skeleton width={40} height={40} borderRadius={20} style={{ marginBottom: 16 }} />
       <Skeleton width="60%" height={24} style={{ marginBottom: 6 }} />
       <Skeleton width="80%" height={14} />
     </View>
@@ -194,26 +194,26 @@ const styles = StyleSheet.create({
   },
   roomCard: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   roomContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
     justifyContent: 'center',
   },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
   listContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   conversationItem: {
     flexDirection: 'row',
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   },
   conversationContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   conversationHeader: {
     flexDirection: 'row',
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   bookingDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginVertical: 12,
+    marginVertical: 16,
   },
   statCard: {
     borderRadius: 12,

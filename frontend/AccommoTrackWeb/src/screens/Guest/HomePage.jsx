@@ -168,7 +168,7 @@ const HomePage = ({ onGetStarted }) => {
             <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-lg mx-auto relative">
               <button 
                 onClick={onGetStarted} 
-                className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 hover:bg-green-700 transition-all duration-300"
+                className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 hover:bg-green-700 transition-all duration-300"
               >
                 Browse Properties <Search className="w-4 h-4 md:w-5 md:h-5" />
               </button>
@@ -176,14 +176,14 @@ const HomePage = ({ onGetStarted }) => {
               <div className="flex-1 relative">
                 {showAppPromo && (
                   <div className="absolute top-[calc(100%+1.25rem)] md:top-auto md:bottom-[calc(100%+1.25rem)] left-1/2 z-20 animate-float-gentle pointer-events-auto">
-                    <div className="bg-blue-600 text-white text-[10px] md:text-xs font-bold py-2.5 px-4 rounded-2xl shadow-2xl relative whitespace-nowrap flex items-center gap-3 border border-blue-400/50 backdrop-blur-sm">
+                    <div className="bg-blue-600 text-white text-[10px] md:text-xs font-bold py-2.5 px-4 rounded-2xl shadow-2xl relative whitespace-nowrap flex items-center gap-4 border border-blue-400/50 backdrop-blur-sm">
                       <div className="flex flex-col items-start leading-tight">
                         <span className="text-blue-100 font-medium">New Feature!</span>
                         <span>AccommoTrack Mobile is here 📱</span>
                       </div>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setShowAppPromo(false); }}
-                        className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                        className="p-2 hover:bg-white/20 rounded-lg transition-colors"
                         aria-label="Close promo"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -199,7 +199,7 @@ const HomePage = ({ onGetStarted }) => {
                 )}
                 <button 
                   onClick={() => window.open('https://expo.dev/accounts/pheinz/projects/AccommoTrack/builds/a31c73e1-07d3-4acb-9e43-bb1027a87765', '_blank')} 
-                  className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-3.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 border border-gray-200 dark:border-gray-700 px-6 py-4.5 md:px-8 md:py-4 text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   Download App 
                   <Smartphone className="w-4 h-4 md:w-5 md:h-5" />
@@ -214,7 +214,7 @@ const HomePage = ({ onGetStarted }) => {
           
           {/* University Logos - Safely docked at the bottom */}
           <div className="w-full z-10 pb-10 md:pb-12 flex-none">
-            <p className="text-center text-[10px] md:text-xs font-bold uppercase mb-6 text-gray-400 dark:text-gray-500">Built for students from</p>
+            <p className="text-center text-[10px] md:text-xs font-bold uppercase mb-6 text-gray-500 dark:text-gray-500">Built for students from</p>
             <div className="flex justify-center gap-6 md:gap-16 flex-wrap">
               <span className="text-lg md:text-xl font-bold text-[#DC143C] dark:text-red-400">WMSU</span>
               <span className="text-lg md:text-xl font-bold text-sky-500 dark:text-sky-400">ADZU</span>
@@ -244,7 +244,7 @@ const HomePage = ({ onGetStarted }) => {
                     <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                       <MapPin className="w-6 h-6 md:w-7 md:h-7 text-green-600" />
                     </div>
-                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Near Campus</h3>
+                    <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Near Campus</h3>
                     <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
                       Filter properties by distance to WMSU, Ateneo, and other major universities to save on commute time.
                     </p>
@@ -255,7 +255,7 @@ const HomePage = ({ onGetStarted }) => {
                     <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                       <ShieldCheck className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
                     </div>
-                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Verified Landlords</h3>
+                    <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Verified Landlords</h3>
                     <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
                       Every listing is verified by our team to ensure your safety and prevent scams.
                     </p>
@@ -266,14 +266,14 @@ const HomePage = ({ onGetStarted }) => {
                     <div className="bg-orange-100 dark:bg-orange-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                       <CircleDollarSign className="w-6 h-6 md:w-7 md:h-7 text-orange-600" />
                     </div>
-                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Affordable Rates</h3>
+                    <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Affordable Rates</h3>
                     <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
                       Find rooms and spaces that fit your budget without compromising on quality or safety.
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase animate-pulse">
+              <div className="md:hidden mt-4 flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase animate-pulse">
                 <div className="w-4 h-[1px] bg-gray-300"></div>
                 Swipe for more
                 <div className="w-4 h-[1px] bg-gray-300"></div>
@@ -301,14 +301,14 @@ const HomePage = ({ onGetStarted }) => {
                   </button>
                 </div>
                 
-                <div className="carousel-container flex flex-row md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar p-1">
+                <div className="carousel-container flex flex-row md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar p-2">
                     {/* Type 1: Bed Spacer (Lowest Price) */}
                     <div className="group cursor-pointer flex-none w-[80%] sm:w-[50%] md:w-auto snap-center md:snap-start" onClick={() => handlePropertyTypeClick('Bed Spacer')}>
                         <div className="h-[320px] rounded-2xl overflow-hidden relative mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                           <img src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80" alt="Bed Spacer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute bottom-5 left-5 z-20 text-left">
-                            <h3 className="text-2xl font-bold text-white mb-1">Bed Spacer</h3>
+                            <h3 className="text-2xl font-bold text-white mb-2">Bed Spacer</h3>
                             <p className="text-white/90 text-sm font-medium">Starts at ₱1,200/mo</p>
                           </div>
                         </div>
@@ -320,7 +320,7 @@ const HomePage = ({ onGetStarted }) => {
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                           <img src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=600&q=80" alt="Dorm" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute bottom-5 left-5 z-20 text-left">
-                            <h3 className="text-2xl font-bold text-white mb-1">Dormitories</h3>
+                            <h3 className="text-2xl font-bold text-white mb-2">Dormitories</h3>
                             <p className="text-white/90 text-sm font-medium">Starts at ₱1,500/mo</p>
                           </div>
                         </div>
@@ -332,7 +332,7 @@ const HomePage = ({ onGetStarted }) => {
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                           <img src="https://images.unsplash.com/photo-1596276020587-8044fe049813?auto=format&fit=crop&w=600&q=80" alt="Boarding House" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute bottom-5 left-5 z-20 text-left">
-                            <h3 className="text-2xl font-bold text-white mb-1">Boarding Houses</h3>
+                            <h3 className="text-2xl font-bold text-white mb-2">Boarding Houses</h3>
                             <p className="text-white/90 text-sm font-medium">Starts at ₱2,500/mo</p>
                           </div>
                         </div>
@@ -344,13 +344,13 @@ const HomePage = ({ onGetStarted }) => {
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10" />
                           <img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80" alt="Apartment" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute bottom-5 left-5 z-20 text-left">
-                            <h3 className="text-2xl font-bold text-white mb-1">Apartments</h3>
+                            <h3 className="text-2xl font-bold text-white mb-2">Apartments</h3>
                             <p className="text-white/90 text-sm font-medium">Starts at ₱5,000/mo</p>
                           </div>
                         </div>
                     </div>
                 </div>
-                <div className="md:hidden mt-4 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase animate-pulse">
+                <div className="md:hidden mt-4 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-500 uppercase animate-pulse">
                   <div className="w-4 h-[1px] bg-gray-300"></div>
                   Swipe for more
                   <div className="w-4 h-[1px] bg-gray-300"></div>

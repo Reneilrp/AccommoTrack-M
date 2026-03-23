@@ -43,7 +43,7 @@ export default function ReportPropertyModal({ propertyId, propertyTitle = 'Prope
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
@@ -53,19 +53,19 @@ export default function ReportPropertyModal({ propertyId, propertyTitle = 'Prope
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Reasons */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Reason for Report</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Reason for Report</label>
             <div className="space-y-2">
               {REASONS.map((r) => (
                 <label
                   key={r}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                  className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${
                     reason === r
                       ? 'border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
                       : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
@@ -93,12 +93,12 @@ export default function ReportPropertyModal({ propertyId, propertyTitle = 'Prope
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Please provide specific details about the issue..."
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
             />
           </div>
 
           {/* Warning */}
-          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg">
+          <div className="flex items-start gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg">
             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
               Reports are sent to AccommoTrack Admins. Abuse of the reporting system may result in account restriction.
@@ -106,18 +106,18 @@ export default function ReportPropertyModal({ propertyId, propertyTitle = 'Prope
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-4 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {submitting ? 'Submitting...' : 'Submit Report'}

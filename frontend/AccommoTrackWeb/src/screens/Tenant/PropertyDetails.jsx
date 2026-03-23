@@ -16,6 +16,22 @@ import {
   X,
   Image as ImageIcon,
   Flag,
+  LayoutGrid,
+  DoorOpen,
+  Layers,
+  SquareStack,
+  DollarSign,
+  Clock,
+  Phone,
+  Info,
+  ChevronRight,
+  Banknote,
+  CalendarCheck,
+  Venus,
+  Mars,
+  VenetianMask,
+  Landmark,
+  UserCircle,
 } from "lucide-react";
 import api, { getImageUrl } from "../../utils/api";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -364,7 +380,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
     return (
       <div className="animate-in fade-in duration-300 space-y-6">
-        <div className="flex flex-wrap gap-3 pb-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-300 dark:border-gray-700">
           {["all", "available", "occupied", "maintenance"].map((filter) => (
             <button
               key={filter}
@@ -374,7 +390,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                 ${
                   roomFilter === filter
                     ? "bg-green-600 text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
                 }
               `}
             >
@@ -403,15 +419,15 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   ) : (
                     <ImagePlaceholder className="w-full h-full" />
                   )}
-                  <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                  <div className="absolute top-3 right-3 flex flex-col gap-2.5 items-end">
                     {room.reserved_by_me ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
+                      <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                         Reserved by you (Pending)
                       </span>
                     ) : (
                       <span
                         className={`
-                          px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
+                          px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
                           ${
                             (room.status || "").toString().toLowerCase() ===
                             "available"
@@ -431,20 +447,20 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       </span>
                     )}
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
+                      className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
                     >
                       {genderBadge.label}
                     </span>
                   </div>
                 </div>
-                <div className="p-5 flex-1 flex flex-col">
+                <div className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h4 className="text-lg font-bold text-gray-900 dark:text-white">
                         Room {room.room_number}
                       </h4>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
+                        <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
                           {(
                             room.type_label ||
                             room.room_type ||
@@ -452,11 +468,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
                           ).replace(/_/g, " ")}
                         </span>
                         {room.floor && (
-                          <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
+                          <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
                             Flr {room.floor}
                           </span>
                         )}
-                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
+                        <span className="inline-block px-2 py-2 rounded-md text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
                           {(room.billing_policy || "Monthly")
                             .replace(/_/g, " ")
                             .replace(/\b\w/g, (c) => c.toUpperCase())}{" "}
@@ -486,7 +502,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   </p>
 
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       <span>{room.capacity} Pax</span>
                     </div>
@@ -497,7 +513,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                     {isAuthenticated && room.status === "available" ? (
                       <button
                         onClick={() => setSelectedRoom(room)}
-                        className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
                       >
                         Book This Room
                       </button>
@@ -511,11 +527,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
                         onClick={() =>
                           !isAuthenticated && setSelectedRoom(room)
                         }
-                        className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2
+                        className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2
                           ${
                             !isAuthenticated && room.status === "available"
                               ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : "bg-gray-100 text-gray-500 cursor-not-allowed shadow-inner"
                           }
                         `}
                       >
@@ -533,7 +549,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
             })}
           </div>
         ) : (
-          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 shadow-md">
             <p className="text-gray-500 dark:text-gray-400">
               No rooms found with status "{roomFilter}".
             </p>
@@ -543,117 +559,233 @@ export default function PropertyDetails({ propertyId, onBack }) {
     );
   };
 
-  const renderOverview = () => (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          About this property
-        </h3>
-        <p className="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-          {property.description || "No description provided."}
-        </p>
-      </div>
+  const renderOverview = () => {
+    const CARD = "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-md";
 
-      <div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Property Highlights
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/30 shadow-md flex flex-col items-center text-center">
-            <BedDouble className="w-6 h-6 text-green-600 mb-2" />
-            <span className="font-bold text-gray-900 dark:text-white">
-              {property.number_of_bedrooms || 0}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Bedrooms
-            </span>
-          </div>
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/30 shadow-md flex flex-col items-center text-center">
-            <Bath className="w-6 h-6 text-blue-600 mb-2" />
-            <span className="font-bold text-gray-900 dark:text-white">
-              {property.number_of_bathrooms || 0}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Bathrooms
-            </span>
-          </div>
-          <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/30 shadow-md flex flex-col items-center text-center">
-            <Users className="w-6 h-6 text-orange-600 mb-2" />
-            <span className="font-bold text-gray-900 dark:text-white">
-              {property.max_occupants || 0}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Max Capacity
-            </span>
-          </div>
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800/30 shadow-md flex flex-col items-center text-center">
-            <Maximize className="w-6 h-6 text-purple-600 mb-2" />
-            <span className="font-bold text-gray-900 dark:text-white">
-              {property.total_rooms || 0}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Total Rooms
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    const genderRestriction = String(property.gender_restriction || "mixed").toLowerCase().trim();
+    const genderLabel =
+      genderRestriction === "male" || genderRestriction === "boys" || genderRestriction === "boy"
+        ? { label: "Boys only", icon: <Mars className="w-3.5 h-3.5" />, cls: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 shadow-sm" }
+        : genderRestriction === "female" || genderRestriction === "girls" || genderRestriction === "girl"
+        ? { label: "Girls only", icon: <Venus className="w-3.5 h-3.5" />, cls: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-700 shadow-sm" }
+        : { label: "Mixed genders", icon: <VenetianMask className="w-3.5 h-3.5" />, cls: "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 shadow-sm" };
 
-  const renderAmenities = () => (
-    <div className="animate-in fade-in duration-300">
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-        What this place offers
-      </h3>
-      {property.amenities_list && property.amenities_list.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {property.amenities_list.map((amenity, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
-            >
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600">
-                <Check className="w-4 h-4" />
-              </div>
-              <span className="text-gray-700 dark:text-gray-300 font-medium">
-                {amenity}
-              </span>
+    // Stat cards (flat, uniform dark cards like the mockup)
+    const statCards = [
+      property.number_of_bathrooms > 0 && { value: property.number_of_bathrooms, label: "BATHROOMS" },
+      property.total_rooms > 0 && { value: property.total_rooms, label: "TOTAL ROOMS" },
+      { value: property.available_rooms ?? 0, label: "AVAILABLE", highlight: true },
+      property.total_floors > 0 && { value: property.total_floors, label: "FLOORS" },
+      property.floor_area > 0 && { value: `${property.floor_area}m²`, label: "FLOOR AREA" },
+    ].filter(Boolean);
+
+    const amenitiesList = property.amenities_list || [];
+    const rulesList = property.rules || [];
+    const landlord = property.landlord;
+
+    return (
+      <div className="space-y-4 animate-in fade-in duration-300">
+
+        {/* ══════ 1. MONTHLY RATE CARD ══════ */}
+        {(property.minPrice > 0 || property.priceRange) && (
+          <div className={`${CARD} p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4`}>
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">
+                Monthly Rate
+              </p>
+              <p className="text-3xl font-extrabold text-gray-900 dark:text-white leading-none">
+                {property.minPrice > 0
+                  ? `₱${Number(property.minPrice).toLocaleString()}`
+                  : property.priceRange}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">per room / month</p>
+              {property.require_reservation_fee && property.reservation_fee_amount > 0 && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                  + ₱{Number(property.reservation_fee_amount).toLocaleString()} reservation fee
+                </p>
+              )}
+              {property.require_1month_advance && (
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">1 month advance required</p>
+              )}
             </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500 dark:text-gray-400 italic">
-          No specific amenities listed.
-        </p>
-      )}
-    </div>
-  );
+            <button
+              onClick={handleContactLandlord}
+              className="flex-shrink-0 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap shadow-sm"
+            >
+              Contact landlord
+            </button>
+          </div>
+        )}
 
-  const renderPolicies = () => (
-    <div className="animate-in fade-in duration-300">
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-        Property Rules & Policies
-      </h3>
-      {property.rules && property.rules.length > 0 ? (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-6">
-          <ul className="space-y-4">
-            {property.rules.map((rule, index) => (
-              <li key={index} className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
-                <span className="text-gray-800 dark:text-gray-200 font-medium">
-                  {rule}
-                </span>
-              </li>
-            ))}
-          </ul>
+        {/* ══════ 2. STAT ROW ══════ */}
+        {statCards.length > 0 && (() => {
+          const colMap = {
+            1: "grid-cols-1",
+            2: "grid-cols-2",
+            3: "grid-cols-3",
+            4: "grid-cols-2 sm:grid-cols-4",
+            5: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5",
+          };
+          const colClass = colMap[statCards.length] ?? "grid-cols-2 sm:grid-cols-3";
+          return (
+            <div className={`grid ${colClass} gap-4`}>
+              {statCards.map((s, i) => (
+                <div
+                  key={i}
+                  className={`${CARD} py-4 px-4 flex flex-col items-center justify-center text-center ${
+                    s.highlight
+                      ? "border-green-400/60 dark:border-green-500/50 bg-green-50/80 dark:bg-green-900/20"
+                      : ""
+                  }`}
+                >
+                  <span className={`text-2xl font-extrabold leading-none ${s.highlight ? "text-green-600 dark:text-green-400" : "text-gray-900 dark:text-white"}`}>
+                    {s.value}
+                  </span>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${s.highlight ? "text-green-500 dark:text-green-400" : "text-gray-500 dark:text-gray-500"}`}>
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ══════ 3. ABOUT THIS PROPERTY ══════ */}
+        <div className={`${CARD} p-6`}>
+          <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
+            About this Property
+          </p>
+          <span className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold border mb-4 ${genderLabel.cls}`}>
+            {genderLabel.icon}
+            {genderLabel.label}
+          </span>
+          <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+            {property.description || "No description provided by the landlord yet."}
+          </p>
         </div>
-      ) : (
-        <p className="text-gray-500 dark:text-gray-400 italic">
-          No specific rules listed by the landlord.
-        </p>
-      )}
-    </div>
-  );
+
+        {/* ══════ 4. HOUSE POLICIES + AMENITIES (2-col) ══════ */}
+        {(rulesList.length > 0 || property.curfew_time || amenitiesList.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* House Policies */}
+            {(rulesList.length > 0 || property.curfew_time) && (
+              <div className={`${CARD} p-6`}>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
+                  House Policies
+                </p>
+                <ul className="space-y-4">
+                  {property.curfew_time && (
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 mt-2.5" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Curfew at {property.curfew_time}
+                        {property.curfew_policy ? ` (${String(property.curfew_policy).replace(/_/g, " ")})` : ""}
+                      </span>
+                    </li>
+                  )}
+                  {rulesList.map((rule, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 mt-2.5" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{rule}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Amenities */}
+            {amenitiesList.length > 0 && (
+              <div className={`${CARD} p-6`}>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
+                  Amenities
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {amenitiesList.map((amenity, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full text-xs font-semibold bg-green-600 text-white shadow-sm"
+                    >
+                      <Check className="w-3 h-3" />
+                      {amenity}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════ 5. LOCATION ══════ */}
+        <div className={`${CARD} p-6`}>
+          <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
+            Location
+          </p>
+          <div className="space-y-0 divide-y divide-gray-100 dark:divide-gray-700">
+            <div className="flex items-start gap-4 py-4 first:pt-0">
+              <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">Address</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {property.full_address ||
+                    [property.street_address, property.barangay, property.city, property.province, property.postal_code]
+                      .filter(Boolean)
+                      .join(", ")}
+                </p>
+              </div>
+            </div>
+            {property.nearby_landmarks && (
+              <div className="flex items-start gap-4 py-4">
+                <Landmark className="w-4 h-4 text-gray-500 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">Nearby Landmarks</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-200">{property.nearby_landmarks}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {property.latitude && property.longitude && (
+            <button
+              onClick={() => setActiveTab("map")}
+              className="mt-4 text-sm text-green-600 dark:text-green-400 font-semibold hover:underline flex items-center gap-2"
+            >
+              View on map →
+            </button>
+          )}
+        </div>
+
+        {/* ══════ 6. ABOUT THE OWNER ══════ */}
+        {landlord && (
+          <div className={`${CARD} p-6`}>
+            <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
+              About the Owner
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 bg-green-600 rounded-full flex items-center justify-center text-white text-lg font-extrabold flex-shrink-0 shadow-sm">
+                {landlord.name?.charAt(0)?.toUpperCase() || "L"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 dark:text-white text-sm">{landlord.name || "Landlord"}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">Landlord</p>
+                {landlord.phone && isAuthenticated && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <Phone className="w-3 h-3" />{landlord.phone}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleContactLandlord}
+                className="flex-shrink-0 px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm"
+              >
+                Message
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  };
 
   const renderMap = () => (
     <div className="h-[400px] w-full rounded-xl overflow-hidden border border-gray-300 dark:border-gray-700 shadow-md animate-in fade-in duration-300 relative z-0">
@@ -673,8 +805,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
             icon={greenMarkerIcon}
           >
             <Popup className="font-sans">
-              <div className="text-center p-1">
-                <strong className="block text-green-700 text-sm mb-1">
+              <div className="text-center p-2">
+                <strong className="block text-green-700 text-sm mb-2">
                   {property.title}
                 </strong>
                 <p className="text-xs text-gray-600 leading-tight">
@@ -700,7 +832,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
           Guest Reviews
         </h3>
         {reviews.summary?.average_rating && (
-          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-bold rounded-full flex items-center gap-1">
+          <span className="px-2 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-bold rounded-full flex items-center gap-2">
             <Star className="w-3 h-3 fill-current" />{" "}
             {reviews.summary.average_rating} ({reviews.summary.total_reviews})
           </span>
@@ -716,9 +848,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
           {reviews.reviews.map((review) => (
             <div
               key={review.id}
-              className="p-5 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md"
+              className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md"
             >
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center font-bold text-white overflow-hidden">
                   {review.reviewer_image ? (
                     <img
@@ -753,8 +885,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
                 </p>
               )}
               {review.landlord_response && (
-                <div className="mt-3 pl-3 border-l-2 border-green-200 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20 p-2 rounded-r-lg">
-                  <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-1">
+                <div className="mt-4 pl-4 border-l-2 border-green-200 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20 p-2 rounded-r-lg">
+                  <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-2">
                     Landlord Response:
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -768,7 +900,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       ) : (
         <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
           <p className="text-gray-500 dark:text-gray-400">No reviews yet</p>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
             Be the first to review this property after your stay!
           </p>
         </div>
@@ -780,7 +912,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // You can re-add it if your public API returns full room data.
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Toaster />
       {/* HEADER */}
       <div
@@ -827,7 +959,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
             {isAuthenticated && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
-                className="bg-red-500/80 hover:bg-red-600 text-white px-3 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-colors backdrop-blur-sm"
+                className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-colors backdrop-blur-sm"
                 title="Report Listing"
               >
                 <Flag className="w-5 h-5" />
@@ -837,12 +969,12 @@ export default function PropertyDetails({ propertyId, onBack }) {
           </div>
 
           <div className="text-white pb-6">
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              <span className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+            <div className="flex flex-wrap items-center gap-4 mb-2">
+              <span className="bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
                 {property.property_type || "Property"}
               </span>
               {reviews.summary?.average_rating && (
-                <span className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-lg text-sm font-medium">
+                <span className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-2 rounded-lg text-sm font-medium">
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />{" "}
                   {reviews.summary.average_rating}
                 </span>
@@ -860,21 +992,21 @@ export default function PropertyDetails({ propertyId, onBack }) {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 {property.video_url && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       openFullGallery(0);
                     }}
-                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl font-bold transition-all border border-white/30 shadow-2xl group"
+                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-6 py-2.5 rounded-xl font-bold transition-all border border-white/30 shadow-2xl group"
                   >
                     <Play className="w-4 h-4 fill-white" />
                     Watch Video Tour
                   </button>
                 )}
                 <button
-                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all border border-white/30 shadow-2xl font-bold text-sm"
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all border border-white/30 shadow-2xl font-bold text-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     openFullGallery(0);
@@ -896,8 +1028,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
             {[
               "Overview",
               "Rooms",
-              "Amenities",
-              "Policies",
               "Map",
               "Reviews",
             ].map((tab) => {
@@ -930,8 +1060,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
       >
         {activeTab === "overview" && renderOverview()}
         {activeTab === "rooms" && renderRooms()}
-        {activeTab === "amenities" && renderAmenities()}
-        {activeTab === "policies" && renderPolicies()}
         {activeTab === "map" && renderMap()}
         {activeTab === "reviews" && renderReviews()}
       </div>
@@ -978,14 +1106,14 @@ export default function PropertyDetails({ propertyId, onBack }) {
                 <h3 className="font-bold text-lg md:text-xl tracking-tight line-clamp-1">
                   {property?.title || "Property Gallery"}
                 </h3>
-                <p className="text-[10px] md:text-xs text-white/40 font-bold uppercase tracking-[0.2em] mt-1">
+                <p className="text-[10px] md:text-xs text-white/40 font-bold uppercase tracking-[0.2em] mt-2">
                   {galleryIndex + 1} / {galleryItems.length}
                 </p>
               </div>
 
               <button
                 onClick={() => setGalleryOpen(false)}
-                className="p-2 md:p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all hover:rotate-90 active:scale-90"
+                className="p-2 md:p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all hover:rotate-90 active:scale-90"
               >
                 <X className="w-5 h-5 md:w-6 md:h-6 text-white/80" />
               </button>

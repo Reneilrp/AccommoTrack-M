@@ -11,7 +11,7 @@ export default function Badge({ children, style, color }) {
       style={[
         {
           backgroundColor,
-          paddingVertical: 4,
+          paddingVertical: 8,
           paddingHorizontal: 8,
           borderRadius: 999,
           alignSelf: 'flex-start',

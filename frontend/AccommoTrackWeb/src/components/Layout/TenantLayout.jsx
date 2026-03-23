@@ -101,7 +101,7 @@ export default function TenantLayout({ user, onLogout, children }) {
           
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
+            className={`p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
           >
             <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
@@ -125,7 +125,7 @@ export default function TenantLayout({ user, onLogout, children }) {
             onClick={() => navigate('/settings')}
             title="Go to Profile Settings"
         >
-          <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
+          <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
             <img
               src={getImageUrl(user?.profile_image) || `https://ui-avatars.com/api/?name=${displayName}&background=random`}
               alt="Profile"
@@ -147,7 +147,7 @@ export default function TenantLayout({ user, onLogout, children }) {
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
-                w-full flex items-center gap-3 px-4 py-3 transition-colors relative
+                w-full flex items-center gap-4 px-4 py-4 transition-colors relative
                 ${isActive 
                   ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500' 
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
@@ -166,7 +166,7 @@ export default function TenantLayout({ user, onLogout, children }) {
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={() => setShowLogoutModal(true)}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
               !isSidebarOpen && 'justify-center'
             }`}
           >

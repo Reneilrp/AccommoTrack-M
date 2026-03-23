@@ -218,7 +218,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
             </TouchableOpacity>
 
             {/* Resend */}
-            <View style={{ alignItems: 'center', marginTop: 20, marginBottom: 16 }}>
+            <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 16 }}>
               {resendCooldown > 0 ? (
                 <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
                   Resend code in <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{resendCooldown}s</Text>

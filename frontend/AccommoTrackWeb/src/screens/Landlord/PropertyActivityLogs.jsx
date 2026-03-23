@@ -106,17 +106,17 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
         <div className="p-4">
           <div className="mb-6 space-y-4">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
                 type="text"
                 placeholder="Search logs by action, tenant, or details..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all shadow-sm"
+                className="w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all shadow-sm"
               />
             </div>
             
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar">
               {['All', 'Dorm Settings', 'Room Management', 'Payments', 'Maintenance', 'Add-ons', 'Due'].map((f) => (
                 <button
                   key={f}
@@ -143,24 +143,24 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
               <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No activity found for this property.</p>
             </div>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               {finalList.map((a, i) => (
                 <li key={i} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-800 transition-colors shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm text-gray-800 dark:text-gray-200 font-semibold leading-tight">{a.title || a.action || a.type || 'Activity'}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-500 uppercase bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 rounded">
                           {a.by || a.user || a.actor || 'System'}
                         </span>
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                        <span className="text-[10px] text-gray-500 dark:text-gray-500">
                           {a.created_at || a.time || ''}
                         </span>
                       </div>
-                      {a.details && <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic border-l-2 border-gray-200 dark:border-gray-700 pl-3">{a.details}</div>}
+                      {a.details && <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic border-l-2 border-gray-200 dark:border-gray-700 pl-4">{a.details}</div>}
                     </div>
                     {a.amount_cents || a.amount ? (
-                      <div className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-lg border border-green-100 dark:border-green-900/30">
+                      <div className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-2 rounded-lg border border-green-100 dark:border-green-900/30">
                         {a.amount ? a.amount : `₱${Number(a.amount_cents || 0) / 100}`}
                       </div>
                     ) : null}

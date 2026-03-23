@@ -340,7 +340,7 @@ export default function TenantLogs() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 space-y-6 pb-10">
       {/* Controls Bar */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between mx-4 md:mx-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-2 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -355,27 +355,27 @@ export default function TenantLogs() {
           {/* Column 1: Profile & Quick Stats */}
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
-              <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4 border-b dark:border-gray-700 pb-2">Tenant Profile</h3>
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold text-xl">
                   {tenant?.first_name?.charAt(0) || tenant?.name?.charAt(0) || '?'}
                 </div>
                 <div>
                   <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{tenant?.first_name ? `${tenant.first_name} ${tenant.last_name}` : tenant?.name || '—'}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">{tenant?.email || 'No email provided'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">{tenant?.email || 'No email provided'}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{tenant?.phone || 'No phone'}</p>
                 </div>
               </div>
 
               <div className="border-t dark:border-gray-700 pt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Date of Birth</p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Date of Birth</p>
                   <p className="font-semibold text-sm text-gray-900 dark:text-gray-200">
                     {tenant?.date_of_birth ? formatDate(tenant.date_of_birth) : '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Gender</p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Gender</p>
                   <p className="font-semibold text-sm text-gray-900 dark:text-gray-200 capitalize">
                     {tenant?.gender || '—'}
                   </p>
@@ -383,15 +383,15 @@ export default function TenantLogs() {
               </div>
               
               <div className="space-y-4 pt-4">
-                <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Current Room</p>
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Current Room</p>
                   <p className="font-bold text-sm text-gray-900 dark:text-gray-200">
                     {currentRoom ? `Room ${currentRoom.room_number} • ${currentRoom.type_label || 'Active'}` : 'No active room'}
                   </p>
                 </div>
 
-                <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
-                  <p className="text-[10px] font-bold text-red-400 uppercase mb-1">Total Outstanding</p>
+                <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
+                  <p className="text-[10px] font-bold text-red-400 uppercase mb-2">Total Outstanding</p>
                   <p className="font-bold text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
                 </div>
               </div>
@@ -424,7 +424,7 @@ export default function TenantLogs() {
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
                     {tab.count}
                   </span>
                 </button>
@@ -441,7 +441,7 @@ export default function TenantLogs() {
                         <button
                           key={f}
                           onClick={() => setPaymentFilter(f)}
-                          className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}
+                          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${paymentFilter === f ? 'bg-green-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}
                         >
                           {f}
                         </button>
@@ -450,7 +450,7 @@ export default function TenantLogs() {
                     <select
                       value={paymentGroup}
                       onChange={(e) => setPaymentGroup(e.target.value)}
-                      className="text-[10px] font-bold uppercase p-1.5 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-white outline-none"
+                      className="text-[10px] font-bold uppercase p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-700 dark:text-white outline-none"
                     >
                       <option value="none">No Grouping</option>
                       <option value="monthly">Monthly View</option>
@@ -460,14 +460,14 @@ export default function TenantLogs() {
 
                   {payments.length === 0 ? (
                     <div className="text-center py-12">
-                      <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                      <p className="text-gray-400 dark:text-gray-500 font-medium">No transaction records found</p>
+                      <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-500 font-medium">No transaction records found</p>
                     </div>
                   ) : (
                     groupedData.map((group) => (
-                      <div key={group.key} className="space-y-3">
+                      <div key={group.key} className="space-y-4">
                         {group.label && (
-                          <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2 mt-4 first:mt-0">
+                          <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 mt-4 first:mt-0">
                             <Calendar className="w-3 h-3" /> {group.label}
                           </h4>
                         )}
@@ -476,15 +476,15 @@ export default function TenantLogs() {
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">₱{formatAmount(inv)}</p>
-                                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">#{inv.reference || inv.id}</span>
+                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500">#{inv.reference || inv.id}</span>
                               </div>
                               <p className="text-[10px] text-gray-500 uppercase mt-0.5">{formatDate(inv.paid_at || inv.due_date || inv.created_at)}</p>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            <div className="flex items-center gap-4">
+                              <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                 {(inv.status === 'paid' || inv.paid_at) ? 'PAID' : 'DUE'}
                               </span>
-                              <button onClick={() => navigate('/payments')} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white dark:hover:bg-gray-800 rounded-lg text-gray-400 transition-all">
+                              <button onClick={() => navigate('/payments')} className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-white dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-all">
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -500,13 +500,13 @@ export default function TenantLogs() {
                 <div className="space-y-4">
                   {historyData.bookings.length === 0 ? (
                     <div className="text-center py-12">
-                      <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                      <p className="text-gray-400 font-medium">No booking history</p>
+                      <Inbox className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+                      <p className="text-gray-500 font-medium">No booking history</p>
                     </div>
                   ) : (
                     historyData.bookings.map((booking) => (
                       <div key={booking.id} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-start mb-3">
+                        <div className="flex justify-between items-start mb-4">
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-gray-900 dark:text-white">{booking.room?.property?.title || 'Property'}</h4>
@@ -522,10 +522,10 @@ export default function TenantLogs() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-bold text-gray-900 dark:text-white">₱{parseFloat(booking.total_amount).toLocaleString()}</p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase">{booking.payment_status}</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">{booking.payment_status}</p>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 pt-3 border-t dark:border-gray-700">
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t dark:border-gray-700">
                           <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                             <Calendar className="w-3.5 h-3.5" />
                             <span>In: {formatDate(booking.start_date)}</span>
@@ -545,20 +545,20 @@ export default function TenantLogs() {
                 <div className="space-y-4">
                   {historyData.transfers.length === 0 ? (
                     <div className="text-center py-12">
-                      <Shuffle className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                      <p className="text-gray-400 font-medium">No transfer history</p>
+                      <Shuffle className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+                      <p className="text-gray-500 font-medium">No transfer history</p>
                     </div>
                   ) : (
                     historyData.transfers.map((req) => (
                       <div key={req.id} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 shadow-sm">
                               <span className="text-xs font-bold text-gray-500 mr-2">FROM</span>
                               <span className="text-sm font-bold text-gray-900 dark:text-white">Room {req.current_room?.room_number}</span>
                             </div>
-                            <Shuffle className="w-4 h-4 text-gray-400" />
-                            <div className="flex items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg px-3 py-1.5 shadow-sm">
+                            <Shuffle className="w-4 h-4 text-gray-500" />
+                            <div className="flex items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg px-4 py-2.5 shadow-sm">
                               <span className="text-xs font-bold text-amber-600 mr-2">TO</span>
                               <span className="text-sm font-bold text-gray-900 dark:text-white">Room {req.requested_room?.room_number}</span>
                             </div>
@@ -571,11 +571,11 @@ export default function TenantLogs() {
                             {req.status}
                           </span>
                         </div>
-                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg text-xs text-gray-600 dark:text-gray-400 italic mb-2">
+                        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg text-xs text-gray-600 dark:text-gray-400 italic mb-2">
                           "{req.reason}"
                         </div>
                         {req.status === 'pending' && (
-                          <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 space-y-2">
+                          <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 space-y-2">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               <input
                                 type="number"
@@ -584,28 +584,28 @@ export default function TenantLogs() {
                                 value={getTransferForm(req.id).damage_charge}
                                 onChange={(e) => updateTransferForm(req.id, { damage_charge: e.target.value })}
                                 placeholder="Damage charge (optional)"
-                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
                               />
                               <input
                                 type="text"
                                 value={getTransferForm(req.id).damage_description}
                                 onChange={(e) => updateTransferForm(req.id, { damage_description: e.target.value })}
                                 placeholder="Damage description"
-                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
                               />
                             </div>
                             <textarea
                               value={getTransferForm(req.id).landlord_notes}
                               onChange={(e) => updateTransferForm(req.id, { landlord_notes: e.target.value })}
                               placeholder="Landlord notes (optional)"
-                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-20 resize-none"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-20 resize-none"
                             />
 
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleTransferAction(req, 'reject')}
                                 disabled={handlingTransferId === req.id}
-                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
                               >
                                 <XCircle className="w-3.5 h-3.5" />
                                 Reject
@@ -613,7 +613,7 @@ export default function TenantLogs() {
                               <button
                                 onClick={() => handleTransferAction(req, 'approve')}
                                 disabled={handlingTransferId === req.id}
-                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 Approve
@@ -621,7 +621,7 @@ export default function TenantLogs() {
                             </div>
                           </div>
                         )}
-                        <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
+                        <div className="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase">
                           <span>Requested: {formatDate(req.created_at)}</span>
                           {req.handled_at && <span>Handled: {formatDate(req.handled_at)}</span>}
                         </div>
@@ -635,8 +635,8 @@ export default function TenantLogs() {
                 <div className="space-y-4">
                   {historyData.maintenance.length === 0 ? (
                     <div className="text-center py-12">
-                      <Wrench className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                      <p className="text-gray-400 font-medium">No maintenance history</p>
+                      <Wrench className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+                      <p className="text-gray-500 font-medium">No maintenance history</p>
                     </div>
                   ) : (
                     historyData.maintenance.map((req) => (
@@ -644,7 +644,7 @@ export default function TenantLogs() {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="text-sm font-bold text-gray-900 dark:text-white">{req.title}</h4>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{req.description}</p>
+                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">{req.description}</p>
                           </div>
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                             req.status === 'completed' ? 'bg-green-100 text-green-700' : 
@@ -653,7 +653,7 @@ export default function TenantLogs() {
                             {req.status.replace('_', ' ')}
                           </span>
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
+                        <div className="mt-4 flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase">
                           <span>Reported: {formatDate(req.created_at)}</span>
                           <span>Priority: {req.priority}</span>
                         </div>
@@ -667,13 +667,13 @@ export default function TenantLogs() {
                 <div className="space-y-4">
                   {historyData.addons.length === 0 ? (
                     <div className="text-center py-12">
-                      <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                      <p className="text-gray-400 font-medium">No add-on requests</p>
+                      <Sparkles className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+                      <p className="text-gray-500 font-medium">No add-on requests</p>
                     </div>
                   ) : (
                     historyData.addons.map((addon, idx) => (
                       <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                           <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600">
                             <Sparkles className="w-4 h-4" />
                           </div>

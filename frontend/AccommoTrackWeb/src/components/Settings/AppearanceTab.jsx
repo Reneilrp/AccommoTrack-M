@@ -75,7 +75,7 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Appearance Settings
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             Customize how AccommoTrack looks for you. Click Save Preferences to sync this to your account.
           </p>
         </div>
@@ -149,13 +149,13 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
                     <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
                   </div>
                 )}
-                <div className={`${option.size} font-semibold text-gray-900 dark:text-white mb-1`}>
+                <div className={`${option.size} font-semibold text-gray-900 dark:text-white mb-2`}>
                   {option.preview}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-300">
                   {option.label}
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                   {option.description}
                 </div>
               </button>
@@ -165,7 +165,7 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
 
         {/* Accessibility Note */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-1">
+          <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">
             💡 Accessibility Tip
           </h4>
           <p className="text-sm text-blue-700 dark:text-blue-400">

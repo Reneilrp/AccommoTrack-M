@@ -852,7 +852,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                      ]}>Monthly</Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={[styles.summaryNote, { marginTop: 4, fontStyle: 'italic' }]}>
+                <Text style={[styles.summaryNote, { marginTop: 8, fontStyle: 'italic' }]}>
                   {bookingData.payment_plan === 'monthly' 
                     ? 'Pay the first month now to confirm, then pay monthly.'
                     : 'Pay the total amount within 3 days to confirm your booking.'}
@@ -892,7 +892,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </Text>
                 </View>
                 
-                <View style={{ marginTop: 4 }}>
+                <View style={{ marginTop: 8 }}>
                   {pricingBreakdown && pricingBreakdown.months > 0 && (
                     <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
                       Rent: ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × {pricingBreakdown.months}

@@ -91,7 +91,7 @@ export default function Notifications() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'You\'re all caught up!'}
           </p>
         </div>
@@ -99,7 +99,7 @@ export default function Notifications() {
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+              className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
             >
               <Check className="w-4 h-4" /> Mark all read
             </button>
@@ -115,8 +115,8 @@ export default function Notifications() {
       </div>
 
       {/* Filter Tabs + Unread Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+        <div className="flex gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-xl flex-1">
           {filters.map((f) => (
             <button
               key={f.key}
@@ -147,16 +147,16 @@ export default function Notifications() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         {loading && notifications.length === 0 ? (
           <div className="p-12 text-center">
-            <RefreshCw className="w-8 h-8 text-gray-400 dark:text-gray-500 animate-spin mx-auto mb-3" />
+            <RefreshCw className="w-8 h-8 text-gray-500 dark:text-gray-500 animate-spin mx-auto mb-4" />
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading notifications...</p>
           </div>
         ) : displayed.length === 0 ? (
           <div className="p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BellOff className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+              <BellOff className="w-8 h-8 text-gray-500 dark:text-gray-500" />
             </div>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">No notifications</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
               {unreadOnly ? 'No unread notifications.' : "You're all caught up!"}
             </p>
           </div>
@@ -169,7 +169,7 @@ export default function Notifications() {
                 <li
                   key={notification.id}
                   onClick={() => markAsRead(notification.id)}
-                  className={`flex items-start gap-4 px-5 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                     !notification.read ? 'bg-green-50/40 dark:bg-green-900/10' : ''
                   }`}
                 >
@@ -181,7 +181,7 @@ export default function Notifications() {
                       {notification.title}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notification.message}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatRelativeTime(notification.timestamp)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2.5">{formatRelativeTime(notification.timestamp)}</p>
                   </div>
                   {!notification.read && (
                     <div className="w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0 mt-2" />

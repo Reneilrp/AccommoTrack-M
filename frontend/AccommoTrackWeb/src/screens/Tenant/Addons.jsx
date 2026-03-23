@@ -114,7 +114,7 @@ export default function Addons() {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Package className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+            <Package className="w-8 h-8 text-gray-500 dark:text-gray-500" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No Active Booking</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
@@ -136,7 +136,7 @@ export default function Addons() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add-ons & Usage Fees</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           Request extra services or items for your current stay.
         </p>
       </div>
@@ -145,7 +145,7 @@ export default function Addons() {
       {requests.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Requests</h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {requests.map((r) => (
               <div key={r.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div>
@@ -154,8 +154,8 @@ export default function Addons() {
                     Qty: {r.quantity || 1} • {r.addon?.price ? `₱${Number(r.addon.price).toLocaleString()}` : 'Free'}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}`}>
+                <div className="flex items-center gap-4">
+                  <span className={`px-2.5 py-2 rounded-full text-xs font-semibold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}`}>
                     {r.status || 'pending'}
                   </span>
                   {r.status === 'pending' && (
@@ -194,22 +194,22 @@ export default function Addons() {
             />
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
                 <select
                   value={customData.addon_type}
                   onChange={(e) => setCustomData({ ...customData, addon_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                 >
                   <option value="rental">Rental</option>
                   <option value="fee">Usage Fee</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Billing</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing</label>
                 <select
                   value={customData.price_type}
                   onChange={(e) => setCustomData({ ...customData, price_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="one_time">One-time</option>
@@ -223,7 +223,7 @@ export default function Addons() {
               rows={3}
               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-4">
               <button onClick={() => setShowCustomForm(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                 Cancel
               </button>
@@ -245,13 +245,13 @@ export default function Addons() {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Available Add-ons</h3>
         {addons.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
-            <ShoppingBag className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+            <ShoppingBag className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400">No add-ons available for this property yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {addons.map((addon) => (
-              <div key={addon.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col">
+              <div key={addon.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col">
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <h4 className="font-semibold text-gray-900 dark:text-white">{addon.name}</h4>
@@ -259,7 +259,7 @@ export default function Addons() {
                       {addon.price ? `₱${Number(addon.price).toLocaleString()}` : 'Free'}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{addon.description || 'No description.'}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">{addon.description || 'No description.'}</p>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
@@ -267,7 +267,7 @@ export default function Addons() {
                     placeholder="Add a note (optional)..."
                     value={notes[addon.id] || ''}
                     onChange={(e) => setNotes((prev) => ({ ...prev, [addon.id]: e.target.value }))}
-                    className="w-full px-3 py-2 mb-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 mb-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
                   />
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

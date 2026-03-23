@@ -96,7 +96,7 @@ export default function Reviews() {
   };
 
   const StarRating = ({ rating, onChange, interactive = false }) => (
-    <div className="flex gap-1">
+    <div className="flex gap-2">
       {[1, 2, 3, 4, 5].map((s) => (
         <button
           key={s}
@@ -119,7 +119,7 @@ export default function Reviews() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Reviews</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             View and manage reviews you've left for properties.
           </p>
         </div>
@@ -139,7 +139,7 @@ export default function Reviews() {
           </h3>
           <form onSubmit={handleSubmitReview} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Booking</label>
               <select
                 value={form.booking_id}
                 onChange={(e) => {
@@ -162,7 +162,7 @@ export default function Reviews() {
               <StarRating rating={form.rating} onChange={(r) => setForm({ ...form, rating: r })} interactive={true} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Comment</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Comment</label>
               <textarea
                 value={form.comment}
                 onChange={(e) => setForm({ ...form, comment: e.target.value })}
@@ -171,7 +171,7 @@ export default function Reviews() {
                 className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-4">
               <button type="button" onClick={() => { setShowForm(false); setEditingReview(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                 Cancel
               </button>
@@ -188,21 +188,21 @@ export default function Reviews() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-3" />
+            <Loader2 className="w-8 h-8 text-gray-500 animate-spin mx-auto mb-4" />
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading reviews...</p>
           </div>
         ) : reviews.length === 0 ? (
           <div className="p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MessageSquare className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+              <MessageSquare className="w-8 h-8 text-gray-500 dark:text-gray-500" />
             </div>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">No reviews yet</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Leave a review for a property you've stayed at!</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Leave a review for a property you've stayed at!</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-700">
             {reviews.map((review) => (
-              <li key={review.id} className="p-5">
+              <li key={review.id} className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 dark:text-white">
@@ -213,26 +213,26 @@ export default function Reviews() {
                         </span>
                       )}
                     </h4>
-                    <div className="mt-1.5">
+                    <div className="mt-2.5">
                       <StarRating rating={review.rating} />
                     </div>
                     {review.comment && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{review.comment}</p>
                     )}
                     {review.landlord_response && (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                        <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1">Landlord Response</p>
+                      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                        <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2">Landlord Response</p>
                         <p className="text-sm text-blue-600 dark:text-blue-300">{review.landlord_response}</p>
                       </div>
                     )}
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                       {review.created_at ? new Date(review.created_at).toLocaleDateString() : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     <button
                       onClick={() => handleEdit(review)}
-                      className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                       title="Edit review"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -240,7 +240,7 @@ export default function Reviews() {
                     <button
                       onClick={() => handleDelete(review.id)}
                       disabled={deletingId === review.id}
-                      className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       title="Delete review"
                     >
                       {deletingId === review.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}

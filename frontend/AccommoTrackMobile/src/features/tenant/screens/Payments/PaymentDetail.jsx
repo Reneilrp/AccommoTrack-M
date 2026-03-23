@@ -181,7 +181,7 @@ export default function PaymentDetail() {
           {isFullyPaid ? (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
               <Ionicons name="checkmark-circle" size={64} color="#10B981" />
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginTop: 12 }}>Invoice Fully Paid</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginTop: 16 }}>Invoice Fully Paid</Text>
               <Text style={{ color: theme.colors.textSecondary, marginTop: 8 }}>This invoice has no remaining balance.</Text>
             </View>
           ) : (

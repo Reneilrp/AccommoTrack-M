@@ -63,7 +63,7 @@ export default function MapModal({ isOpen, onClose, latitude, longitude, onSelec
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xl relative border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
         <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           onClick={onClose}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,7 +85,7 @@ export default function MapModal({ isOpen, onClose, latitude, longitude, onSelec
             <DraggableMarker position={position} setPosition={setPosition} />
           </MapContainer>
         </div>
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-4">
           <button
             className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
             onClick={onClose}

@@ -40,7 +40,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   spacer: {
     height: 16,
@@ -48,7 +48,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statCard: {
     flex: 1,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginHorizontal: 6,
     elevation: 2,
     shadowColor: '#000',
@@ -68,7 +68,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 8,
     color: theme.colors.text,
   },
   statLabel: {
@@ -119,7 +119,7 @@ export const getStyles = (theme) => StyleSheet.create({
   propertyAddress: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
+    marginTop: 8,
   },
   propertyContent: {
     padding: 16,
@@ -127,9 +127,9 @@ export const getStyles = (theme) => StyleSheet.create({
   landlordSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     borderRadius: 0,
-    gap: 12,
+    gap: 16,
     backgroundColor: 'transparent',
   },
   landlordAvatar: {
@@ -185,7 +185,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   paymentLabel: {
     fontSize: 14,
@@ -266,7 +266,7 @@ export const getStyles = (theme) => StyleSheet.create({
     padding: 16,
     marginTop: 24,
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     backgroundColor: theme.isDark ? theme.colors.brand900 : '#EFF6FF',
     borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
   },
@@ -285,7 +285,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: theme.isDark ? theme.colors.brand100 : '#1E3A8A',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   upcomingText: {
     fontSize: 13,
@@ -318,14 +318,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   statSubtitle: {
     fontSize: 12, 
-    marginTop: 4
+    marginTop: 8
   },
   propertyBadge: {
     position: 'absolute', 
-    top: 12, 
-    right: 12, 
-    paddingHorizontal: 10, 
-    paddingVertical: 4, 
+    top: 16, 
+    right: 16, 
+    paddingHorizontal: 8, 
+    paddingVertical: 8, 
     borderRadius: 8
   },
   propertyBadgeText: {
@@ -334,11 +334,11 @@ export const getStyles = (theme) => StyleSheet.create({
     textTransform: 'uppercase'
   },
   propertyActionBtn: {
-    paddingVertical: 12, 
+    paddingVertical: 16, 
     borderRadius: 8, 
     alignItems: 'center', 
     justifyContent: 'center', 
-    marginTop: 12, 
+    marginTop: 16, 
     borderWidth: 1
   },
   propertyActionText: {
@@ -364,7 +364,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 40, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    marginBottom: 20
+    marginBottom: 24
   },
   emptyStateTitle: {
     fontSize: 20, 

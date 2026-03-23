@@ -23,7 +23,7 @@ export const getStyles = (theme) => StyleSheet.create({
         color: theme.colors.text,
     },
     scrollContent: {
-        padding: 20,
+        padding: 16,
     },
     section: {
         marginBottom: 24,
@@ -32,14 +32,14 @@ export const getStyles = (theme) => StyleSheet.create({
         fontSize: 12,
         fontWeight: 'bold',
         letterSpacing: 1,
-        marginBottom: 10,
+        marginBottom: 8,
         color: theme.colors.textSecondary,
     },
     labelRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 8,
     },
     input: {
         height: 50,
@@ -63,7 +63,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     priorityRow: {
         flexDirection: 'row',
-        gap: 10,
+        gap: 8,
     },
     priorityChip: {
         flex: 1,
@@ -92,7 +92,7 @@ export const getStyles = (theme) => StyleSheet.create({
     photoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 16,
     },
     addPhotoBtn: {
         width: 100,
@@ -107,7 +107,7 @@ export const getStyles = (theme) => StyleSheet.create({
     addPhotoText: {
         fontSize: 12,
         fontWeight: '600',
-        marginTop: 4,
+        marginTop: 8,
         color: theme.colors.textSecondary,
     },
     photoWrapper: {
@@ -134,8 +134,8 @@ export const getStyles = (theme) => StyleSheet.create({
         borderRadius: 12,
         backgroundColor: theme.colors.backgroundSecondary,
         alignItems: 'center',
-        gap: 12,
-        marginTop: 10,
+        gap: 16,
+        marginTop: 8,
     },
     infoText: {
         flex: 1,
@@ -144,7 +144,7 @@ export const getStyles = (theme) => StyleSheet.create({
         color: theme.colors.textSecondary,
     },
     footer: {
-        padding: 20,
+        padding: 16,
         borderTopWidth: 1,
         backgroundColor: theme.colors.surface,
         borderTopColor: theme.colors.border,
@@ -163,7 +163,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     container: {
         flex: 1,
-        padding: 12,
+        padding: 16,
         backgroundColor: theme.colors.background,
     },
     title: {
@@ -175,7 +175,7 @@ export const getStyles = (theme) => StyleSheet.create({
     requestCard: {
         padding: 16, 
         borderRadius: 12, 
-        marginBottom: 12,
+        marginBottom: 16,
         backgroundColor: theme.colors.surface,
         borderWidth: 1,
         borderColor: theme.colors.border,
@@ -192,7 +192,7 @@ export const getStyles = (theme) => StyleSheet.create({
     emptyState: {
         alignItems: 'center',
         marginTop: 60,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
     },
     emptyTitle: {
         fontSize: 18,
@@ -202,7 +202,7 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     emptySub: {
         fontSize: 14,
-        marginTop: 4,
+        marginTop: 8,
         color: theme.colors.textSecondary,
     },
     centered: {

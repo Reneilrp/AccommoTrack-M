@@ -48,7 +48,7 @@ export const SkeletonPropertyCard = () => (
     {/* Content */}
     <div className="p-4">
       {/* Title and status */}
-      <div className="flex justify-between items-start mb-3">
+      <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <Skeleton className="h-5 w-3/4 mb-2" />
           <Skeleton className="h-4 w-1/2" />
@@ -57,13 +57,13 @@ export const SkeletonPropertyCard = () => (
       </div>
       
       {/* Stats row */}
-      <div className="flex gap-4 mb-3">
+      <div className="flex gap-4 mb-4">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-20" />
       </div>
       
       {/* Action buttons */}
-      <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
         <Skeleton className="h-9 flex-1 rounded-lg" />
         <Skeleton className="h-9 w-9 rounded-lg" />
       </div>
@@ -107,10 +107,10 @@ export const SkeletonBookingCard = () => (
  * Skeleton for conversation list items
  */
 export const SkeletonConversation = () => (
-  <div className="flex items-center gap-3 p-4 animate-pulse">
+  <div className="flex items-center gap-4 p-4 animate-pulse">
     <SkeletonAvatar size="lg" />
     <div className="flex-1 min-w-0">
-      <div className="flex justify-between items-center mb-1">
+      <div className="flex justify-between items-center mb-2">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-3 w-12" />
       </div>
@@ -126,7 +126,7 @@ export const SkeletonStatCard = () => (
   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 animate-pulse">
     <div className="flex items-center justify-between">
       <div className="flex-1">
-        <Skeleton className="h-3 w-24 mb-3" />
+        <Skeleton className="h-3 w-24 mb-4" />
         <Skeleton className="h-8 w-20 mb-2" />
         <Skeleton className="h-3 w-32" />
       </div>
@@ -167,7 +167,7 @@ export const SkeletonCurrentStay = () => (
         {[...Array(3)].map((_, i) => (
           <div key={i} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
             <Skeleton className="h-3 w-20 mb-2" />
-            <Skeleton className="h-7 w-16 mb-1" />
+            <Skeleton className="h-7 w-16 mb-2" />
             <Skeleton className="h-3 w-24" />
           </div>
         ))}
@@ -193,22 +193,22 @@ export const SkeletonRoomCard = () => (
   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-pulse flex flex-col h-full">
     <div className="relative h-48 bg-gray-200 dark:bg-gray-700" />
     <div className="p-4 flex flex-col h-full">
-      <div className="flex justify-between items-start mb-3">
+      <div className="flex justify-between items-start mb-4">
         <div>
           <Skeleton className="h-6 w-32 mb-2" />
           <Skeleton className="h-4 w-24" />
         </div>
         <Skeleton className="h-8 w-20 rounded" />
       </div>
-      <div className="flex items-center gap-4 mb-3">
+      <div className="flex items-center gap-4 mb-4">
         <Skeleton className="h-5 w-16" />
       </div>
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-2 mb-4">
         <Skeleton className="h-6 w-16 rounded" />
         <Skeleton className="h-6 w-16 rounded" />
         <Skeleton className="h-6 w-16 rounded" />
       </div>
-      <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
         <Skeleton className="flex-1 h-10 rounded-lg" />
         <Skeleton className="w-10 h-10 rounded-lg" />
         <Skeleton className="w-10 h-10 rounded-lg" />
@@ -232,7 +232,7 @@ export const SkeletonMyBookings = () => (
             {[...Array(4)].map((_, i) => (
               <div key={i} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                 <Skeleton className="h-3 w-16 mb-2" />
-                <Skeleton className="h-6 w-20 mb-1" />
+                <Skeleton className="h-6 w-20 mb-2" />
                 <Skeleton className="h-3 w-12" />
               </div>
             ))}
@@ -254,13 +254,13 @@ export const SkeletonMyBookings = () => (
       {/* Addons Card */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
         <Skeleton className="h-5 w-32 mb-4" />
-        <div className="space-y-3">
+        <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <div className="flex items-center gap-3">
+            <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="flex items-center gap-4">
                 <Skeleton className="w-8 h-8 rounded" />
                 <div>
-                  <Skeleton className="h-4 w-24 mb-1" />
+                  <Skeleton className="h-4 w-24 mb-2" />
                   <Skeleton className="h-3 w-16" />
                 </div>
               </div>
@@ -298,7 +298,7 @@ export const SkeletonFinancials = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {[...Array(3)].map((_, i) => (
         <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <Skeleton className="h-4 w-32 mb-3" />
+          <Skeleton className="h-4 w-32 mb-4" />
           <Skeleton className="h-10 w-40 mb-2" />
           <Skeleton className="h-3 w-24" />
         </div>
@@ -316,7 +316,7 @@ export const SkeletonFinancials = () => (
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700">
               {["Date", "Amount", "Method", "Status"].map((h, idx) => (
-                <th key={idx} className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                <th key={idx} className="text-left py-4 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                   <Skeleton className="h-4 w-24" />
                 </th>
               ))}
@@ -342,7 +342,7 @@ export const SkeletonFinancials = () => (
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700">
               {["Due Date", "Description", "Amount", "Status"].map((h, idx) => (
-                <th key={idx} className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                <th key={idx} className="text-left py-4 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                   <Skeleton className="h-4 w-28" />
                 </th>
               ))}
@@ -482,7 +482,7 @@ export const SkeletonWallet = () => (
         <div className="flex items-center gap-2">
           <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
 
-          <div className="inline-flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg p-1">
+          <div className="inline-flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg p-2">
             {/* four small range button skeletons matching actual layout */}
             <div className="h-8 w-12 bg-gray-200 dark:bg-gray-700 rounded-md mx-0.5 animate-pulse" />
             <div className="h-8 w-12 bg-gray-200 dark:bg-gray-700 rounded-md mx-0.5 animate-pulse" />
@@ -497,14 +497,14 @@ export const SkeletonWallet = () => (
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -540,7 +540,7 @@ export const SkeletonAccountTab = () => (
 
     <div>
       <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-40 mb-4 animate-pulse" />
-      <div className="space-y-3">
+      <div className="space-y-4">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="space-y-2">
             <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-36 animate-pulse" />
@@ -549,7 +549,7 @@ export const SkeletonAccountTab = () => (
         ))}
       </div>
 
-      <div className="flex justify-end pt-2 gap-3 mt-4">
+      <div className="flex justify-end pt-2 gap-4 mt-4">
         <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
         <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
       </div>
@@ -566,7 +566,7 @@ export const SkeletonNotificationsTab = () => (
       {[...Array(2)].map((_, section) => (
         <div key={section}>
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-4 animate-pulse" />
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div>
@@ -580,7 +580,7 @@ export const SkeletonNotificationsTab = () => (
         </div>
       ))}
 
-      <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-100 dark:border-gray-700">
         <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
         <div className="h-10 w-36 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
       </div>

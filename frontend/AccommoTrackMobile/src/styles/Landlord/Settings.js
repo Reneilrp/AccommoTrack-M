@@ -68,7 +68,7 @@ export const getStyles = (theme) => StyleSheet.create({
   profileEmail: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   profileAction: {
     paddingVertical: 6,
@@ -90,8 +90,8 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 12,
-    paddingLeft: 4
+    marginBottom: 16,
+    paddingLeft: 8
   },
   sectionCard: {
     backgroundColor: theme.colors.surface,
@@ -156,7 +156,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600'
   },
   settingDescription: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 13,
     color: theme.colors.textSecondary
   },
@@ -246,13 +246,13 @@ export const getStyles = (theme) => StyleSheet.create({
   // --- Temporary Screen Styles ---
   tempScreenContent: {
     paddingHorizontal: 16,
-    paddingTop: 30,
+    paddingTop: 32,
     alignItems: 'center',
   },
   tempContentCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
-    padding: 30,
+    padding: 32,
     width: '100%',
     alignItems: 'center',
     shadowColor: '#000',
@@ -268,7 +268,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
     marginTop: 15,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   tempTextNormal: {
     fontSize: 14,
@@ -280,11 +280,11 @@ export const getStyles = (theme) => StyleSheet.create({
   // --- MyProfile Specific Styles ---
   avatarSection: {
       alignItems: 'center',
-      marginBottom: 30,
+      marginBottom: 32,
   },
   changePictureButton: {
       marginTop: 8,
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       paddingVertical: 5,
       borderRadius: 5,
   },
@@ -302,19 +302,19 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 1.41,
     elevation: 2,
-    marginBottom: 20,
+    marginBottom: 24,
     borderWidth: theme.isDark ? 1 : 0,
     borderColor: theme.colors.border
   },
   fieldContainer: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
   fieldLabelContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: 8,
   },
   fieldLabel: {
     fontSize: 12,
@@ -347,8 +347,8 @@ export const getStyles = (theme) => StyleSheet.create({
   editButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 24,
   },
   actionButton: {
     flex: 1,
@@ -413,7 +413,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: theme.colors.text,
-    marginRight: 10,
+    marginRight: 8,
   },
   faqItemBorder: {
     borderBottomWidth: 1,
@@ -421,12 +421,12 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   versionContainer: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   versionText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
   }
 });
 

@@ -13,26 +13,26 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 100,
   },
   statusCard: {
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 20,
+    marginBottom: 24,
     borderWidth: 1,
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border
@@ -56,7 +56,7 @@ export const getStyles = (theme) => StyleSheet.create({
   statusDescription: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
     lineHeight: 18,
   },
   lastReviewed: {
@@ -70,9 +70,9 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 24,
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   rejectionTitle: {
     fontSize: 14,
@@ -82,14 +82,14 @@ export const getStyles = (theme) => StyleSheet.create({
   rejectionReason: {
     fontSize: 13,
     color: theme.isDark ? theme.colors.text : '#B91C1C',
-    marginTop: 4,
+    marginTop: 8,
     lineHeight: 18,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
     marginTop: 8,
   },
   documentGrid: {
@@ -108,7 +108,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   documentLabel: {
     fontSize: 14,
@@ -153,7 +153,7 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    gap: 10,
+    gap: 8,
     shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -241,7 +241,7 @@ export const getStyles = (theme) => StyleSheet.create({
   historyIdType: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
   },
   historyRejection: {
     fontSize: 12,
@@ -267,7 +267,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border
   },
   modalHeader: {
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
@@ -279,13 +279,13 @@ export const getStyles = (theme) => StyleSheet.create({
   modalSubtitle: {
     fontSize: 13,
     color: theme.colors.primary,
-    marginTop: 4,
+    marginTop: 8,
   },
   formContainer: {
-    padding: 20,
+    padding: 16,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
     fontSize: 14,
@@ -313,7 +313,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 15,
     color: theme.colors.text
   },
@@ -341,9 +341,9 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   formActions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-    marginBottom: 30,
+    gap: 16,
+    marginTop: 16,
+    marginBottom: 32,
   },
   cancelButton: {
     flex: 1,

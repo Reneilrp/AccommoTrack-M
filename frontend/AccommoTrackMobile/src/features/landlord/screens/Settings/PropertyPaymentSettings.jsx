@@ -316,23 +316,23 @@ const getStyles = (theme) => ({
     color: '#FFFFFF',
   },
   iconButton: {
-    padding: 4,
+    padding: 8,
   },
   iconButtonEmpty: {
     width: 32,
   },
   scrollContent: {
     padding: 16,
-    gap: 12,
+    gap: 16,
   },
   warningBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 8,
     backgroundColor: '#FEF3C7',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 4,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
@@ -349,11 +349,11 @@ const getStyles = (theme) => ({
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: '#F0FDF4',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 4,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#BBF7D0',
   },
@@ -370,7 +370,7 @@ const getStyles = (theme) => ({
     gap: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   legendTitle: {
     fontSize: 12,
@@ -378,7 +378,7 @@ const getStyles = (theme) => ({
     color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   legendRow: {
     flexDirection: 'row',
@@ -408,7 +408,7 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 48,
-    gap: 12,
+    gap: 16,
   },
   loadingText: {
     fontSize: 14,
@@ -425,12 +425,12 @@ const getStyles = (theme) => ({
     padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    gap: 12,
+    gap: 16,
   },
   propertyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   propertyIcon: {
     width: 38,
@@ -454,7 +454,7 @@ const getStyles = (theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   methodDisabled: {
     opacity: 0.5,
@@ -462,7 +462,7 @@ const getStyles = (theme) => ({
   methodLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     flex: 1,
   },
   methodLabel: {

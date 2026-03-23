@@ -104,7 +104,7 @@ const AccountTab = ({ user }) => {
 
 	// --- Complexity indicator item ---
 	const ComplexityItem = ({ met, label }) => (
-		<li className={`flex items-center gap-1.5 text-xs ${met ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+		<li className={`flex items-center gap-2.5 text-xs ${met ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-500'}`}>
 			{met
 				? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
 				: <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -174,7 +174,7 @@ const AccountTab = ({ user }) => {
 
 							{/* Same-as-old warning */}
 							{isSameAsOld && (
-								<p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+								<p className="mt-2.5 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2">
 									<AlertTriangle className="w-3.5 h-3.5" />
 									New password must be different from your current password
 								</p>
@@ -182,7 +182,7 @@ const AccountTab = ({ user }) => {
 
 							{/* Complexity indicator */}
 							{isEditing && passwordData.new_password.length > 0 && (
-								<ul className="mt-2 space-y-1">
+								<ul className="mt-2 space-y-2">
 									<ComplexityItem met={complexity.minLength} label="At least 8 characters" />
 									<ComplexityItem met={complexity.hasUppercase} label="One uppercase letter" />
 									<ComplexityItem met={complexity.hasLowercase} label="One lowercase letter" />
@@ -209,12 +209,12 @@ const AccountTab = ({ user }) => {
 							<div className="mt-2 h-5">
 								{passwordData.confirm_password && (
 									passwordsMatch ? (
-										<p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+										<p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2">
 											<CheckCircle2 className="w-4 h-4" />
 											Passwords match
 										</p>
 									) : (
-										<p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+										<p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
 											<XCircle className="w-4 h-4" />
 											Passwords do not match
 										</p>
@@ -224,7 +224,7 @@ const AccountTab = ({ user }) => {
 						</div>
 
 						{isEditing && (
-							<div className="flex justify-end pt-2 gap-3">
+							<div className="flex justify-end pt-2 gap-4">
 								<button
 									type="button"
 									onClick={toggleEdit}

@@ -70,7 +70,7 @@ const getStyles = (theme) =>
       backgroundColor: theme.colors.background,
     },
     loadingText: {
-      marginTop: 12,
+      marginTop: 16,
       fontSize: 16,
       color: theme.colors.textSecondary,
     },
@@ -91,7 +91,7 @@ const getStyles = (theme) =>
     },
     headerSide: { width: 80, alignItems: "flex-end" },
     markAllButton: {
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       paddingVertical: 6,
       backgroundColor: "rgba(255,255,255,0.2)",
       borderRadius: 16,
@@ -117,7 +117,7 @@ const getStyles = (theme) =>
     emptySubtitle: {
       fontSize: 14,
       color: theme.colors.textSecondary,
-      marginTop: 4,
+      marginTop: 8,
     },
     notificationItem: {
       flexDirection: "row",
@@ -138,7 +138,7 @@ const getStyles = (theme) =>
       justifyContent: "center",
       alignItems: "center",
     },
-    notificationContent: { flex: 1, marginLeft: 12 },
+    notificationContent: { flex: 1, marginLeft: 16 },
     notificationTitle: {
       fontSize: 15,
       fontWeight: "500",
@@ -153,12 +153,12 @@ const getStyles = (theme) =>
     notificationTime: {
       fontSize: 12,
       color: theme.colors.textTertiary,
-      marginTop: 4,
+      marginTop: 8,
     },
     unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 },
     filterBar: {
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
       backgroundColor: theme.colors.backgroundSecondary,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
@@ -168,7 +168,7 @@ const getStyles = (theme) =>
       backgroundColor: theme.colors.surface,
       borderRadius: 8,
       overflow: "hidden",
-      marginBottom: 10,
+      marginBottom: 8,
     },
     segmentButton: {
       flex: 1,
@@ -194,7 +194,7 @@ const getStyles = (theme) =>
       flex: 1,
       backgroundColor: theme.colors.surface,
       paddingVertical: 8,
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -206,7 +206,7 @@ const getStyles = (theme) =>
     },
     clearButton: {
       paddingVertical: 8,
-      paddingHorizontal: 12,
+      paddingHorizontal: 16,
       backgroundColor: theme.colors.error,
       borderRadius: 8,
     },

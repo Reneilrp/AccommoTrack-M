@@ -282,8 +282,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Bookings</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Bookings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{stats.total}</p>
                   </div>
                   <div className="w-10 h-10 bg-gray-50 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
                     <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -293,8 +293,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Confirmed</p>
-                    <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Confirmed</p>
+                    <p className="text-2xl font-bold text-green-600 mt-2">{stats.confirmed}</p>
                   </div>
                   <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -304,8 +304,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
                   </div>
                   <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
                     <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
@@ -315,8 +315,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Completed</p>
-                    <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Completed</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-2">{stats.completed}</p>
                   </div>
                   <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                     <Check className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -332,7 +332,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           <div className="relative flex-1 w-full">
             {filterStatus !== 'extensions' && filterStatus !== 'transfers' && (
             <>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
             <input
               type="text"
               value={searchQuery}
@@ -425,10 +425,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           <PriceRow amount={b.amount} />
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
+                          <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${getStatusColor(b.status)}`}>{b.status}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <button onClick={() => { setSelectedBooking(b); setShowDetailModal(true); }} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-1 transition-colors">
+                          <button onClick={() => { setSelectedBooking(b); setShowDetailModal(true); }} className="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-400 text-xs font-bold uppercase flex items-center gap-2 transition-colors">
                             <Eye className="w-3.5 h-3.5" /> View
                           </button>
                         </td>
@@ -450,42 +450,42 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Booking Details</h2>
               <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                <X className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-1">Check-In</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-2">Check-In</p>
                   <p className="font-bold text-lg text-gray-900 dark:text-white">{formatDate(selectedBooking.checkIn)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold text-right tracking-wider mb-1">Check-Out</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold text-right tracking-wider mb-2">Check-Out</p>
                   <p className="font-bold text-lg text-right text-gray-900 dark:text-white">{formatDate(selectedBooking.checkOut)}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Guest Name</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Guest Name</p>
                   <p className="font-semibold text-gray-900 dark:text-white text-lg">{selectedBooking.guestName}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Contact Information</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Contact Information</p>
                   <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.phone || selectedBooking.email}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Property</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property</p>
                   <p className="font-semibold text-gray-900 dark:text-white">{selectedBooking.propertyTitle}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Room Details</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Room Details</p>
                   <p className="font-semibold text-gray-900 dark:text-white">Room {selectedBooking.roomNumber} ({selectedBooking.roomType})</p>
                 </div>
               </div>
 
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Amount</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">₱{selectedBooking.amount.toLocaleString()}</p>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getPaymentColor(selectedBooking.paymentStatus)}`}>
@@ -494,7 +494,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                 {canManageBookings ? (
                   <>
                     {(() => {
@@ -513,14 +513,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         } else if (paymentStatus === 'paid' || paymentStatus === 'partial') {
                           return (
                             <div className="w-full">
-                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-3">
+                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
                                 <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
                                   <strong>Note:</strong> This booking is cancelled but payment hasn't been refunded yet.
                                 </p>
                               </div>
                               <button
                                 onClick={() => handleUpdatePayment(selectedBooking.id, 'refunded')}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 active:scale-[0.98]"
+                                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 active:scale-[0.98]"
                               >
                                 <CheckCircle className="w-5 h-5" />
                                 Mark as Refunded
@@ -540,14 +540,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       if (status === 'completed') {
                         return (
                           <div className="w-full">
-                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-3">
+                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-4">
                               <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
                                 <strong>Completed:</strong> This booking is completed. You can still cancel and process refund if needed.
                               </p>
                             </div>
                             <button
                               onClick={() => handleOpenCancelModal(selectedBooking)}
-                              className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              className="w-full flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                             >
                               <XCircle className="w-5 h-5" />
                               Cancel & Refund
@@ -560,7 +560,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       if (status === 'partial-completed') {
                         return (
                           <div className="w-full">
-                            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-3">
+                            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
                               <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
                                 <strong>Partial Complete:</strong> This booking has been partially paid. Mark as completed once the full payment is received.
                               </p>
@@ -575,7 +575,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                   handleUpdateStatus(selectedBooking.id, 'completed');
                                 }
                               }}
-                              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                             >
                               <CheckCircle className="w-5 h-5" />
                               Mark Fully Paid & Completed
@@ -587,17 +587,17 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       // Pending status - can confirm or cancel
                       if (status === 'pending') {
                         return (
-                          <div className="flex gap-3 w-full">
+                          <div className="flex gap-4 w-full">
                             <button
                               onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed')}
-                              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
+                              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 active:scale-[0.98]"
                             >
                               <CheckCircle className="w-5 h-5" />
                               Confirm
                             </button>
                             <button
                               onClick={() => handleOpenCancelModal(selectedBooking)}
-                              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                             >
                               <XCircle className="w-5 h-5" />
                               Cancel
@@ -610,21 +610,21 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                       if (status === 'confirmed') {
                         if (paymentStatus === 'paid') {
                           return (
-                            <div className="flex gap-3 w-full">
+                            <div className="flex gap-4 w-full">
                               <button
                                 onClick={() => {
                                   if (window.confirm('Mark this booking as completed?')) {
                                     handleUpdateStatus(selectedBooking.id, 'completed');
                                   }
                                 }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                               >
                                 <CheckCircle className="w-5 h-5" />
                                 Complete
                               </button>
                               <button
                                 onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                               >
                                 <XCircle className="w-5 h-5" />
                                 Cancel & Refund
@@ -633,15 +633,15 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           );
                         } else if (paymentStatus === 'partial') {
                           return (
-                            <div className="flex flex-col gap-3 w-full">
-                              <div className="flex gap-3">
+                            <div className="flex flex-col gap-4 w-full">
+                              <div className="flex gap-4">
                                 <button
                                   onClick={() => {
                                     if (window.confirm('Mark as completed with full payment received?')) {
                                       handleUpdateStatus(selectedBooking.id, 'completed');
                                     }
                                   }}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
                                   Complete
@@ -652,7 +652,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                                       handleUpdateStatus(selectedBooking.id, 'partial-completed');
                                     }
                                   }}
-                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-yellow-500/20 active:scale-[0.98]"
+                                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-yellow-500/20 active:scale-[0.98]"
                                 >
                                   <CheckCircle className="w-5 h-5" />
                                   Partial
@@ -660,7 +660,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               </div>
                               <button
                                 onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                className="w-full flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                               >
                                 <XCircle className="w-5 h-5" />
                                 Cancel & Refund
@@ -670,14 +670,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                         } else {
                           return (
                             <div className="w-full">
-                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-3">
+                              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 mb-4">
                                 <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
                                   <strong>Note:</strong> Payment is required before completion. Only cancellation is available.
                                 </p>
                               </div>
                               <button
                                 onClick={() => handleOpenCancelModal(selectedBooking)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                className="w-full flex items-center justify-center gap-2 px-6 py-4 border-2 border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all active:scale-[0.98]"
                               >
                                 <XCircle className="w-5 h-5" />
                                 Cancel
@@ -708,12 +708,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cancel Booking</h3>
               <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                <X className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-500" />
               </button>
             </div>
 
             <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 mb-6 border border-red-100 dark:border-red-900/30">
-              <p className="text-sm text-red-800 dark:text-red-300 font-bold mb-1">Booking: {selectedBooking.guestName}</p>
+              <p className="text-sm text-red-800 dark:text-red-300 font-bold mb-2">Booking: {selectedBooking.guestName}</p>
               <p className="text-xs text-red-700 dark:text-red-400 font-medium">Ref: {selectedBooking.bookingReference}</p>
               <div className="flex justify-between items-center mt-2">
                 <p className="text-xs text-red-700 dark:text-red-400 font-bold uppercase tracking-wider">
@@ -734,7 +734,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   value={cancellationData.reason}
                   onChange={(e) => setCancellationData({ ...cancellationData, reason: e.target.value })}
                   placeholder="e.g. Guest request, double booking, etc."
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm outline-none transition-all h-24 resize-none"
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm outline-none transition-all h-24 resize-none"
                   rows="3"
                   required
                 />
@@ -742,7 +742,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
               {(selectedBooking.paymentStatus === 'paid' || selectedBooking.paymentStatus === 'partial') && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer group"
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer group"
                        onClick={() => setCancellationData({...cancellationData, shouldRefund: !cancellationData.shouldRefund, refundAmount: !cancellationData.shouldRefund ? selectedBooking.amount : 0})}>
                     <input
                       type="checkbox"
@@ -769,10 +769,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                           refundAmount: parseFloat(e.target.value) || 0
                         })}
                         max={selectedBooking.amount}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-xl outline-none"
+                        className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-bold text-xl outline-none"
                         placeholder="0.00"
                       />
-                      <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                         <span>Min: ₱0</span>
                         <span>Max: ₱{selectedBooking.amount.toLocaleString()}</span>
                       </div>
@@ -782,18 +782,18 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
               )}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => setShowCancelModal(false)}
                 disabled={processing}
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Go Back
               </button>
               <button
                 onClick={handleCancelConfirm}
                 disabled={processing}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
+                className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
               >
                 {processing ? (
                   <>
@@ -853,7 +853,7 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
               <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name}</h4>
               <p className="text-xs text-gray-500">Room {req.booking?.room?.room_number} • {req.booking?.room?.property?.title}</p>
             </div>
-            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
               req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
               req.status === 'approved' ? 'bg-green-100 text-green-700' :
               'bg-red-100 text-red-700'
@@ -863,12 +863,12 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current End</p>
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Current End</p>
               <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{new Date(req.current_end_date).toLocaleDateString()}</p>
             </div>
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-              <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Requested End</p>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+              <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-2">Requested End</p>
               {modifying === req.id ? (
                 <input 
                   type="date"
@@ -884,10 +884,10 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
 
           <div className="flex justify-between items-center mb-6">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase">Extension Fee</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase">Extension Fee</p>
               {modifying === req.id ? (
                 <div className="flex items-center">
-                  <span className="text-green-600 font-bold mr-1">₱</span>
+                  <span className="text-green-600 font-bold mr-2">₱</span>
                   <input 
                     type="number"
                     value={modifyData.proposed_amount}
@@ -900,13 +900,13 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
               )}
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-bold text-gray-400 uppercase">Type</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase">Type</p>
               <p className="text-xs font-bold text-gray-700 dark:text-gray-300 capitalize">{req.extension_type}</p>
             </div>
           </div>
 
           {req.tenant_notes && (
-            <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400">
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400">
               "{req.tenant_notes}"
             </div>
           )}
@@ -932,13 +932,13 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
                 <>
                   <button 
                     onClick={() => onHandle(req.id, 'approve')}
-                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-1"
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                   </button>
                   <button 
                     onClick={() => startModify(req)}
-                    className="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                    className="flex-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2"
                   >
                     <Edit3 className="w-3.5 h-3.5" /> Modify
                   </button>
@@ -996,7 +996,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
               <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name || (req.tenant?.first_name + ' ' + req.tenant?.last_name)}</h4>
               <p className="text-xs text-gray-500">{req.requested_room?.property?.title}</p>
             </div>
-            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+            <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
               req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
               req.status === 'approved' ? 'bg-green-100 text-green-700' :
               'bg-red-100 text-red-700'
@@ -1006,19 +1006,19 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current Room</p>
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Current Room</p>
               <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Room {req.current_room?.room_number}</p>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-100 dark:border-amber-800">
-              <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1">Requested Room</p>
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-100 dark:border-amber-800">
+              <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-2">Requested Room</p>
               <p className="text-sm font-bold text-amber-900 dark:text-blue-200">Room {req.requested_room?.room_number}</p>
             </div>
           </div>
 
           <div className="mb-6">
-            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Reason for Transfer</p>
-            <div className="p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400 leading-relaxed">
+            <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Reason for Transfer</p>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400 leading-relaxed">
               "{req.reason}"
             </div>
           </div>
@@ -1028,14 +1028,14 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
               {approving === req.id ? (
                 <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Damage Charge (Optional)</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Damage Charge (Optional)</label>
                     <div className="flex gap-2">
                       <input 
                         type="number" 
                         placeholder="0.00"
                         value={approvalData.damage_charge}
                         onChange={e => setApprovalData({...approvalData, damage_charge: e.target.value})}
-                        className="flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 outline-none"
+                        className="flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 outline-none"
                       />
                       {parseFloat(approvalData.damage_charge) > 0 && (
                         <input 
@@ -1044,18 +1044,18 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                           required
                           value={approvalData.damage_description}
                           onChange={e => setApprovalData({...approvalData, damage_description: e.target.value})}
-                          className="flex-[2] text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 outline-none"
+                          className="flex-[2] text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 outline-none"
                         />
                       )}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Landlord Notes</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Landlord Notes</label>
                     <textarea 
                       placeholder="Any notes for the tenant..."
                       value={approvalData.landlord_notes}
                       onChange={e => setApprovalData({...approvalData, landlord_notes: e.target.value})}
-                      className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 outline-none h-16 resize-none"
+                      className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 outline-none h-16 resize-none"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -1077,7 +1077,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => startApprove(req)}
-                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-1"
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                   </button>

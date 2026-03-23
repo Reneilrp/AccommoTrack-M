@@ -242,8 +242,8 @@ export default function Analytics() {
       {/* Filters and Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex-1 lg:flex-none">
-            <Building2 className="w-5 h-5 text-gray-400" />
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex-1 lg:flex-none">
+            <Building2 className="w-5 h-5 text-gray-500" />
             <select
               value={selectedProperty}
               onChange={(e) => setSelectedProperty(e.target.value)}
@@ -274,12 +274,12 @@ export default function Analytics() {
         </div>
         
         <div className="flex items-center justify-between gap-4">
-          <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+          <div className="flex bg-gray-100 dark:bg-gray-700 p-2 rounded-lg">
             {['week', 'month', 'year'].map(r => (
               <button 
                 key={r} 
                 onClick={() => setTimeRange(r)} 
-                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-2.5 rounded-md text-xs font-bold transition-all ${timeRange === r ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {r.toUpperCase()}
               </button>
@@ -326,9 +326,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center">
                       <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Cumulative</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Cumulative</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Revenue</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Total Revenue</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.total_revenue.toLocaleString()}</p>
                 </div>
 
@@ -337,9 +337,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Month</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Month</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Monthly Revenue</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Monthly Revenue</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.monthly_revenue.toLocaleString()}</p>
                 </div>
 
@@ -348,9 +348,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                       <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Target: 100%</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Target: 100%</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Collection Rate</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Collection Rate</p>
                   <p className={`text-lg md:text-2xl font-bold ${analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>
                     {analytics.revenue.collection_rate}%
                   </p>
@@ -361,9 +361,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                       <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overall</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Overall</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Payment Rate</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Payment Rate</p>
                   {(() => {
                     const paid = Number(analytics.payments.paid || 0);
                     const total = paid + Number(analytics.payments.unpaid || 0) + Number(analytics.payments.partial || 0) + Number(analytics.payments.overdue || 0);
@@ -382,9 +382,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Home className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Occupancy</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Occupancy</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Occupancy Rate</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Occupancy Rate</p>
                   <p className={`text-lg md:text-2xl font-bold ${analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}`}>
                     {analytics.overview.occupancy_rate}%
                   </p>
@@ -395,9 +395,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                       <Building2 className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Inventory</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Inventory</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Rooms</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Total Rooms</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.total_rooms}</p>
                 </div>
 
@@ -406,9 +406,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-pink-100 rounded-lg flex items-center justify-center">
                       <Users className="w-5 h-5 md:w-6 md:h-6 text-pink-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Active</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Active</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Active Tenants</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Active Tenants</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.active_tenants}</p>
                 </div>
 
@@ -417,9 +417,9 @@ export default function Analytics() {
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                       <Calendar className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Stay</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Stay</span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tenant Retention</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Tenant Retention</p>
                   <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months} mo</p>
                 </div>
               </div>
@@ -504,7 +504,7 @@ export default function Analytics() {
                           <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{p.occupied_rooms} / {p.total_rooms}</td>
                           <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(p.monthly_revenue || 0).toLocaleString()}</td>
                           <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${
                               p.occupancy_rate >= 90 ? 'bg-green-100 text-green-700' : 
                               p.occupancy_rate >= 50 ? 'bg-blue-100 text-blue-700' : 
                               'bg-orange-100 text-orange-700'
@@ -525,11 +525,11 @@ export default function Analytics() {
         ) : (!loading && !propertiesLoading && properties !== null) ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
             <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full mx-auto flex items-center justify-center mb-6">
-              <Building2 className="w-10 h-10 text-gray-400" />
+              <Building2 className="w-10 h-10 text-gray-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">No Properties Yet</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">Start by adding your first property to see analytics data.</p>
-            <a href="/properties" className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+            <a href="/properties" className="inline-flex items-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
               <Home className="w-5 h-5" /> Add Your First Property
             </a>
           </div>

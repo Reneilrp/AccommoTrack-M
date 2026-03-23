@@ -11,7 +11,7 @@ export const lightTheme = {
   isDark: false,
   colors: {
     // Brand/Primary colors (Emerald palette - matching web guest brand colors)
-    primary: '#059669', // emerald-600
+    primary: '#047857', // emerald-700 (Increased for contrast)
     primaryDark: '#047857', // emerald-700
     primaryLight: '#d1fae5', // emerald-100
     brand50: '#ecfdf5', // emerald-50
@@ -37,7 +37,7 @@ export const lightTheme = {
     // Text colors (matching CSS variables)
     text: '#111827', // --text-primary / gray-900
     textSecondary: '#4b5563', // --text-secondary / gray-500
-    textTertiary: '#9ca3af', // --text-muted / gray-400
+    textTertiary: '#71717a', // --text-muted / gray-500 (Increased for contrast)
     textInverse: '#ffffff',
     
     // Border colors (matching CSS variables)
@@ -45,7 +45,7 @@ export const lightTheme = {
     borderLight: '#f3f4f6', // --border-light / gray-100
     
     // Status colors (matching web app usage)
-    success: '#059669', // emerald-600
+    success: '#047857', // emerald-700 (Increased for contrast)
     successLight: '#d1fae5', // emerald-100
     successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500
@@ -76,7 +76,7 @@ export const darkTheme = {
   isDark: true,
   colors: {
     // Brand/Primary colors (Emerald palette - matching web guest brand colors)
-    primary: '#059669', // emerald-600 (matching web guest primary)
+    primary: '#34d399', // emerald-400 (Lighter for dark mode contrast)
     primaryDark: '#047857', // emerald-700
     primaryLight: '#064e3b', // emerald-900
     brand50: '#ecfdf5', // emerald-50
@@ -102,7 +102,7 @@ export const darkTheme = {
     // Text colors (matching CSS variables)
     text: '#f9fafb', // --text-primary / gray-50
     textSecondary: '#d1d5db', // --text-secondary / gray-300
-    textTertiary: '#9ca3af', // --text-muted / gray-400
+    textTertiary: '#71717a', // --text-muted / gray-500 (Synced with web)
     textInverse: '#111827',
     
     // Border colors (matching CSS variables)
@@ -110,7 +110,7 @@ export const darkTheme = {
     borderLight: '#4b5563', // --border-light / gray-600
     
     // Status colors (matching web app usage)
-    success: '#059669', // emerald-600
+    success: '#34d399', // emerald-400 (Lighter for dark mode contrast)
     successLight: '#064e3b', // emerald-900 (dark mode)
     successDark: '#047857', // emerald-700
     error: '#ef4444', // red-500

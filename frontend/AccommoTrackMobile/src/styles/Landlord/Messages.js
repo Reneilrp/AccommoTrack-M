@@ -42,15 +42,15 @@ export const getStyles = (theme) => StyleSheet.create({
   searchContainer: {
     backgroundColor: 'transparent',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   searchBar: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -67,7 +67,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     color: theme.colors.textSecondary,
     fontSize: 16
   },
@@ -86,14 +86,14 @@ export const getStyles = (theme) => StyleSheet.create({
   emptySubtitle: {
     fontSize: 14,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
     textAlign: 'center'
   },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight
@@ -102,7 +102,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.isDark ? theme.colors.brand900 : '#E8F5E9'
   },
   avatarContainer: {
-    marginRight: 12
+    marginRight: 16
   },
   avatar: {
     width: 52,
@@ -142,7 +142,7 @@ export const getStyles = (theme) => StyleSheet.create({
   lastMessage: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
@@ -161,7 +161,7 @@ export const getStyles = (theme) => StyleSheet.create({
   chatScreenHeader: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: 8,
-    paddingVertical: 12,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center'
   },
@@ -185,7 +185,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: '#FFFFFF'
   },
   chatHeaderText: {
-    marginLeft: 12
+    marginLeft: 16
   },
   chatHeaderName: {
     fontSize: 16,
@@ -220,7 +220,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border
   },
   propertyCardInfo: {
-    marginLeft: 12
+    marginLeft: 16
   },
   propertyCardTitle: {
     fontSize: 14,
@@ -241,15 +241,15 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: 12
+    marginTop: 16
   },
   emptyMessagesSubtext: {
     fontSize: 14,
     color: theme.colors.textTertiary,
-    marginTop: 4
+    marginTop: 8
   },
   messageWrapper: {
-    marginBottom: 12,
+    marginBottom: 16,
     width: '100%',
     flexDirection: 'row',
     alignItems: 'flex-end'
@@ -273,7 +273,7 @@ export const getStyles = (theme) => StyleSheet.create({
   messageBubble: {
     maxWidth: '100%',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 16
   },
   myMessageBubble: {
@@ -303,15 +303,15 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   inputContainer: {
     backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'flex-end',
     borderTopWidth: 1,
     borderTopColor: theme.colors.border
   },
   attachButton: {
-    padding: 4,
+    padding: 8,
     marginRight: 8
   },
   textInput: {
@@ -319,7 +319,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 15,
     maxHeight: 100,
     color: theme.colors.text

@@ -430,7 +430,7 @@ const LandlordRegister = () => {
                   Your landlord registration has been successfully submitted. Our administrators will review your documents within 1-3 business days. You will receive an email once your account is verified.
                 </p>
                 <button
-                  className="w-full bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
+                  className="w-full bg-green-700 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
                   onClick={() => navigate('/')}
                 >
                   Return to Home
@@ -447,7 +447,7 @@ const LandlordRegister = () => {
                 </ul>
                 <span className="text-xs text-gray-500 dark:text-gray-400 block mb-2">Your documents will be reviewed by our team for verification and approval.<br />Verification may take 1-3 work days.</span>
                 <button
-                  className="mt-4 bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
+                  className="mt-4 bg-green-700 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:bg-green-800 transition"
                   onClick={() => setShowModal(false)}
                 >
                   Proceed
@@ -484,13 +484,13 @@ const LandlordRegister = () => {
           </div>
           <form className="space-y-4" onSubmit={step === 3 ? handleSubmit : handleNext}>
             {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded flex items-center gap-3">
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded flex items-center gap-4">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
                 <span className="text-red-700 dark:text-red-300 text-sm font-medium">{error}</span>
               </div>
             )}
             {success && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded flex items-center gap-3">
+              <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded flex items-center gap-4">
                 <Check className="w-5 h-5 text-green-500 shrink-0" />
                 <span className="text-green-700 dark:text-green-300 text-sm font-medium">{success}</span>
               </div>
@@ -506,15 +506,15 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.firstName = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.firstName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.firstName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your first name"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-1">{fieldErrors.firstName}</p>}
+                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-2">{fieldErrors.firstName}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Middle Name <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
                   <input
                     type="text"
                     name="middleName"
@@ -522,11 +522,11 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.middleName = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.middleName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.middleName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your middle name"
                     disabled={submitting}
                   />
-                  {fieldErrors.middleName && <p className="text-xs text-red-500 mt-1">{fieldErrors.middleName}</p>}
+                  {fieldErrors.middleName && <p className="text-xs text-red-500 mt-2">{fieldErrors.middleName}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Last Name <span className="text-red-500">*</span></label>
@@ -537,12 +537,12 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.lastName = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.lastName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.lastName ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your last name"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-1">{fieldErrors.lastName}</p>}
+                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-2">{fieldErrors.lastName}</p>}
                 </div>
                 <div className="flex justify-end mt-4">
                   <button type="button" className="bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition shadow-md" onClick={handleNext} disabled={submitting}>Next</button>
@@ -582,12 +582,12 @@ const LandlordRegister = () => {
                       }}
                       max={new Date(new Date().getFullYear() - 20, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
                       ref={el => fieldRefs.current.dob = el}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer transition-colors ${fieldErrors.dob ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                      className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer transition-colors ${fieldErrors.dob ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                       required
                       disabled={submitting}
                     />
                   </div>
-                  {fieldErrors.dob && <p className="text-xs text-red-500 mt-1">{fieldErrors.dob}</p>}
+                  {fieldErrors.dob && <p className="text-xs text-red-500 mt-2">{fieldErrors.dob}</p>}
                 </div>
 
                 <div>
@@ -595,7 +595,7 @@ const LandlordRegister = () => {
                     <span className="flex items-center gap-2">
                       <span>Email Address <span className="text-red-500">*</span></span>
                       {emailAvailable === true && !fieldErrors.email && (
-                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 font-medium animate-fadeIn">
+                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2 font-medium animate-fadeIn">
                           <Check size={14}/> available
                         </span>
                       )}
@@ -610,14 +610,14 @@ const LandlordRegister = () => {
                     onBlur={handleEmailBlur}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.email = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.email ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.email ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your email"
                     required
                     disabled={submitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Phone Number <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
+                  <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Phone Number <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
                   <input
                     type="tel"
                     name="phone"
@@ -629,11 +629,11 @@ const LandlordRegister = () => {
                       // normalize phone on blur
                       setForm(prev => ({ ...prev, phone: (prev.phone || '').replace(/[^0-9]/g, '') }));
                     }}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.phone ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.phone ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Enter your phone number (09123456789)"
                     disabled={submitting}
                   />
-                  {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+                  {fieldErrors.phone && <p className="text-xs text-red-500 mt-2">{fieldErrors.phone}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Password <span className="text-red-500">*</span></label>
@@ -644,19 +644,19 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.password = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.password ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Create a password"
                     required
                     disabled={submitting}
                   />
                   {form.password && (
-                    <div className="mt-2 space-y-1">
-                      {!passwordChecks.minLen && <p className="text-xs text-gray-500 flex items-center gap-1">--Minimum 8 characters</p>}
-                      {!passwordChecks.hasUpper && <p className="text-xs text-gray-500 flex items-center gap-1">--At least 1 uppercase letter</p>}
-                      {!passwordChecks.hasSpecial && <p className="text-xs text-gray-500 flex items-center gap-1">--At least 1 special character</p>}
+                    <div className="mt-2 space-y-2">
+                      {!passwordChecks.minLen && <p className="text-xs text-gray-500 flex items-center gap-2">--Minimum 8 characters</p>}
+                      {!passwordChecks.hasUpper && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 1 uppercase letter</p>}
+                      {!passwordChecks.hasSpecial && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 1 special character</p>}
                     </div>
                   )}
-                  {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
+                  {fieldErrors.password && <p className="text-xs text-red-500 mt-2">{fieldErrors.password}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Confirm Password <span className="text-red-500">*</span></label>
@@ -667,12 +667,12 @@ const LandlordRegister = () => {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     ref={el => fieldRefs.current.confirmPassword = el}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                    className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                     placeholder="Confirm your password"
                     required
                     disabled={submitting}
                   />
-                  {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>}
+                  {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-2">{fieldErrors.confirmPassword}</p>}
                 </div>
                 <div className="flex justify-between mt-4">
                   <button type="button" className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition" onClick={handleBack} disabled={submitting}>Back</button>
@@ -690,7 +690,7 @@ const LandlordRegister = () => {
                       Loading ID types...
                     </div>
                   ) : idTypesError ? (
-                    <div className="text-red-600 dark:text-red-400 text-sm mb-2 flex flex-col gap-1">
+                    <div className="text-red-600 dark:text-red-400 text-sm mb-2 flex flex-col gap-2">
                       <span>{idTypesError}</span>
                       <button type="button" className="text-green-700 dark:text-green-400 underline self-start text-xs font-bold" onClick={() => { setIdTypes([]); setIdTypesError(''); setIdTypesLoading(false); }}>Retry</button>
                     </div>
@@ -699,10 +699,10 @@ const LandlordRegister = () => {
                       <button
                         type="button"
                         onClick={() => !submitting && setIsIdDropdownOpen(!isIdDropdownOpen)}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-left flex justify-between items-center transition-colors ${fieldErrors.validIdType ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
+                        className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-left flex justify-between items-center transition-colors ${fieldErrors.validIdType ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                         disabled={submitting}
                       >
-                        <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-400 dark:text-gray-500"}>
+                        <span className={form.validIdType ? "text-green-900 dark:text-green-200" : "text-gray-500 dark:text-gray-500"}>
                           {
                             [
                               ...idTypes.map(t => ({ value: t, label: t })),
@@ -714,19 +714,19 @@ const LandlordRegister = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
-                      {fieldErrors.validIdType && <p className="text-xs text-red-500 mt-1">{fieldErrors.validIdType}</p>}
+                      {fieldErrors.validIdType && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdType}</p>}
                       
                       {isIdDropdownOpen && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsIdDropdownOpen(false)}></div>
-                          <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
+                          <div className="absolute z-20 w-full mt-2 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto text-sm">
                             {[
                               ...idTypes.map(t => ({ value: t, label: t })),
                               { value: "other", label: "Other (specify below)" }
                             ].map((option) => (
                               <div
                                 key={option.value}
-                                className={`px-4 py-3 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-200 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-600'}`}
+                                className={`px-4 py-4 cursor-pointer transition-colors ${form.validIdType === option.value ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-200 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-600'}`}
                                 onClick={() => {
                                   setForm(prev => ({ ...prev, validIdType: option.value }));
                                   setIsIdDropdownOpen(false);
@@ -753,12 +753,12 @@ const LandlordRegister = () => {
                                         onChange={handleChange}
                                         onKeyDown={handleKeyDown}
                                         ref={el => fieldRefs.current.validIdOther = el}
-                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
+                                        className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${fieldErrors.validIdOther ? 'border-red-500' : 'border-green-200 dark:border-gray-600'}`}
                                         placeholder="Enter your ID type"
                                         required
                                         disabled={submitting}
                                       />
-                                      {fieldErrors.validIdOther && <p className="text-xs text-red-500 mt-1">{fieldErrors.validIdOther}</p>}
+                                      {fieldErrors.validIdOther && <p className="text-xs text-red-500 mt-2">{fieldErrors.validIdOther}</p>}
                   </div>
                 )}
                 <div>
@@ -778,7 +778,7 @@ const LandlordRegister = () => {
                       <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                         <button
                           type="button"
-                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => {
                             try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (e) {}
                             setForm(prev => ({ ...prev, validId: null }));
@@ -791,8 +791,8 @@ const LandlordRegister = () => {
                       </div>
                     )}
                   </div>
-                  {fieldErrors.validId && <p className="text-xs text-red-500 mt-1">{fieldErrors.validId}</p>}
-                  <p className="text-[10px] text-gray-500 mt-1">Max 5MB (JPG, PNG, PDF)</p>
+                  {fieldErrors.validId && <p className="text-xs text-red-500 mt-2">{fieldErrors.validId}</p>}
+                  <p className="text-[10px] text-gray-500 mt-2">Max 5MB (JPG, PNG, PDF)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-green-800 dark:text-green-300 mb-2">Upload Accommodation/Business Permit <span className="text-red-500">*</span></label>
@@ -811,7 +811,7 @@ const LandlordRegister = () => {
                       <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                         <button
                           type="button"
-                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => {
                             try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (e) {}
                             setForm(prev => ({ ...prev, permit: null }));
@@ -824,8 +824,8 @@ const LandlordRegister = () => {
                       </div>
                     )}
                   </div>
-                  {fieldErrors.permit && <p className="text-xs text-red-500 mt-1">{fieldErrors.permit}</p>}
-                  <p className="text-[10px] text-gray-500 mt-1">Max 5MB (JPG, PNG, PDF)</p>
+                  {fieldErrors.permit && <p className="text-xs text-red-500 mt-2">{fieldErrors.permit}</p>}
+                  <p className="text-[10px] text-gray-500 mt-2">Max 5MB (JPG, PNG, PDF)</p>
                 </div>
                 <div className="flex items-start mt-2">
                   <div className="flex items-center h-5">
@@ -840,9 +840,9 @@ const LandlordRegister = () => {
                       required
                     />
                   </div>
-                  <div className="ml-3 text-sm">
+                  <div className="ml-4 text-sm">
                     <label className="text-green-800 dark:text-green-300">I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="underline text-green-700 dark:text-green-400 font-bold">terms and conditions</button>.</label>
-                    {fieldErrors.agree && <p className="text-xs text-red-500 mt-1">{fieldErrors.agree}</p>}
+                    {fieldErrors.agree && <p className="text-xs text-red-500 mt-2">{fieldErrors.agree}</p>}
                   </div>
                 </div>
                 <div className="flex justify-between mt-6">
@@ -871,18 +871,18 @@ const LandlordRegister = () => {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
                   <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-500 font-medium">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowTermsModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -898,7 +898,7 @@ const LandlordRegister = () => {
                 <section key={idx}>
                   <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{section.title}</h4>
                   {Array.isArray(section.content) ? (
-                    <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                    <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
                       {section.content.map((item, i) => (
                         <li key={i}>{item}</li>
                       ))}
@@ -916,7 +916,7 @@ const LandlordRegister = () => {
               </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <p className="text-[10px] text-gray-400 dark:text-gray-500">Please read carefully before proceeding.</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-500">Please read carefully before proceeding.</p>
               <button
                 onClick={() => setShowTermsModal(false)}
                 className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-all shadow-md shadow-green-500/20"

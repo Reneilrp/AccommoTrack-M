@@ -302,7 +302,7 @@ export default function AddBooking({ navigation }) {
             <Text style={styles.label}>Select Room <Text style={styles.requiredAsterisk}>*</Text></Text>
             <View style={styles.pickerWrapper}>
               {loadingRooms ? (
-                <ActivityIndicator size="small" color="#059669" style={{ padding: 10 }} />
+                <ActivityIndicator size="small" color="#059669" style={{ padding: 8 }} />
               ) : (
                 <Picker
                   selectedValue={formData.roomId}

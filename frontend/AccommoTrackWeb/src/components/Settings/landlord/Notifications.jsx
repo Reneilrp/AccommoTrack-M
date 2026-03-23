@@ -47,10 +47,10 @@ export default function Notifications({ user, onUpdate }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-6 transition-all border-gray-100 dark:border-gray-700">
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Notification Preferences</h2>
           {isEditing && (
-            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full ml-2">Editing</span>
+            <span className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full ml-2">Editing</span>
           )}
         </div>
         <div className="flex gap-2">
@@ -84,7 +84,7 @@ export default function Notifications({ user, onUpdate }) {
       <div className="space-y-6">
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Email Notifications</h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[
               { key: 'emailNewBooking', label: 'New booking requests' },
               { key: 'emailPayment', label: 'Payment notifications' },
@@ -110,7 +110,7 @@ export default function Notifications({ user, onUpdate }) {
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">SMS Notifications</h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[
               { key: 'smsPaymentReminder', label: 'Payment reminders' },
               { key: 'smsNewTenant', label: 'New tenant notifications' }
@@ -135,7 +135,7 @@ export default function Notifications({ user, onUpdate }) {
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Push Notifications</h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 transition-all">
               <span className="text-sm text-gray-700 dark:text-gray-300">New messages</span>
               <button

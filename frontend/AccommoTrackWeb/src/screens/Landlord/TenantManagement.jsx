@@ -261,7 +261,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="relative w-full lg:w-[28rem]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
               <input type="text" placeholder="Search by name, room or email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white outline-none text-sm" />
             </div>
 
@@ -282,16 +282,16 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
         </div>
 
         {selectedTenants.length > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600 mb-6 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 mb-6 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
               <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
               <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedTenants.length} selected</span>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowBroadcastModal(true)} className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center gap-1.5 hover:bg-gray-50">
+              <button onClick={() => setShowBroadcastModal(true)} className="px-4 py-2.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center gap-2.5 hover:bg-gray-50">
                 <Send className="w-3.5 h-3.5"/> Send Broadcast
               </button>
-              <button onClick={handleExport} className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center gap-1.5 hover:bg-gray-50">
+              <button onClick={handleExport} className="px-4 py-2.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center gap-2.5 hover:bg-gray-50">
                 <FileDown className="w-3.5 h-3.5"/> Export CSV
               </button>
             </div>
@@ -302,12 +302,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           {filteredTenants.length === 0 ? (
             <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
               <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No tenants found</p>
-              <p className="text-sm mt-1 text-gray-400 dark:text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
+              <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">{searchQuery ? 'Try adjusting your search query.' : "Tenants will appear here once they're assigned."}</p>
             </div>
           ) : (
             filteredTenants.map(tenant => (
               <div key={tenant.id} className="relative">
-                <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-1 rounded-full">
+                <div className="absolute top-3 left-3 z-10 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-full">
                   <input type="checkbox" checked={selectedTenants.includes(tenant.id)} onChange={() => handleSelectTenant(tenant.id)} className="w-4 h-4 text-green-600 rounded-full border-gray-300 focus:ring-green-500" />
                 </div>
                 <TenantCard tenant={tenant} onTransfer={handleTransferInitiate} onEvict={handleEvictInitiate} canTransfer={!isCaretaker} />
@@ -337,7 +337,7 @@ const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">{label}</p>
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
           <p className={`text-2xl font-bold ${color === 'gray' ? 'text-gray-900 dark:text-white' : colors[color].text}`}>{value}</p>
         </div>
         <div className={`w-10 h-10 ${colors[color].bg} rounded-lg flex items-center justify-center`}>
@@ -355,38 +355,38 @@ const TransferModal = ({ tenant, availableRooms, loading, isSubmitting, data, se
         <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><Shuffle className="w-5 h-5 text-amber-500" />Transfer Room</h2>
         <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
       </div>
-      <form onSubmit={onSubmit} className="p-6 space-y-5">
-        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+      <form onSubmit={onSubmit} className="p-6 space-y-6">
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
           Transferring <strong>{tenant.first_name} {tenant.last_name}</strong> from <strong>Room {tenant.room?.room_number}</strong>.
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">New Room *</label>
-          <select required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white" value={data.new_room_id} onChange={e => setData({ ...data, new_room_id: e.target.value })} disabled={loading}>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">New Room *</label>
+          <select required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white" value={data.new_room_id} onChange={e => setData({ ...data, new_room_id: e.target.value })} disabled={loading}>
             <option value="">{loading ? 'Loading rooms...' : 'Select New Room'}</option>
             {availableRooms.map(r => (<option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>))}
           </select>
-          {availableRooms.length === 0 && !loading && <p className="text-[10px] text-red-500 mt-1 font-bold italic">No other available rooms in this property.</p>}
+          {availableRooms.length === 0 && !loading && <p className="text-[10px] text-red-500 mt-2 font-bold italic">No other available rooms in this property.</p>}
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Reason for Transfer *</label>
-          <textarea required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.reason} onChange={e => setData({ ...data, reason: e.target.value })} placeholder="e.g., Room maintenance required, tenant requested a larger room..." />
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason for Transfer *</label>
+          <textarea required className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none" value={data.reason} onChange={e => setData({ ...data, reason: e.target.value })} placeholder="e.g., Room maintenance required, tenant requested a larger room..." />
         </div>
         <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Damage Charges (Optional)</p>
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Damage Charges (Optional)</p>
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Charge Amount (₱)</label>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Charge Amount (₱)</label>
               <input type="number" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_charge} onChange={e => setData({ ...data, damage_charge: e.target.value })} placeholder="0.00" min="0" />
             </div>
             {parseFloat(data.damage_charge) > 0 && (<div className="animate-in slide-in-from-top-1">
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Charge Description *</label>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Charge Description *</label>
               <input type="text" required={parseFloat(data.damage_charge) > 0} className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white" value={data.damage_description} onChange={e => setData({ ...data, damage_description: e.target.value })} placeholder="e.g., Broken window blind, wall scratches..." />
             </div>)}
           </div>
         </div>
-        <div className="flex gap-3 pt-4">
-          <button type="button" onClick={onClose} className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
-          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+        <div className="flex gap-4 pt-4">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" disabled={isSubmitting || availableRooms.length === 0} className="flex-1 px-4 py-4 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
             {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Transferring...</> : 'Execute Transfer'}
           </button>
         </div>
@@ -419,10 +419,10 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
       <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
         <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><UserX /> Confirm Eviction</h3>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">You are about to evict <strong>{tenant.first_name} {tenant.last_name}</strong>. This will terminate their current booking and mark them as inactive. This action cannot be undone.</p>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for eviction... (required)" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm" />
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} disabled={isEvicting} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
-          <button onClick={handleConfirm} disabled={isEvicting || !reason} className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for eviction... (required)" className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm" />
+        <div className="flex gap-4 mt-4">
+          <button onClick={onClose} disabled={isEvicting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+          <button onClick={handleConfirm} disabled={isEvicting || !reason} className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
             {isEvicting ? <Loader2 className="w-4 h-4 animate-spin"/> : "Confirm Eviction"}
           </button>
         </div>
@@ -454,10 +454,10 @@ const BroadcastModal = ({ tenantIds, onClose }) => {
       <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2"><Send/> Send Broadcast Message</h3>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">This message will be sent to the <strong>{tenantIds.length}</strong> selected tenant(s).</p>
-        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your message here..." className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white h-32 resize-none text-sm" />
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} disabled={isSending} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
-          <button onClick={handleSend} disabled={isSending || !message} className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your message here..." className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white h-32 resize-none text-sm" />
+        <div className="flex gap-4 mt-4">
+          <button onClick={onClose} disabled={isSending} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+          <button onClick={handleSend} disabled={isSending || !message} className="flex-1 px-4 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
             {isSending ? <Loader2 className="w-4 h-4 animate-spin"/> : "Send Message"}
           </button>
         </div>

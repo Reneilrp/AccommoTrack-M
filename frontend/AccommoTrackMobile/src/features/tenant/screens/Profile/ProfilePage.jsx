@@ -680,7 +680,7 @@ export default function ProfilePage() {
                   styles.input,
                   {
                     color: theme.colors.text,
-                    paddingTop: 4,
+                    paddingTop: 8,
                     textTransform: "capitalize",
                   },
                 ]}
@@ -811,7 +811,7 @@ export default function ProfilePage() {
           <View
             style={[
               styles.divider,
-              { backgroundColor: theme.colors.border, marginVertical: 20 },
+              { backgroundColor: theme.colors.border, marginVertical: 24 },
             ]}
           />
 
@@ -928,7 +928,7 @@ export default function ProfilePage() {
           <View
             style={[
               styles.divider,
-              { backgroundColor: theme.colors.border, marginVertical: 20 },
+              { backgroundColor: theme.colors.border, marginVertical: 24 },
             ]}
           />
 
@@ -963,7 +963,7 @@ export default function ProfilePage() {
                 style={styles.inputIcon}
               />
               {isEditing ? (
-                <View style={{ flex: 1, flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
                   {["Single", "Double", "Suite"].map((opt) => (
                     <TouchableOpacity
                       key={opt}
@@ -977,7 +977,7 @@ export default function ProfilePage() {
                         }))
                       }
                       style={{
-                        paddingHorizontal: 12,
+                        paddingHorizontal: 16,
                         paddingVertical: 6,
                         borderRadius: 8,
                         backgroundColor:
@@ -1004,7 +1004,7 @@ export default function ProfilePage() {
                 <Text
                   style={[
                     styles.input,
-                    { color: theme.colors.text, paddingTop: 4 },
+                    { color: theme.colors.text, paddingTop: 8 },
                   ]}
                 >
                   {profileData.preferences.room_preference || "Not specified"}
@@ -1168,6 +1168,6 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
   },
 });

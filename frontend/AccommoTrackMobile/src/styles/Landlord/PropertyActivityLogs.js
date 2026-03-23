@@ -13,14 +13,14 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   propertyInfo: {
     padding: 16,
@@ -39,20 +39,20 @@ export const getStyles = (theme) => StyleSheet.create({
     marginTop: 2,
   },
   filterContainer: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
   filterScroll: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: theme.colors.backgroundSecondary,
-    marginHorizontal: 4,
+    marginHorizontal: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -75,7 +75,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -124,7 +124,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },

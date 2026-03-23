@@ -32,7 +32,7 @@ export const getStyles = (theme) => StyleSheet.create({
     gap: 6,
     backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     marginTop: 14,
     alignSelf: 'flex-start',
@@ -52,14 +52,14 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   propertyScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 12
+    paddingVertical: 16
   },
   propertyChip: {
     width: 150,
     padding: 16,
     borderRadius: 18,
     backgroundColor: theme.colors.surface,
-    marginRight: 12,
+    marginRight: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: theme.isDark ? 0.3 : 0.08,
@@ -80,14 +80,14 @@ export const getStyles = (theme) => StyleSheet.create({
   propertyChipMeta: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginTop: 4
+    marginTop: 8
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 12,
-    gap: 10
+    marginTop: 16,
+    gap: 8
   },
   statCard: {
     flex: 1,
@@ -114,7 +114,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
-    marginTop: 4
+    marginTop: 8
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -122,12 +122,12 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 16,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginRight: 10,
+    marginRight: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6
@@ -187,7 +187,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12
+    marginBottom: 16
   },
   roomTitle: {
     fontSize: 20,
@@ -215,7 +215,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12
+    marginBottom: 16
   },
   capacityText: {
     fontSize: 13,
@@ -227,8 +227,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 12
+    padding: 16,
+    marginBottom: 16
   },
   tenantLabel: {
     fontSize: 11,
@@ -238,7 +238,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
-    marginTop: 4
+    marginTop: 8
   },
   amenitiesRow: {
     flexDirection: 'row',
@@ -247,7 +247,7 @@ export const getStyles = (theme) => StyleSheet.create({
     marginBottom: 16
   },
   amenityChip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 14,
     backgroundColor: theme.colors.primaryLight,
@@ -261,12 +261,12 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   roomActions: {
     flexDirection: 'row',
-    gap: 12
+    gap: 16
   },
   actionButton: {
     flex: 1,
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -293,7 +293,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.text,
-    marginTop: 12
+    marginTop: 16
   },
   emptySubtitle: {
     fontSize: 14,
@@ -344,7 +344,7 @@ export const getStyles = (theme) => StyleSheet.create({
     textAlign: 'center'
   },
   modalContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 24,
     backgroundColor: theme.colors.background
@@ -353,8 +353,8 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 12,
-    marginTop: 20
+    marginBottom: 16,
+    marginTop: 24
   },
   label: {
     fontSize: 13,
@@ -367,10 +367,10 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 14,
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
     backgroundColor: theme.colors.surface
   },
   textArea: {
@@ -381,7 +381,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     overflow: 'hidden',
     backgroundColor: theme.colors.surface
   },
@@ -391,13 +391,13 @@ export const getStyles = (theme) => StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginBottom: 10
+    marginBottom: 8
   },
   pillList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 12
+    gap: 8,
+    marginBottom: 16
   },
   pill: {
     borderRadius: 14,
@@ -422,8 +422,8 @@ export const getStyles = (theme) => StyleSheet.create({
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 12,
-    gap: 12
+    marginTop: 16,
+    gap: 16
   },
   imagePreview: {
     width: 100,
@@ -446,7 +446,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 8,
     backgroundColor: theme.colors.surface
   },
   pricingCardActive: {
@@ -457,7 +457,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 4
+    marginBottom: 8
   },
   pricingCardDesc: {
     fontSize: 13,
@@ -468,8 +468,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.isDark ? theme.colors.brand700 : '#BFDBFE',
     borderRadius: 10,
-    padding: 12,
-    marginBottom: 12
+    padding: 16,
+    marginBottom: 16
   },
   pricingInfoText: {
     fontSize: 13,
@@ -481,12 +481,12 @@ export const getStyles = (theme) => StyleSheet.create({
     right: 8,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 999,
-    padding: 4,
+    padding: 8,
     zIndex: 10
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     padding: 16,
     paddingBottom: 24,
     borderTopWidth: 1,
@@ -552,8 +552,8 @@ export const getStyles = (theme) => StyleSheet.create({
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
+    gap: 8,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight
   },
@@ -570,26 +570,26 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row', 
-    gap: 12
+    gap: 16
   },
   inputLabelRow: {
     flexDirection: 'row', 
     justifyContent: 'space-between'
   },
   pricingGroup: {
-    gap: 10
+    gap: 8
   },
   pricingRadioRow: {
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 10
+    gap: 8
   },
   pricingTextContent: {
     flex: 1
   },
   pricingSelectionBox: {
     flexDirection: 'row', 
-    gap: 10
+    gap: 8
   },
 });
 

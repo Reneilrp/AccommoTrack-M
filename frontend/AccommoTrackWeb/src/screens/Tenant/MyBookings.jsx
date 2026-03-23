@@ -247,16 +247,16 @@ const MyBookings = () => {
         <span className="flex flex-col gap-2">
           <span className="font-semibold text-gray-800">Cancel this booking?</span>
           <span className="text-sm text-gray-500">This action cannot be undone.</span>
-          <div className="flex gap-2 mt-1">
+          <div className="flex gap-2 mt-2">
             <button
               onClick={() => { toast.dismiss(t.id); setCancelConfirm(null); }}
-              className="flex-1 px-3 py-1.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm font-bold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             >
               Keep
             </button>
             <button
               onClick={() => { toast.dismiss(t.id); confirmCancelBooking(bookingId); }}
-              className="flex-1 px-3 py-1.5 text-sm font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
             >
               Cancel Booking
             </button>
@@ -335,7 +335,7 @@ const MyBookings = () => {
           <button
             key={tab.id}
             onClick={() => updateScreenState('bookings', { activeTab: tab.id })}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap border shadow-sm ${
+            className={`flex items-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all whitespace-nowrap border shadow-sm ${
               activeTab === tab.id
                 ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-500/20'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -490,18 +490,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       return (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
           <Calendar className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Confirmed Upcoming Stay</h3>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Confirmed Upcoming Stay</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">Your stay at <span className="font-bold text-gray-700 dark:text-gray-200">{upcomingBooking.property}</span> is confirmed.</p>
           
           <div className="inline-block bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-8 py-6 rounded-2xl border border-green-100 dark:border-green-800/50 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
                 <Calendar className="w-6 h-6 text-green-600" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-green-600/70 uppercase tracking-wider">Starts In</p>
+                <p className="text-xs font-semibold text-green-600/70 uppercase tracking-wider">Starts In</p>
                 <p className="text-2xl font-black">{upcomingBooking.daysUntil} {upcomingBooking.daysUntil === 1 ? 'Day' : 'Days'}</p>
-                <p className="text-sm opacity-80 mt-1 font-medium">{formatDate(upcomingBooking.startDate)} • Room {upcomingBooking.room}</p>
+                <p className="text-sm opacity-80 mt-2 font-medium">{formatDate(upcomingBooking.startDate)} • Room {upcomingBooking.room}</p>
               </div>
             </div>
           </div>
@@ -525,11 +525,11 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
           <Home className="w-10 h-10 text-gray-300 dark:text-gray-600" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">No Active Stay</h3>
         <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto">You don't have an active or pending booking at the moment. Ready to find your next home?</p>
         <button 
           onClick={() => navigate('/explore')}
-          className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 active:scale-95"
+          className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 active:scale-95"
         >
           Explore Properties
         </button>
@@ -543,7 +543,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* View Toggle */}
         {hasStays && hasPending ? (
-          <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-1 rounded-xl w-full max-w-sm border border-gray-300 dark:border-gray-700 shadow-inner">
+          <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl w-full max-w-sm border border-gray-300 dark:border-gray-700 shadow-inner">
             {/* Sliding Indicator */}
             <div 
               className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-out ${
@@ -595,12 +595,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             return (
               <div key={pb.id} className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
                 <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Booking Pending</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">The landlord is reviewing your request.</p>
                 
-                                                    <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-5 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
-                                                      <div className="flex items-center gap-3">
-                                                        <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl shadow-sm">
+                                                    <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
+                                                      <div className="flex items-center gap-4">
+                                                        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
                                                           <Home className="w-5 h-5 text-amber-600" />
                                                         </div>
                                                         <div className="text-left flex-1">
@@ -616,12 +616,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                                           <p className="text-[10px] font-bold uppercase opacity-60">
                                                             {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
                                                           </p>
-                                                          <p className="text-base font-bold">₱{(pb?.unit_price || pb?.monthly_rent || 0).toLocaleString()}</p>
+                                                          <p className="text-xl font-bold">₱{(pb?.unit_price || pb?.monthly_rent || 0).toLocaleString()}</p>
                                                         </div>
                                                         <button 
                                                           onClick={() => onCancelBooking(pb.id)}
                                                           disabled={isCancelling === pb.id}
-                                                          className="bg-white dark:bg-gray-800 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-1.5"
+                                                          className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2.5"
                                                         >
                                                           {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
                                                           Cancel Request
@@ -646,11 +646,11 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             {/* Main Column */}
                             <div className="lg:col-span-2 space-y-6">
                               {booking.paymentStatus === 'refunded' && (
-                                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-3 animate-pulse">
+                                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 animate-pulse">
                                   <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                                   <div>
                                     <p className="text-sm font-bold text-purple-900 dark:text-purple-200">Payment Action Required</p>
-                                    <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
+                                    <p className="text-xs text-purple-700 dark:text-purple-400 mt-2">
                                       Your last payment was refunded. Please complete a new payment or contact your Property Manager to maintain your active status.
                                     </p>
                                   </div>
@@ -671,8 +671,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex justify-between items-end">
                         <div>
                           <h2 className="text-2xl font-bold text-white">{property.title}</h2>
-                          <p className="text-white/90 text-sm flex items-center mt-1 font-medium">
-                            <MapPin className="w-4 h-4 mr-1.5" />
+                          <p className="text-white/90 text-sm flex items-center mt-2 font-medium">
+                            <MapPin className="w-4 h-4 mr-2.5" />
                             {property.address}
                           </p>
                         </div>
@@ -743,7 +743,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                             <span className="font-bold dark:text-gray-300">Lease:</span> 
                             {formatDate(booking.startDate)} to {formatDate(booking.endDate)}
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} Months</span>
+                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">{booking.totalMonths} Months</span>
                           </p>
                           
                           {/* Show Extend button if expiring soon (e.g. within 30 days) or already expired but still active */}
@@ -788,7 +788,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         title={booking.paymentStatus === 'refunded' ? "Disabled until payment is re-settled" : ""}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${
                           booking.paymentStatus === 'refunded'
-                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-200 dark:border-gray-600'
+                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
                             : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-500/20'
                         }`}
                       >
@@ -800,8 +800,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     {/* Active Add-ons */}
                     {Array.isArray(addons.active) && addons.active.length > 0 && (
                       <div className="mb-6">
-                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Current Subscriptions</h4>
-                        <div className="space-y-3">
+                        <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Current Subscriptions</h4>
+                        <div className="space-y-4">
                           {addons.active.map((addon) => (
                             <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
                           ))}
@@ -812,8 +812,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     {/* Pending Requests */}
                     {Array.isArray(addons.pending) && addons.pending.length > 0 && (
                       <div className="mb-6">
-                        <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Awaiting Approval</h4>
-                        <div className="space-y-3">
+                        <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-4">Awaiting Approval</h4>
+                        <div className="space-y-4">
                           {addons.pending.map((addon) => (
                             <AddonItem 
                               key={addon.pivot?.id || addon.id} 
@@ -829,7 +829,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     {(!Array.isArray(addons.active) || addons.active.length === 0) && (!Array.isArray(addons.pending) || addons.pending.length === 0) && (
                       <div className="text-center py-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl">
                         <Sparkles className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
-                        <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
+                        <p className="text-gray-500 dark:text-gray-500 text-sm font-medium">No add-ons yet.</p>
                       </div>
                     )}
 
@@ -848,7 +848,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 <div className="space-y-6">
                   {/* Landlord Contact Card */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Manager</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Property Manager</h3>
                     <div className="flex items-center gap-4 mb-6">
                       <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-700 dark:text-green-400 font-bold">
                           {landlord?.name?.charAt(0).toUpperCase() || '?'}
@@ -858,9 +858,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Verified Host</p>
                         </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {landlord?.email && (
-                        <a href={`mailto:${landlord.email}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                        <a href={`mailto:${landlord.email}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
                           <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                             <Mail className="w-4 h-4" />
                           </div>
@@ -868,7 +868,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         </a>
                       )}
                       {landlord?.phone && (
-                        <a href={`tel:${landlord.phone}`} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                        <a href={`tel:${landlord.phone}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
                           <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                             <Phone className="w-4 h-4" />
                           </div>
@@ -883,7 +883,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             property: { id: property?.id, title: property?.title } 
                           } 
                         })}
-                        className="flex items-center gap-3 w-full text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors text-left"
+                        className="flex items-center gap-4 w-full text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors text-left"
                       >
                         <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                           <MessageSquare className="w-4 h-4" />
@@ -895,8 +895,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 
                   {/* Quick Summary */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Payment Summary</h3>
+                    <div className="space-y-4">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500 dark:text-gray-400">
                           {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Room Rent'}
@@ -911,7 +911,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         </span>
                         <span className="font-bold text-gray-900 dark:text-white">₱{addonMonthlyTotal.toLocaleString()}</span>
                       </div>
-                      <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
+                      <div className="border-t border-gray-100 dark:border-gray-700 pt-4 flex justify-between items-center">
                         <span className="font-bold text-gray-900 dark:text-white">
                           {booking.billing_policy === 'daily' ? 'Daily Total' : 'Monthly Total'}
                         </span>
@@ -950,7 +950,7 @@ const StaySelector = ({ stays, selectedIndex, onSelect, className = "" }) => {
           </option>
         ))}
       </select>
-      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
+      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-500">
         <ChevronDown className="w-5 h-5" />
       </div>
     </div>
@@ -999,12 +999,12 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       {/* Action Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-green-600 rounded-xl p-6 text-white shadow-lg shadow-green-600/20">
         <div>
-          <h3 className="text-xl font-bold">Billing & Payments</h3>
-          <p className="text-green-100 text-sm mt-1">Manage your invoices, view full history and make payments.</p>
+          <h3 className="text-xl font-semibold">Billing & Payments</h3>
+          <p className="text-green-100 text-sm mt-2">Manage your invoices, view full history and make payments.</p>
         </div>
         <button 
           onClick={() => navigate('/payments')}
-          className="bg-white text-green-700 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-green-50 transition-all shadow-md active:scale-95 whitespace-nowrap"
+          className="bg-white text-green-700 px-6 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-green-50 transition-all shadow-md active:scale-95 whitespace-nowrap"
         >
           View Full History
           <ArrowRight className="w-5 h-5" />
@@ -1014,7 +1014,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             {financials?.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
           </p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -1022,13 +1022,13 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             {financials?.billing_policy === 'daily' ? 'Daily Add-ons' : 'Monthly Add-ons'}
           </p>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{(financials?.monthlyAddons || 0).toLocaleString()}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             {financials?.billing_policy === 'daily' ? 'Total Due/day' : 'Total Due/mo'}
           </p>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{(financials?.monthlyTotal || 0).toLocaleString()}</p>
@@ -1038,7 +1038,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       {/* Recent Activity */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
         <div className="p-6 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <RefreshCw className="w-5 h-5 text-green-500" />
             Recent Activity
           </h3>
@@ -1054,9 +1054,9 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
@@ -1065,7 +1065,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
                     <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{tx.date}</td>
                     <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
                     <td className="py-4 px-6">
-                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
+                      <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${
                         tx.status === 'succeeded' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>
                         {tx.status}
@@ -1077,7 +1077,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No recent transactions.</p>
+          <p className="text-gray-500 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No recent transactions.</p>
         )}
       </div>
     </div>
@@ -1130,21 +1130,21 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                 <div>
                   <h4 className="font-bold text-gray-900 dark:text-white leading-tight">{booking.property?.title || 'Property'}</h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Room {booking.room?.roomNumber || 'N/A'}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">{booking.period?.startDate} - {booking.period?.endDate}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">{booking.period?.startDate} - {booking.period?.endDate}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Paid</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Total Paid</p>
                   <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{(booking.financials?.totalPaid || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <StatusBadge status={booking.status} />
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     {['completed', 'confirmed'].includes(booking.status) && !booking.review && (
                       <button 
                         onClick={() => onReview(booking)}
-                        className="flex items-center gap-1 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"
+                        className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline underline-offset-2"
                       >
                         <Star className="w-3 h-3 fill-current" />
                         Review
@@ -1154,14 +1154,14 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                       <button 
                         onClick={() => onCancelBooking(booking.id)}
                         disabled={isCancelling === booking.id}
-                        className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2 disabled:opacity-50"
+                        className="flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2 disabled:opacity-50"
                       >
                         {isCancelling === booking.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
                         Cancel
                       </button>
                     )}
                     {booking.review && (
-                      <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic flex items-center gap-1">
+                      <span className="text-[10px] font-medium text-gray-500 dark:text-gray-500 italic flex items-center gap-2">
                         <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
                         {booking.review.rating}/5 Reviewed
                       </span>
@@ -1169,7 +1169,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                     {booking.status !== 'pending' && (
                       <button 
                         onClick={() => onReport(booking.property)}
-                        className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
+                        className="flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline underline-offset-2"
                       >
                         <ShieldAlert className="w-3 h-3" />
                         Report
@@ -1182,7 +1182,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
 
             {/* Activity Timeline */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-              <h5 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">Activity Timeline</h5>
+              <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Activity Timeline</h5>
               <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 dark:before:bg-gray-700">
                 {Array.isArray(booking.activityLog) && booking.activityLog.length > 0 ? (
                   booking.activityLog.map((activity, idx) => (
@@ -1195,9 +1195,9 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                         activity.status === 'cancelled' ? 'bg-red-500' : 'bg-gray-400'
                       }`} />
                       
-                      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-1">
+                      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-2">
                         <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{activity.action}</p>
-                        <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase">
+                        <p className="text-[10px] font-medium text-gray-500 dark:text-gray-500 uppercase">
                           {formatDateTime(activity.timestamp)}
                         </p>
                       </div>
@@ -1205,17 +1205,17 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-400 italic">No activity details available.</p>
+                  <p className="text-xs text-gray-500 italic">No activity details available.</p>
                 )}
               </div>
             </div>
 
             {Array.isArray(booking.addons) && booking.addons.length > 0 && (
               <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Add-ons utilized:</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Add-ons utilized:</p>
                 <div className="flex flex-wrap gap-2">
                   {booking.addons.map((addon, idx) => (
-                    <span key={idx} className="text-[10px] font-bold bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 px-2 py-1 rounded border border-gray-200 dark:border-gray-600 uppercase">
+                    <span key={idx} className="text-[10px] font-bold bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 px-2 py-2 rounded border border-gray-200 dark:border-gray-600 uppercase">
                       {addon.name} ({addon.priceType === 'monthly' ? '₱' + addon.price.toLocaleString() + '/mo' : '₱' + addon.price.toLocaleString()})
                     </span>
                   ))}
@@ -1230,7 +1230,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
         <button
           onClick={onLoadMore}
           disabled={loadingMore}
-          className="w-full py-3 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 rounded-xl transition-all border border-green-100 dark:border-green-900/30 disabled:opacity-60 flex items-center justify-center gap-2"
+          className="w-full py-4 text-green-600 dark:text-green-400 font-bold hover:bg-green-50 dark:hover:bg-green-900/30 rounded-xl transition-all border border-green-100 dark:border-green-900/30 disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {loadingMore ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
           {loadingMore ? 'Loading...' : 'Load More'}
@@ -1242,12 +1242,12 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
 
 // ==================== Helper Components ====================
 const StatCard = ({ label, value, icon: Icon }) => (
-  <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-md transition-all">
-    <div className="flex justify-center mb-2">
+  <div className="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-sm transition-all">
+    <div className="flex justify-center mb-4">
       <Icon className="w-6 h-6 text-green-600 dark:text-green-400" />
     </div>
-    <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
-    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mt-1 tracking-wider">{label}</p>
+    <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
+    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-500 uppercase mt-2.5 tracking-wider">{label}</p>
   </div>
 );
 
@@ -1268,7 +1268,7 @@ const StatusBadge = ({ status }) => {
   };
 
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${styles[s] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+    <span className={`px-2 py-2 rounded-full text-xs font-medium capitalize ${styles[s] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
       {status}
     </span>
   );
@@ -1285,21 +1285,21 @@ const AddonItem = ({ addon, status, onCancel }) => (
         <Sparkles className="w-5 h-5" />
       </div>
       <div>
-        <p className="font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
-        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
-          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-1 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
+        <p className="text-base font-bold text-gray-900 dark:text-white leading-tight">{addon?.name || 'Add-on'}</p>
+        <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-2">
+          {addon?.price_type_label || (addon?.price_type === 'monthly' ? 'Monthly' : 'One-time')} <span className="mx-2 opacity-30">•</span> {addon?.addon_type === 'rental' ? 'Rental' : 'Usage Fee'}
         </p>
       </div>
     </div>
-    <div className="flex items-center gap-3">
-      <span className="font-bold text-gray-900 dark:text-white">
+    <div className="flex items-center gap-4">
+      <span className="text-base font-bold text-gray-900 dark:text-white">
         ₱{parseFloat(addon?.price || 0).toLocaleString()}
-        {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-400 font-bold ml-0.5">/mo</span>}
+        {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-500 font-medium ml-0.5">/mo</span>}
       </span>
       {status === 'pending' && onCancel && (
         <button
           onClick={onCancel}
-          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
           title="Cancel Request"
         >
           <XCircle className="w-5 h-5" />
@@ -1337,12 +1337,12 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
               <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">
                 {showCustomForm ? 'Request Custom Item' : 'Available Add-ons'}
               </h3>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-2">
                 {showCustomForm ? 'Describe what you need and the owner will review it' : 'Select an extra service to add to your stay'}
               </p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
-              <X className="w-6 h-6 text-gray-400" />
+              <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>
         </div>
@@ -1358,7 +1358,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
               ) : (
                 <div className="space-y-4 mb-6">
                   {availableAddons.map((addon) => (
-                    <div key={addon.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md transition-all group">
+                    <div key={addon.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md transition-all group">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -1372,13 +1372,13 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                             </span>
                           </div>
                           {addon.description && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{addon.description}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-4">{addon.description}</p>
                           )}
                           <div className="flex items-baseline gap-2">
                             <p className="text-xl font-bold text-green-600 dark:text-green-400">
                               ₱{parseFloat(addon.price || 0).toLocaleString()}
                             </p>
-                            {addon.price_type === 'monthly' && <span className="text-xs font-bold text-gray-400">/mo</span>}
+                            {addon.price_type === 'monthly' && <span className="text-xs font-bold text-gray-500">/mo</span>}
                           </div>
                         </div>
                         <button
@@ -1387,7 +1387,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                           className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
                             addon.has_stock && requestingId !== addon.id
                               ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
                           }`}
                         >
                           {requestingId === addon.id ? (
@@ -1411,37 +1411,37 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
               </button>
             </>
           ) : (
-            <form onSubmit={handleCustomSubmit} className="space-y-5">
+            <form onSubmit={handleCustomSubmit} className="space-y-6">
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Item Name *</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Item Name *</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. Extra table, Desk lamp..."
                   value={customData.name}
                   onChange={e => setCustomData({...customData, name: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Type *</label>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Type *</label>
                   <select 
                     value={customData.addon_type}
                     onChange={e => setCustomData({...customData, addon_type: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+                    className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                   >
                     <option value="rental">Rental (Item)</option>
                     <option value="fee">Usage Fee</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Billing *</label>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Billing *</label>
                   <select 
                     value={customData.price_type}
                     onChange={e => setCustomData({...customData, price_type: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+                    className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
                   >
                     <option value="monthly">Monthly</option>
                     <option value="one_time">One-time</option>
@@ -1450,27 +1450,27 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Notes / Details</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Notes / Details</label>
                 <textarea 
                   placeholder="Tell the owner more about your request..."
                   value={customData.note}
                   onChange={e => setCustomData({...customData, note: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-24 resize-none"
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-24 resize-none"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-4 pt-4">
                 <button 
                   type="button"
                   onClick={() => setShowCustomForm(false)}
-                  className="flex-1 py-3 border border-gray-300 dark:border-gray-700 rounded-xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 py-4 border border-gray-300 dark:border-gray-700 rounded-xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Back
                 </button>
                 <button 
                   type="submit"
                   disabled={requestingId === 'custom'}
-                  className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all active:scale-95 disabled:opacity-50"
                 >
                   {requestingId === 'custom' ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Submit Request'}
                 </button>
@@ -1480,7 +1480,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
         </div>
 
         <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-center">
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider leading-relaxed">
+          <p className="text-[10px] text-gray-500 dark:text-gray-500 font-bold uppercase tracking-wider leading-relaxed">
             Requests are subject to owner approval. <br/>Approved items will be added to your next billing cycle.
           </p>
         </div>
@@ -1542,18 +1542,18 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Extend Stay</h3>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
-              <X className="w-6 h-6 text-gray-400" />
+              <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50">
-            <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Current Lease Ends</p>
+            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2">Current Lease Ends</p>
             <p className="text-lg font-bold text-blue-900 dark:text-blue-200">{new Date(booking.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
 
-          <div className="flex bg-gray-100 dark:bg-gray-900/50 p-1 rounded-xl border border-gray-300 dark:border-gray-700">
+          <div className="flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl border border-gray-300 dark:border-gray-700">
             <button
               type="button"
               onClick={() => setType('monthly')}
@@ -1572,31 +1572,31 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
 
           {type === 'daily' && (
             <div>
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 text-center">Select New End Date</label>
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2 text-center">Select New End Date</label>
               <input
                 type="date"
                 required
                 min={new Date(new Date(booking.endDate).getTime() + 86400000).toISOString().split('T')[0]}
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Reason / Notes</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Reason / Notes</label>
             <textarea
               placeholder="Why are you extending? (Optional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-20 resize-none text-sm"
+              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none h-20 resize-none text-sm"
             />
           </div>
 
           <div className="pt-2">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-bold text-gray-500 uppercase">Estimated Fee</span>
+              <span className="text-sm font-semibold text-gray-500 uppercase">Estimated Fee</span>
               <span className="text-xl font-black text-green-600 dark:text-green-400">₱{estimatedPrice.toLocaleString()}</span>
             </div>
             
@@ -1676,21 +1676,21 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Room Transfer</h3>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
-              <X className="w-6 h-6 text-gray-400" />
+              <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
             Requesting a transfer from your current room in <strong>{property.title}</strong>.
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Select New Room *</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New Room *</label>
             <select
               required
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
               value={formData.requested_room_id}
               onChange={e => setFormData({ ...formData, requested_room_id: e.target.value })}
               disabled={loadingRooms}
@@ -1701,15 +1701,15 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
               ))}
             </select>
             {availableRooms.length === 0 && !loadingRooms && (
-              <p className="text-[10px] text-red-500 mt-1 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
+              <p className="text-[10px] text-red-500 mt-2 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Reason for Transfer *</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason for Transfer *</label>
             <textarea
               required
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm"
               value={formData.reason}
               onChange={e => setFormData({ ...formData, reason: e.target.value })}
               placeholder="e.g., I need a room with a better view, or my roommate is too loud..."

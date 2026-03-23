@@ -637,7 +637,7 @@ export default function Payments() {
         </td>
         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
+            <Calendar className="w-4 h-4 text-gray-500" />
             <span>{issued ? formatDate(issued) : "—"}</span>
           </div>
         </td>
@@ -652,7 +652,7 @@ export default function Payments() {
         </td>
         <td className="px-6 py-4">
           <span
-            className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(status)}`}
+            className={`px-4 py-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(status)}`}
           >
             {status ? status.charAt(0).toUpperCase() + status.slice(1) : "—"}
           </span>
@@ -754,34 +754,34 @@ export default function Payments() {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-20 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-24 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-20 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-14 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-14 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-4 text-left">
                       <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                     </th>
                   </tr>
@@ -813,8 +813,8 @@ export default function Payments() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Paid</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Paid</p>
+                <p className="text-2xl font-bold text-green-600 mt-2">
                   <PriceRow amount={stats.totalPaid} />
                 </p>
               </div>
@@ -827,8 +827,8 @@ export default function Payments() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Balance</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Balance</p>
+                <p className="text-2xl font-bold text-red-600 mt-2">
                   <PriceRow amount={stats.totalBalance} />
                 </p>
               </div>
@@ -841,8 +841,8 @@ export default function Payments() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Paid</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.paidCount}</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Paid</p>
+                <p className="text-2xl font-bold text-blue-600 mt-2">{stats.paidCount}</p>
               </div>
               <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -853,8 +853,8 @@ export default function Payments() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pendingCount}</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pendingCount}</p>
               </div>
               <div className="w-10 h-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
                 <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
@@ -865,8 +865,8 @@ export default function Payments() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Overdue</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{stats.overdueCount}</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Overdue</p>
+                <p className="text-2xl font-bold text-orange-600 mt-2">{stats.overdueCount}</p>
               </div>
               <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
                 <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
@@ -878,7 +878,7 @@ export default function Payments() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="relative w-full lg:w-[28rem]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -929,34 +929,34 @@ export default function Payments() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Invoice ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Tenant Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Property
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Room
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Issued
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Price
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">
                     Paid
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider">
                     Balance
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -967,7 +967,7 @@ export default function Payments() {
                     <td colSpan="10" className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <Receipt className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-2" />
-                        <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                        <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
                           No payments yet
                         </h2>
                         <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
@@ -995,7 +995,7 @@ export default function Payments() {
                   <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">
                     Manage Invoice
                   </h3>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
                     REF:{" "}
                     {selectedInvoice.reference || `INV-${selectedInvoice.id}`}
                   </p>
@@ -1032,8 +1032,8 @@ export default function Payments() {
                   const selRemaining = Math.max(0, selTotal - selPaid);
                   return (
                     <>
-                      <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
-                        <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">
+                      <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                        <p className="text-gray-500 dark:text-gray-400 mb-2 uppercase text-xs font-bold">
                           Tenant
                         </p>
                         <p className="font-semibold dark:text-white text-gray-900 truncate">
@@ -1042,25 +1042,25 @@ export default function Payments() {
                             : selectedInvoice.tenant?.name || "—"}
                         </p>
                       </div>
-                      <div className="grid grid-cols-3 gap-3 text-sm">
-                        <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
-                          <p className="text-gray-500 dark:text-gray-400 mb-1 uppercase text-xs font-bold">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                          <p className="text-gray-500 dark:text-gray-400 mb-2 uppercase text-xs font-bold">
                             Total
                           </p>
                           <p className="font-bold text-gray-900 dark:text-white">
                             <PriceRow amount={selTotal} />
                           </p>
                         </div>
-                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-                          <p className="text-green-600 dark:text-green-400 mb-1 uppercase text-xs font-bold">
+                        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                          <p className="text-green-600 dark:text-green-400 mb-2 uppercase text-xs font-bold">
                             Paid
                           </p>
                           <p className="font-bold text-green-600 dark:text-green-400">
                             <PriceRow amount={selPaid} />
                           </p>
                         </div>
-                        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
-                          <p className="text-red-500 dark:text-red-400 mb-1 uppercase text-xs font-bold">
+                        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
+                          <p className="text-red-500 dark:text-red-400 mb-2 uppercase text-xs font-bold">
                             Remaining
                           </p>
                           <p className="font-bold text-red-600 dark:text-red-400">
@@ -1073,7 +1073,7 @@ export default function Payments() {
                 })()}
 
                 {selectedStayProgress && (
-                  <div className="p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/70 dark:bg-blue-900/10 space-y-3">
+                  <div className="p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/70 dark:bg-blue-900/10 space-y-4">
                     <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide">
                       <span className="text-blue-700 dark:text-blue-300">
                         Refundable Stay Window
@@ -1121,7 +1121,7 @@ export default function Payments() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
                             Amount (₱)
                           </label>
                           <input
@@ -1133,12 +1133,12 @@ export default function Payments() {
                                 amount: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             placeholder="0.00"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
                             Method
                           </label>
                           <select
@@ -1149,7 +1149,7 @@ export default function Payments() {
                                 method: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                           >
                             <option value="cash">Cash</option>
                             <option value="bank_transfer">Bank Transfer</option>
@@ -1161,7 +1161,7 @@ export default function Payments() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
                           Reference (Optional)
                         </label>
                         <input
@@ -1173,13 +1173,13 @@ export default function Payments() {
                               reference: e.target.value,
                             })
                           }
-                          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                           placeholder="Transaction reference..."
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
                           Notes (Optional)
                         </label>
                         <textarea
@@ -1190,7 +1190,7 @@ export default function Payments() {
                               notes: e.target.value,
                             })
                           }
-                          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-20"
                           placeholder="Add any internal notes..."
                         />
                       </div>
@@ -1198,7 +1198,7 @@ export default function Payments() {
                       <button
                         onClick={handleRecordOffline}
                         disabled={isRecording}
-                        className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {isRecording ? (
                           <>
@@ -1212,7 +1212,7 @@ export default function Payments() {
                     </div>
 
                     <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <p className="text-xs text-gray-400 mb-2 font-bold uppercase">
+                      <p className="text-xs text-gray-500 mb-2 font-bold uppercase">
                         Quick Status Update
                       </p>
                       <div className="grid grid-cols-3 gap-2">
@@ -1247,7 +1247,7 @@ export default function Payments() {
                                 setShowInvoiceModal(false);
                               }
                             }}
-                            className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
+                            className={`flex items-center justify-center py-2 px-2 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
                           >
                             {status.label}
                           </button>
@@ -1263,7 +1263,7 @@ export default function Payments() {
                     (tx) => tx.amount_cents > 0,
                   ).length > 0 && (
                     <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <p className="text-xs text-gray-400 mb-2 font-bold uppercase">
+                      <p className="text-xs text-gray-500 mb-2 font-bold uppercase">
                         Payment Transactions
                       </p>
                       <div className="space-y-2">
@@ -1281,7 +1281,7 @@ export default function Payments() {
                             return (
                               <div
                                 key={tx.id}
-                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700"
+                                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700"
                               >
                                 <div>
                                   <p className="text-xs font-bold text-gray-700 dark:text-gray-200">
@@ -1293,7 +1293,7 @@ export default function Payments() {
                                       </span>
                                     )}
                                   </p>
-                                  <p className="text-[10px] text-gray-400 mt-0.5">
+                                  <p className="text-[10px] text-gray-500 mt-0.5">
                                     {tx.created_at
                                       ? new Date(
                                           tx.created_at,
@@ -1310,14 +1310,14 @@ export default function Payments() {
                                   )}
                                 </div>
                                 {alreadyRefunded ? (
-                                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-md">
+                                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-2 rounded-md">
                                     Refunded
                                   </span>
                                 ) : (
                                   <button
                                     onClick={() => openRefundConfirm(tx)}
                                     disabled={isRefunding === tx.id}
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
                                   >
                                     {isRefunding === tx.id ? (
                                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -1336,7 +1336,7 @@ export default function Payments() {
 
                 {/* Mark Fully Paid & Completed — only shown when payment status is partial */}
                 {getInvoiceStatus(selectedInvoice) === "partial" && (
-                  <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-900/30 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-3">
+                  <div className="mt-4 pt-4 border-t border-yellow-200 dark:border-yellow-900/30 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-4">
                     <p className="text-[10px] text-yellow-700 dark:text-yellow-400 font-bold uppercase mb-2">
                       Partial Payment — Action Required
                     </p>
@@ -1399,7 +1399,7 @@ export default function Payments() {
 
                 return (
                   <>
-              <div className="flex flex-col items-center text-center space-y-3">
+              <div className="flex flex-col items-center text-center space-y-4">
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-full text-red-600 dark:text-red-400">
                   <RotateCcw className="w-8 h-8" />
                 </div>
@@ -1413,9 +1413,9 @@ export default function Payments() {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
                     Refund Amount (₱)
                   </label>
                   <input
@@ -1424,7 +1424,7 @@ export default function Payments() {
                     step="0.01"
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     placeholder="0.00"
                   />
                 </div>
@@ -1441,13 +1441,13 @@ export default function Payments() {
                 </p>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <button
                   onClick={() => {
                     setRefundConfirmTx(null);
                     setRefundAmount("");
                   }}
-                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all text-sm"
+                  className="flex-1 px-4 py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all text-sm"
                 >
                   Cancel
                 </button>
@@ -1458,7 +1458,7 @@ export default function Payments() {
                     await handleRefundTransaction(txToRefund, requestedCents);
                   }}
                   disabled={isRefunding === refundConfirmTx.id || isInvalidAmount}
-                  className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
+                  className="flex-1 px-4 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
                 >
                   {isRefunding === refundConfirmTx.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

@@ -239,7 +239,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-700/30">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-600">
               <Calendar className="w-6 h-6" />
             </div>
@@ -249,23 +249,23 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             </div>
           </div>
           <button
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-white dark:hover:bg-gray-700 transition-colors"
+            className="p-2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-white dark:hover:bg-gray-700 transition-colors"
             onClick={onClose}
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 flex items-start gap-2">
+            <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 flex items-start gap-2">
               <Info className="w-4 h-4 mt-0.5" />
               {error}
             </div>
           )}
 
           {genderMismatch && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-start gap-2 animate-pulse">
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-start gap-2 animate-pulse">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-bold">Gender Mismatch Warning</p>
@@ -275,13 +275,13 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           )}
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Guest / Tenant Name</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Guest / Tenant Name</label>
             <div className="relative">
-              <UserSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <UserSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
                 type="text"
                 required
-                className={`w-full border rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all ${fieldErrors.guestName || fieldErrors.tenant_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                className={`w-full border rounded-xl pl-11 pr-4 py-4 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all ${fieldErrors.guestName || fieldErrors.tenant_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={guestSearch}
                 onChange={e => {
                   setGuestSearch(e.target.value);
@@ -292,14 +292,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 onBlur={() => setTimeout(() => setIsGuestInputFocused(false), 150)} // Delay to allow click on results
                 placeholder="Search existing tenant or enter new name"
               />
-              {isSearchingGuests && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-gray-400" />}
+              {isSearchingGuests && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-gray-500" />}
               
               {isGuestInputFocused && guestResults.length > 0 && !selectedGuest && (
-                <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <ul className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {guestResults.map(user => (
                     <li
                       key={user.id}
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-50 dark:border-gray-600/50 last:border-0"
+                      className="px-4 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-50 dark:border-gray-600/50 last:border-0"
                       onClick={() => {
                         setSelectedGuest(user);
                         setGuestSearch(user.full_name || user.name);
@@ -324,16 +324,16 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 </ul>
               )}
             </div>
-            {fieldErrors.guestName && <p className="text-red-500 text-xs mt-1">{fieldErrors.guestName[0]}</p>}
-            {fieldErrors.tenant_id && <p className="text-red-500 text-xs mt-1">{fieldErrors.tenant_id[0]}</p>}
+            {fieldErrors.guestName && <p className="text-red-500 text-xs mt-2">{fieldErrors.guestName[0]}</p>}
+            {fieldErrors.tenant_id && <p className="text-red-500 text-xs mt-2">{fieldErrors.tenant_id[0]}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Property</label>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Property</label>
               <select
                 required
-                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white ${fieldErrors.propertyId ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                className={`w-full border rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white ${fieldErrors.propertyId ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.propertyId}
                 onChange={handlePropertyChange}
               >
@@ -342,14 +342,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                   <option key={p.id} value={p.id}>{p.title}</option>
                 ))}
               </select>
-              {fieldErrors.propertyId && <p className="text-red-500 text-xs mt-1">{fieldErrors.propertyId[0]}</p>}
+              {fieldErrors.propertyId && <p className="text-red-500 text-xs mt-2">{fieldErrors.propertyId[0]}</p>}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Room</label>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room</label>
               <select
                 required
                 disabled={!formData.propertyId}
-                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white disabled:opacity-50 ${fieldErrors.roomId || fieldErrors.room_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                className={`w-full border rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white disabled:opacity-50 ${fieldErrors.roomId || fieldErrors.room_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.roomId}
                 onChange={handleRoomChange}
               >
@@ -360,50 +360,50 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                   </option>
                 ))}
               </select>
-              {fieldErrors.roomId && <p className="text-red-500 text-xs mt-1">{fieldErrors.roomId[0]}</p>}
-              {fieldErrors.room_id && <p className="text-red-500 text-xs mt-1">{fieldErrors.room_id[0]}</p>}
+              {fieldErrors.roomId && <p className="text-red-500 text-xs mt-2">{fieldErrors.roomId[0]}</p>}
+              {fieldErrors.room_id && <p className="text-red-500 text-xs mt-2">{fieldErrors.room_id[0]}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-in</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Check-in</label>
                 <input
                     type="date"
                     required
                     min={getTodayDate()}
                     onKeyDown={(e) => e.preventDefault()}
                     onClick={(e) => e.target.showPicker?.()}
-                    className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkIn || fieldErrors.start_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                    className={`w-full border rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkIn || fieldErrors.start_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                     value={formData.checkIn}
                     onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
                 />
-                {fieldErrors.checkIn && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkIn[0]}</p>}
-                {fieldErrors.start_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.start_date[0]}</p>}
+                {fieldErrors.checkIn && <p className="text-red-500 text-xs mt-2">{fieldErrors.checkIn[0]}</p>}
+                {fieldErrors.start_date && <p className="text-red-500 text-xs mt-2">{fieldErrors.start_date[0]}</p>}
             </div>
             <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-out</label>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Check-out</label>
                 <input
                     type="date"
                     required
                     min={formData.checkIn || getTodayDate()}
                     onKeyDown={(e) => e.preventDefault()}
                     onClick={(e) => e.target.showPicker?.()}
-                    className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkOut || fieldErrors.end_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                    className={`w-full border rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkOut || fieldErrors.end_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                     value={formData.checkOut}
                     onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
                 />
-                {fieldErrors.checkOut && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkOut[0]}</p>}
-                {fieldErrors.end_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.end_date[0]}</p>}
+                {fieldErrors.checkOut && <p className="text-red-500 text-xs mt-2">{fieldErrors.checkOut[0]}</p>}
+                {fieldErrors.end_date && <p className="text-red-500 text-xs mt-2">{fieldErrors.end_date[0]}</p>}
             </div>
           </div>
 
           {selectedRoomData && (selectedRoomData.room_type === 'bedSpacer' || selectedRoomData.room_type === 'bedspacer') && (
             <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Number of Beds</label>
-                <div className="flex items-center gap-3">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Number of Beds</label>
+                <div className="flex items-center gap-4">
                     <select
-                        className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                        className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
                         value={formData.bedCount}
                         onChange={e => setFormData({ ...formData, bedCount: parseInt(e.target.value) })}
                     >
@@ -432,7 +432,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 )}
               </div>
               {pricingPreview && (
-                <div className="text-xs text-green-600 dark:text-green-500/70 space-y-1">
+                <div className="text-xs text-green-600 dark:text-green-500/70 space-y-2">
                   <p>Stay Duration: {pricingPreview.days} days</p>
                   <p>Billing Policy: {pricingPreview.policy?.replace('_', ' ')}</p>
                   <p className="italic">{pricingPreview.breakdown?.months > 0 && `${pricingPreview.breakdown.months} month(s)`} {pricingPreview.breakdown?.remaining_days > 0 && `+ ${pricingPreview.breakdown.remaining_days} day(s)`}</p>
@@ -442,19 +442,19 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           )}
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Internal Notes (Optional)</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Internal Notes (Optional)</label>
             <textarea
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white transition-all h-20"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white transition-all h-20"
               value={formData.notes}
               onChange={e => setFormData({ ...formData, notes: e.target.value })}
               placeholder="e.g. Special requirements, discount info..."
             />
           </div>
 
-          <div className="flex justify-end gap-3 mt-8">
+          <div className="flex justify-end gap-4 mt-8">
             <button
               type="button"
-              className="px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="px-6 py-4 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               onClick={onClose}
             >
               Cancel
@@ -462,7 +462,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             <button
               type="submit"
               disabled={loading || loadingPricing}
-              className="px-8 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg shadow-green-200 dark:shadow-none transition-all flex items-center gap-2 disabled:opacity-60"
+              className="px-8 py-4 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg shadow-green-200 dark:shadow-none transition-all flex items-center gap-2 disabled:opacity-60"
             >
               {loading ? (
                 <>

@@ -61,7 +61,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowActivity(s => !s)}
-              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`} 
+              className={`px-4 py-2.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`} 
               title="Activity logs"
               aria-pressed={showActivity}
             >
@@ -80,7 +80,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
               Age, Contact No., Payments, Due Day, Extension */}
           <div className="mb-4">
             {/* Header row for md+ */}
-            <div className="hidden md:grid grid-cols-4 gap-3 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">
+            <div className="hidden md:grid grid-cols-4 gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2 px-2">
               <div>Tenant Name</div>
               <div>Contact No.</div>
               <div>Payments</div>
@@ -92,7 +92,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
             ) : (
               <div className="space-y-2">
                 {tenants.map((t, i) => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-100 dark:border-gray-700">
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md border border-gray-100 dark:border-gray-700">
                     <div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">Tenant Name</div>
                       <button
@@ -151,7 +151,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                               const idKey = t?.id || t?.tenant_id || t?.tenantId || `idx_${i}`;
                               setExtensionValues(prev => ({ ...prev, [idKey]: Number(e.target.value || 1) }));
                             }}
-                            className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                            className="w-20 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
                             aria-label="Extension value"
                           />
                           {/* Mini Price Preview */}
@@ -184,7 +184,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                                 setExtending(false);
                               }
                             }}
-                          className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-xs font-bold uppercase"
+                          className="px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 text-xs font-bold uppercase"
                         >
                           Days
                         </button>
@@ -207,7 +207,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                               setExtending(false);
                             }
                           }}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-xs font-bold uppercase"
+                          className="px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 text-xs font-bold uppercase"
                         >
                           Month
                         </button>
@@ -234,10 +234,10 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
               ) : (
                 <ul className="space-y-2">
                   {activity.map((a, i) => (
-                    <li key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-100 dark:border-gray-700">
-                      <div className="flex justify-between items-start mb-1">
+                    <li key={i} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-100 dark:border-gray-700">
+                      <div className="flex justify-between items-start mb-2">
                         <div className="text-sm text-gray-800 dark:text-gray-200 font-bold">{a.action || a.title || 'Activity'}</div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase">
+                        <div className="text-[10px] font-bold text-gray-500 uppercase">
                           {new Date(a.timestamp || a.created_at || a.time).toLocaleString()}
                         </div>
                       </div>

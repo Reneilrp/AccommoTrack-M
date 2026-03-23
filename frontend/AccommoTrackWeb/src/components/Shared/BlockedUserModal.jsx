@@ -21,7 +21,7 @@ const BlockedUserModal = ({ isOpen, onClose }) => {
     >
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all animate-in fade-in zoom-in duration-300">
         <div className="flex flex-col items-center text-center">
-          <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full mb-4">
+          <div className="p-4 bg-red-100 dark:bg-red-900/30 rounded-full mb-4">
             <ShieldAlert className="w-10 h-10 text-red-600 dark:text-red-400" />
           </div>
           <h2 id="blocked-user-title" className="text-2xl font-bold text-gray-900 dark:text-white mb-2">

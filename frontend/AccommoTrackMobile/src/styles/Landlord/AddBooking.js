@@ -13,14 +13,14 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   scrollContent: {
     padding: 16,
@@ -62,8 +62,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     fontSize: 15,
     color: theme.colors.text,
   },
@@ -86,8 +86,8 @@ export const getStyles = (theme) => StyleSheet.create({
     overflow: 'hidden',
   },
   searchResultItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -121,7 +121,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   flex1: {
     flex: 1,
@@ -131,8 +131,8 @@ export const getStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

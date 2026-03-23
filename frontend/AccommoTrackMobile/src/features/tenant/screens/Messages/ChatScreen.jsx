@@ -236,7 +236,7 @@ export default function ChatScreen({ navigation, route }) {
 
                     {conv?.other_user?.phone && (
                         <TouchableOpacity 
-                            style={[styles.headerIcon, { marginRight: 4 }]} 
+                            style={[styles.headerIcon, { marginRight: 8 }]} 
                             onPress={() => Linking.openURL(`tel:${conv.other_user.phone}`)}
                         >
                             <Ionicons name="call-outline" size={24} color="#FFFFFF" />
@@ -314,7 +314,7 @@ export default function ChatScreen({ navigation, route }) {
 
                 {/* Selected Image Preview */}
                 {selectedImage && (
-                    <View style={{ padding: 12, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <View style={{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }}>
                         <View style={{ position: 'relative' }}>
                             <Image source={{ uri: selectedImage }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                             <TouchableOpacity 

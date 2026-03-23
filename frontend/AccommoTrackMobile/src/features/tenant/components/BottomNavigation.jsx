@@ -160,7 +160,7 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
               color: activeTab === fabTab.id ? theme.colors.primary : theme.colors.textTertiary,
               fontWeight: activeTab === fabTab.id ? '600' : '400',
               textAlign: 'center',
-              marginTop: 4,
+              marginTop: 8,
             }}
           >
             {fabTab.label}

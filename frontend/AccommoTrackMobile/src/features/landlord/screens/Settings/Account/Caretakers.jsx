@@ -341,7 +341,7 @@ export default function Caretakers() {
           </Text>
           <Text style={[styles.email, { color: theme.colors.textSecondary }]}>{item.caretaker.email}</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity 
             onPress={() => {
               navigation.navigate('Messages', { 
@@ -366,7 +366,7 @@ export default function Caretakers() {
         </View>
       </View>
 
-      <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 12 }]}>Managed Properties</Text>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 16 }]}>Managed Properties</Text>
       <View style={styles.pillContainer}>
         {item.assigned_properties.length > 0 ? (
           item.assigned_properties.map(p => (
@@ -379,7 +379,7 @@ export default function Caretakers() {
         )}
       </View>
 
-      <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 12 }]}>Module Permissions</Text>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 16 }]}>Module Permissions</Text>
       <View style={styles.pillContainer}>
         {Object.entries(item.permissions).filter(([k, v]) => v).map(([k, v]) => (
           <View key={k} style={[styles.pill, { backgroundColor: '#E0E7FF' }]}>
@@ -420,7 +420,7 @@ export default function Caretakers() {
               <Ionicons name="people-outline" size={48} color={theme.colors.textTertiary} />
               <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No caretakers yet</Text>
               <TouchableOpacity 
-                style={{ marginTop: 16, backgroundColor: theme.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
+                style={{ marginTop: 16, backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
                 onPress={() => { resetForm(); setModalVisible(true); }}
               >
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add First Caretaker</Text>
@@ -581,7 +581,7 @@ export default function Caretakers() {
                   <Text style={[styles.checkLabel, { color: theme.colors.text }]}>{prop.name}</Text>
                 </TouchableOpacity>
               )) : (
-                <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 4 }}>Still didn't assign a property</Text>
+                <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 8 }}>Still didn't assign a property</Text>
               )}
 
               <View style={{ height: 40 }} />

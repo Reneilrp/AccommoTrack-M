@@ -147,14 +147,14 @@ const NotificationDropdown = () => {
           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
           onClick={() => handleNotificationClick(item)}
         >
-          <div className="px-4 py-3 flex gap-3 items-start">
+          <div className="px-4 py-4 flex gap-4 items-start">
             <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${colorClass}`}>
               {icon}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.action}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                 {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
               </p>
             </div>
@@ -171,8 +171,8 @@ const NotificationDropdown = () => {
         className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!item.read_at ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
         onClick={() => handleNotificationClick(item)}
       >
-        <div className="px-4 py-3 flex gap-3">
-          <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${!item.read_at ? 'bg-brand-500' : 'bg-transparent'}`} />
+        <div className="px-4 py-4 flex gap-4">
+          <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!item.read_at ? 'bg-brand-500' : 'bg-transparent'}`} />
           <div className="flex-1 min-w-0">
             <p className={`text-sm ${!item.read_at ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
               {item.data?.title || 'Notification'}
@@ -180,7 +180,7 @@ const NotificationDropdown = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
               {item.data?.message || item.data?.body || 'You have a new update.'}
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2.5">
               {new Date(item.created_at).toLocaleString()}
             </p>
           </div>
@@ -215,12 +215,12 @@ const NotificationDropdown = () => {
           aria-labelledby="notification-trigger"
           className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right border border-gray-100 dark:border-gray-700"
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
+          <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 flex items-center gap-1"
+                className="text-xs font-medium text-brand-700 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 flex items-center gap-2"
               >
                 <Check className="w-3 h-3" /> Mark all read
               </button>
@@ -232,11 +232,11 @@ const NotificationDropdown = () => {
               <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</div>
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
+                <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
                   <Bell className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                 </div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">No notifications</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">You're all caught up!</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">You're all caught up!</p>
               </div>
             ) : (
               <>
@@ -249,7 +249,7 @@ const NotificationDropdown = () => {
                       setIsOpen(false);
                       navigate('/notifications');
                     }}
-                    className="w-full py-2 text-xs font-bold text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors uppercase tracking-widest"
+                    className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors uppercase tracking-widest"
                   >
                     View All Notifications
                   </button>

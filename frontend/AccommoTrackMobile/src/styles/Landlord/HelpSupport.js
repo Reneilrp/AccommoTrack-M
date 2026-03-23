@@ -25,7 +25,7 @@ export const getStyles = (theme) => StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 40,
   },
 
@@ -37,8 +37,8 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 10,
-    paddingLeft: 4, 
+    marginBottom: 8,
+    paddingLeft: 8, 
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -94,7 +94,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: theme.colors.text,
-    marginRight: 10,
+    marginRight: 8,
   },
   faqItemBorder: {
     borderBottomWidth: 1,
@@ -104,12 +104,12 @@ export const getStyles = (theme) => StyleSheet.create({
   // Version Info Styles
   versionContainer: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   versionText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
   }
 });
 

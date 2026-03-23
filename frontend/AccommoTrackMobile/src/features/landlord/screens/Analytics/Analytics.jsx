@@ -323,7 +323,7 @@ export default function Analytics({ navigation }) {
           ) : (
             <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' }}>
                 <Ionicons name="stats-chart-outline" size={48} color={theme.colors.textTertiary} />
-                <Text style={{ color: theme.colors.textSecondary, marginTop: 10 }}>No revenue trend data available</Text>
+                <Text style={{ color: theme.colors.textSecondary, marginTop: 8 }}>No revenue trend data available</Text>
             </View>
           )}
         </View>
@@ -351,7 +351,7 @@ export default function Analytics({ navigation }) {
                 fillShadowGradientOpacity: 1,
               }}
               verticalLabelRotation={0}
-              style={{ marginVertical: 8, borderRadius: 16, paddingLeft: 0, paddingRight: 30 }}
+              style={{ marginVertical: 8, borderRadius: 16, paddingLeft: 0, paddingRight: 32 }}
               showValuesOnTopOfBars={true}
             />
           </View>

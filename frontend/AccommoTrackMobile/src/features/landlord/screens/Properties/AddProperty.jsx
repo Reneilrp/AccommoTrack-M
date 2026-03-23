@@ -1157,8 +1157,8 @@ export default function AddProperty({ navigation }) {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 12,
-                  paddingVertical: 10,
+                  gap: 16,
+                  paddingVertical: 8,
                 }}
                 onPress={() => {
                   const current = form.acceptedPayments;
@@ -1205,8 +1205,8 @@ export default function AddProperty({ navigation }) {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 12,
-                  paddingVertical: 10,
+                  gap: 16,
+                  paddingVertical: 8,
                   opacity: isPayMongoVerified ? 1 : 0.5,
                 }}
                 onPress={() => {
@@ -1266,7 +1266,7 @@ export default function AddProperty({ navigation }) {
                     gap: 8,
                     backgroundColor: "#FEF3C7",
                     borderRadius: 10,
-                    padding: 12,
+                    padding: 16,
                     marginTop: 6,
                   }}
                 >
@@ -1309,8 +1309,8 @@ export default function AddProperty({ navigation }) {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 10,
-                  marginBottom: 20,
+                  gap: 8,
+                  marginBottom: 24,
                 }}
                 onPress={() => updateForm("isEligible", !form.isEligible)}
               >
@@ -1351,7 +1351,7 @@ export default function AddProperty({ navigation }) {
               <TouchableOpacity
                 style={[
                   styles.addImageButton,
-                  { width: "100%", height: 120, marginTop: 10 },
+                  { width: "100%", height: 120, marginTop: 8 },
                 ]}
                 onPress={handlePickCredentials}
               >

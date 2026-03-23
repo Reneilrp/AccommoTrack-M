@@ -975,7 +975,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             </View>
 
             <Text style={styles.sectionTitle}>Pricing Model</Text>
-            <Text style={[styles.helperText, { marginBottom: 12 }]}>
+            <Text style={[styles.helperText, { marginBottom: 16 }]}>
               {formData.roomType === "bedSpacer"
                 ? "Bed Spacer rooms use per-bed pricing only"
                 : "How should tenants pay for this room?"}
@@ -1072,8 +1072,8 @@ export default function RoomManagementScreen({ navigation, route }) {
             </View>
 
             <Text style={styles.sectionTitle}>Lease Advance</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <View style={{ flex: 1, marginRight: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.label}>Require 1-Month Advance</Text>
                 <Text style={styles.helperText}>If enabled, tenants must pay an extra month upfront. This overrides property defaults.</Text>
               </View>
@@ -1095,7 +1095,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             />
 
             <Text style={styles.sectionTitle}>Room Rules (optional)</Text>
-            <View style={[styles.pillList, { marginBottom: 12 }]}>
+            <View style={[styles.pillList, { marginBottom: 16 }]}>
               {propertyRules.map((r) => (
                 <TouchableOpacity
                   key={r}
@@ -1136,7 +1136,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             </Text>
 
             <Text style={styles.sectionTitle}>Room Amenities</Text>
-            <View style={[styles.pillList, { marginBottom: 12 }]}>
+            <View style={[styles.pillList, { marginBottom: 16 }]}>
               {propertyAmenities.map((a) => (
                 <TouchableOpacity
                   key={a}
@@ -1226,7 +1226,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 >
                   <Ionicons name="camera" size={28} color="#94A3B8" />
                   <Text
-                    style={{ color: "#94A3B8", fontSize: 10, marginTop: 4 }}
+                    style={{ color: "#94A3B8", fontSize: 10, marginTop: 8 }}
                   >
                     Add Image
                   </Text>
@@ -1268,7 +1268,7 @@ export default function RoomManagementScreen({ navigation, route }) {
         <View style={styles.statusModalOverlay}>
           <View style={styles.statusSheet}>
             <Text
-              style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}
+              style={[styles.sectionTitle, { marginTop: 0, marginBottom: 24 }]}
             >
               Update Room Status
             </Text>
@@ -1307,18 +1307,18 @@ export default function RoomManagementScreen({ navigation, route }) {
       {/* Extend Stay Modal */}
       <Modal visible={extendModalVisible} transparent animationType="fade">
         <View style={styles.statusModalOverlay}>
-          <View style={[styles.statusSheet, { padding: 20 }]}>
-            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 10 }]}>
+          <View style={[styles.statusSheet, { padding: 16 }]}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 8 }]}>
               Extend Stay
             </Text>
-            <Text style={[styles.helperText, { marginBottom: 20 }]}>
+            <Text style={[styles.helperText, { marginBottom: 24 }]}>
               Extend the current tenant's stay for Room {extendTarget?.room_number}.
             </Text>
 
-            <View style={{ flexDirection: 'row', marginBottom: 20, gap: 10 }}>
+            <View style={{ flexDirection: 'row', marginBottom: 24, gap: 8 }}>
               <TouchableOpacity 
                 style={[
-                  { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+                  { flex: 1, padding: 16, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
                   extendType === 'months' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
                 ]}
                 onPress={() => setExtendType('months')}
@@ -1327,7 +1327,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[
-                  { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+                  { flex: 1, padding: 16, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
                   extendType === 'days' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : { borderColor: theme.colors.border }
                 ]}
                 onPress={() => setExtendType('days')}
@@ -1344,7 +1344,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               onChangeText={setExtendValue}
             />
 
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity 
                 style={[styles.secondaryButton, { flex: 1 }]} 
                 onPress={() => setExtendModalVisible(false)}
@@ -1396,7 +1396,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               styles.statusSheet,
               {
                 height: "80%",
-                paddingBottom: 20,
+                paddingBottom: 16,
                 backgroundColor: theme.colors.background,
               },
             ]}
@@ -1429,7 +1429,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 alignItems: "center",
                 backgroundColor: theme.colors.surface,
                 borderRadius: 10,
-                paddingHorizontal: 10,
+                paddingHorizontal: 8,
                 marginBottom: 15,
                 borderWidth: 1,
                 borderColor: theme.colors.border,
@@ -1440,7 +1440,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 style={{
                   flex: 1,
                   height: 45,
-                  marginLeft: 10,
+                  marginLeft: 8,
                   color: theme.colors.text,
                 }}
                 placeholder="Search tenants..."
@@ -1458,7 +1458,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    paddingVertical: 12,
+                    paddingVertical: 16,
                     borderBottomWidth: 1,
                     borderBottomColor: theme.colors.border,
                   }}
@@ -1473,7 +1473,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                       backgroundColor: theme.colors.primary + "20",
                       alignItems: "center",
                       justifyContent: "center",
-                      marginRight: 12,
+                      marginRight: 16,
                     }}
                   >
                     <Text

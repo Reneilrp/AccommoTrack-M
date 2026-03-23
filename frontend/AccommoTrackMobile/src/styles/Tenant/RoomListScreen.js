@@ -10,7 +10,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
@@ -23,7 +23,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600', 
     color: theme.colors.text,
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   placeholder: { 
     width: 40 
@@ -31,13 +31,13 @@ export const getStyles = (theme) => StyleSheet.create({
 
   // Filter buttons
   filterScroll: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     maxHeight: 64,
   },
   filterButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: theme.colors.backgroundSecondary,
     minWidth: 90,
@@ -64,7 +64,7 @@ export const getStyles = (theme) => StyleSheet.create({
   
   roomsContainer: {
     paddingTop: 8,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   
   loadingContainer: {
@@ -89,7 +89,7 @@ export const getStyles = (theme) => StyleSheet.create({
   emptySubtext: { 
     fontSize: 14, 
     color: theme.colors.textTertiary, 
-    marginTop: 4 
+    marginTop: 8 
   },
 
   // Room Card Layout
@@ -97,7 +97,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -170,9 +170,9 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderRadius: 6,
-    gap: 4,
+    gap: 8,
   },
   
   statusText: {
@@ -189,14 +189,14 @@ export const getStyles = (theme) => StyleSheet.create({
   roomDetailsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 12,
+    gap: 16,
+    marginBottom: 16,
   },
   
   roomDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
   
   roomDetailText: {
@@ -211,9 +211,9 @@ export const getStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: theme.colors.primaryLight,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
-    gap: 4,
+    gap: 8,
     alignSelf: 'flex-end',
   },
   

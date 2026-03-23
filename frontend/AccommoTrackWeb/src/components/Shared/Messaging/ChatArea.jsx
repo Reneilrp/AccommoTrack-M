@@ -26,7 +26,7 @@ const ChatArea = ({
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center p-8">
           <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-300 dark:border-gray-700 shadow-md">
-            <MessageCircle className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+            <MessageCircle className="w-10 h-10 text-gray-500 dark:text-gray-500" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">No conversation selected</h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto font-medium">Choose a conversation from the list to start messaging</p>
@@ -39,7 +39,7 @@ const ChatArea = ({
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
       {/* Chat Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-4 flex items-center justify-between z-10 shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
             <span className="text-green-600 dark:text-green-400 font-semibold">
               {getInitials(selectedChat.other_user)}
@@ -90,7 +90,7 @@ const ChatArea = ({
               >
                 <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xs lg:max-w-md`}> 
                   {isCaretakerMessage && msg.actual_sender && (
-                    <p className="text-[10px] mb-1 text-gray-500 dark:text-gray-400 font-medium">
+                    <p className="text-[10px] mb-2 text-gray-500 dark:text-gray-400 font-medium">
                       {isSentByCurrentCaretaker
                         ? 'You (Caretaker)'
                         : `via ${msg.actual_sender.first_name} ${msg.actual_sender.last_name} (Caretaker)`
@@ -116,7 +116,7 @@ const ChatArea = ({
                     )}
                     {msg.message && <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>}
                   </div>
-                  <p className="text-[10px] mt-1 text-gray-400 dark:text-gray-500 px-1">
+                  <p className="text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2">
                     {formatTime(ts)}
                   </p>
                 </div>
@@ -130,7 +130,7 @@ const ChatArea = ({
       {/* Message Input Area */}
       <div className="bg-white dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 p-4">
         {caretakerMessagingRestricted && (
-          <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-2 text-amber-800 dark:text-amber-400 text-xs">
+          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-2 text-amber-800 dark:text-amber-400 text-xs">
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>Actions disabled because you are viewing as a caretaker.</p>
           </div>
@@ -138,12 +138,12 @@ const ChatArea = ({
 
         {/* Image Preview */}
         {imagePreview && (
-          <div className="mb-3 relative inline-block">
+          <div className="mb-4 relative inline-block">
             <div className="relative rounded-xl overflow-hidden border-2 border-green-500 shadow-lg animate-in zoom-in duration-200">
               <img src={imagePreview} alt="Preview" className="h-32 w-auto object-cover" />
               <button 
                 onClick={removeSelectedImage}
-                className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full backdrop-blur-sm transition-colors"
+                className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>

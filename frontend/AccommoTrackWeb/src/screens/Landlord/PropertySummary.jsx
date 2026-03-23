@@ -235,7 +235,7 @@ export default function PropertySummary() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-center relative min-h-[40px]">
             {/* Left: Back button */}
             <div className="absolute left-0 flex items-center">
@@ -393,7 +393,7 @@ export default function PropertySummary() {
 
                         {swiperInstance &&
                           images.length + (property?.video_url ? 1 : 0) > 1 && (
-                            <div className="absolute inset-0 flex items-center justify-between px-3 z-20 pointer-events-none">
+                            <div className="absolute inset-0 flex items-center justify-between px-4 z-20 pointer-events-none">
                               <button
                                 aria-label="Previous image"
                                 onClick={() => swiperInstance.slidePrev()}
@@ -485,7 +485,7 @@ export default function PropertySummary() {
                       No rules provided.
                     </p>
                   ) : (
-                    <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                    <ul className="list-disc ml-6 space-y-2 text-sm text-gray-700 dark:text-gray-300">
                       {rules.map((r, i) => (
                         <li key={i}>{renderRuleLabel(r)}</li>
                       ))}
@@ -506,7 +506,7 @@ export default function PropertySummary() {
                       {amenities.map((a, i) => (
                         <span
                           key={i}
-                          className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium border border-green-100 dark:border-green-800"
+                          className="px-4 py-2 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium border border-green-100 dark:border-green-800"
                         >
                           {renderAmenityLabel(a)}
                         </span>
@@ -529,7 +529,7 @@ export default function PropertySummary() {
             </div>
             <button
               onClick={() => navigate(`/rooms?property=${id}`)}
-              className="absolute top-4 right-4 px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
+              className="absolute top-4 right-4 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
             >
               View more Rooms
             </button>

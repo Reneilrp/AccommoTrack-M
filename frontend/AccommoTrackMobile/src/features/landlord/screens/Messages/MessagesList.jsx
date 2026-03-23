@@ -76,7 +76,7 @@ export default function MessagesList({
 
             {/* Property Filters (If Landlord has multiple properties) */}
             {!loading && properties.length > 0 && (
-                <View style={{ paddingVertical: 12, backgroundColor: theme.colors.backgroundSecondary }}>
+                <View style={{ paddingVertical: 16, backgroundColor: theme.colors.backgroundSecondary }}>
                     <ScrollView 
                         horizontal 
                         showsHorizontalScrollIndicator={false}

@@ -96,7 +96,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             <Key className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             Reset Password
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -114,17 +114,17 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
           {step === 1 && (
             <form onSubmit={handleSendCode} className="space-y-4">
               <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Mail className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <h4 className="text-xl font-bold text-gray-900 dark:text-white">Forgot Password?</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   Enter your email address and we'll send you a 6-digit code to reset your password.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                 <input
                   type="email"
                   value={email}
@@ -151,7 +151,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             <form onSubmit={handleVerifyCode} className="space-y-6">
               <div className="text-center mb-4">
                 <h4 className="text-xl font-bold text-gray-900 dark:text-white">Check Your Email</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   We sent a code to <span className="font-semibold text-gray-700 dark:text-gray-300">{email}</span>
                 </p>
               </div>
@@ -171,7 +171,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                 ))}
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <button
                   type="submit"
                   disabled={loading || code.some(d => !d)}
@@ -182,7 +182,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center justify-center gap-1"
+                  className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center justify-center gap-2"
                 >
                   <ChevronLeft className="w-4 h-4" /> Change Email
                 </button>
@@ -194,7 +194,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
           {step === 3 && (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="text-center mb-4">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
                 <h4 className="text-xl font-bold text-gray-900 dark:text-white">Reset Password</h4>
@@ -204,9 +204,9 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
                   <input
                     type="password"
                     value={passwords.password}
@@ -220,9 +220,9 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm Password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
                   <input
                     type="password"
                     value={passwords.confirm}

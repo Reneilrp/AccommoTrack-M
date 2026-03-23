@@ -16,13 +16,13 @@ const Service = ({ onGetStarted }) => (
         AccommoTrack offers a suite of tools for tenants and landlords to make property management, searching, and booking seamless and secure.
       </p>
 
-      <div className="flex flex-col md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-16 p-1">
+      <div className="flex flex-col md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-16 p-2">
         {/* Service Card 1 */}
         <div className="bg-white dark:bg-gray-800 rounded-[32px] p-8 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
           <div className="bg-blue-50 dark:bg-blue-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             🔍
           </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Property Search</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Property Search</h3>
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed">Find and compare rooms with advanced filters and real-time availability.</p>
         </div>
 
@@ -31,7 +31,7 @@ const Service = ({ onGetStarted }) => (
           <div className="bg-green-50 dark:bg-green-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             📝
           </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Easy Booking</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Easy Booking</h3>
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed">Book your preferred room instantly and securely with transparent pricing.</p>
         </div>
 
@@ -40,7 +40,7 @@ const Service = ({ onGetStarted }) => (
           <div className="bg-purple-50 dark:bg-purple-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             🏢
           </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Management</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Management</h3>
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed">Landlords can manage listings, bookings, and tenant profiles all in one place.</p>
         </div>
 
@@ -49,7 +49,7 @@ const Service = ({ onGetStarted }) => (
           <div className="bg-orange-50 dark:bg-orange-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
             💳
           </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Secure Payments</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Secure Payments</h3>
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed">All transactions are encrypted and protected for complete peace of mind.</p>
         </div>
       </div>

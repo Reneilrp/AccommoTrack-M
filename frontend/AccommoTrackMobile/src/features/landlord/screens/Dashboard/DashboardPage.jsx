@@ -331,7 +331,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           size={24} 
           color={isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412"} 
         />
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={{ flex: 1, marginLeft: 16 }}>
           <Text style={[styles.bannerTitle, { color: isRejected ? "#991B1B" : isPending ? "#92400E" : "#9A3412" }]}>
             Verification: {verificationStatus.status.replace('_', ' ').toUpperCase()}
           </Text>

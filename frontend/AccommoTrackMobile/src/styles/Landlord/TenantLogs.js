@@ -13,14 +13,14 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textInverse,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   scrollContent: {
     padding: 16,
@@ -29,9 +29,9 @@ export const getStyles = (theme) => StyleSheet.create({
   profileCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: '#000',
@@ -47,7 +47,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 2,
     borderColor: theme.colors.primary,
   },
@@ -64,13 +64,13 @@ export const getStyles = (theme) => StyleSheet.create({
   tenantEmail: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 12,
-    marginTop: 12,
+    marginTop: 16,
   },
   statusText: {
     fontSize: 12,
@@ -80,8 +80,8 @@ export const getStyles = (theme) => StyleSheet.create({
   infoGrid: {
     flexDirection: 'row',
     width: '100%',
-    marginTop: 20,
-    paddingTop: 20,
+    marginTop: 24,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight,
   },
@@ -94,7 +94,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
     textTransform: 'uppercase',
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   infoValue: {
     fontSize: 14,
@@ -117,7 +117,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: 10,
-    padding: 4,
+    padding: 8,
     marginBottom: 16,
   },
   filterTab: {
@@ -146,7 +146,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     flexDirection: 'row',
@@ -164,7 +164,7 @@ export const getStyles = (theme) => StyleSheet.create({
   paymentDate: {
     fontSize: 12,
     color: theme.colors.textTertiary,
-    marginTop: 4,
+    marginTop: 8,
   },
   paymentRight: {
     alignItems: 'flex-end',
@@ -193,13 +193,13 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   historyCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -207,7 +207,7 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   cardTitle: {
     fontSize: 15,
@@ -245,8 +245,8 @@ export const getStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   cardFooter: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight,
     flexDirection: 'row',
@@ -274,7 +274,7 @@ export const getStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.background
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: theme.colors.textSecondary,
   },
@@ -287,7 +287,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.textSecondary,
-    marginTop: 12,
+    marginTop: 16,
   },
 });
 

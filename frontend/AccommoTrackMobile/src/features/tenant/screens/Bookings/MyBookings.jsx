@@ -405,7 +405,7 @@ export default function MyBookings() {
             </View>
 
             {!booking.isPending && (
-              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 10 }]}> 
+              <View style={[styles.reviewBtnContainer, { gap: 8, marginBottom: 8 }]}> 
                 <TouchableOpacity
                   style={[styles.reviewBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : '#2563EB' }]}
                   disabled={submittingExtension}
@@ -423,7 +423,7 @@ export default function MyBookings() {
               </View>
             )}
 
-            <View style={[styles.reviewBtnContainer, { gap: 12 }]}> 
+            <View style={[styles.reviewBtnContainer, { gap: 16 }]}> 
                {!booking.isPending ? (
                  <>
                    <TouchableOpacity 
@@ -477,7 +477,7 @@ export default function MyBookings() {
                   style={[
                     styles.stayHeaderBtn, 
                     { 
-                      marginTop: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, 
+                      marginTop: 0, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, 
                       backgroundColor: booking.paymentStatus === 'refunded' ? theme.colors.textTertiary : theme.colors.primary 
                     }
                   ]}
@@ -531,7 +531,7 @@ export default function MyBookings() {
              <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
                <Ionicons name="time-outline" size={32} color="#D97706" style={{ opacity: 0.7 }} />
                <Text style={{ color: '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
-               <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 4, textAlign: 'center', paddingHorizontal: 20 }}>
+               <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
                  Add-ons will be available once your booking is confirmed.
                </Text>
              </View>
@@ -544,7 +544,7 @@ export default function MyBookings() {
               <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
               <Text style={styles.sectionTitle}>Property Manager</Text>
            </View>
-           <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+           <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
               <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
                  <Text style={[styles.avatarSmallText, { color: theme.colors.primary }]}>
                    {landlord?.name?.charAt(0) || landlord?.first_name?.charAt(0) || '?'}
@@ -618,7 +618,7 @@ export default function MyBookings() {
             onPress={() => navigation.navigate('BookingDetails', { bookingId: booking.id, propertyId: booking.property?.id || booking.property_id })}
           >
             <View style={{ padding: 16 }}>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 16, marginBottom: 16 }}>
                  <Image source={getImageUrl(booking.property?.image || booking.property_image)} style={styles.historyItemImage} />
                  <View style={styles.historyItemContent}>
                     <Text style={[styles.bookingName, styles.historyItemName, { color: theme.colors.text }]}>
@@ -642,7 +642,7 @@ export default function MyBookings() {
               {/* Review Button for History */}
               {['completed', 'confirmed'].includes(booking.status?.toLowerCase()) && !booking.has_review && !booking.hasReview && (
                 <TouchableOpacity 
-                  style={[styles.reviewBtn, { backgroundColor: theme.colors.primary, marginTop: 0, marginBottom: 12, width: '100%' }]}
+                  style={[styles.reviewBtn, { backgroundColor: theme.colors.primary, marginTop: 0, marginBottom: 16, width: '100%' }]}
                   onPress={() => navigation.navigate('LeaveReview', { bookingId: booking.id, propertyId: booking.property?.id || booking.property_id })}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>Leave a Review</Text>
@@ -651,15 +651,15 @@ export default function MyBookings() {
 
               {/* Activity Timeline */}
               {booking.activityLog && booking.activityLog.length > 0 && (
-                <View style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.textTertiary, textTransform: 'uppercase', marginBottom: 12 }}>Activity Timeline</Text>
+                <View style={{ borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 16 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.textTertiary, textTransform: 'uppercase', marginBottom: 16 }}>Activity Timeline</Text>
                   <View style={{ paddingLeft: 8 }}>
                     {(booking.activityLog || []).map((activity, idx) => (
-                      <View key={idx} style={{ flexDirection: 'row', marginBottom: 12, position: 'relative' }}>
+                      <View key={idx} style={{ flexDirection: 'row', marginBottom: 16, position: 'relative' }}>
                         {idx < (booking.activityLog.length - 1) && (
-                          <View style={{ position: 'absolute', left: 4, top: 12, bottom: -12, width: 1, backgroundColor: theme.colors.border }} />
+                          <View style={{ position: 'absolute', left: 8, top: 16, bottom: -12, width: 1, backgroundColor: theme.colors.border }} />
                         )}
-                        <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: getTimelineColor(activity.status), marginTop: 4, marginRight: 12, zIndex: 1, borderWidth: 2, borderColor: theme.colors.surface }} />
+                        <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: getTimelineColor(activity.status), marginTop: 8, marginRight: 16, zIndex: 1, borderWidth: 2, borderColor: theme.colors.surface }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>{activity.action}</Text>

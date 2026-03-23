@@ -19,7 +19,7 @@ const StatusPill = ({ status }) => {
     paid: 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20',
   };
   return (
-    <span className={`text-[12px] font-semibold px-3 py-1 rounded-full inline-block ${styles[status] || styles.active}`}>
+    <span className={`text-[12px] font-semibold px-4 py-2 rounded-full inline-block ${styles[status] || styles.active}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
@@ -170,7 +170,7 @@ const TenantDashboard = () => {
             { icon: Wallet, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
             { icon: CheckCircle2, label: 'All Paid Up', value: 'Yes', color: 'green' },
           ].map((card, i) => (
-            <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-5 relative overflow-hidden">
+            <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden">
               <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${
                 card.color === 'green' ? 'bg-green-500' : card.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'
               }`} />
@@ -182,7 +182,7 @@ const TenantDashboard = () => {
                 }`} />
               </div>
               <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100">{card.value}</div>
-              <div className="text-[13px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-1">{card.label}</div>
+              <div className="text-[13px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2">{card.label}</div>
             </div>
           ))}
         </div>
@@ -191,13 +191,13 @@ const TenantDashboard = () => {
           <div className="w-24 h-24 bg-green-100 dark:bg-green-500/15 rounded-full flex items-center justify-center mb-6">
             <Home className="w-12 h-12 text-green-600 dark:text-green-400" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-3">Ready to find your new home?</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4">Ready to find your new home?</h2>
           <p className="text-[15px] text-gray-500 dark:text-slate-400 mb-8 max-w-md mx-auto leading-relaxed">
             You don't have an active stay yet. Browse our verified properties and find the perfect room for your needs.
           </p>
           <button
             onClick={() => navigate('/explore')}
-            className="px-8 py-3.5 bg-green-600 text-white rounded-xl font-bold text-[15px] hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
+            className="px-8 py-4.5 bg-green-600 text-white rounded-xl font-bold text-[15px] hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
           >
             Explore Properties
           </button>
@@ -258,21 +258,21 @@ const TenantDashboard = () => {
 
       {/* ── High Priority Action Notification (Unpaid Balance) ── */}
       {unpaidBalance > 0 && (
-        <div className="bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm">
+        <div className="bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="flex items-start md:items-center gap-4">
-            <div className="bg-red-100 dark:bg-red-500/20 p-3 rounded-full flex-shrink-0 mt-1 md:mt-0">
+            <div className="bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
               <AlertCircle className="w-7 h-7 text-red-600 dark:text-red-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-red-800 dark:text-red-100">Action Required: Balance Due</h2>
-              <p className="text-[15px] text-red-700 dark:text-red-200/80 mt-1 leading-snug">
+              <p className="text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug">
                 You have an outstanding balance of <span className="font-bold text-red-800 dark:text-red-300">{formatCurrency(unpaidBalance)}</span>. Please settle it to avoid late fees.
               </p>
             </div>
           </div>
           <button
             onClick={() => navigate('/payments')}
-            className="w-full md:w-auto px-8 py-3.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+            className="w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
           >
             Pay Now <ArrowRight className="w-4 h-4" />
           </button>
@@ -281,9 +281,9 @@ const TenantDashboard = () => {
 
       {/* ── Upcoming Booking Alert ── */}
       {stayData?.upcomingBooking && (
-        <div className="bg-blue-50 dark:bg-gradient-to-r dark:from-blue-500/15 dark:to-[#1e2332] border border-blue-200 dark:border-blue-500/30 rounded-[16px] p-5 flex items-center justify-between gap-4">
+        <div className="bg-blue-50 dark:bg-gradient-to-r dark:from-blue-500/15 dark:to-[#1e2332] border border-blue-200 dark:border-blue-500/30 rounded-[16px] p-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="bg-blue-100 dark:bg-blue-500/20 p-3 rounded-full flex-shrink-0">
+            <div className="bg-blue-100 dark:bg-blue-500/20 p-4 rounded-full flex-shrink-0">
               <CalendarClock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
@@ -295,7 +295,7 @@ const TenantDashboard = () => {
           </div>
           <button
             onClick={() => navigate('/bookings')}
-            className="px-5 py-2.5 bg-white dark:bg-[#1e2332] text-blue-700 dark:text-blue-300 font-bold rounded-xl border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+            className="px-6 py-2.5 bg-white dark:bg-[#1e2332] text-blue-700 dark:text-blue-300 font-bold rounded-xl border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
           >
             View
           </button>
@@ -314,7 +314,7 @@ const TenantDashboard = () => {
                 <card.icon className={`w-5 h-5 ${cm.iconText}`} />
               </div>
               <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono">{card.value}</div>
-              <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-1.5">{card.label}</div>
+              <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2.5">{card.label}</div>
             </div>
           );
         })}
@@ -322,8 +322,8 @@ const TenantDashboard = () => {
 
       {/* ── Your Active Rooms (Conversational Cards) ── */}
       <div className="mt-8">
-        <h2 className="text-[18px] font-bold text-gray-900 dark:text-slate-100 mb-5">Your Active Rooms</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <h2 className="text-[18px] font-bold text-gray-900 dark:text-slate-100 mb-6">Your Active Rooms</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stays.map((stay, idx) => {
             const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
             const rent = stay.financials?.monthlyRent || stay.booking?.monthlyRent || stay.booking?.monthly_rent || 0;
@@ -338,7 +338,7 @@ const TenantDashboard = () => {
                   <RoomBadge roomNumber={stay.room?.roomNumber || stay.room?.room_number} color={roomColor} />
                   <StatusPill status="active" />
                 </div>
-                <div className="px-6 py-5 space-y-4">
+                <div className="px-6 py-6 space-y-4">
                   <div>
                     <p className="text-[15px] font-semibold text-gray-800 dark:text-slate-200">{stay.property?.title}</p>
                     <p className="text-[14px] text-gray-500 dark:text-slate-400 mt-0.5">
@@ -352,19 +352,19 @@ const TenantDashboard = () => {
                       <span className="font-bold text-gray-900 dark:text-slate-100 text-[15px]">{formatCurrency(roomTotal)}</span>
                     </div>
                     {addons > 0 && (
-                      <p className="text-[12.5px] text-gray-400 dark:text-slate-500 mt-1 italic">
+                      <p className="text-[12.5px] text-gray-500 dark:text-slate-500 mt-2 italic">
                         Includes Base Rent ({formatCurrency(rent)}) and Add-ons ({formatCurrency(addons)})
                       </p>
                     )}
                   </div>
 
-                  <div className="flex gap-4 pt-1">
+                  <div className="flex gap-4 pt-2">
                     <div className="flex-1">
-                      <p className="text-[13px] text-gray-400 dark:text-slate-500 mb-1">Move-in Date</p>
+                      <p className="text-[13px] text-gray-500 dark:text-slate-500 mb-2">Move-in Date</p>
                       <p className="text-[14px] font-medium text-gray-800 dark:text-slate-200">{moveIn}</p>
                     </div>
                     <div className="flex-1">
-                      <p className="text-[13px] text-gray-400 dark:text-slate-500 mb-1">Duration</p>
+                      <p className="text-[13px] text-gray-500 dark:text-slate-500 mb-2">Duration</p>
                       <p className="text-[14px] font-medium text-gray-800 dark:text-slate-200">{daysStayed} days so far</p>
                     </div>
                   </div>
@@ -380,11 +380,11 @@ const TenantDashboard = () => {
 
         {/* Recent Activity */}
         <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
+          <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Recent Activity</h3>
             <button
               onClick={() => navigate('/notifications')}
-              className="text-[13px] text-gray-400 dark:text-slate-500 font-medium hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
+              className="text-[13px] text-gray-500 dark:text-slate-500 font-medium hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
             >
               View All
             </button>
@@ -404,7 +404,7 @@ const TenantDashboard = () => {
                       <p className="text-[14.5px] text-gray-800 dark:text-slate-100 leading-snug">
                         {activity.action} {activity.description && <span className="text-gray-500 dark:text-slate-400 font-normal">— {activity.description}</span>}
                       </p>
-                      <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-1">
+                      <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-2">
                         {new Date(activity.timestamp).toLocaleString('en-US', {
                           month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
                         })}
@@ -415,8 +415,8 @@ const TenantDashboard = () => {
               })
             ) : (
               <div className="py-8 flex flex-col items-center justify-center text-center">
-                <Activity className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-3" />
-                <p className="text-[14px] text-gray-400 dark:text-slate-500">No recent activities to show.</p>
+                <Activity className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
+                <p className="text-[14px] text-gray-500 dark:text-slate-500">No recent activities to show.</p>
               </div>
             )}
           </div>
@@ -424,24 +424,24 @@ const TenantDashboard = () => {
 
         {/* Upcoming Payment Schedule */}
         <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045]">
+          <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Payment Schedule</h3>
-            <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-0.5">Estimated lease dues</p>
+            <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">Estimated lease dues</p>
           </div>
-          <div className="px-6 py-5 flex-1 flex flex-col justify-center">
+          <div className="px-6 py-6 flex-1 flex flex-col justify-center">
             {upcomingSchedule.length > 0 ? (
                <div className="space-y-0 relative">
                   {upcomingSchedule.map((schedule, idx) => (
                     <div key={idx} className="flex gap-4">
                        <div className="flex flex-col items-center">
-                          <div className={`w-3.5 h-3.5 rounded-full mt-1.5 flex-shrink-0 relative z-10 ${schedule.isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
-                          {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-1 flex-1"></div>}
+                          <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${schedule.isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
+                          {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-2 flex-1"></div>}
                        </div>
-                       <div className="pb-5">
+                       <div className="pb-6">
                           <p className={`text-[15px] font-bold leading-tight ${schedule.isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
                             {schedule.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-2">
                             <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
                               {formatCurrency(schedule.amount)}
                             </span>
@@ -453,8 +453,8 @@ const TenantDashboard = () => {
                </div>
             ) : (
                <div className="py-8 flex flex-col items-center justify-center text-center h-full">
-                 <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-3" />
-                 <p className="text-[14px] text-gray-400 dark:text-slate-500">No upcoming scheduled payments.</p>
+                 <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
+                 <p className="text-[14px] text-gray-500 dark:text-slate-500">No upcoming scheduled payments.</p>
                </div>
             )}
           </div>
@@ -462,11 +462,11 @@ const TenantDashboard = () => {
 
         {/* Simplified Payment Summary */}
         <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045]">
+          <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Current Payment Cycle</h3>
-            <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
-          <div className="px-6 py-5 flex-1 flex flex-col justify-center">
+          <div className="px-6 py-6 flex-1 flex flex-col justify-center">
 
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center">
@@ -479,8 +479,8 @@ const TenantDashboard = () => {
               </div>
             </div>
 
-            <div className="pt-5 border-t border-gray-100 dark:border-[#2a3045]">
-              <div className="flex justify-between items-center mb-5">
+            <div className="pt-6 border-t border-gray-100 dark:border-[#2a3045]">
+              <div className="flex justify-between items-center mb-6">
                 <span className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Remaining Balance</span>
                 <span className={`text-[20px] font-bold font-mono ${unpaidBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                   {formatCurrency(unpaidBalance)}
@@ -490,12 +490,12 @@ const TenantDashboard = () => {
               {unpaidBalance > 0 ? (
                 <button
                   onClick={() => navigate('/payments')}
-                  className="w-full py-3.5 bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] text-gray-900 dark:text-slate-100 rounded-xl text-[15px] font-semibold hover:bg-gray-200 dark:hover:bg-[#303650] transition-colors"
+                  className="w-full py-4.5 bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] text-gray-900 dark:text-slate-100 rounded-xl text-[15px] font-semibold hover:bg-gray-200 dark:hover:bg-[#303650] transition-colors"
                 >
                   Make a Payment
                 </button>
               ) : (
-                <div className="w-full py-3.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-[15px] font-semibold text-center flex items-center justify-center gap-2">
+                <div className="w-full py-4.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-[15px] font-semibold text-center flex items-center justify-center gap-2">
                   <CheckCircle2 className="w-5 h-5" /> You are all caught up!
                 </div>
               )}

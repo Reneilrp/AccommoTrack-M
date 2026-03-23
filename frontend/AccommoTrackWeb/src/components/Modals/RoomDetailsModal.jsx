@@ -338,13 +338,13 @@ export default function RoomDetailsModal({
                       )}
                       <div className="absolute top-3 right-3">
                         {room.reserved_by_me ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
+                          <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                             Reserved by you (Pending)
                           </span>
                         ) : (
                           <span
                             className={`
-                            px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
+                            px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
                             ${(room.status || "").toString().toLowerCase() === "available" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
                           `}
                           >
@@ -366,9 +366,9 @@ export default function RoomDetailsModal({
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-300">
-                      <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
-                        <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
+                      <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                        <Users className="w-4 h-4 text-gray-500 dark:text-gray-500" />
                         <span>
                           {room.room_type === 'bedSpacer' || room.room_type === 'bedspacer' 
                             ? `${room.occupied_count || 0} / ${room.capacity} Beds taken` 
@@ -377,13 +377,13 @@ export default function RoomDetailsModal({
                         </span>
                       </div>
                       {room.floor && (
-                        <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
-                          <Layers className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                          <Layers className="w-4 h-4 text-gray-500 dark:text-gray-500" />
                           <span>Floor {room.floor}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
-                        <DollarSign className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                        <DollarSign className="w-4 h-4 text-gray-500 dark:text-gray-500" />
                         <span>
                           {(room.billing_policy || "Monthly")
                             .replace(/_/g, " ")
@@ -391,14 +391,14 @@ export default function RoomDetailsModal({
                           Billing
                         </span>
                       </div>
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-sm ${genderMeta.className}`}>
+                      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-sm ${genderMeta.className}`}>
                         <Info className="w-4 h-4" />
                         <span>{genderMeta.label}</span>
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-lg">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">
                         Description
                       </h4>
                       <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm md:text-base">
@@ -412,13 +412,13 @@ export default function RoomDetailsModal({
                 {/* Bottom Section: Amenities & Rules */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                       Amenities
                     </h4>
                     {room.amenities &&
                     Array.isArray(room.amenities) &&
                     room.amenities.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-4">
                         {room.amenities.map((amenity, idx) => (
                           <div
                             key={idx}
@@ -441,17 +441,17 @@ export default function RoomDetailsModal({
                   </div>
                   {/* Room Rules Section */}
                   <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-lg">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">
                       Room Rules
                     </h4>
                     {(room.rules && Array.isArray(room.rules) && room.rules.length > 0) || 
                      (property.rules && Array.isArray(property.rules) && property.rules.length > 0) ? (
-                      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-5">
-                        <ul className="space-y-3">
+                      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl p-6">
+                        <ul className="space-y-4">
                           {(room.rules?.length > 0 ? room.rules : property.rules).map((rule, index) => (
                             <li
                               key={index}
-                              className="flex items-start gap-3 text-sm text-gray-800 dark:text-gray-200"
+                              className="flex items-start gap-4 text-sm text-gray-800 dark:text-gray-200"
                             >
                               <Shield className="w-4 h-4 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
                               <span>{rule}</span>
@@ -481,7 +481,7 @@ export default function RoomDetailsModal({
                 <button
                   onClick={() => setViewMode("booking")}
                   disabled={room.status !== "available"}
-                  className={`px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all
+                  className={`px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
                             ${
                               room.status === "available"
                                 ? "bg-green-600 hover:bg-green-700"
@@ -495,7 +495,7 @@ export default function RoomDetailsModal({
               ) : (
                 <button
                   onClick={onLoginRequired}
-                  className="px-8 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-md"
+                  className="px-8 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-md"
                 >
                   Login to Book
                 </button>
@@ -509,7 +509,7 @@ export default function RoomDetailsModal({
           <div className="w-full flex-1 flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
             {/* Header with Back Button */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-gray-700 shrink-0">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <button
                   onClick={() => setViewMode("details")}
                   className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors group"
@@ -562,7 +562,7 @@ export default function RoomDetailsModal({
                       You won't be charged yet. The landlord will review your
                       request.
                     </p>
-                    <div className="mt-4 flex justify-center gap-3">
+                    <div className="mt-4 flex justify-center gap-4">
                       <button
                         onClick={() => {
                           if (autoNavTimer) clearTimeout(autoNavTimer);
@@ -615,7 +615,7 @@ export default function RoomDetailsModal({
                   <div className="space-y-4">
                     {(room.room_type === 'bedSpacer' || room.room_type === 'bedspacer') && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Number of Beds
                         </label>
                         <select
@@ -629,17 +629,17 @@ export default function RoomDetailsModal({
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                           Available: {room.available_slots} / {room.capacity}
                         </p>
                       </div>
                     )}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Check-in Date
                       </label>
                       <div className="relative">
-                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
                         <input
                           type="date"
                           value={startDate}
@@ -647,17 +647,17 @@ export default function RoomDetailsModal({
                           className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                         Bookings can be made up to 3 months in advance
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Check-out Date
                       </label>
                       <div className="relative">
-                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
                         <input
                           type="date"
                           value={endDate}
@@ -691,8 +691,8 @@ export default function RoomDetailsModal({
                       </div>
                       {/* Reservation Fee UI Details */}
                       {(property?.require_reservation_fee || Number(property?.require_reservation_fee) === 1) && (
-                        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
-                          <div className="flex justify-between text-amber-800 dark:text-amber-300 font-semibold mb-1">
+                        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
+                          <div className="flex justify-between text-amber-800 dark:text-amber-300 font-semibold mb-2">
                             <span>Instant Reservation Fee:</span>
                             <span>₱{(property?.reservation_fee_amount || 0).toLocaleString()}</span>
                           </div>
@@ -712,12 +712,12 @@ export default function RoomDetailsModal({
                     if (!showPaymentPlanSelector) return null;
                   
                     return (
-                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl space-y-3 text-sm border border-transparent dark:border-gray-700">
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl space-y-4 text-sm border border-transparent dark:border-gray-700">
                         <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
                           Choose Your Payment Plan
                         </label>
-                        <div className="space-y-3">
-                          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'monthly' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                        <div className="space-y-4">
+                          <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'monthly' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
                             <div className="pt-0.5">
                               <input 
                                 type="radio" 
@@ -734,7 +734,7 @@ export default function RoomDetailsModal({
                             </div>
                           </label>
                           
-                          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                          <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
                             <div className="pt-0.5">
                               <input 
                                 type="radio" 
@@ -757,14 +757,14 @@ export default function RoomDetailsModal({
 
                   {/* Notes */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Special Requests / Notes
                     </label>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
-                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Any specific requirements..."
                     />
                   </div>
@@ -807,7 +807,7 @@ export default function RoomDetailsModal({
                           !agreedToRules
                         }
                         className={`
-                          w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all
+                          w-full py-4.5 rounded-xl font-bold text-white shadow-md transition-all
                           ${
                             isSubmitting ||
                             room.status !== "available" ||
@@ -826,12 +826,12 @@ export default function RoomDetailsModal({
                     ) : (
                       <button
                         onClick={onLoginRequired}
-                        className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-md"
+                        className="w-full py-4.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-md"
                       >
                         Login to Book
                       </button>
                     )}
-                    <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3">
+                    <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">
                       You won't be charged yet. The landlord will review your
                       request.
                     </p>

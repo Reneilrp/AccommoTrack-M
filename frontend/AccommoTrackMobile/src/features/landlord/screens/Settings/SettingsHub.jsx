@@ -64,7 +64,7 @@ const SettingRow = ({ item, onPress, onToggle, theme, styles }) => {
     if (item.type === "status") {
       const statusStyle = {
         paddingHorizontal: 8,
-        paddingVertical: 4,
+        paddingVertical: 8,
         borderRadius: 6,
         backgroundColor:
           item.value === "Verified"

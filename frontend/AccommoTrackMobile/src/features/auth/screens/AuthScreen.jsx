@@ -43,18 +43,18 @@ const TermsModal = ({ visible, onClose, theme }) => {
           </TouchableOpacity>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
-          <View style={{ backgroundColor: theme.colors.primary + '10', padding: 12, borderRadius: 12, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: theme.colors.primary }}>
+          <View style={{ backgroundColor: theme.colors.primary + '10', padding: 16, borderRadius: 12, marginBottom: 24, borderLeftWidth: 4, borderLeftColor: theme.colors.primary }}>
             <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '500', lineHeight: 20 }}>
               By using AccommoTrack, you agree to be a respectful member of our community, provide truthful information, and follow property rules.
             </Text>
           </View>
 
           {UNIFIED_TERMS_AND_CONDITIONS.sections.map((section, i) => (
-            <View key={i} style={{ marginBottom: 20 }}>
+            <View key={i} style={{ marginBottom: 24 }}>
               <Text style={{ color: theme.colors.text, fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>{section.title}</Text>
               {Array.isArray(section.content) ? (
                 section.content.map((item, j) => (
-                  <View key={j} style={{ flexDirection: 'row', marginBottom: 6, paddingLeft: 4 }}>
+                  <View key={j} style={{ flexDirection: 'row', marginBottom: 6, paddingLeft: 8 }}>
                     <Text style={{ color: theme.colors.primary, marginRight: 8, fontSize: 14 }}>•</Text>
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21, flex: 1 }}>{item}</Text>
                   </View>
@@ -65,13 +65,13 @@ const TermsModal = ({ visible, onClose, theme }) => {
             </View>
           ))}
           
-          <View style={{ marginTop: 10, padding: 15, backgroundColor: theme.colors.card, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
+          <View style={{ marginTop: 8, padding: 15, backgroundColor: theme.colors.card, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
               If you have any questions about these terms, please contact us through the Help & Support page.
             </Text>
           </View>
         </ScrollView>
-        <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+        <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
           <TouchableOpacity 
             style={{ backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
             onPress={onClose}
@@ -234,7 +234,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
-          <Text style={{ color: theme.colors.textSecondary, marginBottom: 20, lineHeight: 20 }}>
+          <Text style={{ color: theme.colors.textSecondary, marginBottom: 24, lineHeight: 20 }}>
             Only your verification documents need to be re-uploaded. Your personal information will remain the same.
           </Text>
 
@@ -269,7 +269,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 
           <TouchableOpacity 
             onPress={() => pickImage('permit')}
-            style={[styles.uploadButton, { borderColor: form.permit ? theme.colors.primary : theme.colors.border, marginBottom: 30, backgroundColor: form.permit ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
+            style={[styles.uploadButton, { borderColor: form.permit ? theme.colors.primary : theme.colors.border, marginBottom: 32, backgroundColor: form.permit ? theme.colors.primaryLight : theme.colors.backgroundSecondary }]}
           >
             {form.permit ? (
               <Image source={{ uri: form.permit.uri }} style={styles.uploadPreview} />

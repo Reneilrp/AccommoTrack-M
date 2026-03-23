@@ -479,7 +479,7 @@ export default function PropertyDetailsScreen({ route }) {
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text
             style={{
-              marginTop: 10,
+              marginTop: 8,
               color: theme.colors.textSecondary,
               fontSize: 16,
             }}
@@ -500,7 +500,7 @@ export default function PropertyDetailsScreen({ route }) {
           height: 56,
           flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: 12,
+          paddingHorizontal: 16,
           backgroundColor: theme.colors.primary,
           borderBottomWidth: 0.5,
           borderBottomColor: "rgba(0,0,0,0.1)",
@@ -509,8 +509,8 @@ export default function PropertyDetailsScreen({ route }) {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={{
-            padding: 10,
-            marginRight: 10,
+            padding: 8,
+            marginRight: 8,
             justifyContent: "center",
             alignItems: "center",
           }}
@@ -561,7 +561,7 @@ export default function PropertyDetailsScreen({ route }) {
 
           {/* Gender Restriction Badge */}
           {active.gender_restriction && active.gender_restriction !== 'mixed' && (
-             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 12, gap: 4 }}>
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 16, gap: 8 }}>
                 <Ionicons name={active.gender_restriction === 'male' ? 'male' : 'female'} size={14} color={theme.colors.primary} />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>
                    {active.gender_restriction === 'male' ? 'Boys Only' : 'Girls Only'}

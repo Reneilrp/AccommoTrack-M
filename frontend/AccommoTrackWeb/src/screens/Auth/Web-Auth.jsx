@@ -124,7 +124,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
@@ -132,7 +132,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 mb-4">
-            <p className="text-xs text-amber-800 font-bold uppercase mb-1">
+            <p className="text-xs text-amber-800 font-bold uppercase mb-2">
               Notice:
             </p>
             <p className="text-sm text-amber-700">
@@ -214,7 +214,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
                     <span className="text-xs font-medium">
                       Click to upload valid ID
                     </span>
-                    <span className="text-[10px] mt-1 opacity-60">
+                    <span className="text-[10px] mt-2 opacity-60">
                       JPG, PNG, PDF up to 10MB
                     </span>
                   </div>
@@ -255,7 +255,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
                     <span className="text-xs font-medium">
                       Click to upload business permit
                     </span>
-                    <span className="text-[10px] mt-1 opacity-60">
+                    <span className="text-[10px] mt-2 opacity-60">
                       JPG, PNG, PDF up to 10MB
                     </span>
                   </div>
@@ -268,7 +268,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -357,7 +357,7 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
+        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-4">
           <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
             {error}
@@ -365,7 +365,7 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
         </div>
       )}
 
-      <form onSubmit={handleVerify} className="space-y-5">
+      <form onSubmit={handleVerify} className="space-y-6">
         <div>
           <label className="block text-sm font-semibold text-black dark:text-gray-200 mb-2">
             Verification Code
@@ -386,7 +386,7 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
@@ -403,7 +403,7 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
         <span className="text-green-700/80">Didn't receive the code? </span>
         <button
           onClick={handleResend}
-          className="text-green-700 font-semibold hover:text-green-900 transition-colors underline disabled:text-gray-400 disabled:no-underline"
+          className="text-green-700 font-semibold hover:text-green-900 transition-colors underline disabled:text-gray-500 disabled:no-underline"
           disabled={loading || resendCooldown > 0}
         >
           {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
@@ -1050,7 +1050,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   };
 
   const inputClasses =
-    "w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-500 focus:border-green-300 dark:focus:border-green-400 transition-all";
+    "w-full pl-10 pr-4 py-4 bg-white dark:bg-gray-700 border border-green-200 dark:border-gray-600 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 placeholder:opacity-80 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 dark:focus:ring-green-500 focus:border-green-300 dark:focus:border-green-400 transition-all";
   const labelClasses =
     "block text-sm font-semibold text-black dark:text-gray-200 mb-2";
   const iconClasses = "w-5 h-5 text-green-400 dark:text-green-500";
@@ -1127,7 +1127,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-3">
+              <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-4">
                 <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
                 <span className="text-red-700 dark:text-red-300 text-sm font-semibold">
                   {error}
@@ -1137,7 +1137,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
             {/* LOGIN FORM (all users) */}
             {isLogin && (
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-6">
                 {/* Email Field */}
                 <div>
                   <label className={labelClasses}>
@@ -1149,7 +1149,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     )}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Mail className={iconClasses} />
                     </div>
                     <input
@@ -1191,7 +1191,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 <div>
                   <label className={labelClasses}>Password</label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className={iconClasses} />
                     </div>
                     <input
@@ -1210,7 +1210,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                       type="button"
                       tabIndex="-1"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
                       disabled={loading}
                     >
                       {showPassword ? (
@@ -1237,7 +1237,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -1260,7 +1260,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <span className="text-red-400 text-xs font-bold">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <User className={iconClasses} />
                     </div>
                     <input
@@ -1278,7 +1278,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     />
                   </div>
                   {fieldErrors.first_name && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-500 mt-2">
                       {fieldErrors.first_name}
                     </p>
                   )}
@@ -1293,7 +1293,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     </span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <User className={iconClasses} />
                     </div>
                     <input
@@ -1310,7 +1310,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     />
                   </div>
                   {fieldErrors.middle_name && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-500 mt-2">
                       {fieldErrors.middle_name}
                     </p>
                   )}
@@ -1323,7 +1323,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <span className="text-red-400 text-xs font-bold">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <User className={iconClasses} />
                     </div>
                     <input
@@ -1341,7 +1341,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     />
                   </div>
                   {fieldErrors.last_name && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-500 mt-2">
                       {fieldErrors.last_name}
                     </p>
                   )}
@@ -1362,7 +1362,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                       )}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Mail className={iconClasses} />
                     </div>
                     <input
@@ -1385,7 +1385,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     />
                   </div>
                   {fieldErrors.email && (
-                    <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.email}</p>
                   )}
                 </div>
 
@@ -1398,7 +1398,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     </span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Phone className={iconClasses} />
                     </div>
                     <input
@@ -1413,7 +1413,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     />
                   </div>
                   {fieldErrors.phone && (
-                    <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.phone}</p>
                   )}
                 </div>
 
@@ -1437,7 +1437,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     max={latestTenantBirthDate}
                   />
                   {fieldErrors.date_of_birth && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-500 mt-2">
                       {fieldErrors.date_of_birth}
                     </p>
                   )}
@@ -1463,7 +1463,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <option value="female">Female</option>
                   </select>
                   {fieldErrors.gender && (
-                    <p className="text-xs text-red-500 mt-1">{fieldErrors.gender}</p>
+                    <p className="text-xs text-red-500 mt-2">{fieldErrors.gender}</p>
                   )}
                 </div>
 
@@ -1474,7 +1474,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <span className="text-red-400 text-xs font-bold">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className={iconClasses} />
                     </div>
                     <input
@@ -1495,7 +1495,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                       type="button"
                       tabIndex="-1"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
                       disabled={loading}
                     >
                       {showPassword ? (
@@ -1506,7 +1506,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     </button>
                   </div>
                   <div className="mt-2">
-                    <ul className="text-xs space-y-1">
+                    <ul className="text-xs space-y-2">
                       {!passwordChecks.minLen && (
                         <li className="flex items-center gap-2">
                           <span className="w-4 h-4 text-gray-300" />
@@ -1542,7 +1542,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     </ul>
                   </div>
                   {fieldErrors.password && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-500 mt-2">
                       {fieldErrors.password}
                     </p>
                   )}
@@ -1555,7 +1555,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <span className="text-red-400 text-xs font-bold">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className={iconClasses} />
                     </div>
                     <input
@@ -1576,7 +1576,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                       type="button"
                       tabIndex="-1"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
                       disabled={loading}
                     >
                       {showConfirmPassword ? (
@@ -1587,14 +1587,14 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     </button>
                   </div>
                   {fieldErrors.password_confirmation && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-500 mt-2">
                       {fieldErrors.password_confirmation}
                     </p>
                   )}
                 </div>
 
                 {/* Terms and Conditions Agreement */}
-                <div className="flex items-start gap-3 py-2">
+                <div className="flex items-start gap-4 py-2">
                   <div className="flex items-center h-5">
                     <input
                       type="checkbox"
@@ -1610,7 +1610,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   </label>
                 </div>
                 {fieldErrors.agree_to_terms && (
-                  <p className="text-xs text-red-500 mt-1">{fieldErrors.agree_to_terms}</p>
+                  <p className="text-xs text-red-500 mt-2">{fieldErrors.agree_to_terms}</p>
                 )}
 
                 {/* Hidden Role Field (always tenant) */}
@@ -1620,7 +1620,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -1672,7 +1672,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 </p>
 
                 {/* Registered Email Display */}
-                <div className="bg-green-50 rounded-lg p-3 mb-6 border border-green-100">
+                <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-100">
                   <p className="text-sm text-green-700 text-center">
                     Registered as:
                   </p>
@@ -1682,12 +1682,12 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 </div>
 
                 {/* Choice Buttons */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <Toaster />
                   {/* Continue on Web */}
                   <button
                     onClick={handleContinueOnWeb}
-                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-4 px-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                   >
                     <Monitor className="w-5 h-5" />
                     Continue on Web
@@ -1696,7 +1696,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   {/* Return to Mobile App */}
                   <button
                     onClick={handleGoToMobileApp}
-                    className="w-full bg-green-50 text-green-900 font-semibold py-3 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
+                    className="w-full bg-green-50 text-green-900 font-semibold py-4 px-4 rounded-xl hover:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 border border-green-100"
                   >
                     <Smartphone className="w-5 h-5" />
                     Go Back to Mobile App
@@ -1743,8 +1743,8 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                 {/* Rejection Reason */}
                 {pendingModalData.status === "rejected_verification" &&
                   pendingModalData.reason && (
-                    <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6">
-                      <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-4 mb-6">
+                      <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-2">
                         Reason for Rejection:
                       </p>
                       <p className="text-sm text-red-600 italic">
@@ -1754,14 +1754,14 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   )}
 
                 {/* Choice Buttons */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {pendingModalData.status === "rejected_verification" && (
                     <button
                       onClick={() => {
                         setShowPendingModal(false);
                         setShowResubmitModal(true);
                       }}
-                      className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold py-4 px-4 rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                     >
                       <RefreshCw className="w-5 h-5" />
                       Resubmit Documents
@@ -1771,7 +1771,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   {/* Close Button */}
                   <button
                     onClick={() => setShowPendingModal(false)}
-                    className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === "pending_verification" ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg" : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"}`}
+                    className={`w-full font-semibold py-4 px-4 rounded-xl transition-all duration-200 flex items-center justify-center ${pendingModalData.status === "pending_verification" ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white hover:from-yellow-700 hover:to-amber-700 shadow-md hover:shadow-lg" : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"}`}
                   >
                     {pendingModalData.status === "pending_verification"
                       ? "Got it, thanks!"
@@ -1793,7 +1793,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                   </div>
                   <button
                     onClick={() => setShowTermsModal(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -1809,7 +1809,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
                     <section key={idx}>
                       <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{section.title}</h4>
                       {Array.isArray(section.content) ? (
-                        <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                        <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
                           {section.content.map((item, i) => (
                             <li key={i}>{item}</li>
                           ))}
