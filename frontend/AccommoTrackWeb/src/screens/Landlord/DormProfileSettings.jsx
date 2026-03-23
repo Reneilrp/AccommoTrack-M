@@ -20,7 +20,6 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import api from "../../utils/api";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import { useAuth } from "../../contexts/AuthContext";
 
 // Editable map (react-leaflet)
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -69,7 +68,7 @@ export default function DormProfileSettings({
   onDeleteRequested,
 }) {
   const { effectiveTheme } = usePreferences();
-  const { user } = useAuth();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);

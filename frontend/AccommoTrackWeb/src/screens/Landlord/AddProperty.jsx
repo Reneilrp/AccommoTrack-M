@@ -31,11 +31,10 @@ import toast from 'react-hot-toast';
 
 import api from '../../utils/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
-import { useAuth } from '../../contexts/AuthContext';
 
 export default function AddProperty({ onBack, onSave }) {
   const { effectiveTheme } = usePreferences();
-  const { user } = useAuth();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

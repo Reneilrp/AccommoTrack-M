@@ -98,12 +98,7 @@ const TenantDashboard = () => {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
+
 
   // ── Derived Data ──
   const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
@@ -259,22 +254,7 @@ const TenantDashboard = () => {
   // ════════════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-8 font-sans max-w-5xl mx-auto pb-12">
-      {/* ── Page Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-slate-100">Dashboard</h1>
-          <p className="text-[14px] text-gray-500 dark:text-slate-400 mt-1">{getGreeting()} — here is your stay overview.</p>
-        </div>
-        <button
-          onClick={() => navigate('/notifications')}
-          className="w-10 h-10 bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-xl flex items-center justify-center relative hover:bg-gray-50 dark:hover:bg-[#252b3b] transition-colors"
-        >
-          <Bell className="w-5 h-5 text-gray-500 dark:text-slate-400" />
-          {(stats?.notifications?.unread || 0) > 0 && (
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-400 rounded-full border border-white dark:border-[#1e2332]" />
-          )}
-        </button>
-      </div>
+
 
       {/* ── High Priority Action Notification (Unpaid Balance) ── */}
       {unpaidBalance > 0 && (

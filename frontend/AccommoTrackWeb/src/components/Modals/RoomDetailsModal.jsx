@@ -35,6 +35,7 @@ export default function RoomDetailsModal({
   );
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [paymentPlan, setPaymentPlan] = useState("monthly");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
   const [duration, setDuration] = useState(null);
@@ -190,6 +191,10 @@ export default function RoomDetailsModal({
       return;
     }
 
+    // Check if selector should be shown
+    const isMonthlyBilling = room?.billing_policy === 'monthly' || room?.billing_policy === 'monthly_with_daily';
+    const showSelector = isMonthlyBilling && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+
     // Submit booking to server (use shared /bookings endpoint)
     setIsSubmitting(true);
     try {
@@ -199,6 +204,7 @@ export default function RoomDetailsModal({
         start_date: startDate,
         end_date: endDate,
         notes: notes || "",
+        payment_plan: showSelector ? paymentPlan : 'full',
       };
 
       const svc = bookingService || bookingServiceDefault;
@@ -697,6 +703,57 @@ export default function RoomDetailsModal({
                       )}
                     </div>
                   )}
+
+                  {/* Payment Plan Selection */}
+                  {(() => {
+                    const isMonthlyBilling = room?.billing_policy === 'monthly' || room?.billing_policy === 'monthly_with_daily';
+                    const showPaymentPlanSelector = isMonthlyBilling && duration && (duration.months > 1 || (duration.months === 1 && duration.extraDays > 0));
+                  
+                    if (!showPaymentPlanSelector) return null;
+                  
+                    return (
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl space-y-3 text-sm border border-transparent dark:border-gray-700">
+                        <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          Choose Your Payment Plan
+                        </label>
+                        <div className="space-y-3">
+                          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'monthly' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                            <div className="pt-0.5">
+                              <input 
+                                type="radio" 
+                                name="payment_plan" 
+                                value="monthly" 
+                                checked={paymentPlan === 'monthly'} 
+                                onChange={() => setPaymentPlan('monthly')} 
+                                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                              />
+                            </div>
+                            <div>
+                              <span className="block font-bold text-gray-900 dark:text-gray-100">Pay Monthly</span>
+                              <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay rent at the beginning of each billing cycle.</span>
+                            </div>
+                          </label>
+                          
+                          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentPlan === 'full' ? 'bg-green-50 border-green-500 dark:bg-green-900/20' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-600 hover:border-gray-300'}`}>
+                            <div className="pt-0.5">
+                              <input 
+                                type="radio" 
+                                name="payment_plan" 
+                                value="full" 
+                                checked={paymentPlan === 'full'} 
+                                onChange={() => setPaymentPlan('full')} 
+                                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                              />
+                            </div>
+                            <div>
+                              <span className="block font-bold text-gray-900 dark:text-gray-100">Full Duration Upfront</span>
+                              <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Pay the entire lease amount at once.</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Notes */}
                   <div>

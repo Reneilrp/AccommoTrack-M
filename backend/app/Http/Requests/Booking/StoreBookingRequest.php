@@ -40,6 +40,7 @@ class StoreBookingRequest extends FormRequest
                 },
             ],
             'notes' => 'nullable|string|max:1000',
+            'payment_plan' => 'nullable|string|in:full,monthly',
         ];
     }
 
