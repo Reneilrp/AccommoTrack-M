@@ -170,6 +170,15 @@ export default function AddProperty({ onBack, onSave }) {
   ];
 
   const handleInputChange = (field, value) => {
+    // Clear error for this field when user starts typing/changing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+
     setFormData(prev => {
       let updated = { ...prev, [field]: value };
       // If city is Zamboanga City, lock province and country
@@ -213,6 +222,14 @@ export default function AddProperty({ onBack, onSave }) {
     });
 
     if (validFiles.length > 0) {
+      // Clear images error
+      if (fieldErrors.images) {
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.images;
+          return next;
+        });
+      }
       setFormData(prev => ({
         ...prev,
         images: [...prev.images, ...validFiles]
@@ -371,6 +388,14 @@ export default function AddProperty({ onBack, onSave }) {
     }
 
     if (validFiles.length > 0) {
+      // Clear credentials error
+      if (fieldErrors.credentials) {
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.credentials;
+          return next;
+        });
+      }
       setFormData(prev => ({
         ...prev,
         credentials: [...prev.credentials, ...validFiles]
@@ -386,7 +411,7 @@ export default function AddProperty({ onBack, onSave }) {
   };
 
   const mapPropertyToBackend = (isDraft = false) => {
-    const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(formData.propertyType);
+    const isGenderRestricted = formData.propertyType !== 'apartment';
 
     return {
       title: formData.propertyName,
@@ -713,7 +738,7 @@ export default function AddProperty({ onBack, onSave }) {
                     />
                   </div>
                   <div>
-                    {(['dormitory', 'boardingHouse', 'bedSpacer'].includes(formData.propertyType)) && (
+                    {formData.propertyType !== 'apartment' && (
                       <>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Gender Restriction <span className="text-red-500">*</span>

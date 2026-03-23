@@ -23,6 +23,12 @@ class BookingService
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
             $requestedBeds = (int) ($data['bed_count'] ?? 1);
 
+            // If pricing model is 'full_room', force requestedBeds to room capacity
+            // This ensures the whole room is reserved/occupied
+            if (($room->pricing_model ?? 'full_room') === 'full_room') {
+                $requestedBeds = $room->capacity;
+            }
+
             // Calculate effective occupancy (confirmed beds + pending beds)
             $pendingBeds = (int) Booking::where('room_id', $room->id)
                 ->where('status', 'pending')
@@ -99,7 +105,14 @@ class BookingService
 
             // Calculate pricing (use calendar-period-aware calculation)
             $priceResult = $room->calculatePriceForPeriod($startDate, $endDate);
-            $totalAmount = $priceResult['total'] * $requestedBeds;
+            
+            // If per_bed, price is per bed; if full_room, price is for the whole unit
+            if (($room->pricing_model ?? 'full_room') === 'per_bed') {
+                $totalAmount = $priceResult['total'] * $requestedBeds;
+            } else {
+                $totalAmount = $priceResult['total'];
+            }
+
             $totalMonths = $priceResult['breakdown']['months'] ?? intdiv($days, 30);
 
             $bookingReference = 'BK-'.strtoupper(Str::random(8));

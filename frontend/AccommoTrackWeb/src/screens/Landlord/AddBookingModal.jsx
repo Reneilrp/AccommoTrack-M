@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Calendar, Building2, Home, Loader2, Info, UserSearch } from 'lucide-react';
+import { X, Calendar, Building2, Home, Loader2, Info, UserSearch, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
@@ -25,6 +25,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       guestId: null, // For existing, registered tenants
       propertyId: '',
       roomId: '',
+      bedCount: 1,
       checkIn: '',
       checkOut: '',
       amount: '',
@@ -42,6 +43,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
           guestId: null,
           propertyId: '',
           roomId: '',
+          bedCount: 1,
           checkIn: '',
           checkOut: '',
           amount: '',
@@ -67,12 +69,12 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         const searchGuests = async () => {
             setIsSearchingGuests(true);
             try {
-                // Assuming an endpoint exists to search for users
-                const res = await api.get('/users/search', { params: { query: guestSearch } });
-                setGuestResults(res.data.users || []);
+                // Use the correct landlord tenants endpoint with search param
+                const res = await api.get('/landlord/tenants', { params: { search: guestSearch } });
+                setGuestResults(res.data || []);
             } catch (err) {
                 console.error('Failed to search for guests', err);
-                setGuestResults([]); // Clear results on error
+                setGuestResults([]);
             } finally {
                 setIsSearchingGuests(false);
             }
@@ -105,8 +107,8 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       try {
         const res = await api.get(`/rooms/property/${propertyId}`);
         const roomsData = res.data?.data || res.data || [];
-        // Only show available rooms for new bookings
-        setRooms(roomsData.filter(r => r.status === 'available'));
+        // Show rooms that are available OR have slots left (for shared rooms)
+        setRooms(roomsData.filter(r => r.status === 'available' || (r.available_slots > 0 && r.status !== 'maintenance')));
       } catch (err) {
         console.error('Failed to load rooms', err);
       }
@@ -128,7 +130,8 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         const res = await api.get(`/rooms/${formData.roomId}/pricing`, {
           params: {
             start: formData.checkIn,
-            end: formData.checkOut
+            end: formData.checkOut,
+            bed_count: formData.bedCount
           }
         });
         setPricingPreview(res.data);
@@ -139,7 +142,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       } finally {
         setLoadingPricing(false);
       }
-    }, [formData.roomId, formData.checkIn, formData.checkOut]);
+    }, [formData.roomId, formData.checkIn, formData.checkOut, formData.bedCount]);
 
     useEffect(() => {
       fetchPricing();
@@ -147,8 +150,13 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
     const handlePropertyChange = (e) => {
       const id = e.target.value;
-      setFormData({ ...formData, propertyId: id, roomId: '' });
+      setFormData({ ...formData, propertyId: id, roomId: '', bedCount: 1 });
       loadRooms(id);
+    };
+
+    const handleRoomChange = (e) => {
+        const id = e.target.value;
+        setFormData({ ...formData, roomId: id, bedCount: 1 });
     };
 
     const handleSubmit = async (e) => {
@@ -175,13 +183,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       try {
         const payload = {
           room_id: formData.roomId,
+          bed_count: formData.bedCount,
           start_date: formData.checkIn,
           end_date: formData.checkOut,
           notes: formData.notes,
         };
 
         if (selectedGuest) {
-          payload.guest_id = selectedGuest.id;
+          payload.tenant_id = selectedGuest.id;
         } else {
           payload.guest_name = formData.guestName;
         }
@@ -206,6 +215,23 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         setLoading(false);
       }
     };
+
+    const selectedRoomData = rooms.find(r => String(r.id) === String(formData.roomId));
+    
+    // Normalize gender for comparison
+    const normalizeGender = (g) => {
+      if (!g) return null;
+      const val = g.toLowerCase();
+      if (['male', 'boy', 'boys'].includes(val)) return 'male';
+      if (['female', 'girl', 'girls'].includes(val)) return 'female';
+      return val;
+    };
+
+    const genderMismatch = selectedGuest && selectedRoomData && 
+                          selectedRoomData.gender_restriction && 
+                          selectedRoomData.gender_restriction !== 'mixed' && 
+                          selectedGuest.gender && 
+                          normalizeGender(selectedGuest.gender) !== selectedRoomData.gender_restriction;
 
   if (!isOpen) return null;
 
@@ -238,6 +264,16 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
             </div>
           )}
 
+          {genderMismatch && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-start gap-2 animate-pulse">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Gender Mismatch Warning</p>
+                <p>Selected tenant is <strong>{selectedGuest.gender}</strong> but this room is restricted to <strong>{selectedRoomData.gender_restriction}</strong> only.</p>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Guest / Tenant Name</label>
             <div className="relative">
@@ -245,7 +281,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
               <input
                 type="text"
                 required
-                className={`w-full border rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all ${fieldErrors.guestName || fieldErrors.guest_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                className={`w-full border rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none dark:bg-gray-700 dark:text-white transition-all ${fieldErrors.guestName || fieldErrors.tenant_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={guestSearch}
                 onChange={e => {
                   setGuestSearch(e.target.value);
@@ -266,21 +302,30 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                       className="px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-50 dark:border-gray-600/50 last:border-0"
                       onClick={() => {
                         setSelectedGuest(user);
-                        setGuestSearch(user.name);
-                        setFormData({ ...formData, guestName: user.name, guestId: user.id });
+                        setGuestSearch(user.full_name || user.name);
+                        setFormData({ ...formData, guestName: user.full_name || user.name, guestId: user.id });
                         setGuestResults([]);
                         setIsGuestInputFocused(false);
                       }}
                     >
-                      <p className="font-semibold text-gray-800 dark:text-white">{user.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-gray-800 dark:text-white">{user.full_name || user.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                        </div>
+                        {user.gender && (
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${user.gender.toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                            {user.gender}
+                          </span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
             {fieldErrors.guestName && <p className="text-red-500 text-xs mt-1">{fieldErrors.guestName[0]}</p>}
-            {fieldErrors.guest_id && <p className="text-red-500 text-xs mt-1">{fieldErrors.guest_id[0]}</p>}
+            {fieldErrors.tenant_id && <p className="text-red-500 text-xs mt-1">{fieldErrors.tenant_id[0]}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -306,11 +351,13 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
                 disabled={!formData.propertyId}
                 className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white disabled:opacity-50 ${fieldErrors.roomId || fieldErrors.room_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                 value={formData.roomId}
-                onChange={e => setFormData({ ...formData, roomId: e.target.value })}
+                onChange={handleRoomChange}
               >
                 <option value="">Select Room</option>
                 {rooms.map(r => (
-                  <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
+                  <option key={r.id} value={r.id}>
+                    Room {r.room_number} ({r.available_slots} slots) {r.gender_restriction && r.gender_restriction !== 'mixed' ? ` - ${r.gender_restriction.toUpperCase()} ONLY` : ''}
+                  </option>
                 ))}
               </select>
               {fieldErrors.roomId && <p className="text-red-500 text-xs mt-1">{fieldErrors.roomId[0]}</p>}
@@ -320,36 +367,56 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-in</label>
-              <input
-                type="date"
-                required
-                min={getTodayDate()}
-                onKeyDown={(e) => e.preventDefault()}
-                onClick={(e) => e.target.showPicker?.()}
-                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkIn || fieldErrors.start_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
-                value={formData.checkIn}
-                onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
-              />
-              {fieldErrors.checkIn && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkIn[0]}</p>}
-              {fieldErrors.start_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.start_date[0]}</p>}
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-in</label>
+                <input
+                    type="date"
+                    required
+                    min={getTodayDate()}
+                    onKeyDown={(e) => e.preventDefault()}
+                    onClick={(e) => e.target.showPicker?.()}
+                    className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkIn || fieldErrors.start_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                    value={formData.checkIn}
+                    onChange={e => setFormData({ ...formData, checkIn: e.target.value })}
+                />
+                {fieldErrors.checkIn && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkIn[0]}</p>}
+                {fieldErrors.start_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.start_date[0]}</p>}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-out</label>
-              <input
-                type="date"
-                required
-                min={formData.checkIn || getTodayDate()}
-                onKeyDown={(e) => e.preventDefault()}
-                onClick={(e) => e.target.showPicker?.()}
-                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkOut || fieldErrors.end_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
-                value={formData.checkOut}
-                onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
-              />
-              {fieldErrors.checkOut && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkOut[0]}</p>}
-              {fieldErrors.end_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.end_date[0]}</p>}
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Check-out</label>
+                <input
+                    type="date"
+                    required
+                    min={formData.checkIn || getTodayDate()}
+                    onKeyDown={(e) => e.preventDefault()}
+                    onClick={(e) => e.target.showPicker?.()}
+                    className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white cursor-pointer ${fieldErrors.checkOut || fieldErrors.end_date ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                    value={formData.checkOut}
+                    onChange={e => setFormData({ ...formData, checkOut: e.target.value })}
+                />
+                {fieldErrors.checkOut && <p className="text-red-500 text-xs mt-1">{fieldErrors.checkOut[0]}</p>}
+                {fieldErrors.end_date && <p className="text-red-500 text-xs mt-1">{fieldErrors.end_date[0]}</p>}
             </div>
           </div>
+
+          {selectedRoomData && (selectedRoomData.room_type === 'bedSpacer' || selectedRoomData.room_type === 'bedspacer') && (
+            <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Number of Beds</label>
+                <div className="flex items-center gap-3">
+                    <select
+                        className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none dark:bg-gray-700 dark:text-white"
+                        value={formData.bedCount}
+                        onChange={e => setFormData({ ...formData, bedCount: parseInt(e.target.value) })}
+                    >
+                        {[...Array(Math.max(1, selectedRoomData.available_slots || 1))].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? 'Bed' : 'Beds'}</option>
+                        ))}
+                    </select>
+                    <div className="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400">
+                        Available: {selectedRoomData.available_slots} / {selectedRoomData.capacity}
+                    </div>
+                </div>
+            </div>
+          )}
 
           {/* Pricing Preview Area */}
           {formData.roomId && formData.checkIn && formData.checkOut && (
@@ -410,4 +477,3 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     </div>
   );
 }
-

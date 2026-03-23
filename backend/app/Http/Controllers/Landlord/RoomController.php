@@ -154,23 +154,22 @@ class RoomController extends Controller
     {
         try {
             $room = Room::findOrFail($id);
-            $days = null;
-            if ($request->has('days')) {
-                $days = (int) $request->query('days');
-            } else {
-                $start = $request->query('start') ?? $request->query('start_date');
-                $end = $request->query('end') ?? $request->query('end_date');
+            $start = $request->query('start') ?? $request->query('start_date');
+            $end = $request->query('end') ?? $request->query('end_date');
+            $bedCount = (int) ($request->query('bed_count') ?? 1);
 
-                if ($start && $end) {
-                    $days = Carbon::parse($start)->diffInDays(Carbon::parse($end));
-                }
+            if (! $start || ! $end) {
+                return response()->json(['message' => '`start` and `end` dates are required'], 400);
             }
 
-            if ($days === null || $days < 1) {
-                return response()->json(['message' => '`days` parameter or `start`/`end` dates are required'], 400);
+            $result = $room->calculatePriceForPeriod($start, $end);
+            
+            // Adjust total based on pricing model
+            if (($room->pricing_model ?? 'full_room') === 'per_bed') {
+                $result['total'] = round($result['total'] * $bedCount, 2);
             }
-
-            $result = $room->calculatePriceForDays($days);
+            
+            $result['days'] = Carbon::parse($start)->diffInDays(Carbon::parse($end));
 
             return response()->json($result, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

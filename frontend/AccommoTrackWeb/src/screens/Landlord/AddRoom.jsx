@@ -138,6 +138,7 @@ export default function AddRoomModal({
       setFormData({
         roomNumber: "",
         roomType: initialRoomType,
+        genderRestriction: "male",
         floor: "1",
         monthlyRate: "",
         dailyRate: "",
@@ -174,11 +175,13 @@ export default function AddRoomModal({
   // - Dormitory/Boarding: single (and bedSpacer as an option via toggle)
   // - Properties explicitly marked as bed-spacer: bedSpacer only
   const roomTypes = (() => {
-    if (isApartment)
+    if (isApartment) {
       return allRoomTypes.filter((rt) => rt.value !== "bedSpacer");
-    if (isBedSpacerProperty)
-      return allRoomTypes.filter((rt) => rt.value === "bedSpacer");
-    // For Dormitory, Boarding House, and others, allow all types.
+    }
+    if (isDormitory || isBoarding || isBedSpacerProperty) {
+      return allRoomTypes.filter((rt) => rt.value === "single" || rt.value === "bedSpacer");
+    }
+    // For others, allow all types.
     return allRoomTypes;
   })();
 
@@ -204,21 +207,26 @@ export default function AddRoomModal({
   const handleInputChange = (field, value) => {
     let updated = { ...formData, [field]: value };
 
-    // Auto-set capacity based on room type (only for fixed room types, not bed spacer)
+    // Auto-set capacity based on room type
     if (field === "roomType") {
       const capacityMap = {
         single: "1",
         double: "2",
         quad: "4",
-        // bedSpacer is not auto-filled - user must set it manually
+        bedSpacer: "1", // Default to 1 for bedSpacer, user can increase
       };
       if (capacityMap[value]) {
         updated.capacity = capacityMap[value];
       }
 
-      // For bedSpacer, always use per_bed pricing model (no full room option)
-      if (value === "bedSpacer") {
+      // Smart Pricing Defaults
+      if (value === "single") {
+        updated.pricingModel = "full_room";
+      } else if (value === "bedSpacer") {
         updated.pricingModel = "per_bed";
+      } else {
+        // For double/quad: Apartments default to full_room, others to per_bed
+        updated.pricingModel = isApartment ? "full_room" : "per_bed";
       }
     }
     // When billing policy changes, clear/hide irrelevant fields
@@ -507,10 +515,10 @@ export default function AddRoomModal({
         if (Number.isFinite(monthlyVal))
           payload.append("monthly_rate", monthlyVal);
       }
-      // Apartments don't use capacity; send 1 for consistency.
+      // Use the provided capacity (auto-filled by room type or manually entered)
       payload.append(
         "capacity",
-        isApartment ? 1 : parseInt(formData.capacity || 1),
+        parseInt(formData.capacity || 1),
       );
       if (bp === "daily" || bp === "monthly_with_daily") {
         const dailyVal = parseFloat(formData.dailyRate);
@@ -870,30 +878,28 @@ export default function AddRoomModal({
               </div>
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Pricing Model
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowPricingHelp(true)}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded focus:outline-none"
-                  title="Pricing help"
-                  aria-label="Open pricing help"
-                >
-                  <HelpCircle className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                {formData.roomType === "bedSpacer"
-                  ? "Bed Spacer rooms use per-bed pricing only"
-                  : "How should tenants pay for this room?"}
-              </p>
+            {/* Pricing Model Section - Only show for multi-capacity non-bedspacer rooms */}
+            {formData.roomType !== "single" && formData.roomType !== "bedSpacer" && (
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Pricing Model
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowPricingHelp(true)}
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded focus:outline-none"
+                    title="Pricing help"
+                    aria-label="Open pricing help"
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                  How should tenants pay for this {isApartment ? "unit" : "room"}?
+                </p>
 
-              <div className="space-y-2">
-                {/* Full Room Price - NOT shown for bedSpacer */}
-                {formData.roomType !== "bedSpacer" && (
+                <div className="space-y-3">
                   <label
                     className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${formData.pricingModel === "full_room" ? "bg-blue-100 dark:bg-blue-900/50" : ""}`}
                   >
@@ -909,36 +915,14 @@ export default function AddRoomModal({
                     />
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        Room Price
+                        {isApartment ? "Entire Unit Price" : "Full Room Price"}
                       </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {formData.capacity > 1 ? (
-                          <span>
-                            Tenants divide{" "}
-                            <PriceRow
-                              amount={parseFloat(formData.monthlyRate) || 0}
-                            />{" "}
-                            equally (
-                            <PriceRow
-                              amount={
-                                (parseFloat(formData.monthlyRate) || 0) /
-                                (parseInt(formData.capacity) || 1)
-                              }
-                              small={true}
-                            />
-                            /person)
-                          </span>
-                        ) : (
-                          "Single tenant pays full price"
-                        )}
+                        The price covers the whole room/unit regardless of occupants.
                       </p>
                     </div>
                   </label>
-                )}
 
-                {/* Per Bed Price - shown for all non-single rooms OR bedSpacer */}
-                {(formData.roomType !== "single" ||
-                  formData.roomType === "bedSpacer") && (
                   <label
                     className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${formData.pricingModel === "per_bed" ? "bg-blue-100 dark:bg-blue-900/50" : ""}`}
                   >
@@ -954,21 +938,56 @@ export default function AddRoomModal({
                     />
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        Per Bed/Tenant Price
+                        Per Tenant Price
                       </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Each tenant pays{" "}
-                        <PriceRow
-                          amount={parseFloat(formData.monthlyRate) || 0}
-                          small={true}
-                        />{" "}
-                        for their bed (independent billing)
+                        Each tenant pays the fixed rate individually.
                       </p>
                     </div>
                   </label>
-                )}
+                </div>
+
+                {/* Revenue Summary */}
+                <div className="mt-4 pt-3 border-t border-blue-200 dark:border-blue-800">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-blue-700 dark:text-blue-400 font-medium">Estimated Monthly Revenue:</span>
+                    <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
+                      <PriceRow 
+                        amount={formData.pricingModel === 'per_bed' 
+                          ? (parseFloat(formData.monthlyRate) || 0) * (parseInt(formData.capacity) || 1)
+                          : (parseFloat(formData.monthlyRate) || 0)
+                        } 
+                      />
+                    </span>
+                  </div>
+                  {formData.pricingModel === 'full_room' && parseInt(formData.capacity) > 1 && (
+                    <p className="text-[10px] text-blue-600 dark:text-blue-500 mt-1 text-right italic">
+                      * Approx. <PriceRow amount={(parseFloat(formData.monthlyRate) || 0) / (parseInt(formData.capacity) || 1)} small /> per person
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Simple Revenue Preview for Single/BedSpacer rooms where model is fixed */}
+            {(formData.roomType === "single" || formData.roomType === "bedSpacer") && (
+              <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Estimated Monthly Revenue:</span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">
+                      <PriceRow 
+                        amount={formData.roomType === 'bedSpacer'
+                          ? (parseFloat(formData.monthlyRate) || 0) * (parseInt(formData.capacity) || 1)
+                          : (parseFloat(formData.monthlyRate) || 0)
+                        } 
+                      />
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-500 mt-1 italic">
+                    {formData.roomType === 'single' ? "* Based on single occupancy" : `* Based on ${formData.capacity} beds at the monthly rate`}
+                  </p>
+              </div>
+            )}
 
             <PricingHelp
               open={showPricingHelp}
