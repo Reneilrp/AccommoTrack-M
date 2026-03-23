@@ -17,7 +17,7 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 
 export default function DashboardPage({ user }) {
-  const navigate = useNavigate();
+  const __navigate = useNavigate();
   const { uiState, updateData } = useUIState();
   const isCaretaker = user?.role === 'caretaker';
   const dashboardKey = isCaretaker ? 'caretaker_dashboard' : 'landlord_dashboard';

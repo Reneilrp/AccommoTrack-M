@@ -9,7 +9,7 @@ const HomePage = ({ onGetStarted }) => {
   const navigate = useNavigate();
   const { updateScreenState } = useUIState();
   const [modalImages, setModalImages] = useState([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [__currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showAppPromo, setShowAppPromo] = useState(false);
 
   useEffect(() => {
@@ -36,29 +36,29 @@ const HomePage = ({ onGetStarted }) => {
     navigate('/browse-properties');
   };
 
-  const scrollToHowItWorks = () => {
+  const __scrollToHowItWorks = () => {
     const element = document.getElementById('how-it-works');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  const openModal = (images) => {
+  const __openModal = (images) => {
     setModalImages(images);
     setCurrentImageIndex(0);
   };
 
-  const closeModal = () => {
+  const __closeModal = () => {
     setModalImages([]);
     setCurrentImageIndex(0);
   };
 
-  const nextImage = (e) => {
+  const __nextImage = (e) => {
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev + 1) % modalImages.length);
   };
 
-  const prevImage = (e) => {
+  const __prevImage = (e) => {
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev - 1 + modalImages.length) % modalImages.length);
   };

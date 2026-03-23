@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, __useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PropertyCarousel from "./PropertyCarousel";
 import PropertyMap from "../../components/Shared/PropertyMap";
@@ -46,7 +46,7 @@ const ExploreProperties = () => {
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [__error, setError] = useState(null);
   const [debouncedSearch, setDebouncedSearch] = useState(search || "");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
@@ -71,7 +71,7 @@ const ExploreProperties = () => {
   const [selectedRoomData, setSelectedRoomData] = useState(null);
 
   // State for the slide-in card inside Map
-  const [selectedMapProperty, setSelectedMapProperty] = useState(null); // Used primarily for Map Centering logic if needed
+  const [__selectedMapProperty, setSelectedMapProperty] = useState(null); // Used primarily for Map Centering logic if needed
 
   // Drawer State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -79,7 +79,7 @@ const ExploreProperties = () => {
   const [activeTab, setActiveTab] = useState("Overview");
 
   const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState(null);
+  const [__modalError, setModalError] = useState(null);
 
   // Reviews State
   const [drawerReviews, setDrawerReviews] = useState({
@@ -89,8 +89,8 @@ const ExploreProperties = () => {
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Video State
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const [videoToPlay, setVideoToPlay] = useState(null);
+  const [__videoModalOpen, _setVideoModalOpen] = useState(false);
+  const [__videoToPlay, _setVideoToPlay] = useState(null);
 
   // Full Gallery State
   const [galleryOpen, setGalleryOpen] = useState(false);

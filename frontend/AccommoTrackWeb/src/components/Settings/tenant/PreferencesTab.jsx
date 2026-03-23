@@ -38,7 +38,7 @@ const PreferencesTab = () => {
     if (typeof prefs === "string") {
       try {
         prefs = JSON.parse(prefs);
-      } catch (e) {
+      } catch (__e) {
         prefs = {};
       }
     }

@@ -32,5 +32,7 @@ export const ECHO_CONFIG = {
 // Legacy Support
 export const IP_ADDRESS = ECHO_HOST;
 export const PORT = ECHO_PORT;
-export { ECHO_HOST, ECHO_PORT };
+const _ECHO_HOST = ECHO_HOST;
+const _ECHO_PORT = ECHO_PORT;
+export { _ECHO_HOST as ECHO_HOST, _ECHO_PORT as ECHO_PORT };
 export const ECHO_AUTH_ENDPOINT = `${API_BASE_URL}/broadcasting/auth`;

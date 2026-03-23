@@ -55,7 +55,7 @@ export default function PropertySummary() {
   const [rooms, setRooms] = useState(() => getCachedData()?.rooms || []);
   const [loading, setLoading] = useState(!property);
   const [roomsLoading, setRoomsLoading] = useState(rooms.length === 0);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [__isSyncing, setIsSyncing] = useState(false);
 
   const [error, setError] = useState(null);
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
@@ -65,10 +65,10 @@ export default function PropertySummary() {
   const [images, setImages] = useState([]);
   const [idx, setIdx] = useState(0);
   const [swiperInstance, setSwiperInstance] = useState(null);
-  const [imageAspects, setImageAspects] = useState({});
-  const [currentAspect, setCurrentAspect] = useState(null);
+  const [__imageAspects, _setImageAspects] = useState({});
+  const [__currentAspect, _setCurrentAspect] = useState(null);
   const galleryRef = useRef(null);
-  const [containerWidth, setContainerWidth] = useState(null);
+  const [__containerWidth, _setContainerWidth] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -153,8 +153,8 @@ export default function PropertySummary() {
     }
   };
 
-  const prev = () => setIdx((s) => (s - 1 + images.length) % images.length);
-  const next = () => setIdx((s) => (s + 1) % images.length);
+  const __prev = () => setIdx((s) => (s - 1 + images.length) % images.length);
+  const __next = () => setIdx((s) => (s + 1) % images.length);
   const goToEdit = () => navigate(`/properties/${id}/edit`);
   const { open, setIsSidebarOpen, collapse } = useSidebar();
   const [showActivityLogs, setShowActivityLogs] = useState(false);
@@ -164,7 +164,7 @@ export default function PropertySummary() {
   const handleBackClick = async () => {
     try {
       await open();
-    } catch (e) {
+    } catch (__e) {
       // ignore
     }
     setIsSidebarOpen(true);

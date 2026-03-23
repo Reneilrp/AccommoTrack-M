@@ -38,7 +38,7 @@ function ToggleSwitch({ checked, onChange, disabled = false, id }) {
 export default function PaymentMethods({ user, onUpdate }) {
   // ── Global settings state ──────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
-  const [connectingPaymongo, setConnectingPaymongo] = useState(false);
+  const [connectingPaymongo, __setConnectingPaymongo] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [allowed, setAllowed] = useState(user?.payment_methods_settings?.allowed || ['cash']);
   const [details, setDetails] = useState(user?.payment_methods_settings?.details || {});
@@ -83,7 +83,7 @@ export default function PaymentMethods({ user, onUpdate }) {
       const initial = {};
       mapped.forEach((p) => { initial[p.id] = [...p.accepted_payments]; });
       setPendingPayments(initial);
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to load properties');
     } finally {
       setPropertiesLoading(false);
@@ -139,7 +139,7 @@ export default function PaymentMethods({ user, onUpdate }) {
         onUpdate(res.data.user);
         toast.success('Status updated');
       }
-    } catch (e) {
+    } catch (__e) {
       toast.error('Failed to refresh status');
     } finally {
       setRefreshing(false);

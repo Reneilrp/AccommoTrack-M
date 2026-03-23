@@ -238,7 +238,7 @@ class LandlordDashboardService
         $properties = $propertiesQuery->get();
 
         // Pre-fetch actual paid revenue per property in one query to avoid N+1
-        $revenueByProperty = Payment::where('status', 'paid')
+        $revenueByProperty = Payment::where('payments.status', 'paid')
             ->whereHas('booking', function ($q) use ($landlordId, $assignedPropertyIds) {
                 $q->where('landlord_id', $landlordId);
                 if ($assignedPropertyIds) {

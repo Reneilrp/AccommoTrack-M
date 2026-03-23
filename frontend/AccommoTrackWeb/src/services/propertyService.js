@@ -72,12 +72,7 @@ export const propertyService = {
 
     // Get property types for filtering
     async getPropertyTypes() {
-        try {
-            return ['Dormitory', 'Apartment', 'Boarding House', 'Bed Spacer'];
-        } catch (error) {
-            console.error('Error fetching property types:', error);
-            return [];
-        }
+        return ['Dormitory', 'Apartment', 'Boarding House', 'Bed Spacer'];
     },
 
     /**

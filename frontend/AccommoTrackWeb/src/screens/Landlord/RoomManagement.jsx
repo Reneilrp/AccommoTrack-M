@@ -55,7 +55,7 @@ export default function RoomManagement() {
   const [rooms, setRooms] = useState(cachedRoomsData?.rooms || []);
   const [stats, setStats] = useState(cachedRoomsData?.stats || { total: 0, occupied: 0, available: 0, maintenance: 0 });
   
-  const [isFromProperty, setIsFromProperty] = useState(Boolean(new URLSearchParams(location.search).get('property')));
+  const [isFromProperty, __setIsFromProperty] = useState(Boolean(new URLSearchParams(location.search).get('property')));
 
   const handleBackClick = () => {
     if (isFromProperty && selectedPropertyId) {
@@ -126,7 +126,7 @@ export default function RoomManagement() {
       }));
       setNewRule('');
       toast.success('Rule added');
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to add rule');
     }
   };
@@ -144,7 +144,7 @@ export default function RoomManagement() {
       }));
       setNewAmenity('');
       toast.success('Amenity added');
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to add amenity');
     }
   };
@@ -164,7 +164,7 @@ export default function RoomManagement() {
         if (!selectedPropertyId && data.length > 0) {
           setSelectedPropertyId(data[0].id);
         }
-      } catch (err) {
+      } catch (__err) {
         setError('Failed to load properties');
       } finally {
         setLoadingProperties(false);
@@ -291,7 +291,7 @@ export default function RoomManagement() {
         rules: selectedRoom.rules || []
       };
 
-      const response = await api.put(`/landlord/rooms/${selectedRoom.id}`, updateData);
+      const __response = await api.put(`/landlord/rooms/${selectedRoom.id}`, updateData);
       // axios throws on non-2xx so no manual ok check needed
 
       await fetchRooms();
@@ -372,7 +372,7 @@ export default function RoomManagement() {
     });
       toast.success('Room status updated successfully');
 
-    } catch (error) {
+    } catch (__error) {
       setError('Failed to update room status. Please try again.');
     }
   };
@@ -382,7 +382,7 @@ export default function RoomManagement() {
     ? rooms
     : rooms.filter(room => room.status === filterStatus);
 
-  const getStatusColor = (status) => {
+  const __getStatusColor = (status) => {
     switch (status) {
       case 'occupied': return 'bg-red-100 text-red-800';
       case 'available': return 'bg-green-100 text-green-800';

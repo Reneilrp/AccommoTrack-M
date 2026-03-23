@@ -58,7 +58,7 @@ api.interceptors.response.use(
         localStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:blocked"));
-      } catch (e) {
+      } catch (__e) {
         // ignore
       }
     } else if (error.response?.status === 401) {
@@ -67,7 +67,7 @@ api.interceptors.response.use(
         localStorage.removeItem("authToken");
         delete api.defaults.headers.common["Authorization"];
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-      } catch (e) {
+      } catch (__e) {
         // ignore
       }
     }

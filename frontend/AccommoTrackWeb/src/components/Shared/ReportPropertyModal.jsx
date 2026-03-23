@@ -26,7 +26,7 @@ export default function ReportPropertyModal({ propertyId, propertyTitle = 'Prope
 
     setSubmitting(true);
     try {
-      const res = await api.post('/reports', { property_id: propertyId, reason, description });
+      const __res = await api.post('/reports', { property_id: propertyId, reason, description });
       toast.success('Report submitted. Admins will review this listing.');
       setReason('');
       setDescription('');

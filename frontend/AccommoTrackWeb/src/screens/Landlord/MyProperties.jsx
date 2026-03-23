@@ -20,16 +20,16 @@ import { Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 
-export default function MyProperties({ user }) {
+export default function MyProperties({ __user }) {
   const { uiState, updateData } = useUIState();
   const cachedProperties = uiState.data?.landlord_properties || cacheManager.get('landlord_properties');
 
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState(uiState.data?.landlord_property_view || 'list');
-  const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+  const [__selectedPropertyId, _setSelectedPropertyId] = useState(null);
   const navigate = useNavigate();
-  const { collapse, setIsSidebarOpen, open } = useSidebar();
+  const { collapse, _setIsSidebarOpen, _open } = useSidebar();
   const [properties, setProperties] = useState(cachedProperties || []);
   const [loading, setLoading] = useState(!cachedProperties);
   const [error, setError] = useState('');
@@ -63,7 +63,7 @@ export default function MyProperties({ user }) {
     try {
       const res = await api.get('/landlord/my-verification');
       setIsVerified(res.data?.status === 'approved' || res.data?.user?.is_verified === true);
-    } catch (err) {
+    } catch (__err) {
       setIsVerified(false);
     }
   };
@@ -123,7 +123,7 @@ export default function MyProperties({ user }) {
     // collapse sidebar (no-op on mobile) and wait for transition to finish
     try {
       await collapse();
-    } catch (err) {
+    } catch (__err) {
       // ignore
     }
     navigate(`/properties/${propertyId}`);
@@ -132,11 +132,11 @@ export default function MyProperties({ user }) {
   const handleBackToList = () => {
     setCurrentView('list');
     updateData('landlord_property_view', 'list');
-    setSelectedPropertyId(null);
+    _setSelectedPropertyId(null);
     fetchProperties();
   };
 
-  const handleDeleteProperty = async (propertyId) => {
+  const __handleDeleteProperty = async (propertyId) => {
     const property = properties.find(p => p.id === propertyId);
     setPasswordModal({ show: true, property });
     setPassword('');

@@ -17,8 +17,8 @@ import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 
-export default function CaretakerDashboard({ user }) {
-  const navigate = useNavigate();
+export default function CaretakerDashboard({ __user }) {
+  const __navigate = useNavigate();
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.caretaker_dashboard || cacheManager.get('caretaker_dashboard');
 

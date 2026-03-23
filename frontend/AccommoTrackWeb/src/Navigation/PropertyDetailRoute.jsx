@@ -12,7 +12,7 @@ export default function PropertyDetailRoute() {
     // reopen sidebar then navigate back to the property summary
     try {
       await open();
-    } catch (e) {
+    } catch (__e) {
       // ignore
     }
     setIsSidebarOpen(true);

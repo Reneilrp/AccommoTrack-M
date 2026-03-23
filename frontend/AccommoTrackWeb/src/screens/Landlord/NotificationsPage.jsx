@@ -103,12 +103,12 @@ export default function NotificationsPage() {
 
   const markAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    try { await api.patch(`/notifications/${id}/read`); } catch {}
+    try { await api.patch(`/notifications/${id}/read`); } catch (_ignore) { /* ignore */ }
   };
 
   const markAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    try { await api.patch('/notifications/read-all'); } catch {}
+    try { await api.patch('/notifications/read-all'); } catch (_ignore) { /* ignore */ }
   };
 
   const handleClick = (n) => {

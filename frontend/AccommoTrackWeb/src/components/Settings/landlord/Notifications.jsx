@@ -37,7 +37,7 @@ export default function Notifications({ user, onUpdate }) {
       onUpdate?.(res.data.user);
       setIsEditing(false);
       toast.success('Preferences updated');
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to save preferences');
     } finally {
       setSaving(false);

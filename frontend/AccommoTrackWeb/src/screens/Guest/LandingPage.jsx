@@ -163,7 +163,7 @@ const LandingPage = ({ user }) => {
 }
 
 // --- BURGER MENU COMPONENT ---
-function BurgerMenu({ user, theme, setTheme, effectiveTheme }) {
+function BurgerMenu({ user, __theme, setTheme, effectiveTheme }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
 

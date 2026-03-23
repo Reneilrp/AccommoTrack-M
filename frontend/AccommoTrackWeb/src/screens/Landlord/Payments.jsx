@@ -152,7 +152,7 @@ export default function Payments() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const navigate = useNavigate();
+  const __navigate = useNavigate();
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [refundConfirmTx, setRefundConfirmTx] = useState(null);
@@ -422,7 +422,7 @@ export default function Payments() {
                 },
               };
             }
-          } catch (err) {
+          } catch (__err) {
             // ignore individual booking fetch errors
           }
         }),
@@ -461,7 +461,7 @@ export default function Payments() {
   const formatDate = (d) => {
     try {
       return new Date(d).toLocaleDateString();
-    } catch (e) {
+    } catch (__e) {
       return "—";
     }
   };

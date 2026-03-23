@@ -78,7 +78,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
   const [roomFilter, setRoomFilter] = useState("available");
 
   // Video State
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [__videoModalOpen, _setVideoModalOpen] = useState(false);
 
   // Full Gallery State
   const [galleryOpen, setGalleryOpen] = useState(false);

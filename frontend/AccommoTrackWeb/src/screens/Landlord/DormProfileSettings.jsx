@@ -36,7 +36,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // Create a specific icon instance to ensure Vite/Bundlers resolve URLs correctly
-const defaultMarkerIcon = new L.Icon({
+const __defaultMarkerIcon = new L.Icon({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
@@ -65,11 +65,11 @@ const greenMarkerIcon = new L.Icon({
 export default function DormProfileSettings({
   propertyId,
   onBack,
-  onDeleteRequested,
+  __onDeleteRequested,
 }) {
   const { effectiveTheme } = usePreferences();
   const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
-  const navigate = useNavigate();
+  const __navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -337,7 +337,7 @@ export default function DormProfileSettings({
         }
         // If it's an object with boolean values, extract enabled ones
         return Object.entries(parsed)
-          .filter(([key, value]) => value === true)
+          .filter(([__key, value]) => value === true)
           .map(([key]) => key.replace(/([A-Z])/g, " $1").trim());
       } catch {
         return [];
@@ -347,7 +347,7 @@ export default function DormProfileSettings({
     // If it's an object with boolean values, extract enabled ones
     if (typeof amenitiesData === "object") {
       return Object.entries(amenitiesData)
-        .filter(([key, value]) => value === true)
+        .filter(([__key, value]) => value === true)
         .map(([key]) => key.replace(/([A-Z])/g, " $1").trim());
     }
 
@@ -504,7 +504,7 @@ export default function DormProfileSettings({
     setNewCustomAmenity("");
   };
 
-  const handleRemoveCustomAmenity = (index) => {
+  const __handleRemoveCustomAmenity = (index) => {
     setDormData((prev) => ({
       ...prev,
       customAmenities: (prev.customAmenities || []).filter(
@@ -518,10 +518,10 @@ export default function DormProfileSettings({
       const images = Array.isArray(prev.images) ? [...prev.images] : [];
 
       // Enforce minimum 1 image rule
-      const existingImages = images.filter(
+      const __existingImages = images.filter(
         (img) => img && (img.id || typeof img !== "object" || !img.file),
       );
-      const newFiles = images.filter(
+      const __newFiles = images.filter(
         (img) => img instanceof File || (img && img.file),
       );
       const totalAfterRemove = images.length - 1;
@@ -667,7 +667,7 @@ export default function DormProfileSettings({
         .filter((img) => img && img.id)
         .map((img) => ({ id: img.id, display_order: img.display_order }));
 
-      let response;
+      let __response;
       // Use multipart if we have any new images, credential files, or video changes
       if (
         imageFiles.length > 0 ||
@@ -736,7 +736,7 @@ export default function DormProfileSettings({
         // PHP (and therefore Laravel) doesn't populate $_FILES for PUT requests
         // reliably. Append _method=PUT so Laravel treats this as an update.
         fd.append("_method", "PUT");
-        response = await api.post(`/landlord/properties/${propertyId}`, fd, {
+        __response = await api.post(`/landlord/properties/${propertyId}`, fd, {
           headers: {
             Accept: "application/json",
             // Ensure we don't send an explicit Content-Type from our axios
@@ -763,7 +763,7 @@ export default function DormProfileSettings({
         if (deleteExistingVideo && videoId) {
           payload.delete_video = true;
         }
-        response = await api.put(`/landlord/properties/${propertyId}`, payload);
+        __response = await api.put(`/landlord/properties/${propertyId}`, payload);
       }
 
       toast.success("Property updated successfully!");

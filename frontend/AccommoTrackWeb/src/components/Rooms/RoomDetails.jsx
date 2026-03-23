@@ -31,7 +31,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
 
   if (!isOpen || !room) return null;
 
-  const payments = room.payments || [];
+  const __payments = room.payments || [];
   const tenants = (Array.isArray(room.tenants) && room.tenants.length > 0)
     ? room.tenants
     : (room.tenant ? (typeof room.tenant === 'string' ? [{ name: room.tenant }] : [room.tenant]) : []);
@@ -178,7 +178,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                               setExtending(true);
                               try {
                                 await onExtend({ roomId: room.id, days: Number(days), tenant_id: tenantId });
-                              } catch (e) {
+                              } catch (__e) {
                                 // parent handles error
                               } finally {
                                 setExtending(false);
@@ -201,7 +201,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend }) {
                             setExtending(true);
                             try {
                                 await onExtend({ roomId: room.id, months: Number(months), tenant_id: tenantId });
-                            } catch (e) {
+                            } catch (__e) {
                               // parent handles error
                             } finally {
                               setExtending(false);

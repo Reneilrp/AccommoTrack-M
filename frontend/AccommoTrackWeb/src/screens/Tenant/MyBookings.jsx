@@ -64,7 +64,7 @@ const MyBookings = () => {
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
   // cancelConfirm stores the bookingId pending user confirmation (null = none)
-  const [cancelConfirm, setCancelConfirm] = useState(null);
+  const [__cancelConfirm, setCancelConfirm] = useState(null);
 
   const invalidateTenantStayCache = useCallback(() => {
     invalidateData(['dashboard', 'bookings']);
@@ -127,7 +127,7 @@ const MyBookings = () => {
       setHistory(merged);
       // Fix: use the fresh `merged` object, not the stale `history` closure
       updateData('bookings', { ...(uiState.data?.bookings || {}), history: merged });
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to load more history');
     } finally {
       setHistoryLoadingMore(false);

@@ -42,7 +42,7 @@ const InquiryManagement = () => {
       if (selectedInquiry?.id === id) {
         setSelectedInquiry(prev => ({ ...prev, status }));
       }
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to update status');
     }
   };
@@ -86,7 +86,7 @@ const InquiryManagement = () => {
         setShowModal(false);
         setSelectedInquiry(null);
       }
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to delete inquiry');
     }
   };

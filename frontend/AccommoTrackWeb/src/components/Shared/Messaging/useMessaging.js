@@ -167,14 +167,14 @@ export const useMessaging = (user, accessRole = 'landlord') => {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.id) return parseInt(parsed.id, 10);
           return parseInt(stored, 10);
-        } catch (e) { return parseInt(stored, 10); }
+        } catch (__e) { return parseInt(stored, 10); }
       }
       const userRaw = localStorage.getItem('user') || localStorage.getItem('userData');
       if (userRaw) {
         const parsedUser = JSON.parse(userRaw);
         return parseInt(parsedUser.id || parsedUser.user_id, 10);
       }
-    } catch (err) { return null; }
+    } catch (__err) { return null; }
     return null;
   })();
 

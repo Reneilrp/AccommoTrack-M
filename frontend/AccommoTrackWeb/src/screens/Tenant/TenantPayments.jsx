@@ -24,7 +24,7 @@ export default function TenantPayments({ user }) {
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [__isRefreshing, _setIsRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     // Only set loading if we have NO data

@@ -39,7 +39,7 @@ export const getImageUrl = (imageSource) => {
             } else {
                 finalUrl = imagePath;
             }
-        } catch (err) {
+        } catch (__err) {
             finalUrl = imagePath;
         }
     } else {

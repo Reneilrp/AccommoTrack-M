@@ -14,7 +14,7 @@ const ChatArea = ({
   getInitials,
   formatTime,
   currentUserId,
-  normalizedRole,
+  __normalizedRole,
   messagesEndRef,
   imagePreview,
   handleImageSelect,
@@ -76,7 +76,7 @@ const ChatArea = ({
             // Using standardized fields from MessageResource
             const isMine = msg.is_mine;
             const actualSenderId = msg.actual_sender_id;
-            const isFromLandlordSide = msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
+            const __isFromLandlordSide = msg.sender_role === 'caretaker' || msg.sender_role === 'landlord';
             
             const isCaretakerMessage = msg.sender_role === 'caretaker';
             const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);

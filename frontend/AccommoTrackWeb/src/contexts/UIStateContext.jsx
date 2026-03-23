@@ -62,7 +62,7 @@ export const UIStateProvider = ({ children }) => {
           ...(parsed.data || {})
         }
       };
-    } catch (e) {
+    } catch (__e) {
       return INITIAL_STATE;
     }
   });
@@ -141,6 +141,7 @@ export const UIStateProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUIState = () => {
   const context = useContext(UIStateContext);
   if (!context) {

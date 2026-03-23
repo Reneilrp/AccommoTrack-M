@@ -121,7 +121,7 @@ const LandlordRegister = () => {
           minLen: pwd.length >= 8,
           hasUpper: /[A-Z]/.test(pwd),
           numCount: (pwd.match(/\d/g) || []).length >= 2,
-          hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+          hasSpecial: /[!@#$%^&*(),.?":{}|[\]\\/~`_+=;'-]/.test(pwd),
         });
       }
     }
@@ -135,7 +135,7 @@ const LandlordRegister = () => {
     if (!value || !emailRegex.test(value)) return;
     try {
       if (emailCheckAbortController.current) {
-        try { emailCheckAbortController.current.abort(); } catch (_e) { }
+        try { emailCheckAbortController.current.abort(); } catch (_ignore) { /* ignore */ }
       }
       emailCheckAbortController.current = new AbortController();
       const res = await api.get('/check-email', { params: { email: value }, signal: emailCheckAbortController.current.signal });
@@ -279,7 +279,7 @@ const LandlordRegister = () => {
         else if (!/[a-z]/.test(pwd)) errors.password = 'Password must include at least one lowercase letter';
         else if (!/[A-Z]/.test(pwd)) errors.password = 'Password must include at least one uppercase letter';
         else if ((pwd.match(/\d/g) || []).length < 2) errors.password = 'Password must include at least two numbers';
-        else if (!/[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd)) errors.password = 'Password must include at least one special character';
+        else if (!/[!@#$%^&*(),.?":{}|[\]\\/~`_+=;'-]/.test(pwd)) errors.password = 'Password must include at least one special character';
       }
 
       if (!form.confirmPassword) {
@@ -363,7 +363,7 @@ const LandlordRegister = () => {
 
       // Pre-submit: ensure email availability
       try {
-        if (emailCheckAbortController.current) { try { emailCheckAbortController.current.abort(); } catch (e) { } }
+        if (emailCheckAbortController.current) { try { emailCheckAbortController.current.abort(); } catch (_ignore) { /* ignore */ } }
         emailCheckAbortController.current = new AbortController();
         const chk = await api.get('/check-email', { params: { email: form.email }, signal: emailCheckAbortController.current.signal });
         if (chk.data?.available === false) {
@@ -372,10 +372,8 @@ const LandlordRegister = () => {
           setSubmitting(false);
           return;
         }
-      } catch (err) {
-        if (err.name === 'CanceledError' || err.name === 'AbortError') {
-          // ignore
-        }
+      } catch (_ignore) {
+        // ignore
       }
 
       await api.post('/landlord-verification', formData, {
@@ -399,7 +397,7 @@ const LandlordRegister = () => {
         const order = ['firstName', 'middleName', 'lastName', 'dob', 'email', 'phone', 'password', 'confirmPassword'];
         const firstInvalid = order.find(o => map[o]);
         if (firstInvalid && fieldRefs.current[firstInvalid] && typeof fieldRefs.current[firstInvalid].focus === 'function') {
-          setTimeout(() => { try { fieldRefs.current[firstInvalid].focus(); } catch (e) { } }, 0);
+          setTimeout(() => { try { fieldRefs.current[firstInvalid].focus(); } catch (_ignore) { /* ignore */ } }, 0);
         }
         setError(err.response?.data?.message || 'Please fix highlighted fields.');
       } else {
@@ -558,7 +556,7 @@ const LandlordRegister = () => {
                     onClick={() => {
                       const el = fieldRefs.current.dob;
                       if (el && typeof el.showPicker === 'function') {
-                        try { el.showPicker(); } catch (e) { }
+                        try { el.showPicker(); } catch (_ignore) { /* ignore */ }
                       }
                     }}
                   >
@@ -577,7 +575,7 @@ const LandlordRegister = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (typeof e.target.showPicker === 'function') {
-                          try { e.target.showPicker(); } catch (err) { }
+                          try { e.target.showPicker(); } catch (_ignore) { /* ignore */ }
                         }
                       }}
                       max={new Date(new Date().getFullYear() - 20, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
@@ -653,6 +651,7 @@ const LandlordRegister = () => {
                     <div className="mt-2 space-y-2">
                       {!passwordChecks.minLen && <p className="text-xs text-gray-500 flex items-center gap-2">--Minimum 8 characters</p>}
                       {!passwordChecks.hasUpper && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 1 uppercase letter</p>}
+                      {!passwordChecks.numCount && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 2 numbers</p>}
                       {!passwordChecks.hasSpecial && <p className="text-xs text-gray-500 flex items-center gap-2">--At least 1 special character</p>}
                     </div>
                   )}
@@ -780,7 +779,7 @@ const LandlordRegister = () => {
                           type="button"
                           className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => {
-                            try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (e) {}
+                            try { if (fileInputRefs.current.validId) fileInputRefs.current.validId.value = ''; } catch (_ignore) { /* ignore */ }
                             setForm(prev => ({ ...prev, validId: null }));
                             setFieldErrors(prev => ({ ...prev, validId: '' }));
                           }}
@@ -813,7 +812,7 @@ const LandlordRegister = () => {
                           type="button"
                           className="text-red-600 dark:text-red-400 text-xs bg-transparent px-2 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => {
-                            try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (e) {}
+                            try { if (fileInputRefs.current.permit) fileInputRefs.current.permit.value = ''; } catch (_ignore) { /* ignore */ }
                             setForm(prev => ({ ...prev, permit: null }));
                             setFieldErrors(prev => ({ ...prev, permit: '' }));
                           }}
@@ -877,7 +876,7 @@ const LandlordRegister = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Terms and Conditions</h3>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-500 font-medium">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Last Updated: {UNIFIED_TERMS_AND_CONDITIONS.lastUpdated}</p>
                 </div>
               </div>
               <button

@@ -50,7 +50,7 @@ export default function Reports() {
       setShowModal(false);
       setSelectedReport(null);
       setAdminNotes('');
-    } catch (err) {
+    } catch (__err) {
       toast.error('Failed to update report');
     } finally {
       setActionLoading(false);

@@ -29,10 +29,10 @@ import ForgotPasswordModal from "../../components/Modals/ForgotPasswordModal";
 import { UNIFIED_TERMS_AND_CONDITIONS } from "../../shared/LegalContent";
 
 // Resubmit Modal Component
-const ResubmitModal = ({ visible, onClose, theme }) => {
+const ResubmitModal = ({ visible, onClose, __theme }) => {
   const [loading, setLoading] = useState(false);
   const [idTypes, setIdTypes] = useState([]);
-  const [idTypesLoading, setIdTypesLoading] = useState(false);
+  const [__idTypesLoading, setIdTypesLoading] = useState(false);
   const [form, setForm] = useState({
     validIdType: "",
     validIdOther: "",
@@ -440,7 +440,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   });
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [showOtpVerification, setShowOtpVerification] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [__isMobileDevice, setIsMobileDevice] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Detect if user is on mobile device
@@ -587,7 +587,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         minLen: pwd.length >= 8,
         hasUpper: /[A-Z]/.test(pwd),
         numCount: (pwd.match(/\d/g) || []).length >= 2,
-        hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+        hasSpecial: /[!@#$%^&*(),.?":{}|<>[\]\\/~`_+=;'-]/.test(pwd),
       };
       setPasswordChecks(checks);
     }
@@ -623,7 +623,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       errors.password_confirmation = "Please confirm your password";
 
     // Name validation (allow letters, spaces, hyphens, apostrophes, ñ)
-    const nameRegex = /^[\p{L} '\-]+$/u;
+    const nameRegex = /^[\p{L} '-]+$/u;
     if (formData.first_name && !nameRegex.test(formData.first_name)) {
       errors.first_name = "First name contains invalid characters";
     }
@@ -705,7 +705,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       minLen: pwd.length >= 8,
       hasUpper: /[A-Z]/.test(pwd),
       numCount: (pwd.match(/\d/g) || []).length >= 2,
-      hasSpecial: /[!@#$%^&*(),.?":{}|<>\[\]\\/~`_+=;'-]/.test(pwd),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>[\]\\/~`_+=;'-]/.test(pwd),
     };
     setPasswordChecks(pwdChecks);
     if (
@@ -772,7 +772,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
           localStorage.setItem("authToken", data.token);
           localStorage.setItem("lastLoginAt", Date.now().toString());
           api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-        } catch (e) {
+        } catch (__e) {
           // ignore
         }
       }
@@ -831,7 +831,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
               me = res.data.user || res.data;
               break;
             }
-          } catch (e) {
+          } catch (__e) {
             continue;
           }
         }
@@ -999,7 +999,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
               if (el && typeof el.focus === "function") {
                 try {
                   el.focus();
-                } catch (e) {
+                } catch (__e) {
                   /* ignore */
                 }
               }

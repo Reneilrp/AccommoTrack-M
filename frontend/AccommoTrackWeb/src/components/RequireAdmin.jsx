@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
 const RequireAdmin = ({ user, children }) => {
-  const location = useLocation();
+  const __location = useLocation();
   const [loading, setLoading] = useState(false);
   const [fetchedUser, setFetchedUser] = useState(null);
 
@@ -21,7 +21,7 @@ const RequireAdmin = ({ user, children }) => {
               setFetchedUser(res.data.user || res.data);
               break;
             }
-          } catch (e) {
+          } catch (__e) {
             // try next
           }
         }

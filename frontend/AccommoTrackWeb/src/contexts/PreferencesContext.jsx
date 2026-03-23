@@ -149,6 +149,7 @@ export function PreferencesProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePreferences() {
   const context = useContext(PreferencesContext);
   if (!context) {

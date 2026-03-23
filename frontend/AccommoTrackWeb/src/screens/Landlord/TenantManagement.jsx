@@ -25,7 +25,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     return '';
   };
 
-  const [properties, setProperties] = useState(cachedProps || []);
+  const [__properties, setProperties] = useState(cachedProps || []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(getInitialPropertyId());
   
   const tenantCacheKey = selectedPropertyId ? `tenants_property_${selectedPropertyId}` : null;
@@ -38,7 +38,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
   const [loadingRoomsForTransfer, setLoadingRoomsForTransfer] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferData, setTransferData] = useState({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
-  const [error, setError] = useState('');
+  const [__error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(selectedPropertyId && !cachedTenants);

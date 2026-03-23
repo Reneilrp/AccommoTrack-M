@@ -207,6 +207,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
               </tbody>
             </table>
           </div>
+          </div>
         )}
       </div>
 

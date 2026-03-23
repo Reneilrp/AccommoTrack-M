@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
-import api, { getImageUrl } from '../../utils/api';
+import __api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
 import { useUIState } from '../../contexts/UIStateContext';
 import { 

@@ -46,7 +46,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     // Extract gender from preferences
     let prefs = data.tenant_profile?.preference || {};
     if (typeof prefs === 'string') {
-      try { prefs = JSON.parse(prefs); } catch (e) { prefs = {}; }
+      try { prefs = JSON.parse(prefs); } catch (__e) { prefs = {}; }
     }
 
     const backendGender = data.gender || prefs.gender || '';
@@ -91,7 +91,7 @@ const ProfileTab = ({ onUserUpdate }) => {
   };
 
   const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
-  const NAME_REGEX = /^[\p{L}\s'\-]+$/u;
+  const NAME_REGEX = /^[\p{L}\s'-]+$/u;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
