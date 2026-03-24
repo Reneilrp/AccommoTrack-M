@@ -58,7 +58,7 @@ export default function NotificationsPage() {
     try {
       setLoading(true);
       const [notifRes, activitiesRes] = await Promise.allSettled([
-        api.get('/notifications'),
+        api.get('/notifications?role=landlord'),
         api.get('/landlord/dashboard/recent-activities'),
       ]);
 
@@ -108,7 +108,7 @@ export default function NotificationsPage() {
 
   const markAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    try { await api.patch('/notifications/read-all'); } catch (_ignore) { /* ignore */ }
+    try { await api.patch('/notifications/read-all?role=landlord'); } catch (_ignore) { /* ignore */ }
   };
 
   const handleClick = (n) => {

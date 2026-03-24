@@ -231,7 +231,7 @@ export default function TenantNotifications({ navigation }) {
     setLoading(true);
     try {
       const [backendRes, bookingsRes, paymentsRes] = await Promise.all([
-        api.get("/notifications").catch(() => ({ data: [] })),
+        api.get("/notifications?role=tenant").catch(() => ({ data: [] })),
         BookingService.getMyBookings(),
         PaymentService.getPayments(),
       ]);

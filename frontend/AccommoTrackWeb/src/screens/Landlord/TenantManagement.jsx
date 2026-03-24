@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, FileDown, UserX, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown } from 'lucide-react';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -206,31 +206,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
     }
   };
 
-  const handleExport = (ids) => {
-    const source = ids?.length ? tenants.filter(t => ids.includes(t.id)) : filteredTenants;
-    const headers = ["ID", "First Name", "Last Name", "Email", "Phone", "Property", "Room"];
-    const csvContent = [
-      headers.join(','),
-      ...source.map(t => [
-        t.id,
-        `"${t.first_name}"`,
-        `"${t.last_name}"`,
-        t.email,
-        t.phone,
-        `"${t.room?.property?.title || ''}"`,
-        t.room?.room_number || ''
-      ].join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `tenants_export_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    toast.success(`${source.length} tenant${source.length !== 1 ? 's' : ''} exported!`);
-  };
-  
+
   const stats = {
     total: tenants.length,
     active: tenants.filter(t => t.tenantProfile?.status === 'active').length,
@@ -288,9 +264,7 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
                   <LayoutList className="w-4 h-4" />
                 </button>
               </div>
-              <button onClick={handleExport} title="Export tenants as CSV" className="p-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center shadow-md">
-                <FileDown className="w-5 h-5" />
-              </button>
+
               <button onClick={loadTenants} disabled={loading} title="Refresh" className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
               </button>
@@ -302,9 +276,6 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
           <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-700 mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
             <input type="checkbox" checked={selectedTenants.length === filteredTenants.length} onChange={handleSelectAll} className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500" />
             <span className="text-sm font-bold text-green-700 dark:text-green-300 flex-1">{selectedTenants.length} tenant{selectedTenants.length !== 1 ? 's' : ''} selected</span>
-            <button onClick={() => handleExport(selectedTenants)} className="px-3 py-1.5 text-xs font-bold bg-gray-700 text-white rounded-lg flex items-center gap-2 hover:bg-gray-800">
-              <FileDown className="w-3.5 h-3.5"/> Export Selected
-            </button>
             <button onClick={() => setSelectedTenants([])} className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg" title="Clear selection">
               <X className="w-4 h-4" />
             </button>
@@ -500,7 +471,7 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -517,7 +488,8 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60" ref={menuRef}>
-            {tenants.map((tenant) => {
+            {tenants.map((tenant, idx) => {
+              const isLastRows = idx >= tenants.length - 2;
               const profile = tenant.tenantProfile;
               const late = isLate(tenant);
               const expiring = isExpiring(tenant);
@@ -597,7 +569,7 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
                       </button>
 
                       {isOpen && (
-                        <div className="absolute right-4 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-30 animate-in fade-in zoom-in-95 duration-150 origin-top-right overflow-hidden">
+                        <div className={`absolute right-4 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-30 animate-in fade-in zoom-in-95 duration-150 overflow-hidden ${isLastRows ? 'bottom-full mb-1 origin-bottom-right' : 'top-full mt-1 origin-top-right'}`}>
                           <button
                             onClick={() => { setOpenMenuId(null); navigate('/messages', { state: { startConversation: true, recipient: { id: tenant.id }, property: tenant.room ? { id: tenant.room.property_id } : null } }); }}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"

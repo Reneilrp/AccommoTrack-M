@@ -33,7 +33,7 @@ export default function Notifications() {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/notifications');
+      const res = await api.get('/notifications?role=tenant');
       const rawNotifs = res.data?.data || res.data || [];
 
       // Only use real backend notifications — no synthetic booking/payment injection
@@ -68,7 +68,7 @@ export default function Notifications() {
 
   const markAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    await api.patch('/notifications/read-all').catch(() => {});
+    await api.patch('/notifications/read-all?role=tenant').catch(() => {});
   };
 
   const displayed = notifications.filter((n) => {

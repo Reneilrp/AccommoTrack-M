@@ -36,7 +36,7 @@ const NotificationDropdown = () => {
       const isTenant = role === 'tenant';
 
       const [notifRes, activitiesRes] = await Promise.allSettled([
-        api.get('/notifications'),
+        api.get(`/notifications?role=${role}`),
         isLandlordOrCaretaker 
           ? api.get('/landlord/dashboard/recent-activities') 
           : (isTenant ? api.get('/tenant/dashboard/activities') : Promise.resolve({ data: [] })),
@@ -110,7 +110,9 @@ const NotificationDropdown = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      await api.patch('/notifications/read-all');
+      const userData = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+      const role = (userData.role || '').toLowerCase();
+      await api.patch(`/notifications/read-all?role=${role}`);
       setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
       setUnreadCount(0);
     } catch (error) {

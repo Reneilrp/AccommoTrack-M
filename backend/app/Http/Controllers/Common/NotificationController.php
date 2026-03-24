@@ -14,9 +14,17 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $role = $request->query('role');
+        $query = $user->notifications();
+
+        if ($role === 'tenant') {
+            $query->whereNotIn('type', ['booking', 'payment_received']);
+        } elseif ($role === 'landlord') {
+            $query->whereNotIn('type', ['upcoming_payment', 'rent_paid']);
+        }
 
         // Get all notifications, paginated
-        $notifications = $user->notifications()->paginate(20);
+        $notifications = $query->paginate(20);
 
         return response()->json($notifications);
     }
@@ -26,7 +34,16 @@ class NotificationController extends Controller
      */
     public function unreadCount(Request $request)
     {
-        $count = Auth::user()->unreadNotifications()->count();
+        $role = $request->query('role');
+        $query = Auth::user()->unreadNotifications();
+
+        if ($role === 'tenant') {
+            $query->whereNotIn('type', ['booking', 'payment_received']);
+        } elseif ($role === 'landlord') {
+            $query->whereNotIn('type', ['upcoming_payment', 'rent_paid']);
+        }
+
+        $count = $query->count();
 
         return response()->json(['count' => $count]);
     }
@@ -52,7 +69,16 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(Request $request)
     {
-        Auth::user()->unreadNotifications()->update([
+        $role = $request->query('role');
+        $query = Auth::user()->unreadNotifications();
+
+        if ($role === 'tenant') {
+            $query->whereNotIn('type', ['booking', 'payment_received']);
+        } elseif ($role === 'landlord') {
+            $query->whereNotIn('type', ['upcoming_payment', 'rent_paid']);
+        }
+
+        $query->update([
             'is_read' => true,
             'read_at' => now(),
         ]);

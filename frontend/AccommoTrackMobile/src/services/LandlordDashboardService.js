@@ -58,7 +58,7 @@ const LandlordDashboardService = {
 
     async fetchUnreadNotificationsCount() {
         try {
-            const response = await api.get('/notifications/unread-count');
+            const response = await api.get('/notifications/unread-count?role=landlord');
             return {
                 success: true,
                 data: response.data.count ?? response.data

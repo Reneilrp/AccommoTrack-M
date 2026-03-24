@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
-import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle } from "lucide-react";
+import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter } from "lucide-react";
 import toast from "react-hot-toast";
 import PriceRow from "../../components/Shared/PriceRow";
 import { SkeletonStatCard } from "../../components/Shared/Skeleton";
@@ -159,6 +159,7 @@ export default function Payments() {
   const [refundAmount, setRefundAmount] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isRefunding, setIsRefunding] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [recordData, setRecordData] = useState({
     amount: "",
     method: "cash",
@@ -877,7 +878,7 @@ export default function Payments() {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-            <div className="relative w-full lg:w-[28rem]">
+            <div className="relative w-full lg:w-80 shrink-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-500" />
               <input
                 value={searchQuery}
@@ -907,7 +908,13 @@ export default function Payments() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-bold shadow-md whitespace-nowrap"
+              >
+                <FileDown className="w-4 h-4" /> Export CSV
+              </button>
               <button
                 onClick={loadInvoices}
                 disabled={loading}
@@ -1473,6 +1480,205 @@ export default function Payments() {
             </div>
           </div>
         )}
+        {showExportModal && (
+          <ExportModal
+            invoices={invoices}
+            bookingsMap={bookingsMap}
+            onClose={() => setShowExportModal(false)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Export CSV Modal ─────────────────────────────────────────────────────────
+
+const PRESETS = [
+  { label: 'This Month',    getDates: () => { const n = new Date(); return { from: new Date(n.getFullYear(), n.getMonth(), 1).toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
+  { label: 'Last Month',    getDates: () => { const n = new Date(); const f = new Date(n.getFullYear(), n.getMonth()-1, 1); const t = new Date(n.getFullYear(), n.getMonth(), 0); return { from: f.toISOString().split('T')[0], to: t.toISOString().split('T')[0] }; } },
+  { label: 'Last 3 Months', getDates: () => { const n = new Date(); const f = new Date(n); f.setMonth(f.getMonth()-3); return { from: f.toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
+  { label: 'This Year',     getDates: () => { const n = new Date(); return { from: new Date(n.getFullYear(), 0, 1).toISOString().split('T')[0], to: n.toISOString().split('T')[0] }; } },
+  { label: 'All Time',      getDates: () => ({ from: '', to: '' }) },
+  { label: 'Custom',        getDates: () => null },
+];
+
+function ExportModal({ invoices, bookingsMap, onClose }) {
+  const { uiState } = useUIState();
+  const cachedProps = uiState.data?.accessible_properties || [];
+
+  const [selectedProperty, setSelectedProperty] = useState('');
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState('');
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [preset, setPreset] = useState('This Month');
+  const [dateFrom, setDateFrom] = useState(PRESETS[0].getDates().from);
+  const [dateTo, setDateTo]   = useState(PRESETS[0].getDates().to);
+  const [exporting, setExporting] = useState(false);
+
+  const isCustom = preset === 'Custom';
+
+  useEffect(() => {
+    if (!selectedProperty) { setRooms([]); setSelectedRoom(''); return; }
+    setLoadingRooms(true);
+    api.get(`/rooms/property/${selectedProperty}`)
+      .then(res => {
+        const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+        setRooms(list);
+      })
+      .catch(() => setRooms([]))
+      .finally(() => setLoadingRooms(false));
+    setSelectedRoom('');
+  }, [selectedProperty]);
+
+  const handlePreset = (label) => {
+    setPreset(label);
+    const p = PRESETS.find(x => x.label === label);
+    if (p && label !== 'Custom') {
+      const dates = p.getDates();
+      setDateFrom(dates.from);
+      setDateTo(dates.to);
+    }
+  };
+
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const result = invoices.filter(inv => {
+        const bk = bookingsMap[inv.booking_id] || inv.booking || {};
+        if (selectedProperty) {
+          const propId = String(bk?.property?.id || bk?.property_id || inv?.property_id || '');
+          if (propId !== String(selectedProperty)) return false;
+        }
+        if (selectedRoom) {
+          const roomCandidates = [bk?.room?.id, bk?.room_id, inv?.room_id];
+          if (!roomCandidates.some(r => r && String(r) === String(selectedRoom))) return false;
+        }
+        const issued = new Date(inv.issued_at || inv.created_at);
+        if (dateFrom && issued < new Date(dateFrom)) return false;
+        if (dateTo   && issued > new Date(dateTo + 'T23:59:59')) return false;
+        return true;
+      });
+
+      if (result.length === 0) {
+        toast.error('No records match your selected filters.');
+        setExporting(false);
+        return;
+      }
+
+      const headers = ['Invoice ID', 'Tenant', 'Property', 'Room', 'Date Issued', 'Amount (PHP)', 'Paid (PHP)', 'Balance (PHP)', 'Status'];
+      const rows = result.map(inv => {
+        const bk = bookingsMap[inv.booking_id] || inv.booking || {};
+        const tenantName = bk?.tenant?.first_name ? `${bk.tenant.first_name} ${bk.tenant.last_name || ''}`.trim() : inv.tenant?.name || '—';
+        const property = bk?.property?.title || inv.property?.title || '—';
+        const room = bk?.room?.room_number || bk?.room_number || inv.room_number || '—';
+        const issued = inv.issued_at || inv.created_at || '';
+        const amount = inv.amount_cents ? inv.amount_cents / 100 : Number(inv.amount || 0);
+        const paid = (inv.transactions || [])
+          .filter(tx => ['succeeded','paid','partially_refunded'].includes(tx.status))
+          .reduce((s, tx) => s + (tx.amount_cents ? tx.amount_cents/100 : Number(tx.amount||0)) - (tx.refunded_amount_cents ? tx.refunded_amount_cents/100 : 0), 0);
+        const balance = Math.max(0, amount - paid);
+        const status = (inv.status || 'pending').charAt(0).toUpperCase() + (inv.status || 'pending').slice(1);
+        return [`"${inv.reference || `INV-${inv.id}`}"`, `"${tenantName}"`, `"${property}"`, `"${room}"`, issued ? new Date(issued).toLocaleDateString() : '—', amount.toFixed(2), paid.toFixed(2), balance.toFixed(2), status].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const propLabel = selectedProperty ? (cachedProps.find(p => String(p.id) === String(selectedProperty))?.title || 'property') : 'all';
+      const dateLabel = preset === 'All Time' ? 'all-time' : `${dateFrom}_to_${dateTo}`;
+      link.download = `payments_${propLabel.replace(/\s+/g,'-')}_${dateLabel}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      toast.success(`${result.length} record${result.length !== 1 ? 's' : ''} exported!`);
+      onClose();
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+              <FileDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Export CSV</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Filter before exporting payment records</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Property</label>
+            <select value={selectedProperty} onChange={e => setSelectedProperty(e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-gray-400 outline-none dark:bg-gray-700 dark:text-white">
+              <option value="">All Properties</option>
+              {cachedProps.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+
+          {selectedProperty && (
+            <div className="animate-in slide-in-from-top-1 duration-150">
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Room</label>
+              <select value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)} disabled={loadingRooms}
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-gray-400 outline-none dark:bg-gray-700 dark:text-white disabled:opacity-60">
+                <option value="">{loadingRooms ? 'Loading rooms...' : 'All Rooms'}</option>
+                {rooms.map(r => <option key={r.id} value={r.id}>Room {r.room_number}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date Range</label>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {PRESETS.map(p => (
+                <button key={p.label} onClick={() => handlePreset(p.label)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${preset === p.label ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {isCustom && (
+              <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-1 duration-150">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">From</label>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">To</label>
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-white" />
+                </div>
+              </div>
+            )}
+            {!isCustom && preset !== 'All Time' && dateFrom && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{dateFrom} → {dateTo}</p>
+            )}
+            {preset === 'All Time' && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Exporting all records regardless of date</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-3 p-6 pt-0">
+          <button onClick={onClose} className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleExport} disabled={exporting} className="flex-1 px-4 py-3 bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-900 dark:hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+            {exporting ? 'Exporting...' : 'Download CSV'}
+          </button>
+        </div>
       </div>
     </div>
   );

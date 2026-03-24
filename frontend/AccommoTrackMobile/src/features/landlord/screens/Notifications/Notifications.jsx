@@ -49,7 +49,7 @@ export default function NotificationsScreen({ navigation }) {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const response = await api.get('/notifications');
+      const response = await api.get('/notifications?role=landlord');
       const data = response.data;
       const list = data.data || data || [];
       setNotifications(list.map(n => ({
@@ -95,7 +95,7 @@ export default function NotificationsScreen({ navigation }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
     try {
-      await api.patch('/notifications/read-all');
+      await api.patch('/notifications/read-all?role=landlord');
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
