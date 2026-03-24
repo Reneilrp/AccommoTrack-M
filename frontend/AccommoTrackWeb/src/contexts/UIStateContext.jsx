@@ -93,13 +93,17 @@ export const UIStateProvider = ({ children }) => {
    * @param {any} data 
    */
   const updateData = React.useCallback((bucket, data) => {
-    setUIState(prev => ({
-      ...prev,
-      data: {
-        ...prev.data,
-        [bucket]: data
-      }
-    }));
+    setUIState(prev => {
+      const currentBucketData = prev.data ? prev.data[bucket] : null;
+      const newData = typeof data === 'function' ? data(currentBucketData) : data;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          [bucket]: newData
+        }
+      };
+    });
   }, []);
 
   /**

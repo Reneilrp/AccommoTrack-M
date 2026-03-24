@@ -30,6 +30,7 @@ export default function DashboardPage({ user }) {
   const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
+  const initialLoadRef = React.useRef(!cachedData);
 
   const fetchVerificationStatus = React.useCallback(async () => {
     try {
@@ -44,7 +45,8 @@ export default function DashboardPage({ user }) {
 
   const fetchDashboardData = React.useCallback(async () => {
     try {
-      if (!cachedData) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       setError('');
 
       const [statsRes, activitiesRes, paymentsRes, performanceRes] = await Promise.all([
@@ -80,7 +82,7 @@ export default function DashboardPage({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [cachedData, dashboardKey, updateData]);
+  }, [dashboardKey, updateData]);
 
   useEffect(() => {
     fetchDashboardData();

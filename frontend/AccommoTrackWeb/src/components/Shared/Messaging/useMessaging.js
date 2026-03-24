@@ -67,9 +67,12 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchConversations = async () => {
+  const initialLoadRef = useRef(conversations.length === 0);
+
+  const fetchConversations = useCallback(async () => {
     try {
-      if (conversations.length === 0) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       const res = await api.get('/messages/conversations');
       const data = res.data;
       const conversationsList = Array.isArray(data) ? data : [];
@@ -81,16 +84,16 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateData]);
 
-  const fetchMessages = async (conversationId) => {
+  const fetchMessages = useCallback(async (conversationId) => {
     try {
       const res = await api.get(`/messages/${conversationId}`);
       setMessages(res.data);
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
-  };
+  }, []);
 
   const handleSendMessage = async () => {
     if (readOnlyGuard()) return;
@@ -216,7 +219,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
 
   useEffect(() => {
     if (selectedChat) {

@@ -126,7 +126,7 @@ const MyBookings = () => {
       };
       setHistory(merged);
       // Fix: use the fresh `merged` object, not the stale `history` closure
-      updateData('bookings', { ...(uiState.data?.bookings || {}), history: merged });
+      updateData('bookings', prev => ({ ...(prev || {}), history: merged }));
     } catch (__err) {
       toast.error('Failed to load more history');
     } finally {
@@ -176,12 +176,12 @@ const MyBookings = () => {
         fetchedLiveRef.current = true;
 
         // Update cache
-        updateData('bookings', { 
-          ...(cachedData || {}), 
+        updateData('bookings', prev => ({ 
+          ...(prev || {}), 
           activeStays: stays, 
           pendingBookings: pending,
           upcomingBooking: upcoming 
-        });
+        }));
 
       } else if (activeTab === 'history') {
         const data = await tenantService.getHistory();
@@ -189,7 +189,7 @@ const MyBookings = () => {
         fetchedHistoryRef.current = true;
         
         // Update cache
-        updateData('bookings', { ...(cachedData || {}), history: data });
+        updateData('bookings', prev => ({ ...(prev || {}), history: data }));
       }
     } catch (err) {
       const serverMessage = err?.response?.data?.message || err?.message || 'Failed to load data.';
@@ -198,7 +198,7 @@ const MyBookings = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, updateData, cachedData]);
+  }, [activeTab, updateData]);
 
   useEffect(() => {
     fetchData();

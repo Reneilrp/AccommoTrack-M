@@ -46,10 +46,12 @@ const TenantDashboard = () => {
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [activities, setActivities] = useState(cachedData?.activities || []);
+  const initialLoadRef = React.useRef(!cachedData);
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      if (!cachedData) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
 
       const [currentStay, dashboardStats, activityRes] = await Promise.all([
         tenantService.getCurrentStay(),
@@ -67,7 +69,7 @@ const TenantDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [cachedData, updateData]);
+  }, [updateData]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 

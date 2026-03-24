@@ -29,13 +29,9 @@ export default function CaretakerDashboard({ __user }) {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
+  const initialLoadRef = React.useRef(!cachedData);
 
-  useEffect(() => {
-    fetchDashboardData();
-    fetchVerificationStatus();
-  }, []);
-
-  const fetchVerificationStatus = async () => {
+  const fetchVerificationStatus = React.useCallback(async () => {
     try {
       const res = await api.get('/landlord/my-verification');
       setVerificationStatus(res.data);
@@ -44,11 +40,12 @@ export default function CaretakerDashboard({ __user }) {
         setVerificationStatus({ status: 'not_submitted' });
       }
     }
-  };
+  }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async () => {
     try {
-      if (!cachedData) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       setError('');
 
       const [statsRes, activitiesRes, paymentsRes, performanceRes] = await Promise.all([
@@ -84,7 +81,12 @@ export default function CaretakerDashboard({ __user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateData]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchVerificationStatus();
+  }, [fetchDashboardData, fetchVerificationStatus]);
 
   const getActivityIcon = (type) => {
     switch (type) {

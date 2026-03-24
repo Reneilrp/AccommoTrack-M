@@ -25,10 +25,12 @@ export default function TenantPayments({ user }) {
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
   const [__isRefreshing, _setIsRefreshing] = useState(false);
+  const initialLoadRef = React.useRef(!cachedData);
 
   const loadData = useCallback(async () => {
     // Only set loading if we have NO data
-    if (!cachedData && payments.length === 0) setLoading(true);
+    if (initialLoadRef.current && payments.length === 0) setLoading(true);
+    initialLoadRef.current = false;
     setError(null);
 
     try {
@@ -63,7 +65,7 @@ export default function TenantPayments({ user }) {
 
       // Update global cache
       if (paymentsRes.success && statsRes.success) {
-        updateData('wallet', { payments: paymentsRes.data, stats: statsRes.data });
+        updateData('wallet', prev => ({ ...prev, payments: paymentsRes.data, stats: statsRes.data }));
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -71,7 +73,7 @@ export default function TenantPayments({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, cachedData, payments.length]);
+  }, [statusFilter, payments.length, updateData, navigate]);
 
   useEffect(() => {
     loadData();

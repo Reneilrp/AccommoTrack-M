@@ -9,7 +9,7 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchLogs = async () => {
+  const fetchLogs = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -23,12 +23,12 @@ export default function PropertyActivityLogs({ propertyId, propertyTitle, isOpen
     } finally {
       setLoading(false);
     }
-  };
+  }, [propertyId]);
 
   useEffect(() => {
     if (!isOpen || !propertyId) return;
     fetchLogs();
-  }, [isOpen, propertyId]);
+  }, [isOpen, propertyId, fetchLogs]);
 
   if (!isOpen) return null;
 
