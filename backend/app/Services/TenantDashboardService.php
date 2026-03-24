@@ -222,7 +222,7 @@ class TenantDashboardService
             'quantity' => $data['quantity'] ?? 1,
             'price_at_booking' => $addon->price,
             'status' => 'pending',
-            'request_note' => $data['note'] ?? null,
+            'request_note' => trim(($data['note'] ?? '') . ($data['suggested_price'] ? ' | Suggested price: ₱' . number_format((float)$data['suggested_price'], 2) : '')),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -237,9 +237,14 @@ class TenantDashboardService
             throw new \Exception('No active booking found');
         }
 
-        $addonRequest = $booking->addons()->where('addon_id', $addonId)->wherePivot('status', 'pending')->first();
+        // Allow cancelling pending, active, or approved addons
+        $addonRequest = $booking->addons()
+            ->where('addon_id', $addonId)
+            ->wherePivotIn('status', ['pending', 'active', 'approved'])
+            ->first();
+
         if (! $addonRequest) {
-            throw new \Exception('No pending request found for this addon');
+            throw new \Exception('No cancellable request found for this addon', 404);
         }
 
         $booking->addons()->updateExistingPivot($addonId, ['status' => 'cancelled', 'updated_at' => now()]);

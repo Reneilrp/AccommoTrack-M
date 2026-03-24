@@ -285,6 +285,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('/invoices/{id}/charge', [InvoiceController::class, 'charge']);
     Route::post('/invoices/{id}/record', [InvoiceController::class, 'recordOffline']);
+    Route::post('/invoices/{id}/verify-cash', [InvoiceController::class, 'verifyCash']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
     Route::post('/transactions/{id}/refund', [TransactionController::class, 'refund']);
     // Stripe webhook (public endpoint - ensure secret verification)

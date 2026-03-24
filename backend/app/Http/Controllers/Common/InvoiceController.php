@@ -367,6 +367,10 @@ class InvoiceController extends Controller
                 'gateway_response' => ['notes' => $validated['notes'] ?? null],
             ]);
 
+            // Mark invoice as pending_verification so landlord can confirm
+            $invoice->status = 'pending_verification';
+            $invoice->save();
+
             DB::commit();
 
             return response()->json(['success' => true, 'transaction' => $tx], 201);
@@ -374,6 +378,81 @@ class InvoiceController extends Controller
             DB::rollBack();
 
             return response()->json(['message' => 'Failed to record offline payment', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Landlord verifies or rejects a tenant's cash payment claim.
+     * POST /invoices/{id}/verify-cash
+     */
+    public function verifyCash(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_manage_payments');
+
+        $invoice = Invoice::with('transactions', 'booking', 'tenant')->findOrFail($id);
+        if ($invoice->landlord_id !== $context['landlord_id']) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:approve,reject',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $pendingTxs = $invoice->transactions()->where('status', 'pending_offline')->get();
+
+            if ($validated['action'] === 'approve') {
+                foreach ($pendingTxs as $ptx) {
+                    $ptx->status = 'succeeded';
+                    $ptx->save();
+                }
+                // Check if fully paid
+                $totalPaid = $invoice->transactions()->whereIn('status', ['succeeded', 'paid'])->sum('amount_cents');
+                $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+                $invoice->status = $totalPaid >= $invoiceTotal ? 'paid' : 'partial';
+                if ($invoice->status === 'paid') $invoice->paid_at = now();
+                $invoice->save();
+
+                // Update booking payment status
+                if ($invoice->booking_id && $invoice->booking) {
+                    $invoice->booking->payment_status = $invoice->status;
+                    $invoice->booking->save();
+                }
+
+                // Notify tenant
+                if ($invoice->tenant) {
+                    $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'approved'));
+                }
+
+                broadcast(new InvoiceUpdated($invoice))->toOthers();
+            } else {
+                // Reject: void pending offline transactions
+                foreach ($pendingTxs as $ptx) {
+                    $ptx->status = 'voided';
+                    $ptx->save();
+                }
+                $invoice->status = 'pending';
+                $invoice->save();
+
+                // Notify tenant of rejection
+                if ($invoice->tenant) {
+                    $invoice->tenant->notify(new \App\Notifications\InvoiceVerifiedNotification($invoice, 'rejected'));
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $validated['action'] === 'approve' ? 'Payment approved.' : 'Payment rejected.',
+                'invoice' => $invoice->fresh(['transactions']),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('verifyCash error: ' . $e->getMessage());
+            return response()->json(['message' => 'Action failed', 'error' => $e->getMessage()], 500);
         }
     }
 

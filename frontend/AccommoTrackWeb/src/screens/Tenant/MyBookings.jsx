@@ -63,6 +63,7 @@ const MyBookings = () => {
   const [extendingStay, setExtendingStay] = useState(false);
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
+  const [hasPendingTransfer, setHasPendingTransfer] = useState(false);
   // cancelConfirm stores the bookingId pending user confirmation (null = none)
   const [__cancelConfirm, setCancelConfirm] = useState(null);
 
@@ -94,6 +95,7 @@ const MyBookings = () => {
       await api.post('/tenant/transfers', payload);
       toast.success('Room transfer request sent to landlord');
       invalidateTenantStayCache();
+      setHasPendingTransfer(true); // immediately grey out the button
       fetchData();
       setShowTransferModal(false);
     } catch (err) {
@@ -171,6 +173,18 @@ const MyBookings = () => {
           setPendingBookings(pending);
         } catch (e) {
           console.warn('Failed to fetch tenant bookings for pending detection', e);
+        }
+
+        // Load pending transfers (tenant-level — backend prevents more than one)
+        try {
+          const transfersResp = await api.get('/tenant/transfers');
+          const transfersList = transfersResp?.data?.data || transfersResp?.data?.transfers || transfersResp?.data || [];
+          const hasPending = (Array.isArray(transfersList) ? transfersList : []).some(
+            t => ['pending', 'approved'].includes(String(t.status || '').toLowerCase())
+          );
+          setHasPendingTransfer(hasPending);
+        } catch (e) {
+          console.warn('Failed to load transfers', e);
         }
 
         fetchedLiveRef.current = true;
@@ -376,6 +390,7 @@ const MyBookings = () => {
               isCancelling={cancellingBooking}
               onRequestExtension={() => setShowExtensionModal(true)}
               onRequestTransfer={() => setShowTransferModal(true)}
+              hasPendingTransfer={hasPendingTransfer}
               onReview={handleReview}
               onReport={handleReport}
               navigate={navigate}
@@ -467,7 +482,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, hasPendingTransfer = false, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
   const hasPending = pendingBookings && pendingBookings.length > 0;
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
@@ -766,13 +781,23 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             }
                             return null;
                           })()}
-                          <button
-                            onClick={onRequestTransfer}
-                            className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-500/20 transition-all active:scale-95"
-                          >
-                            <Shuffle className="w-4 h-4" />
-                            Transfer
-                          </button>
+                          {(() => {
+                            return (
+                              <button
+                                onClick={hasPendingTransfer ? undefined : onRequestTransfer}
+                                disabled={!!hasPendingTransfer}
+                                title={hasPendingTransfer ? 'You already have a pending transfer request' : 'Request a room transfer'}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                  hasPendingTransfer
+                                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
+                                    : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
+                                }`}
+                              >
+                                <Shuffle className="w-4 h-4" />
+                                {hasPendingTransfer ? 'Transfer Pending' : 'Transfer'}
+                              </button>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

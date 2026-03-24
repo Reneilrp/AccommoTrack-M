@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
-import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter } from "lucide-react";
+import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter, ShieldCheck, ShieldX } from "lucide-react";
 import toast from "react-hot-toast";
 import PriceRow from "../../components/Shared/PriceRow";
 import { SkeletonStatCard } from "../../components/Shared/Skeleton";
@@ -201,7 +201,7 @@ export default function Payments() {
   const getInvoiceStatus = useCallback((inv) => {
     const invStatus = (inv.status || "").toLowerCase();
 
-    if (invStatus === "paid" || invStatus === "refunded" || invStatus === "cancelled") {
+    if (invStatus === "paid" || invStatus === "refunded" || invStatus === "cancelled" || invStatus === "pending_verification") {
       return invStatus;
     }
     
@@ -221,6 +221,7 @@ export default function Payments() {
       unpaidCount: 0,
       overdueCount: 0,
       pendingCount: 0,
+      pendingVerifCount: 0,
     };
 
     invoices.forEach((inv) => {
@@ -245,6 +246,7 @@ export default function Payments() {
       s.totalBalance += Math.max(0, total - paid);
 
       if (status === "paid") s.paidCount++;
+      else if (status === "pending_verification") s.pendingVerifCount++;
       else if (status === "pending" || status === "unpaid" || status === "partial") s.pendingCount++;
       else if (status === "overdue") s.overdueCount++;
     });
@@ -331,7 +333,9 @@ export default function Payments() {
         received_at: new Date().toISOString(),
       });
 
-      toast.success("Payment recorded successfully");
+      // Cash payments recorded by landlord go to pending_verification; others are confirmed
+      const isCash = recordData.method === 'cash';
+      toast.success(isCash ? "Cash payment recorded. Marked as pending verification." : "Payment recorded successfully");
       setShowInvoiceModal(false);
       invalidateAnalyticsCache();
       await loadInvoices();
@@ -340,6 +344,19 @@ export default function Payments() {
       toast.error(e.response?.data?.message || "Failed to record payment");
     } finally {
       setIsRecording(false);
+    }
+  };
+
+  const handleVerifyCash = async (action) => {
+    if (!selectedInvoice) return;
+    try {
+      await api.post(`/invoices/${selectedInvoice.id}/verify-cash`, { action });
+      toast.success(action === 'approve' ? 'Cash payment approved — invoice marked as Paid.' : 'Cash payment rejected — tenant will be notified.');
+      setShowInvoiceModal(false);
+      invalidateAnalyticsCache();
+      await loadInvoices();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to verify payment');
     }
   };
 
@@ -470,9 +487,11 @@ export default function Payments() {
   const getPaymentColor = (status) => {
     switch ((status || "").toLowerCase()) {
       case "paid":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+      case "pending_verification":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
       case "partial":
         return "bg-yellow-100 text-yellow-800";
       case "unpaid":
@@ -874,6 +893,23 @@ export default function Payments() {
               </div>
             </div>
           </div>
+
+          {stats.pendingVerifCount > 0 && (
+            <div
+              onClick={() => setPaymentFilter('pending_verification')}
+              className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 shadow-sm border-2 border-orange-300 dark:border-orange-700 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors col-span-2 md:col-span-1"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-2">Cash Pending Verification</p>
+                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300 mt-2">{stats.pendingVerifCount}</p>
+                </div>
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/50 rounded-lg flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
@@ -892,6 +928,7 @@ export default function Payments() {
               {[
                 "all",
                 "pending",
+                "pending_verification",
                 "paid",
                 "unpaid",
                 "partial",
@@ -901,9 +938,13 @@ export default function Payments() {
                 <button
                   key={s}
                   onClick={() => setPaymentFilter(s)}
-                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${paymentFilter === s ? "bg-green-600 text-white shadow-md shadow-green-500/20" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"}`}
+                  className={`flex-1 lg:flex-none px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors whitespace-nowrap ${
+                    paymentFilter === s
+                      ? s === 'pending_verification' ? "bg-orange-500 text-white shadow-md shadow-orange-500/20" : "bg-green-600 text-white shadow-md shadow-green-500/20"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                 >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s === 'pending_verification' ? 'Cash Verify' : s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
             </div>
@@ -1117,7 +1158,36 @@ export default function Payments() {
                   </div>
                 )}
 
-                {!["paid", "refunded", "cancelled"].includes(
+                {/* Cash Payment Verification Section */}
+                {getInvoiceStatus(selectedInvoice) === 'pending_verification' && (
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-700 rounded-xl space-y-4">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-6 h-6 text-orange-600 dark:text-orange-400 shrink-0" />
+                      <div>
+                        <h4 className="font-bold text-orange-800 dark:text-orange-300 text-sm">Cash Payment Awaiting Verification</h4>
+                        <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">The tenant has reported paying this invoice in cash. Please verify and approve or reject.</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => handleVerifyCash('approve')}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-md"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        Approve Payment
+                      </button>
+                      <button
+                        onClick={() => handleVerifyCash('reject')}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-md"
+                      >
+                        <ShieldX className="w-4 h-4" />
+                        Reject Payment
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!["paid", "refunded", "cancelled", "pending_verification"].includes(
                   getInvoiceStatus(selectedInvoice),
                 ) && (
                   <>

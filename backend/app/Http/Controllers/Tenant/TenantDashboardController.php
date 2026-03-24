@@ -363,10 +363,11 @@ class TenantDashboardController extends Controller
                 'addon_type' => 'required_if:is_custom,true|in:rental,fee',
                 'quantity' => 'integer|min:1|max:10',
                 'note' => 'nullable|string|max:500',
+                'suggested_price' => 'nullable|numeric|min:0',
             ]);
             $addon = $this->dashboardService->requestAddonForActiveBooking(Auth::id(), $validated);
 
-            return response()->json(['message' => 'Addon request submitted successfully', 'addon' => $addon], 201);
+            return response()->json(['success' => true, 'message' => 'Addon request submitted successfully', 'addon' => $addon], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 500);
         }
@@ -377,7 +378,7 @@ class TenantDashboardController extends Controller
         try {
             $this->dashboardService->cancelAddonRequestForActiveBooking(Auth::id(), $addonId);
 
-            return response()->json(['message' => 'Addon request cancelled successfully'], 200);
+            return response()->json(['success' => true, 'message' => 'Addon request cancelled successfully'], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 500);
         }

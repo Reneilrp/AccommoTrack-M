@@ -16,7 +16,7 @@ export default function Addons() {
   // Custom request form
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customData, setCustomData] = useState({
-    name: '', addon_type: 'rental', price_type: 'monthly', note: ''
+    name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: ''
   });
 
   useEffect(() => { loadAddons(); }, []);
@@ -68,7 +68,7 @@ export default function Addons() {
       if (res.success) {
         toast.success('Add-on request submitted!');
         setShowCustomForm(false);
-        setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '' });
+        setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: '' });
         await loadAddons();
       } else {
         toast.error(res.error || 'Failed to request addon');
@@ -158,13 +158,23 @@ export default function Addons() {
                   <span className={`px-2.5 py-2 rounded-full text-xs font-semibold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}`}>
                     {r.status || 'pending'}
                   </span>
-                  {r.status === 'pending' && (
+                  {(r.status === 'pending') && (
                     <button
                       onClick={() => onCancelRequest(r)}
                       disabled={cancelingId === r.id}
                       className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                     >
                       {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                    </button>
+                  )}
+                  {(r.status === 'active' || r.status === 'approved') && (
+                    <button
+                      onClick={() => onCancelRequest(r)}
+                      disabled={cancelingId === r.id}
+                      title="Cancel for next month"
+                      className="text-xs px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-700 transition-colors font-semibold"
+                    >
+                      {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cancel (Next Month)'}
                     </button>
                   )}
                 </div>
@@ -215,6 +225,17 @@ export default function Addons() {
                   <option value="one_time">One-time</option>
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suggested Price (₱) <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                type="number"
+                min="0"
+                placeholder="e.g. 500"
+                value={customData.suggested_price}
+                onChange={(e) => setCustomData({ ...customData, suggested_price: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
             </div>
             <textarea
               placeholder="Notes for landlord..."

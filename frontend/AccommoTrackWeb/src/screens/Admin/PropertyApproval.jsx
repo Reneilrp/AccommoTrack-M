@@ -9,6 +9,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
@@ -211,6 +212,28 @@ const PropertyApproval = ({ isEmbedded = false }) => {
         )}
       </div>
 
+      {/* Image Lightbox */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] p-4 cursor-zoom-out"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <div className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={lightboxSrc}
+              alt="Full size"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            />
+            <button
+              onClick={() => setLightboxSrc(null)}
+              className="absolute top-2 right-2 w-9 h-9 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center text-xl font-bold transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Property Details Modal */}
       {showModal && selectedProperty && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
@@ -233,22 +256,32 @@ const PropertyApproval = ({ isEmbedded = false }) => {
                   <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Property Images</h4>
                   <div className="grid grid-cols-3 gap-4">
                     {selectedProperty.images && selectedProperty.images.length > 0 ? (
-                      selectedProperty.images.map((img, idx) => (
-                        <img
-                          key={idx}
-                          src={getImageUrl(img.image_url || img.image_path)}
-                          alt={`Property ${idx + 1}`}
-                          className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                          onError={(e) => e.target.src = '/placeholder.png'}
-                        />
-                      ))
+                      selectedProperty.images.map((img, idx) => {
+                        const src = getImageUrl(img.image_url || img.image_path);
+                        return (
+                          <img
+                            key={idx}
+                            src={src}
+                            alt={`Property ${idx + 1}`}
+                            className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700 cursor-zoom-in hover:opacity-90 transition-opacity"
+                            onClick={() => setLightboxSrc(src)}
+                            onError={(e) => e.target.src = '/placeholder.png'}
+                          />
+                        );
+                      })
                     ) : (
-                      <img
-                        src={getImageUrl(selectedProperty.image)}
-                        alt="Property"
-                        className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                        onError={(e) => e.target.src = '/placeholder.png'}
-                      />
+                      (() => {
+                        const src = getImageUrl(selectedProperty.image);
+                        return (
+                          <img
+                            src={src}
+                            alt="Property"
+                            className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700 cursor-zoom-in hover:opacity-90 transition-opacity"
+                            onClick={() => setLightboxSrc(src)}
+                            onError={(e) => e.target.src = '/placeholder.png'}
+                          />
+                        );
+                      })()
                     )}
                   </div>
                 </div>

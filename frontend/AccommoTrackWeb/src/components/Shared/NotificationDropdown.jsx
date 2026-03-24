@@ -65,8 +65,16 @@ const NotificationDropdown = () => {
           read_at: true, // activities have no unread concept
         }));
 
-      // Merge and sort newest first
-      const merged = [...safeNotifs, ...safeActivities].sort((a, b) => b._sortKey - a._sortKey);
+      // Merge, deduplicate, and sort newest first
+      const seen = new Set();
+      const merged = [...safeNotifs, ...safeActivities]
+        .filter(item => {
+          const uid = `${item._kind}-${item.id}`;
+          if (seen.has(uid)) return false;
+          seen.add(uid);
+          return true;
+        })
+        .sort((a, b) => b._sortKey - a._sortKey);
 
       setNotifications(merged);
       setUnreadCount(safeNotifs.filter(n => !n.read_at).length);
@@ -138,13 +146,13 @@ const NotificationDropdown = () => {
     else if (notification.data?.type === 'message') navigate('/messages');
   };
 
-  const renderItem = (item) => {
+  const renderItem = (item, key) => {
     if (item._kind === 'activity') {
       const colorClass = ACTIVITY_COLOR_MAP[item.color] || ACTIVITY_COLOR_MAP.gray;
       const icon = ACTIVITY_ICON_MAP[item.type] || <AlertCircle className="w-4 h-4" />;
       return (
         <li
-          key={`activity-${item.type}-${item.id}-${item._sortKey}`}
+          key={key}
           role="menuitem"
           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
           onClick={() => handleNotificationClick(item)}
@@ -168,7 +176,7 @@ const NotificationDropdown = () => {
     // DB notification
     return (
       <li
-        key={`notif-${item.id}`}
+        key={key}
         role="menuitem"
         className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!item.read_at ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
         onClick={() => handleNotificationClick(item)}
@@ -243,7 +251,10 @@ const NotificationDropdown = () => {
             ) : (
               <>
                 <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {notifications.map(renderItem)}
+                  {notifications.map((item) => {
+                    const key = item._kind === 'activity' ? `activity-${item.type}-${item.id}` : `notif-${item.id}`;
+                    return renderItem(item, key);
+                  })}
                 </ul>
                 <div className="p-2 border-t border-gray-100 dark:border-gray-700">
                   <button
