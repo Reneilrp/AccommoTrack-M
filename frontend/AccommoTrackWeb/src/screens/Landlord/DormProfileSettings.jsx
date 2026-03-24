@@ -637,6 +637,7 @@ export default function DormProfileSettings({
         number_of_bathrooms: parseInt(dormData.number_of_bathrooms) || 0,
         floor_level: dormData.floor_level,
         total_floors: parseInt(dormData.total_floors) || 1,
+        total_rooms: parseInt(dormData.total_rooms) || 0,
         require_1month_advance: dormData.require_1month_advance ? 1 : 0,
         allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
         require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
@@ -798,7 +799,9 @@ export default function DormProfileSettings({
                       ? "bathrooms"
                       : key === "max_occupants"
                         ? "maxOccupants"
-                        : key;
+                        : key === "total_rooms"
+                          ? "totalRooms"
+                          : key;
             mappedErrors[frontendKey] = Array.isArray(val)
               ? val.join(" • ")
               : String(val);
@@ -1153,7 +1156,19 @@ export default function DormProfileSettings({
                         className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.bathrooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                       />
                     </div>
-
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Total Rooms
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dormData.total_rooms || ""}
+                        onChange={(e) => handleInputChange("total_rooms", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.total_rooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Total Floors

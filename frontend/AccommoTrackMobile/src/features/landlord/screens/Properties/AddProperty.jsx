@@ -76,6 +76,7 @@ const initialForm = {
   latitude: null,
   longitude: null,
   nearbyLandmarks: "",
+  totalRooms: "",
   maxOccupants: "",
   totalFloors: "1",
   floorLevel: [],
@@ -466,6 +467,7 @@ export default function AddProperty({ navigation }) {
       latitude: form.latitude,
       longitude: form.longitude,
       nearby_landmarks: form.nearbyLandmarks.trim(),
+      total_rooms: form.totalRooms || 0,
       max_occupants: form.maxOccupants || 0,
       total_floors: form.totalFloors || 1,
       floor_level: form.floorLevel.length > 0 ? form.floorLevel.join(",") : "",
@@ -775,8 +777,17 @@ export default function AddProperty({ navigation }) {
               <Text style={styles.sectionTitle}>Property Specifications</Text>
               <Text style={styles.sectionSubtitle}>Define room capacities and managed floors</Text>
 
-
               <View style={styles.inputRow}>
+                <View style={styles.inputHalf}>
+                  <Text style={styles.label}>Total Rooms</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., 10"
+                    keyboardType="numeric"
+                    value={form.totalRooms}
+                    onChangeText={(text) => updateForm("totalRooms", text)}
+                  />
+                </View>
                 <View style={styles.inputHalf}>
                   <Text style={styles.label}>Max Occupants</Text>
                   <TextInput

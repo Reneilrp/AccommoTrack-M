@@ -467,6 +467,7 @@ export default function DormProfileScreen({ route, navigation }) {
       nearby_landmarks: form.nearbyLandmarks.trim(),
       latitude: form.latitude,
       longitude: form.longitude,
+      total_rooms: form.totalRooms,
       max_occupants: form.maxOccupants,
       primary_image_id: form.primaryImageId
     };
@@ -855,6 +856,20 @@ export default function DormProfileScreen({ route, navigation }) {
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Capacity</Text>
+            <Text style={styles.label}>Total Rooms</Text>
+            <TextInput
+              style={[styles.input, !isEditing && styles.disabledInput]}
+              value={form.totalRooms}
+              editable={isEditing}
+              keyboardType="number-pad"
+              onChangeText={(text) => updateForm('totalRooms', text.replace(/[^0-9]/g, ''))}
+            />
+            <Text style={styles.label}>Available Rooms</Text>
+            <TextInput
+              style={[styles.input, styles.disabledInput]}
+              value={form.availableRooms}
+              editable={false}
+            />
             <Text style={styles.label}>Max Occupants</Text>
             <TextInput
               style={[styles.input, !isEditing && styles.disabledInput]}

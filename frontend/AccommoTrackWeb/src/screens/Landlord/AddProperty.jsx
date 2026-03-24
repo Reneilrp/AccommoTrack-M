@@ -100,6 +100,7 @@ export default function AddProperty({ onBack, onSave }) {
     number_of_bathrooms: '',
     floor_level: '',
     total_floors: '',
+    totalRooms: '',
     amenities: [],
     rules: [],
     // New: eligibility flag and credential files for admin approval
@@ -434,6 +435,7 @@ export default function AddProperty({ onBack, onSave }) {
       number_of_bathrooms: parseInt(formData.number_of_bathrooms) || 0,
       floor_level: formData.floor_level || null,
       total_floors: parseInt(formData.total_floors) || null,
+      total_rooms: parseInt(formData.totalRooms) || null,
       property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
       is_published: false,
       is_available: false,
@@ -728,7 +730,19 @@ export default function AddProperty({ onBack, onSave }) {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
-
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Rooms
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 10"
+                      value={formData.totalRooms}
+                      onChange={(e) => handleInputChange('totalRooms', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
                   <div>
                     {formData.propertyType !== 'apartment' && (
                       <>

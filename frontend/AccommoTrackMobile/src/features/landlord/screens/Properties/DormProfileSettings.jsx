@@ -83,6 +83,7 @@ const buildEmptyForm = () => ({
   deletedImageIds: [],
   deletedCredentialIds: [],
   deleteExistingVideo: false,
+  totalRooms: '',
   maxOccupants: '',
   bedrooms: '0',
   bathrooms: '0',
@@ -142,6 +143,7 @@ const normalizeSettings = (data) => {
     deletedImageIds: [],
     deletedCredentialIds: [],
     deleteExistingVideo: false,
+    totalRooms: data?.total_rooms ? String(data.total_rooms) : '',
     maxOccupants: data?.max_occupants ? String(data.max_occupants) : '',
     bedrooms: data?.number_of_bedrooms ? String(data.number_of_bedrooms) : '0',
     bathrooms: data?.number_of_bathrooms ? String(data.number_of_bathrooms) : '0',
@@ -338,6 +340,7 @@ export default function DormProfileSettings({ route, navigation }) {
       payload.append('postal_code', form.postalCode);
       if (form.latitude) payload.append('latitude', String(form.latitude));
       if (form.longitude) payload.append('longitude', String(form.longitude));
+      payload.append('total_rooms', form.totalRooms);
       payload.append('max_occupants', form.maxOccupants);
       payload.append('number_of_bedrooms', form.bedrooms);
       payload.append('number_of_bathrooms', form.bathrooms);
@@ -614,6 +617,15 @@ export default function DormProfileSettings({ route, navigation }) {
 
           <View style={styles.actionRow}>
             <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Total Rooms</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={form.totalRooms}
+                onChangeText={(val) => updateForm('totalRooms', val)}
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.label}>Max Occupants</Text>
               <TextInput
                 style={styles.input}
