@@ -286,7 +286,8 @@ class BookingService
             }
 
             // Handle 1 month advance if room or property requires it
-            if ($booking->room->requiresAdvance()) {
+            // Skip for daily-rate rooms: "1 month advance" has no meaning for per-day billing
+            if ($booking->room->billing_policy !== 'daily' && $booking->room->requiresAdvance()) {
                 $advanceAmount = $booking->monthly_rent;
                 $amount += $advanceAmount;
                 $description .= ' (includes 1 month advance)';

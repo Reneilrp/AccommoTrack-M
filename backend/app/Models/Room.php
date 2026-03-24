@@ -360,10 +360,12 @@ class Room extends Model
         }
 
         // Add tenant to room_tenant_assignments
+        // Use 0.00 fallback: daily-rate rooms may have null monthly_rate, but the
+        // room_tenant_assignments.monthly_rent column is NOT NULL.
         $this->tenants()->attach($tenantId, [
             'start_date' => $moveInDate ?? now()->format('Y-m-d'),
             'bed_count' => $requestedBeds,
-            'monthly_rent' => $this->monthly_rate,
+            'monthly_rent' => $this->monthly_rate ?? 0.00,
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
