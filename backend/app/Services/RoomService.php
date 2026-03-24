@@ -28,15 +28,6 @@ class RoomService
                 throw ValidationException::withMessages(['room_number' => 'Room number already exists for this property.']);
             }
 
-            // Fix #2: Enforce total_rooms cap if the landlord configured one
-            if ($property->total_rooms !== null) {
-                $currentRoomCount = Room::where('property_id', $property->id)->count();
-                if ($currentRoomCount >= $property->total_rooms) {
-                    throw ValidationException::withMessages([
-                        'property_id' => "This property has reached its maximum room limit of {$property->total_rooms}. Update the property's \"Total Rooms\" setting to add more rooms.",
-                    ]);
-                }
-            }
 
             $capacity = $validatedData['capacity'] ?? 1;
             $pricingModel = $validatedData['pricing_model'] ?? (($validatedData['room_type'] === 'bedSpacer') ? 'per_bed' : 'full_room');

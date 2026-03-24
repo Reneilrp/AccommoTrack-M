@@ -419,10 +419,8 @@ class Property extends Model
     public function updateTotalRooms()
     {
         $count = $this->rooms()->count();
-        if ($count > $this->total_rooms) {
-            $this->total_rooms = $count;
-            $this->save();
-        }
+        $this->total_rooms = $count;
+        $this->save();
     }
 
     // ====================================================================

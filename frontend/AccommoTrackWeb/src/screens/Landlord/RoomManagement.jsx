@@ -481,7 +481,7 @@ export default function RoomManagement() {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  {stats.total} / {stats.total_limit || stats.total}
+                  {stats.total}
                 </p>
               </div>
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
