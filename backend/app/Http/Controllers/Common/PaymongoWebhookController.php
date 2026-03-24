@@ -151,7 +151,8 @@ class PaymongoWebhookController extends Controller
                 if ($metadata && isset($metadata['room_id']) && isset($metadata['tenant_id'])) {
                     $room = \App\Models\Room::find($metadata['room_id']);
                     if ($room) {
-                        $room->update(['status' => 'paid']);
+                        // NOTE: Do NOT update room status here — 'paid' is not a valid room status.
+                        // Room status is managed by booking confirmation/cancellation only.
 
                         $tenant = \App\Models\User::find($metadata['tenant_id']);
                         if ($tenant) {

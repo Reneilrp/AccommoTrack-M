@@ -282,7 +282,7 @@ export default function TenantPayments({ user }) {
                       </td>
                       <td className="px-6 py-4 text-sm font-mono">{payment.referenceNo}</td>
                       <td className="px-6 py-4 text-sm">
-                        {['pending', 'unpaid', 'partial', 'overdue', 'refunded'].includes(payment.status?.toLowerCase()) && (
+                        {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
                           <button
                             onClick={() => navigate(`/checkout/${payment.id}`)}
                             className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
@@ -348,7 +348,7 @@ export default function TenantPayments({ user }) {
                 {payment.referenceNo && (
                   <p className="text-xs text-gray-500 dark:text-gray-500 font-mono">Ref: {payment.referenceNo}</p>
                 )}
-                {['pending', 'unpaid', 'partial', 'overdue', 'refunded'].includes(payment.status?.toLowerCase()) && (
+                {['pending', 'unpaid', 'partial', 'overdue'].includes(payment.status?.toLowerCase()) && (
                   <button
                     onClick={() => navigate(`/checkout/${payment.id}`)}
                     className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors"

@@ -133,8 +133,11 @@ class TenantBookingController extends Controller
                 return response()->json(['message' => 'Invoice can only be created for confirmed bookings'], 422);
             }
 
-            // If an invoice already exists for this booking, return it
-            $existing = \App\Models\Invoice::where('booking_id', $booking->id)->first();
+            // If a rent invoice already exists for this booking, return it.
+            // Explicitly exclude reservation fee invoices so we don't confuse them with the rent invoice.
+            $existing = \App\Models\Invoice::where('booking_id', $booking->id)
+                ->where('description', 'not like', 'Reservation Fee%')
+                ->first();
             if ($existing) {
                 return response()->json(['success' => true, 'data' => $existing], 200);
             }

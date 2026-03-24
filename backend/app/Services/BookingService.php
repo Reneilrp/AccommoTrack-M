@@ -49,8 +49,11 @@ class BookingService
             $tenant = $tenantId ? User::find($tenantId) : null;
             if ($tenant && $tenant->role === 'tenant') {
                 $property = $room->property;
-                $propertyType = strtolower($property->property_type ?? '');
-                $targetTypes = ['dormitory', 'boarding house', 'bedspacer'];
+                // Normalize property type: lowercase + remove spaces for robust comparison
+                // DB may store camelCase ('boardingHouse', 'bedSpacer') or lowercase ('dormitory')
+                $rawPropertyType = $property->property_type ?? '';
+                $propertyType = strtolower(str_replace([' ', '_'], '', $rawPropertyType));
+                $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
                 // Only enforce for specific property types
                 if ($propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
