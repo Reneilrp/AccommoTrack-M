@@ -288,6 +288,7 @@ export default function PaymentMethods({ user, onUpdate }) {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GCash Name & Number</label>
                 <input
                   type="text"
+                  maxLength={50}
                   placeholder="e.g. Juan Cruz 0917-123-4567"
                   value={details.gcash_info || ''}
                   onChange={(e) => handleDetailChange('gcash_info', e.target.value)}
@@ -316,6 +317,7 @@ export default function PaymentMethods({ user, onUpdate }) {
               <div className="px-4 pb-4 pl-12">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bank Account Details</label>
                 <textarea
+                  maxLength={200}
                   placeholder="e.g. BDO: Juan Cruz - 1234 5678 9012"
                   value={details.bank_info || ''}
                   onChange={(e) => handleDetailChange('bank_info', e.target.value)}

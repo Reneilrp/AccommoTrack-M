@@ -1,27 +1,42 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, StatusBar, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, Switch, StatusBar, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS, DEFAULT_PREFS, loadPrefsMobile, savePrefsMobile } from '../../../../shared/notificationPrefs.js';
 import { useNavigation } from '@react-navigation/native';
 import { getStyles as getSettingsStyles } from '../../../../styles/Menu/Settings.js';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import Header from '../../components/Header.jsx';
+import ProfileService from '../../../../services/ProfileService.js';
 
 export default function NotificationPreferences() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const settingsStyles = React.useMemo(() => getSettingsStyles(theme), [theme]);
 
-  const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS });
+  const [prefs, setPrefs] = useState({
+    email_booking_updates: true,
+    email_payment_reminders: true,
+    email_maintenance: false,
+    push_messages: true,
+    push_booking_updates: true,
+  });
 
   useEffect(() => {
     (async () => {
       try {
-        const next = await loadPrefsMobile(AsyncStorage);
-        setPrefs(next);
+        const res = await ProfileService.getProfile();
+        if (res.success && res.data && res.data.notification_preferences) {
+          const backendPrefs = res.data.notification_preferences;
+          const parsed = typeof backendPrefs === 'string' ? JSON.parse(backendPrefs) : backendPrefs;
+          
+          const normalized = {};
+           Object.keys(parsed).forEach(k => {
+             const v = parsed[k];
+             normalized[k] = v === true || v === 1 || v === '1';
+           });
+           
+          setPrefs(prev => ({ ...prev, ...normalized }));
+        }
       } catch (e) {
         console.warn('Load prefs error', e);
       }
@@ -32,9 +47,19 @@ export default function NotificationPreferences() {
     const next = { ...prefs, [key]: !prefs[key] };
     setPrefs(next);
     try {
-      await savePrefsMobile(AsyncStorage, next);
+      await ProfileService.updateProfile({ notification_preferences: next });
+      // update local
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.notification_preferences = next;
+        await AsyncStorage.setItem('user', JSON.stringify(parsed));
+      }
     } catch (e) {
       console.warn('Save pref error', e);
+      Alert.alert("Error", "Failed to save preferences to the server.");
+      // Rollback on fail
+      setPrefs(prefs);
     }
   };
 
@@ -55,11 +80,11 @@ export default function NotificationPreferences() {
             <View style={[homeStyles.surfaceCardSmall, { backgroundColor: 'transparent', padding: 0, marginBottom: 0 }] }>
               <View style={[homeStyles.rowSpaceBetweenCenter, settingsStyles.switchRow]}>
                 <Text style={{ color: theme.colors.text }}>Booking Updates</Text>
-                <Switch value={prefs.email_booking} onValueChange={() => toggle('email_booking')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.email_booking ? theme.colors.primary : '#F3F4F6'} />
+                <Switch value={prefs.email_booking_updates} onValueChange={() => toggle('email_booking_updates')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.email_booking_updates ? theme.colors.primary : '#F3F4F6'} />
               </View>
               <View style={[homeStyles.rowSpaceBetweenCenter, settingsStyles.switchRow]}>
                 <Text style={{ color: theme.colors.text }}>Payment Notifications</Text>
-                <Switch value={prefs.email_payment} onValueChange={() => toggle('email_payment')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.email_payment ? theme.colors.primary : '#F3F4F6'} />
+                <Switch value={prefs.email_payment_reminders} onValueChange={() => toggle('email_payment_reminders')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.email_payment_reminders ? theme.colors.primary : '#F3F4F6'} />
               </View>
               <View style={[homeStyles.rowSpaceBetweenCenter, settingsStyles.switchRow]}>
                 <Text style={{ color: theme.colors.text }}>Maintenance Requests</Text>
@@ -77,6 +102,10 @@ export default function NotificationPreferences() {
                 <Text style={{ color: theme.colors.text }}>New messages</Text>
                 <Switch value={prefs.push_messages} onValueChange={() => toggle('push_messages')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.push_messages ? theme.colors.primary : '#F3F4F6'} />
               </View>
+              <View style={[homeStyles.rowSpaceBetweenCenter, settingsStyles.switchRow]}>
+                <Text style={{ color: theme.colors.text }}>Booking Status</Text>
+                <Switch value={prefs.push_booking_updates} onValueChange={() => toggle('push_booking_updates')} trackColor={{ false: '#D1D5DB', true: '#86EFAC' }} thumbColor={prefs.push_booking_updates ? theme.colors.primary : '#F3F4F6'} />
+              </View>
             </View>
           </View>
         </View>
@@ -84,4 +113,3 @@ export default function NotificationPreferences() {
     </View>
   );
 }
-

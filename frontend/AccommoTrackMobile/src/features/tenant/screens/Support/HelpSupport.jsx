@@ -7,6 +7,7 @@ import { getStyles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import Header from '../../components/Header.jsx';
+import Toast from 'react-native-toast-message';
 
 export default function HelpSupport() {
   const navigation = useNavigation();
@@ -82,10 +83,18 @@ export default function HelpSupport() {
 
   const handleSubmit = () => {
     if (message.trim()) {
-      alert('Thank you! Your message has been sent. We\'ll get back to you soon.');
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: "Thank you! Your message has been sent. We'll get back to you soon."
+      });
       setMessage('');
     } else {
-      alert('Please enter a message.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Please enter a message.'
+      });
     }
   };
 

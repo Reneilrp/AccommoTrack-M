@@ -137,6 +137,7 @@ export default function ManualPaymentSettings({ navigation }) {
               style={[styles.input, styles.textArea]}
               placeholder="e.g., Juan Dela Cruz - 0917 123 4567"
               multiline
+              maxLength={50}
               numberOfLines={3}
               value={gcashInfo}
               onChangeText={setGcashInfo}
@@ -151,6 +152,7 @@ export default function ManualPaymentSettings({ navigation }) {
               style={[styles.input, styles.textArea]}
               placeholder="e.g., BDO: Juan Dela Cruz - 1234 5678 9012"
               multiline
+              maxLength={200}
               numberOfLines={3}
               value={bankInfo}
               onChangeText={setBankInfo}
@@ -165,6 +167,7 @@ export default function ManualPaymentSettings({ navigation }) {
               style={[styles.input, styles.textArea]}
               placeholder="e.g., Pay at the main office lobby, 9 AM - 5 PM."
               multiline
+              maxLength={200}
               numberOfLines={3}
               value={otherInfo}
               onChangeText={setOtherInfo}

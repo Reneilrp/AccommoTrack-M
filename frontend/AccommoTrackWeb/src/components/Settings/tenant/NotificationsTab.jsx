@@ -117,8 +117,8 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
       
 			<div className="space-y-8">
 				<div>
-					{/* <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-100 dark:border-gray-700">Email Notifications</h3> */}
-					{/* <div className="space-y-4">
+					<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-100 dark:border-gray-700">Email Notifications</h3>
+					<div className="space-y-4">
 						<ToggleItem 
 							label="Booking Updates"
 							description="Receive emails when your booking status changes."
@@ -140,7 +140,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 							disabled={!isEditing}
 							onChange={() => handleToggle('email_maintenance')}
 						/>
-					</div> */}
+					</div>
 				</div>
 
 				<div>

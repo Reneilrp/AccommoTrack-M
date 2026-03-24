@@ -3,6 +3,7 @@ import { ArrowLeftRight, ShieldCheck, Clock, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import api from '../../utils/api';
+import toast from 'react-hot-toast';
 
 export default function SwitchRoleTab() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export default function SwitchRoleTab() {
           await performRoleSwitch();
         }
       } else if (verificationStatus === 'pending') {
-        alert('Your landlord verification is still under review. Please wait for approval before switching.');
+        toast.error('Your landlord verification is still under review. Please wait for approval before switching.');
       } else {
         if (window.confirm(`To become a landlord, you need to submit verification documents. Proceed to verification?`)) {
           navigate('/verification');
@@ -80,7 +81,7 @@ export default function SwitchRoleTab() {
       }
     } catch (error) {
       console.error('Failed to switch role:', error);
-      alert(error.response?.data?.message || 'Failed to switch role. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to switch role. Please try again.');
     }
   };
 

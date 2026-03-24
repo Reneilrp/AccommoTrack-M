@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 
 export default function MyProfile({ user, profileData, setProfileData, isEditingProfile, setIsEditingProfile, handleSaveProfile, profilePhoto, photoPreview, setPhotoPreview, fileInputRef, handlePhotoSelect, handleRemovePhoto }) {
   const NAME_REGEX = /^[\p{L}\s'-]+$/u;
-  const [nameErrors, setNameErrors] = useState({ firstName: '', lastName: '' });
+  const PHONE_REGEX = /^(09|\+639)\d{9}$/;
+  const [nameErrors, setNameErrors] = useState({ firstName: '', lastName: '', phone: '' });
 
   const handleNameChange = (field, value) => {
     if (value && !NAME_REGEX.test(value)) {
@@ -12,6 +13,15 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
       setNameErrors(prev => ({ ...prev, [field]: '' }));
     }
     setProfileData({ ...profileData, [field]: value });
+  };
+
+  const handlePhoneChange = (value) => {
+    if (value && !PHONE_REGEX.test(value)) {
+      setNameErrors(prev => ({ ...prev, phone: 'Must be a valid PH mobile number.' }));
+    } else {
+      setNameErrors(prev => ({ ...prev, phone: '' }));
+    }
+    setProfileData({ ...profileData, phone: value });
   };
 
   const hasNameErrors = Object.values(nameErrors).some(e => e !== '');
@@ -159,11 +169,13 @@ export default function MyProfile({ user, profileData, setProfileData, isEditing
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone Number</label>
                       <input
                         type="tel"
+                        maxLength={13}
                         value={profileData.phone}
-                        onChange={e => setProfileData({ ...profileData, phone: e.target.value })}
+                        onChange={e => handlePhoneChange(e.target.value)}
                         className="w-full px-4 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 dark:text-white"
                         placeholder="+63 XXX XXX XXXX"
                       />
+                      {nameErrors.phone && <p className="mt-2 text-xs text-red-500">{nameErrors.phone}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date of Birth</label>

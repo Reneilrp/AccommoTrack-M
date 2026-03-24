@@ -92,6 +92,7 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
   const NAME_REGEX = /^[\p{L}\s'-]+$/u;
+  const PHONE_REGEX = /^(09|\+639)\d{9}$/;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -101,6 +102,13 @@ const ProfileTab = ({ onUserUpdate }) => {
         setNameErrors(prev => ({ ...prev, [name]: 'Only letters, spaces, hyphens and apostrophes are allowed.' }));
       } else {
         setNameErrors(prev => ({ ...prev, [name]: '' }));
+      }
+    }
+    if (name === 'phone') {
+      if (value && !PHONE_REGEX.test(value)) {
+        setNameErrors(prev => ({ ...prev, phone: 'Must be a valid PH mobile number (e.g. 09123456789 or +639123456789).' }));
+      } else {
+        setNameErrors(prev => ({ ...prev, phone: '' }));
       }
     }
   };
@@ -298,11 +306,13 @@ const ProfileTab = ({ onUserUpdate }) => {
             <input
               type="tel"
               name="phone"
+              maxLength={13}
               value={formData.phone}
               onChange={handleChange}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400"
             />
+            {nameErrors.phone && <p className="mt-2 text-xs text-red-500">{nameErrors.phone}</p>}
           </div>
 
           <div className="md:col-span-2">
@@ -310,6 +320,7 @@ const ProfileTab = ({ onUserUpdate }) => {
             <input
               type="text"
               name="current_address"
+              maxLength={150}
               value={formData.current_address}
               onChange={handleChange}
               disabled={!isEditing}
