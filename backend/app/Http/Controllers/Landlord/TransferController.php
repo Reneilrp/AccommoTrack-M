@@ -58,6 +58,7 @@ class TransferController extends Controller
 
             // Create a fake request to pass to transferRoom
             $fakeRequest = new Request([
+                'booking_id' => $transferReq->booking_id,
                 'new_room_id' => $transferReq->requested_room_id,
                 'reason' => $transferReq->reason,
                 'damage_charge' => $validated['damage_charge'] ?? 0,
@@ -100,10 +101,17 @@ class TransferController extends Controller
         $context = $this->resolveLandlordContext($request);
         $transferReq = TransferRequest::where('landlord_id', $context['landlord_id'])->with('requestedRoom')->findOrFail($id);
 
-        $activeBooking = \App\Models\Booking::where('tenant_id', $transferReq->tenant_id)
-            ->where('room_id', $transferReq->current_room_id)
-            ->whereIn('status', ['confirmed', 'active'])
-            ->first();
+        $activeBooking = null;
+        if ($transferReq->booking_id) {
+            $activeBooking = \App\Models\Booking::find($transferReq->booking_id);
+        }
+
+        if (!$activeBooking) {
+            $activeBooking = \App\Models\Booking::where('tenant_id', $transferReq->tenant_id)
+                ->where('room_id', $transferReq->current_room_id)
+                ->whereIn('status', ['confirmed', 'active'])
+                ->first();
+        }
 
         if (!$activeBooking) {
             return response()->json([

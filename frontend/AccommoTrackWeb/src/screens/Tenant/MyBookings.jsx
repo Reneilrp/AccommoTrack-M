@@ -170,8 +170,12 @@ const MyBookings = () => {
             bookingsResp ||
             [];
           const pendingStatuses = new Set(['pending', 'booked']);
+          const pendingCheckInIds = new Set(pendingCheckInsData.map(pc => pc.id));
           pending = Array.isArray(bookingsList)
-            ? bookingsList.filter((b) => pendingStatuses.has(String(b?.status || '').toLowerCase()))
+            ? bookingsList.filter((b) => 
+                pendingStatuses.has(String(b?.status || '').toLowerCase()) && 
+                !pendingCheckInIds.has(b.id)
+              )
             : [];
           setPendingBookings(pending);
         } catch (e) {
@@ -347,6 +351,12 @@ const MyBookings = () => {
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6">
+      {__err && (
+        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <X className="w-5 h-5 cursor-pointer" onClick={() => setError(null)} />
+          <span className="font-bold text-xs uppercase tracking-wide">{__err}</span>
+        </div>
+      )}
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-300 dark:border-gray-700 pb-2 overflow-x-auto">
         {tabs.map((tab) => (
@@ -835,10 +845,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add-ons & Extras</h3>
                       <button
                         onClick={onRequestAddon}
-                        disabled={booking.paymentStatus === 'refunded'}
-                        title={booking.paymentStatus === 'refunded' ? "Disabled until payment is re-settled" : ""}
+                        disabled={booking.can_request_addon === false}
+                        title={booking.can_request_addon === false ? "Disabled until payment is re-settled" : ""}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${
-                          booking.paymentStatus === 'refunded'
+                          booking.can_request_addon === false
                             ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
                             : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-500/20'
                         }`}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, __useRef } from "react";
+import React, { useEffect, useState, useRef as __useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PropertyCarousel from "./PropertyCarousel";
 import PropertyMap from "../../components/Shared/PropertyMap";
@@ -48,7 +48,7 @@ const ExploreProperties = () => {
   const [loading, setLoading] = useState(true);
   const [__error, setError] = useState(null);
   const [debouncedSearch, setDebouncedSearch] = useState(search || "");
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
     priceMin: "",
     priceMax: "",
@@ -330,7 +330,8 @@ const ExploreProperties = () => {
             r.id === updatedRoom.id
               ? {
                   ...r,
-                  status: updatedRoom.status || "occupied",
+                  status: updatedRoom.status || r.status || "available",
+                  display_status: updatedRoom.display_status || "reserved",
                   reserved_by_me: updatedRoom.reserved_by_me || true,
                   reservation: updatedRoom.reservation || null,
                 }
@@ -348,7 +349,8 @@ const ExploreProperties = () => {
           ...prev,
           room: {
             ...prev.room,
-            status: updatedRoom.status || "occupied",
+            status: updatedRoom.status || prev.room.status || "available",
+            display_status: updatedRoom.display_status || "reserved",
             reserved_by_me: updatedRoom.reserved_by_me || true,
             reservation: updatedRoom.reservation || null,
           },
@@ -363,9 +365,15 @@ const ExploreProperties = () => {
   };
 
   return (
-    <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans overflow-x-hidden">
-      {/* HEADER */}
-      <header className="sticky top-0 z-40 pb-4">
+    <>
+      <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans overflow-x-hidden">
+        {__error && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+            <X className="w-5 h-5 cursor-pointer" onClick={() => setError(null)} />
+            <span className="font-bold uppercase tracking-wide text-xs">{__error}</span>
+          </div>
+        )}
+        <header className="sticky top-0 z-40 pb-4">
         {/* ROW 1: Navigation & Title (Only for Guests) */}
         {!authService.isAuthenticated() && (
           <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 h-14 md:h-16 flex items-center justify-center shadow-sm">
@@ -399,12 +407,12 @@ const ExploreProperties = () => {
                 />
               </div>
 
-              <button
-                onClick={() => setShowFilterModal(true)}
-                className="relative p-2.5 md:p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group"
-                aria-label="Open Filters"
+                            <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`relative p-2.5 md:p-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-400 transition-all text-gray-600 dark:text-gray-300 shadow-sm group ${isFilterOpen ? 'bg-green-50 dark:bg-green-900/30 !border-green-300 dark:!border-green-600' : ''}`}
+                aria-label="Toggle Filters"
               >
-                <SlidersHorizontal className="w-5 h-5 md:w-6 md:h-6 group-hover:text-green-600 transition-colors" />
+                <SlidersHorizontal className={`w-5 h-5 md:w-6 md:h-6 group-hover:text-green-600 transition-colors ${isFilterOpen ? 'text-green-600' : ''}`} />
                 {activeFilterCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
                     {activeFilterCount}
@@ -455,162 +463,180 @@ const ExploreProperties = () => {
 
       {/* MOBILE SEARCH REMOVED (Now consolidated in header) */}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Helper Text */}
-        <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
-          <Filter className="w-4 h-4" />
-          <span>Showing {filteredProperties.length} properties</span>
-        </div>
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative md:flex md:items-start md:gap-6">
+          <FilterSidebar
+            isOpen={isFilterOpen}
+            filters={advancedFilters}
+            amenities={availableAmenities}
+            onApply={(nextFilters) => {
+              setAdvancedFilters(nextFilters);
+              updateScreenState("explore", { currentPage: 1 });
+            }}
+            onClear={(clearedFilters) => {
+              setAdvancedFilters(clearedFilters);
+              updateScreenState("explore", { currentPage: 1 });
+            }}
+            onClose={() => setIsFilterOpen(false)}
+          />
+          <main className="flex-1 min-w-0">
+            {/* Helper Text */}
+            <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
+              <Filter className="w-4 h-4" />
+              <span>Showing {filteredProperties.length} properties</span>
+            </div>
 
-        {loading && (
-          <div className="space-y-6">
-            {/* Skeleton Property Cards */}
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 animate-pulse"
-              >
-                {/* Header skeleton */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div>
-                    <div className="flex items-center gap-4 mb-2">
-                      <Skeleton className="h-7 w-48" />
-                      <Skeleton className="h-5 w-16 rounded-md" />
+            {loading && (
+              <div className="space-y-6">
+                {/* Skeleton Property Cards */}
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 animate-pulse"
+                  >
+                    {/* Header skeleton */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <div className="flex items-center gap-4 mb-2">
+                          <Skeleton className="h-7 w-48" />
+                          <Skeleton className="h-5 w-16 rounded-md" />
+                        </div>
+                        <Skeleton className="h-4 w-64" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-20 rounded-full" />
+                        <Skeleton className="h-8 w-20 rounded-full" />
+                      </div>
                     </div>
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-8 w-20 rounded-full" />
-                    <Skeleton className="h-8 w-20 rounded-full" />
-                  </div>
-                </div>
 
-                {/* Carousel skeleton */}
-                <div className="flex gap-4 overflow-hidden">
-                  {[...Array(4)].map((_, j) => (
-                    <Skeleton
-                      key={j}
-                      className="w-72 h-64 rounded-xl flex-shrink-0"
-                    />
-                  ))}
-                </div>
+                    {/* Carousel skeleton */}
+                    <div className="flex gap-4 overflow-hidden">
+                      {[...Array(4)].map((_, j) => (
+                        <Skeleton
+                          key={j}
+                          className="w-72 h-64 rounded-xl flex-shrink-0"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {!loading && filteredProperties.length === 0 && (
-          <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md">
-            <p className="text-gray-500 dark:text-gray-500 text-lg font-medium">
-              No properties found matching your filters.
-            </p>
-            <button
-              onClick={() => {
-                updateScreenState("explore", {
-                  search: "",
-                  selectedType: "All",
-                  currentPage: 1,
-                });
-                setAdvancedFilters({
-                  priceMin: "",
-                  priceMax: "",
-                  availabilityOnly: false,
-                  amenities: [],
-                  rating: 0,
-                });
-              }}
-              className="mt-4 text-green-600 dark:text-green-500 font-bold hover:underline"
-            >
-              Clear all filters
-            </button>
-          </div>
-        )}
+            {!loading && filteredProperties.length === 0 && (
+              <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 shadow-md">
+                <p className="text-gray-500 dark:text-gray-500 text-lg font-medium">
+                  No properties found matching your filters.
+                </p>
+                <button
+                  onClick={() => {
+                    updateScreenState("explore", {
+                      search: "",
+                      selectedType: "All",
+                      currentPage: 1,
+                    });
+                    setAdvancedFilters({
+                      priceMin: "",
+                      priceMax: "",
+                      availabilityOnly: false,
+                      amenities: [],
+                      rating: 0,
+                    });
+                  }}
+                  className="mt-4 text-green-600 dark:text-green-500 font-bold hover:underline"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
 
-        {/* LIST */}
-        <div className="space-y-12">
-          {paginated.map((property) => (
-            <div
-              key={property.id}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300"
-            >
-              {/* Header */}
-              <div
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 cursor-pointer group"
-                onClick={() => handlePropertyClick(property.id)}
-              >
-                <div>
-                  <div className="flex items-center gap-4 mb-2">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-500 transition-colors flex items-center gap-2">
-                      {property.name}
-                      <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-green-600 dark:text-green-500" />
-                    </h2>
-                    <span className="px-2.5 py-0.5 rounded-md bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold uppercase tracking-wide border border-green-100 dark:border-green-800">
-                      {property.type}
-                    </span>
-                  </div>
-                  {property.location && (
-                    <div className="flex items-center gap-2.5 text-gray-500 dark:text-gray-400 mt-2">
-                      <MapPin className="w-4 h-4" />
-                      <span className="text-sm font-medium">
-                        {property.location}
+            {/* LIST */}
+            <div className="space-y-12">
+              {paginated.map((property) => (
+                <div
+                  key={property.id}
+                  className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300"
+                >
+                  {/* Header */}
+                  <div
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 cursor-pointer group"
+                    onClick={() => handlePropertyClick(property.id)}
+                  >
+                    <div>
+                      <div className="flex items-center gap-4 mb-2">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-500 transition-colors flex items-center gap-2">
+                          {property.name}
+                          <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-green-600 dark:text-green-500" />
+                        </h2>
+                        <span className="px-2.5 py-0.5 rounded-md bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold uppercase tracking-wide border border-green-100 dark:border-green-800">
+                          {property.type}
+                        </span>
+                      </div>
+                      {property.location && (
+                        <div className="flex items-center gap-2.5 text-gray-500 dark:text-gray-400 mt-2">
+                          <MapPin className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {property.location}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      {property.video_url && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/property/${property.id}`, {
+                              state: { openVideo: true },
+                            });
+                          }}
+                          className="flex items-center gap-2.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                        >
+                          <Play className="w-4 h-4 fill-current" /> Video Tour
+                        </button>
+                      )}
+                      <span className="px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg group-hover:bg-green-100 dark:group-hover:bg-green-900/50 transition-colors">
+                        More Details
                       </span>
                     </div>
-                  )}
-                </div>
-                <div className="flex-shrink-0 flex items-center gap-2">
-                  {property.video_url && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/property/${property.id}`, {
-                          state: { openVideo: true },
-                        });
-                      }}
-                      className="flex items-center gap-2.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                    >
-                      <Play className="w-4 h-4 fill-current" /> Video Tour
-                    </button>
-                  )}
-                  <span className="px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg group-hover:bg-green-100 dark:group-hover:bg-green-900/50 transition-colors">
-                    More Details
-                  </span>
-                </div>
-              </div>
+                  </div>
 
-              {/* Carousel */}
-              <PropertyCarousel
-                property={property}
-                onOpenDetails={handleOpenDetails}
-              />
+                  {/* Carousel */}
+                  <PropertyCarousel
+                    property={property}
+                    onOpenDetails={handleOpenDetails}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+
+            {/* PAGINATION */}
+            {!loading && totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-12 mb-8">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded-lg border shadow-sm ${currentPage === 1 ? "border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed" : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300 mx-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 rounded-lg border shadow-sm ${currentPage === totalPages ? "border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed" : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </main>
         </div>
-
-        {/* PAGINATION */}
-        {!loading && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-12 mb-8">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg border shadow-sm ${currentPage === 1 ? "border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed" : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-
-            <span className="text-sm font-bold text-gray-700 dark:text-gray-300 mx-2">
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg border shadow-sm ${currentPage === totalPages ? "border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed" : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
-            >
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-      </main>
+      </div>
 
       {/* MODAL */}
       {(selectedRoomData || modalLoading || showMapModal) && (
@@ -1314,25 +1340,14 @@ const ExploreProperties = () => {
         </div>
       )}
 
-      {showFilterModal && (
-        <FilterModal
-          filters={advancedFilters}
-          amenities={availableAmenities}
-          onApply={(nextFilters) => {
-            setAdvancedFilters(nextFilters);
-            updateScreenState("explore", { currentPage: 1 });
-            setShowFilterModal(false);
-          }}
-          onClose={() => setShowFilterModal(false)}
-        />
-      )}
+      
 
       {!authService.isAuthenticated() && <Footer />}
     </div>
   );
 };
 
-const FilterModal = ({ filters, amenities, onApply, onClose }) => {
+const FilterSidebar = ({ isOpen, filters, amenities, onApply, onClear, onClose }) => {
   const [localFilters, setLocalFilters] = useState(filters);
 
   useEffect(() => {
@@ -1361,8 +1376,13 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
         : [...prev.amenities, amenity],
     }));
   };
-
-  const clearAll = () => {
+  
+  const handleApply = () => {
+    onApply(localFilters);
+    onClose(); // Close on apply for mobile
+  };
+  
+  const handleClear = () => {
     const cleared = {
       priceMin: "",
       priceMax: "",
@@ -1371,151 +1391,123 @@ const FilterModal = ({ filters, amenities, onApply, onClose }) => {
       rating: 0,
     };
     setLocalFilters(cleared);
-    onApply(cleared);
-    onClose();
-  };
+    onClear(cleared);
+  }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Filter Properties
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6 text-gray-500" />
-          </button>
-        </div>
+    <>
+      {/* Backdrop for mobile */}
+      <div 
+          className={`fixed inset-0 bg-black/50 z-20 transition-opacity md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          onClick={onClose}
+      ></div>
 
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-          <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
-              Price Range (Monthly)
-            </h3>
-            <div className="flex items-center gap-4">
-              <input
-                type="number"
-                min="0"
-                placeholder="Min"
-                value={localFilters.priceMin}
-                onChange={(e) =>
-                  setLocalFilters((prev) => ({
-                    ...prev,
-                    priceMin: e.target.value,
-                  }))
-                }
-                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
-              />
-              <span className="text-gray-500">-</span>
-              <input
-                type="number"
-                min="0"
-                placeholder="Max"
-                value={localFilters.priceMax}
-                onChange={(e) =>
-                  setLocalFilters((prev) => ({
-                    ...prev,
-                    priceMax: e.target.value,
-                  }))
-                }
-                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
-              Availability
-            </h3>
-            <button
-              type="button"
-              onClick={() =>
-                setLocalFilters((prev) => ({
-                  ...prev,
-                  availabilityOnly: !prev.availabilityOnly,
-                }))
-              }
-              className={`w-full flex items-center justify-between px-4 py-4 rounded-xl border-2 transition-all ${
-                localFilters.availabilityOnly
-                  ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                  : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
-              }`}
-            >
-              <span className="font-semibold">Show only available rooms</span>
-              {localFilters.availabilityOnly && <Check className="w-5 h-5" />}
+      <div
+        className={`
+          fixed top-0 left-0 bottom-0 z-30 
+          w-72 bg-white dark:bg-gray-800
+          transition-transform duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full"}
+          
+          md:static md:z-auto md:h-auto md:w-64
+          md:translate-x-0 md:p-4
+          md:rounded-xl md:border md:border-gray-300 dark:md:border-gray-700 md:shadow-md md:h-fit
+          
+          md:transition-all md:duration-300
+          ${isOpen ? 'md:w-64 md:p-4 md:opacity-100' : 'md:w-0 md:p-0 md:opacity-0 md:border-0'}
+        `}
+      >
+        <div className="p-4 md:p-0 h-full overflow-y-auto">
+          <div className="flex justify-between items-center md:hidden mb-4">
+            <h2 className="text-lg font-bold">Filters</h2>
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                <X className="w-6 h-6" />
             </button>
           </div>
 
-          <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
-              Minimum Rating
-            </h3>
-            <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() =>
-                    setLocalFilters((prev) => ({
-                      ...prev,
-                      rating: prev.rating === star ? 0 : star,
-                    }))
-                  }
-                >
-                  <Star
-                    className={`w-8 h-8 transition-colors ${
-                      star <= localFilters.rating
-                        ? "text-yellow-400 fill-current"
-                        : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"
-                    }`}
-                  />
-                </button>
-              ))}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                Price Range (Monthly)
+              </h3>
+              <div className="flex items-center gap-2">
+                <input type="number" min="0" placeholder="Min" value={localFilters.priceMin} onChange={(e) => setLocalFilters((prev) => ({ ...prev, priceMin: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+                <span className="text-gray-500 text-sm">-</span>
+                <input type="number" min="0" placeholder="Max" value={localFilters.priceMax} onChange={(e) => setLocalFilters((prev) => ({ ...prev, priceMax: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
-              Amenities
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {amenityOptions.map((amenity) => (
+            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+            <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Availability</h3>
                 <button
-                  key={amenity}
                   type="button"
-                  onClick={() => toggleAmenity(amenity)}
-                  className={`px-4 py-4 rounded-lg text-sm font-medium border-2 transition-all ${
-                    localFilters.amenities.includes(amenity)
+                  onClick={() => setLocalFilters((prev) => ({ ...prev, availabilityOnly: !prev.availabilityOnly }))}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md border-2 transition-all ${
+                    localFilters.availabilityOnly
                       ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                      : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
+                      : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
                   }`}
                 >
-                  {amenity}
+                  <span className="font-semibold">Available rooms only</span>
+                  {localFilters.availabilityOnly && <Check className="w-4 h-4" />}
                 </button>
-              ))}
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+            
+            <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Minimum Rating</h3>
+                <div className="flex items-center justify-center gap-1 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setLocalFilters((prev) => ({ ...prev, rating: prev.rating === star ? 0 : star }))}
+                    >
+                      <Star className={`w-6 h-6 transition-colors ${ star <= localFilters.rating ? "text-yellow-400 fill-current" : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"}`} />
+                    </button>
+                  ))}
+                </div>
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+            
+            <div>
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Amenities</h3>
+                <div className="flex flex-wrap gap-2">
+                  {amenityOptions.slice(0, 6).map((amenity) => (
+                    <button
+                      key={amenity}
+                      type="button"
+                      onClick={() => toggleAmenity(amenity)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                        localFilters.amenities.includes(amenity)
+                          ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
+            </div>
+            
+            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+            <div className="pt-2">
+                <button onClick={handleApply} className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors">
+                    Apply Filters
+                </button>
+                <button onClick={handleClear} className="w-full mt-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 font-bold hover:underline">
+                    Clear All
+                </button>
             </div>
           </div>
         </div>
-
-        <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 flex gap-4">
-          <button
-            onClick={clearAll}
-            className="px-6 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-          >
-            Clear All
-          </button>
-          <button
-            onClick={() => onApply(localFilters)}
-            className="flex-1 px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
-          >
-            Apply Filters
-          </button>
-        </div>
       </div>
-    </div>
+    </>
   );
 };
 

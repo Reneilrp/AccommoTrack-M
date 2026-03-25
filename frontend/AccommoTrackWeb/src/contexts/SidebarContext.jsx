@@ -3,7 +3,10 @@ import React, { createContext, useContext, useState, useRef, useCallback } from 
 const SidebarContext = createContext(null);
 
 export function SidebarProvider({ children }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth >= 1024;
+  });
   const asideRef = useRef(null);
 
   // collapse returns a promise that resolves when the CSS transition ends

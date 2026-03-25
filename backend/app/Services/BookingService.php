@@ -23,14 +23,35 @@ class BookingService
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
 
             if ($tenantId) {
-                // Check for any booking for this room by this tenant that isn't cancelled
+                // 1. High-Priority Fix: Overdue Invoice Check
+                $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
+                    ->where('status', 'overdue')
+                    ->exists();
+
+                if ($hasOverdue) {
+                    throw new \Exception('You cannot create a new booking while you have overdue invoices. Please settle your outstanding balance first.');
+                }
+
+                // 2. High-Priority Fix: Unconditional Double-Booking Guard
+                // Check for any booking for this room by this tenant that isn't cancelled or completed
                 $hasExistingBooking = Booking::where('room_id', $room->id)
                     ->where('tenant_id', $tenantId)
-                    ->whereNotIn('status', ['cancelled'])
+                    ->whereIn('status', ['pending', 'confirmed', 'active'])
                     ->exists();
 
                 if ($hasExistingBooking) {
-                    throw new \Exception('You already have a history or an active stay for this room. You can only book a specific room once per account. If you need to stay again, please contact your landlord to extend your previous booking or request a renewal.');
+                    throw new \Exception('You already have an active or pending booking for this room.');
+                }
+
+                // Also prevent booking multiple rooms in the same property if not allowed (default: restricted)
+                // This can be expanded later into a property setting
+                $hasStayInProperty = Booking::where('property_id', $room->property_id)
+                    ->where('tenant_id', $tenantId)
+                    ->whereIn('status', ['pending', 'confirmed', 'active'])
+                    ->exists();
+
+                if ($hasStayInProperty) {
+                    throw new \Exception('You already have an active or pending booking in this property.');
                 }
             }
 

@@ -6,19 +6,23 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   const url = (room.images && room.images.length > 0)
     ? getImageUrl(typeof room.images[0] === 'string' ? room.images[0] : (room.images[0].image_url || room.images[0].url))
     : null;
-  const getStatusClasses = (status, occupied, capacity) => {
+  const getStatusClasses = (status, occupied, capacity, displayStatus) => {
+    if (displayStatus === 'reserved') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
     if (status === 'maintenance') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-    if (status === 'occupied' || occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    if (displayStatus === 'occupied' || status === 'occupied' || occupied >= capacity) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
     if (occupied > 0) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
   };
 
-  const statusLabel = (status, occupied, capacity) => {
+  const statusLabel = (status, occupied, capacity, displayStatus) => {
+    if (displayStatus === 'reserved') return 'Reserved';
     if (status === 'maintenance') return 'Maintenance';
-    if (status === 'occupied' || occupied >= capacity) return 'Full';
+    if (displayStatus === 'occupied' || status === 'occupied' || occupied >= capacity) return 'Occupied';
     if (occupied > 0) return 'Partial';
     return 'Available';
   };
+
+  const displayStatus = (room.display_status || room.displayStatus || room.status || 'available').toString().toLowerCase();
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col ${className}`} onClick={onClick}>
@@ -31,8 +35,8 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
           </div>
         )}
 
-        <span className={`absolute top-3 right-3 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider shadow-sm ${getStatusClasses(room.status, room.occupied || 0, room.capacity || 1)}`}>
-          {statusLabel(room.status, room.occupied || 0, room.capacity || 1)}
+        <span className={`absolute top-3 right-3 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider shadow-sm ${getStatusClasses(room.status, room.occupied || 0, room.capacity || 1, displayStatus)}`}>
+          {statusLabel(room.status, room.occupied || 0, room.capacity || 1, displayStatus)}
         </span>
       </div>
 

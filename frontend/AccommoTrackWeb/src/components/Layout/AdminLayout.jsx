@@ -4,6 +4,7 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
 import { getImageUrl } from '../../utils/api';
+import { Menu } from 'lucide-react';
 
 const AdminLayout = ({ children, user, onLogout = () => {} }) => {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -81,8 +82,8 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
       <aside
         ref={asideRef}
         className={`fixed left-0 top-0 bottom-0 z-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-          isSidebarOpen ? 'w-64' : 'w-20'
-        } hidden lg:flex flex-col min-h-0`}
+          isSidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'
+        } w-64 flex flex-col min-h-0`}
       >        {/* Logo */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div 
@@ -190,9 +191,29 @@ const AdminLayout = ({ children, user, onLogout = () => {} }) => {
         </div>
       </aside>
 
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-10 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile Sidebar Trigger */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed top-4 left-4 z-30 lg:hidden p-2.5 rounded-lg bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 shadow-lg"
+          aria-label="Open sidebar"
+        >
+          <Menu className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+        </button>
+      )}
+
       {/* Main Content */}
       <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300 ${
-        isSidebarOpen ? 'ml-64' : 'ml-20'
+        isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
       }`}>
         {children}
       </main>

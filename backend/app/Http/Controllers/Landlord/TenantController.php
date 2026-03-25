@@ -506,6 +506,7 @@ class TenantController extends Controller
         $this->assertNotCaretaker($context);
 
         $validated = $request->validate([
+            'booking_id' => 'nullable|integer|exists:bookings,id',
             'new_room_id' => 'required|exists:rooms,id',
             'reason' => 'required|string',
             'damage_charge' => 'nullable|numeric|min:0',
@@ -515,7 +516,19 @@ class TenantController extends Controller
         ]);
 
         $tenant = User::where('role', 'tenant')->with(['roomAssignments', 'tenantProfile'])->findOrFail($id);
-        $oldRoom = $tenant->roomAssignments()->first();
+        
+        $activeBooking = null;
+        if (!empty($validated['booking_id'])) {
+            $activeBooking = \App\Models\Booking::find($validated['booking_id']);
+        }
+
+        $oldRoom = null;
+        if ($activeBooking) {
+            $oldRoom = $activeBooking->room;
+        } else {
+            $oldRoom = $tenant->roomAssignments()->first();
+        }
+
         $newRoom = Room::with('property')->findOrFail($validated['new_room_id']);
 
         // Verify new room belongs to the same landlord
@@ -551,11 +564,13 @@ class TenantController extends Controller
             // 2. End current booking/assignment
             $originalEndDate = null;
             if ($oldRoom) {
-                // Find latest active booking
-                $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
-                    ->where('room_id', $oldRoom->id)
-                    ->whereIn('status', ['confirmed', 'active'])
-                    ->first();
+                // If not already identified, find latest active booking for the old room
+                if (!$activeBooking) {
+                    $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
+                        ->where('room_id', $oldRoom->id)
+                        ->whereIn('status', ['confirmed', 'active'])
+                        ->first();
+                }
 
                 if ($activeBooking) {
                     $originalEndDate = $activeBooking->end_date;
@@ -564,7 +579,7 @@ class TenantController extends Controller
 
                     // Cancel pending/unpaid invoices for the old booking
                     \App\Models\Invoice::where('booking_id', $activeBooking->id)
-                        ->whereNotIn('status', ['paid', 'cancelled', 'void'])
+                        ->whereNotIn('status', ['paid', 'cancelled', 'void', 'partial']) // Don't cancel partially paid ones automatically? Or handle them?
                         ->update([
                             'status' => 'cancelled',
                             'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Cancelled due to room transfer)')"),

@@ -77,9 +77,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   const [roomFilter, setRoomFilter] = useState("available");
 
-  // Video State
-  const [__videoModalOpen, _setVideoModalOpen] = useState(false);
-
   // Full Gallery State
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryItems, setGalleryItems] = useState([]);
@@ -314,7 +311,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
         r.id === updatedRoom.id
           ? {
               ...r,
-              status: updatedRoom.status || "occupied",
+              status: updatedRoom.status || r.status || "available",
+              display_status: updatedRoom.display_status || "reserved",
               reserved_by_me: updatedRoom.reserved_by_me || true,
               reservation: updatedRoom.reservation || null,
             }
@@ -326,7 +324,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
       prev && prev.id === updatedRoom.id
         ? {
             ...prev,
-            status: updatedRoom.status || "occupied",
+            status: updatedRoom.status || prev.status || "available",
+            display_status: updatedRoom.display_status || "reserved",
             reserved_by_me: updatedRoom.reserved_by_me || true,
             reservation: updatedRoom.reservation || null,
           }
@@ -403,6 +402,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredRooms.map((room) => {
               const genderBadge = getGenderBadge(room.gender_restriction);
+              const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+              const canBook = displayStatus === "available" && (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
               return (
               <div
                 key={room.id}
@@ -428,22 +429,14 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       <span
                         className={`
                           px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
-                          ${
-                            (room.status || "").toString().toLowerCase() ===
-                            "available"
-                              ? "bg-green-100 text-green-700"
-                              : (room.status || "").toString().toLowerCase() ===
-                                  "occupied"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-yellow-100 text-yellow-700"
-                          }
+                          ${displayStatus === "available" ? "bg-green-100 text-green-700" : displayStatus === "reserved" ? "bg-amber-100 text-amber-800" : displayStatus === "occupied" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}
                         `}
                       >
-                        {(room.status || "")
+                        {(room.display_status_label || displayStatus || "")
                           .toString()
                           .charAt(0)
                           .toUpperCase() +
-                          (room.status || "").toString().slice(1)}
+                          (room.display_status_label || displayStatus || "").toString().slice(1)}
                       </span>
                     )}
                     <span
@@ -510,7 +503,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   </div>
 
                   <div className="mt-auto">
-                    {isAuthenticated && room.status === "available" ? (
+                    {isAuthenticated && canBook ? (
                       <button
                         onClick={() => setSelectedRoom(room)}
                         className="w-full py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
@@ -520,7 +513,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                     ) : (
                       <button
                         disabled={
-                          !isAuthenticated && room.status === "available"
+                          !isAuthenticated && canBook
                             ? false
                             : true
                         }
@@ -529,15 +522,15 @@ export default function PropertyDetails({ propertyId, onBack }) {
                         }
                         className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2
                           ${
-                            !isAuthenticated && room.status === "available"
+                            !isAuthenticated && canBook
                               ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
                               : "bg-gray-100 text-gray-500 cursor-not-allowed shadow-inner"
                           }
                         `}
                       >
-                        {!isAuthenticated && room.status === "available"
+                        {!isAuthenticated && canBook
                           ? "Login to Book"
-                          : room.status === "available"
+                          : canBook
                             ? "Book This Room"
                             : "Not Available"}
                       </button>

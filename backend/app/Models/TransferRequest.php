@@ -12,6 +12,7 @@ class TransferRequest extends Model
     protected $fillable = [
         'tenant_id',
         'landlord_id',
+        'booking_id',
         'current_room_id',
         'requested_room_id',
         'new_end_date',
@@ -33,6 +34,11 @@ class TransferRequest extends Model
     public function landlord()
     {
         return $this->belongsTo(User::class, 'landlord_id');
+    }
+
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class, 'booking_id');
     }
 
     public function currentRoom()

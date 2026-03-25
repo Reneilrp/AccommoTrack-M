@@ -78,8 +78,9 @@ export default function TenantLayout({ user, onLogout, children }) {
         ref={asideRef}
         className={`
           fixed left-0 top-0 bottom-0 z-30
-          bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 transition-all duration-300 ease-in-out hidden lg:flex flex-col
-          ${isSidebarOpen ? 'w-64' : 'w-20'}
+          bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col
+          w-64 lg:${isSidebarOpen ? 'w-64' : 'w-20'}
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >        {/* Logo & Toggle */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
@@ -175,8 +176,28 @@ export default function TenantLayout({ user, onLogout, children }) {
         </div>
       </aside>
 
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-20 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile Sidebar Trigger */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-lg bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 shadow-lg"
+          aria-label="Open sidebar"
+        >
+          <Menu className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+        </button>
+      )}
+
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
+      <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Header - Simplified (No Menu Button) */}
         <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

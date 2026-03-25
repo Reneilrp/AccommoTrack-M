@@ -228,7 +228,8 @@ export default function RoomDetailsModal({
         if (typeof onBookingSuccess === "function") {
           onBookingSuccess({
             ...room,
-            status: "occupied",
+            status: room.status || "available",
+            display_status: "reserved",
             reserved_by_me: true,
             reservation: bookingObj,
           });
@@ -299,6 +300,13 @@ export default function RoomDetailsModal({
   };
 
   const genderMeta = getGenderRestrictionMeta(room.gender_restriction);
+  const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+  
+  // Use the API-provided flags if available, otherwise fallback to local logic
+  const isGenderCompatible = room.is_gender_compatible !== undefined ? room.is_gender_compatible : true;
+  const isRoomAvailable = room.is_available !== undefined ? room.is_available : (room.status || "").toString().toLowerCase() === "available" && Number(room.available_slots ?? 1) > 0;
+  
+  const canBook = displayStatus === "available" && isRoomAvailable && isGenderCompatible;
 
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -336,7 +344,7 @@ export default function RoomDetailsModal({
                       ) : (
                         <ImagePlaceholder className="w-full h-full" />
                       )}
-                      <div className="absolute top-3 right-3">
+                      <div className="absolute top-3 left-3">
                         {room.reserved_by_me ? (
                           <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
                             Reserved by you (Pending)
@@ -345,12 +353,18 @@ export default function RoomDetailsModal({
                           <span
                             className={`
                             px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
-                            ${(room.status || "").toString().toLowerCase() === "available" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
+                            ${displayStatus === "available" ? "bg-green-100 text-green-700" : displayStatus === "reserved" ? "bg-amber-100 text-amber-800" : displayStatus === "maintenance" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}
                           `}
                           >
-                            {(room.status || "").toString()}
+                            {(room.display_status_label || displayStatus || "").toString()}
                           </span>
                         )}
+                      </div>
+                      <div className="absolute top-3 right-3">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${genderMeta.className}`}>
+                           <Info className="w-3 h-3" />
+                           <span>{genderMeta.label}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -391,10 +405,12 @@ export default function RoomDetailsModal({
                           Billing
                         </span>
                       </div>
-                      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-sm ${genderMeta.className}`}>
-                        <Info className="w-4 h-4" />
-                        <span>{genderMeta.label}</span>
-                      </div>
+                      {!isGenderCompatible && isAuthenticated && (
+                        <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg shadow-sm">
+                          <Shield className="w-4 h-4 shrink-0" />
+                          <span className="font-semibold text-xs text-pretty">Incompatible with your gender profile</span>
+                        </div>
+                      )}
                       {(room.require_advance || room.requireAdvance || property?.require_advance) && (
                         <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 px-4 py-2 rounded-lg shadow-sm">
                           <Shield className="w-4 h-4 shrink-0" />
@@ -486,15 +502,15 @@ export default function RoomDetailsModal({
               {isAuthenticated ? (
                 <button
                   onClick={() => setViewMode("booking")}
-                  disabled={room.status !== "available"}
+                  disabled={!canBook}
                   className={`px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
                             ${
-                              room.status === "available"
+                              canBook
                                 ? "bg-green-600 hover:bg-green-700"
                                 : "bg-gray-400 cursor-not-allowed"
                             }`}
                 >
-                  {room.status === "available"
+                  {canBook
                     ? "Book This Room"
                     : "Not Available"}
                 </button>
@@ -777,7 +793,7 @@ export default function RoomDetailsModal({
 
                   {/* Action Buttons */}
                   <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                    {isAuthenticated && room.status === "available" && (
+                    {isAuthenticated && canBook && (
                       <div className="mb-4">
                         <label className="flex items-start gap-2 cursor-pointer group">
                           <div className="relative flex items-center">
@@ -809,14 +825,14 @@ export default function RoomDetailsModal({
                         onClick={handleSubmit}
                         disabled={
                           isSubmitting ||
-                          room.status !== "available" ||
+                          !canBook ||
                           !agreedToRules
                         }
                         className={`
                           w-full px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
                           ${
                             isSubmitting ||
-                            room.status !== "available" ||
+                            !canBook ||
                             !agreedToRules
                               ? "bg-gray-400 cursor-not-allowed opacity-70"
                               : "bg-green-600 hover:bg-green-700"

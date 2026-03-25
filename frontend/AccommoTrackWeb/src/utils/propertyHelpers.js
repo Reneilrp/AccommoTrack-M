@@ -15,6 +15,7 @@ export const mapRoom = (room) => {
   }
 
   const status = (room.status || 'available').toString().trim().toLowerCase();
+  const displayStatus = (room.display_status || room.displayStatus || status).toString().trim().toLowerCase();
 
   return {
     id: room.id,
@@ -32,6 +33,8 @@ export const mapRoom = (room) => {
     daily_rate: Number(room.daily_rate ?? room.dailyRate ?? Math.round((room.monthly_rate || room.price || 0) / 30)),
     billing_policy: room.billing_policy || room.billingPolicy || 'monthly',
     status,
+    display_status: displayStatus,
+    display_status_label: room.display_status_label || room.displayStatusLabel || (displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)),
     reserved_by_me: room.reserved_by_me || false,
     reservation: room.reservation || null,
     size: room.size || '',

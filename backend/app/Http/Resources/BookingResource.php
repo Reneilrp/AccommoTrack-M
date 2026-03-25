@@ -48,6 +48,7 @@ class BookingResource extends JsonResource
             'payment_status' => $this->payment_status,
             'paymentPlan' => $this->payment_plan,
             'payment_plan' => $this->payment_plan,
+            'can_request_addon' => $this->payment_status !== 'refunded' && !in_array($this->status, ['cancelled', 'rejected']),
             'notes' => $this->notes,
             'cancellation_reason' => $this->cancellation_reason,
             'cancelled_at' => $this->cancelled_at,

@@ -130,12 +130,20 @@ export default function PropertyDetailsScreen({ route }) {
         };
         setDetailedAccommodation(detailed);
 
-        const standardizedRooms = (rawData.rooms || []).map((room) => ({
-          ...room,
-          images: room.images || [],
-          monthly_rate: parseFloat(room.monthly_rate) || 0,
-          status: room.status || "unknown",
-        }));
+        const standardizedRooms = (rawData.rooms || [])
+          .map((room) => ({
+            ...room,
+            images: room.images || [],
+            monthly_rate: parseFloat(room.monthly_rate) || 0,
+            status: room.status || "unknown",
+          }))
+          .sort((a, b) => {
+            const aAvailable = (a.status || "unknown").toLowerCase() === "available";
+            const bAvailable = (b.status || "unknown").toLowerCase() === "available";
+            if (aAvailable && !bAvailable) return -1;
+            if (!aAvailable && bAvailable) return 1;
+            return a.monthly_rate - b.monthly_rate;
+          });
         setRooms(standardizedRooms);
       } else {
         throw new Error(result.error || "No rooms found for this property.");

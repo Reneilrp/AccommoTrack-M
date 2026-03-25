@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class RoomResource extends JsonResource
 {
@@ -30,6 +31,30 @@ class RoomResource extends JsonResource
             'occupied' => (int) $this->occupied,
             'occupied_count' => (int) $this->occupied,
             'available_slots' => (int) $this->available_slots,
+            'is_available' => $this->status === 'available' && $this->available_slots > 0,
+            'is_gender_compatible' => $this->when(Auth::check(), function () {
+                $tenant = Auth::user();
+                $property = $this->property;
+                $rawPropertyType = $property->property_type ?? '';
+                $propertyType = strtolower(str_replace([' ', '_'], '', $rawPropertyType));
+                $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
+
+                if ($propertyType === 'apartment' || ! in_array($propertyType, $targetTypes)) {
+                    return true;
+                }
+
+                $roomRestriction = strtolower((string) ($this->gender_restriction ?? 'mixed'));
+                if ($roomRestriction === 'mixed') {
+                    return true;
+                }
+
+                $tenantGender = null;
+                $g = strtolower(trim($tenant->gender ?? ''));
+                if (in_array($g, ['male', 'boy', 'boys'])) $tenantGender = 'male';
+                if (in_array($g, ['female', 'girl', 'girls'])) $tenantGender = 'female';
+
+                return $roomRestriction === $tenantGender;
+            }),
             'tenant' => $this->tenant,
             'tenants' => $this->whenLoaded('tenants', function () {
                 $list = $this->tenants->map(function ($t) {
@@ -63,6 +88,8 @@ class RoomResource extends JsonResource
                 return array_merge($list, $walkins);
             }),
             'status' => $this->status,
+            'display_status' => $this->display_status,
+            'display_status_label' => ucfirst((string) $this->display_status),
             'require_1month_advance' => (bool) $this->require_1month_advance,
             'requires_advance' => (bool) $this->requiresAdvance(),
             'description' => $this->description,

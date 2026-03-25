@@ -45,6 +45,19 @@ class TransferController extends Controller
             ], 422);
         }
 
+        // Check for overdue invoices
+        $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
+            ->where('status', 'overdue')
+            ->exists();
+
+        if ($hasOverdue) {
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'message' => 'You cannot request a transfer while you have overdue invoices. Please settle your balance first.',
+            ], 422);
+        }
+
         $property = $activeBooking->property;
         if (! $this->hasTransferEligibleGender($tenant, $property)) {
             return response()->json([
@@ -101,6 +114,15 @@ class TransferController extends Controller
             return response()->json(['message' => 'No active booking found for the selected property.'], 422);
         }
 
+        // Check for overdue invoices
+        $hasOverdue = \App\Models\Invoice::where('tenant_id', $tenantId)
+            ->where('status', 'overdue')
+            ->exists();
+
+        if ($hasOverdue) {
+            return response()->json(['message' => 'You cannot request a transfer while you have overdue invoices. Please settle your balance first.'], 422);
+        }
+
         $property = $activeBooking->property;
         if (! $this->hasTransferEligibleGender($tenant, $property)) {
             return response()->json(['message' => 'Please complete your profile gender (male/female) before requesting a room transfer for this property type.'], 422);
@@ -138,6 +160,7 @@ class TransferController extends Controller
         $transferRequest = TransferRequest::create([
             'tenant_id' => $tenantId,
             'landlord_id' => $activeBooking->landlord_id,
+            'booking_id' => $activeBooking->id,
             'current_room_id' => $activeBooking->room_id,
             'requested_room_id' => $requestedRoom->id,
             'new_end_date' => $validated['new_end_date'] ?? null,

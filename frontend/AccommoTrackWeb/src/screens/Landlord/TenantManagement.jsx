@@ -218,6 +218,12 @@ export default function TenantManagement({ user, accessRole = 'landlord' }) {
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900">
+      {__error && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+          <X className="w-5 h-5 cursor-pointer" onClick={() => setError('')} />
+          <span className="font-bold uppercase tracking-wide text-xs">{__error}</span>
+        </div>
+      )}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-300 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -433,24 +439,30 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTransfer, onEvict, canTransfer, searchQuery }) => {
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [expandedEmergency, setExpandedEmergency] = useState(null);
-  const menuRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
     };
-    document.addEventListener('mousedown', handler);
+    if (openMenuId) {
+      document.addEventListener('mousedown', handler);
+    }
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [openMenuId]);
 
   const handleMenuOpen = (e, tenantId) => {
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
+    // Use absolute positioning relative to document body
     setMenuPos({
       top: rect.bottom + window.scrollY + 4,
-      left: rect.right + window.scrollX - 192, // 192 = w-48
+      left: rect.right + window.scrollX - 192, // 192 = width of dropdown (w-48)
     });
     setOpenMenuId(openMenuId === tenantId ? null : tenantId);
   };
@@ -498,9 +510,8 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
               <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60" ref={menuRef}>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60">
             {tenants.map((tenant, idx) => {
-              const isLastRows = idx >= tenants.length - 2;
               const profile = tenant.tenantProfile;
               const late = isLate(tenant);
               const expiring = isExpiring(tenant);
@@ -581,8 +592,8 @@ const TenantListView = ({ tenants, selectedTenants, onSelect, onSelectAll, onTra
 
                       {isOpen && ReactDOM.createPortal(
                         <div
-                          ref={menuRef}
-                          style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999, width: 192 }}
+                          ref={dropdownRef}
+                          style={{ position: 'absolute', top: menuPos.top, left: menuPos.left, zIndex: 9999, width: 192 }}
                           className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
                         >
                           <button

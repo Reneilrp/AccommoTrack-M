@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({ tenant, onTransfer, onEvict, canTransfer = true }) {
@@ -27,6 +27,8 @@ export default function TenantCard({ tenant, onTransfer, onEvict, canTransfer = 
       } 
     });
   };
+
+  const [showMoreActions, setShowMoreActions] = useState(false);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-all relative overflow-hidden group">
@@ -97,67 +99,81 @@ export default function TenantCard({ tenant, onTransfer, onEvict, canTransfer = 
         </div>
       </div>
 
-      {/* Emergency Quick View (Inline) */}
-      {showEmergency && profile && (
-        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg animate-in slide-in-from-top-2">
-          <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase mb-2 flex items-center gap-2">
-            <ShieldAlert className="w-3 h-3" /> Emergency Contact
-          </p>
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{profile.emergency_contact_name || 'No Name'}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
-              <Phone className="w-3 h-3" /> {profile.emergency_contact_phone || 'No Phone'}
-            </p>
-            <p className="text-[10px] text-gray-500 dark:text-gray-500 italic">Relation: {profile.emergency_contact_relationship || '—'}</p>
-          </div>
-        </div>
-      )}
-
+      {/* Emergency Quick View (Inline) - Deprecated in favor of More Action collapse but keeping for transition if needed, actually user wants it inside collapse */}
+      
       {/* Footer Actions */}
-      <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+        {/* Row 1: Message */}
         <button
           onClick={handleMessageTenant}
-          className="col-span-2 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
         >
           <MessageSquare className="w-3.5 h-3.5" /> Message
         </button>
+
+        {/* Row 2: Payments and View Logs */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => navigate(`/payments?search=${tenant.email}`)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+          >
+            <CreditCard className="w-3.5 h-3.5" /> Payments
+          </button>
+          <button
+            onClick={() => navigate(`/tenants/${tenant.id}`)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent"
+          >
+            View Logs
+          </button>
+        </div>
+
+        {/* Row 3: More action */}
         <button
-          onClick={() => navigate(`/payments?search=${tenant.email}`)}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+          onClick={() => setShowMoreActions(!showMoreActions)}
+          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95
+            ${showMoreActions ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
         >
-          <CreditCard className="w-3.5 h-3.5" /> Payments
-        </button>
-        <button
-          onClick={() => navigate(`/tenants/${tenant.id}`)}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent"
-        >
-          View Logs
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreActions ? 'rotate-180' : ''}`} />
+          More action
         </button>
 
-        <button
-          onClick={() => onTransfer?.(tenant)}
-          disabled={!canTransfer || !tenant.room}
-          title={!tenant.room ? 'Tenant has no room assigned' : 'Transfer room'}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
-        >
-          <Shuffle className="w-3.5 h-3.5" /> Transfer
-        </button>
-        <button
-          onClick={() => onEvict?.(tenant)}
-          disabled={!canTransfer}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50"
-        >
-          <UserX className="w-3.5 h-3.5" /> Evict
-        </button>
+        {showMoreActions && (
+          <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">
+            <button
+              onClick={() => onTransfer?.(tenant)}
+              disabled={!canTransfer || !tenant.room}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <Shuffle className="w-3.5 h-3.5 text-amber-500" /> Transfer
+            </button>
+            <button
+              onClick={() => onEvict?.(tenant)}
+              disabled={!canTransfer}
+              className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              <UserX className="w-3.5 h-3.5" /> Evict
+            </button>
+            <button
+              onClick={() => setShowEmergency(!showEmergency)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-colors
+                ${showEmergency ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-purple-500" /> Emergency contact
+            </button>
 
-        <button
-          onClick={() => setShowEmergency(!showEmergency)}
-          className={`col-span-2 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95
-            ${showEmergency ? 'bg-red-100 text-red-700 border-red-200' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
-        >
-          <ShieldAlert className="w-3.5 h-3.5" /> Emergency Contact
-        </button>
+            {showEmergency && profile && (
+              <div className="mt-2 p-3 bg-white dark:bg-gray-800 border border-red-100 dark:border-red-900/50 rounded-md animate-in fade-in duration-200">
+                <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Emergency Contact</p>
+                <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{profile.emergency_contact_name || '—'}</p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1 flex items-center gap-1.5">
+                  <Phone className="w-3 h-3" /> {profile.emergency_contact_phone || '—'}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
+}
 }

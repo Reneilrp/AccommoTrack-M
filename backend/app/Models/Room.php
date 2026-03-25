@@ -273,11 +273,49 @@ class Room extends Model
         }
 
         $occupiedCount = $this->occupied;
-        $pendingBeds = (int) Booking::where('room_id', $this->id)
-            ->where('status', 'pending')
-            ->sum('bed_count');
+        $pendingBeds = $this->pending_beds;
 
         return max(0, $this->capacity - ($occupiedCount + $pendingBeds));
+    }
+
+    /**
+     * Get pending beds for this room.
+     */
+    public function getPendingBedsAttribute()
+    {
+        return (int) Booking::where('room_id', $this->id)
+            ->where('status', 'pending')
+            ->sum('bed_count');
+    }
+
+    /**
+     * Viewer-facing display status that preserves canonical room status.
+     *
+     * Rules:
+     * - maintenance stays maintenance
+     * - if there are confirmed occupants, show occupied
+     * - if pending requests consume all remaining slots, show reserved
+     * - otherwise use canonical status
+     */
+    public function getDisplayStatusAttribute()
+    {
+        if ($this->status === 'maintenance') {
+            return 'maintenance';
+        }
+
+        $occupiedCount = (int) $this->occupied;
+        $pendingBeds = (int) $this->pending_beds;
+        $availableAfterPending = max(0, $this->capacity - ($occupiedCount + $pendingBeds));
+
+        if ($occupiedCount > 0 || $this->status === 'occupied') {
+            return 'occupied';
+        }
+
+        if ($pendingBeds > 0 && $availableAfterPending === 0) {
+            return 'reserved';
+        }
+
+        return $this->status ?: 'available';
     }
 
     /**

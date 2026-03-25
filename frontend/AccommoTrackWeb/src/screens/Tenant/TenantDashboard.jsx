@@ -170,7 +170,7 @@ const TenantDashboard = () => {
             { icon: Home, label: 'Active Rooms', value: '0', color: 'green' },
             { icon: Calendar, label: 'Days Stayed', value: '0', color: 'blue' },
             { icon: Wallet, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
-            { icon: CheckCircle2, label: 'All Paid Up', value: 'Yes', color: 'green' },
+            { icon: CheckCircle2, label: 'All Paid Up', value: 'No pending balance', color: 'green' },
           ].map((card, i) => (
             <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden">
               <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${
