@@ -21,15 +21,8 @@ class StoreBookingRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'room_id' => 'required|exists:rooms,id',
-            'tenant_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'tenant')),
-                'required_without:guest_name',
-            ],
-            'guest_name' => 'nullable|string|max:255|required_without:tenant_id',
             'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => [
@@ -49,6 +42,26 @@ class StoreBookingRequest extends FormRequest
             'notes' => 'nullable|string|max:1000',
             'payment_plan' => 'nullable|string|in:full,monthly',
         ];
+
+        $user = $this->user();
+        if ($user && $user->role === 'tenant') {
+            $rules['tenant_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'tenant')),
+            ];
+            $rules['guest_name'] = 'nullable|string|max:255';
+        } else {
+            $rules['tenant_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'tenant')),
+                'required_without:guest_name',
+            ];
+            $rules['guest_name'] = 'nullable|string|max:255|required_without:tenant_id';
+        }
+
+        return $rules;
     }
 
     /**

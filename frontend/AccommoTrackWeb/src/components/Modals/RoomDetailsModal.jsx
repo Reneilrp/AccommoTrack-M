@@ -813,7 +813,7 @@ export default function RoomDetailsModal({
                           !agreedToRules
                         }
                         className={`
-                          w-full py-4.5 rounded-xl font-bold text-white shadow-md transition-all
+                          w-full rounded-xl font-bold text-white shadow-md transition-all px-8 py-4 
                           ${
                             isSubmitting ||
                             room.status !== "available" ||
