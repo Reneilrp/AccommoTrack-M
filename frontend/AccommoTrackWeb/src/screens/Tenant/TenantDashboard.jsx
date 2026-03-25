@@ -258,17 +258,17 @@ const TenantDashboard = () => {
     <div className="space-y-8 font-sans max-w-5xl mx-auto pb-12">
 
 
-      {/* ── High Priority Action Notification (Unpaid Balance) ── */}
-      {unpaidBalance > 0 && (
+      {/* ── High Priority Action Notification (Unpaid/Overdue Balance) ── */}
+      {stats?.payments?.hasOverdueInvoices ? (
         <div className="bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="flex items-start md:items-center gap-4">
             <div className="bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
               <AlertCircle className="w-7 h-7 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-red-800 dark:text-red-100">Action Required: Balance Due</h2>
+              <h2 className="text-lg font-bold text-red-800 dark:text-red-100">Action Required: Balance Overdue</h2>
               <p className="text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug">
-                You have an outstanding balance of <span className="font-bold text-red-800 dark:text-red-300">{formatCurrency(unpaidBalance)}</span>. Please settle it to avoid late fees.
+                You have an outstanding balance of <span className="font-bold text-red-800 dark:text-red-300">{formatCurrency(unpaidBalance)}</span> that is past its due date. Please settle it immediately.
               </p>
             </div>
           </div>
@@ -279,7 +279,64 @@ const TenantDashboard = () => {
             Pay Now <ArrowRight className="w-4 h-4" />
           </button>
         </div>
+      ) : unpaidBalance > 0 && (
+        <div className="bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-[#1e2332] border border-amber-200 dark:border-amber-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+          <div className="flex items-start md:items-center gap-4">
+            <div className="bg-amber-100 dark:bg-amber-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
+              <AlertCircle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-amber-800 dark:text-amber-100">Action Required: Balance Due</h2>
+              <p className="text-[15px] text-amber-700 dark:text-amber-200/80 mt-2 leading-snug">
+                You have an outstanding balance of <span className="font-bold text-amber-800 dark:text-amber-300">{formatCurrency(unpaidBalance)}</span>. Please settle it to avoid late fees.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/payments')}
+            className="w-full md:w-auto px-8 py-4.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+          >
+            Pay Now <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       )}
+
+      {/* ── Pending Check-In Alert (Overdue for move-in) ── */}
+      {stayData?.pendingCheckIns && stayData.pendingCheckIns.length > 0 && stayData.pendingCheckIns.map(pending => (
+        <div key={pending.id} className={pending.status === 'confirmed' 
+          ? "bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
+          : "bg-orange-50 dark:bg-gradient-to-r dark:from-orange-500/15 dark:to-[#1e2332] border border-orange-200 dark:border-orange-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
+        }>
+          <div className="flex items-start md:items-center gap-4">
+            <div className={pending.status === 'confirmed' 
+              ? "bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
+              : "bg-orange-100 dark:bg-orange-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
+            }>
+              <AlertCircle className={pending.status === 'confirmed' ? "w-7 h-7 text-red-600 dark:text-red-400" : "w-7 h-7 text-orange-600 dark:text-orange-400"} />
+            </div>
+            <div>
+              <h2 className={pending.status === 'confirmed' ? "text-lg font-bold text-red-800 dark:text-red-100" : "text-lg font-bold text-orange-800 dark:text-orange-100"}>
+                {pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending'}
+              </h2>
+              <p className={pending.status === 'confirmed' ? "text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug" : "text-[15px] text-orange-700 dark:text-orange-200/80 mt-2 leading-snug"}>
+                {pending.status === 'confirmed' 
+                  ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord to finalize your check-in.`
+                  : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`
+                }
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/bookings')}
+            className={pending.status === 'confirmed' 
+              ? "w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+              : "w-full md:w-auto px-8 py-4.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+            }
+          >
+            View Booking <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
 
       {/* ── Upcoming Booking Alert ── */}
       {stayData?.upcomingBooking && (
@@ -338,7 +395,11 @@ const TenantDashboard = () => {
               <div key={stay.booking.id} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between bg-gray-50 dark:bg-[#232840]/50">
                   <RoomBadge roomNumber={stay.room?.roomNumber || stay.room?.room_number} color={roomColor} />
-                  <StatusPill status="active" />
+                  <StatusPill status={
+                    (stay.financials?.invoices && stay.financials.invoices.some(inv => inv.status === 'overdue')) || 
+                    stay.booking?.is_overdue || stay.booking?.isOverdue 
+                    ? 'overdue' : 'active'
+                  } />
                 </div>
                 <div className="px-6 py-6 space-y-4">
                   <div>

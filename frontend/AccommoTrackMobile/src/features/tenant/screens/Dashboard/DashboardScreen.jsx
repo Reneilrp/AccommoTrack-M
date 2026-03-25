@@ -97,6 +97,13 @@ const DashboardScreen = () => {
 
   const loading = stayLoading || statsLoading;
 
+  // Extract primary stay info for display
+  const primaryStay = stayData?.hasActiveStay && stayData.stays?.length > 0 ? stayData.stays[0] : null;
+  const activeBooking = primaryStay?.booking;
+  const activeRoom = primaryStay?.room;
+  const activeProperty = primaryStay?.property;
+  const activeLandlord = primaryStay?.landlord;
+
   return (
     <View style={styles.container}>
       {/* Content Area */}
@@ -140,11 +147,11 @@ const DashboardScreen = () => {
                   <Ionicons name="bed-outline" size={24} color="#fff" />
                 </View>
                 <Text style={styles.statValue}>
-                  {stayData?.hasActiveStay ? stayData.room?.room_number : 'None'}
+                  {primaryStay ? activeRoom?.room_number : 'None'}
                 </Text>
                 <Text style={styles.statLabel}>Current Room</Text>
                 <Text style={styles.statSubLabel}>
-                  {stayData?.hasActiveStay ? stayData.room?.type : 'No active stay'}
+                  {primaryStay ? activeRoom?.room_type : 'No active stay'}
                 </Text>
               </View>
 
@@ -153,11 +160,11 @@ const DashboardScreen = () => {
                   <Ionicons name="calendar-outline" size={24} color="#fff" />
                 </View>
                 <Text style={styles.statValue}>
-                  {stayData?.hasActiveStay ? (stayData.booking?.daysStayed ?? 0) : '0'}
+                  {primaryStay ? (activeBooking?.daysStayed ?? 0) : '0'}
                 </Text>
                 <Text style={styles.statLabel}>Days Stayed</Text>
                 <Text style={styles.statSubLabel}>
-                  {stayData?.hasActiveStay ? `Since ${formatDate(stayData.booking?.start_date)}` : 'Not staying'}
+                  {primaryStay ? `Since ${formatDate(activeBooking?.start_date)}` : 'Not staying'}
                 </Text>
               </View>
             </View>
@@ -168,11 +175,11 @@ const DashboardScreen = () => {
                   <Ionicons name="cash-outline" size={24} color="#fff" />
                 </View>
                 <Text style={styles.statValue}>
-                  {formatCurrency(stayData?.hasActiveStay ? stayData.booking?.monthly_rent : 0)}
+                  {formatCurrency(primaryStay ? activeBooking?.monthly_rent : 0)}
                 </Text>
                 <Text style={styles.statLabel}>Monthly Rent</Text>
                 <Text style={styles.statSubLabel}>
-                  {stayData?.hasActiveStay ? `Due on ${stayData.booking?.due_day}th` : 'No active rent'}
+                  {primaryStay ? `Due on ${activeBooking?.due_day || 'N/A'}` : 'No active rent'}
                 </Text>
               </View>
 
@@ -188,24 +195,24 @@ const DashboardScreen = () => {
               </View>
             </View>
 
-            {stayData?.hasActiveStay ? (
+            {primaryStay ? (
               /* Property Card (Only when stay is active) */
               <View style={styles.propertyCard}>
                 <Image
                   source={{
                     uri: (
-                      getImageUrl(stayData.property?.images?.[0]) ||
-                      getImageUrl(stayData.property?.cover_image) ||
-                      getImageUrl(stayData.property?.image) ||
-                      getImageUrl(stayData.property?.photo) ||
+                      getImageUrl(activeProperty?.images?.[0]) ||
+                      getImageUrl(activeProperty?.cover_image) ||
+                      getImageUrl(activeProperty?.image) ||
+                      getImageUrl(activeProperty?.photo) ||
                       'https://via.placeholder.com/800x400'
                     ),
                   }}
                   style={styles.propertyImage}
                 />
                 <View style={styles.propertyOverlay}>
-                  <Text style={styles.propertyTitle}>{stayData.property?.title || stayData.property?.name || stayData.property?.property_name}</Text>
-                  <Text style={styles.propertyAddress}>{stayData.property?.address}</Text>
+                  <Text style={styles.propertyTitle}>{activeProperty?.title || activeProperty?.name || activeProperty?.property_name}</Text>
+                  <Text style={styles.propertyAddress}>{activeProperty?.address}</Text>
                 </View>
 
                 <View style={styles.propertyContent}>
@@ -213,7 +220,7 @@ const DashboardScreen = () => {
                   <View style={[styles.landlordSection, { backgroundColor: theme.colors.backgroundSecondary }]}>
                     <Image
                       source={{
-                        uri: getImageUrl(stayData.landlord?.profile_image) || getAvatarUrl(stayData.landlord, 48),
+                        uri: getImageUrl(activeLandlord?.profile_image) || getAvatarUrl(activeLandlord, 48),
                       }}
                       style={styles.landlordAvatar}
                     />
@@ -222,22 +229,22 @@ const DashboardScreen = () => {
                         Property Manager
                       </Text>
                       <Text style={styles.landlordName}>
-                        {stayData.landlord?.name}
+                        {activeLandlord?.name}
                       </Text>
                     </View>
                     <TouchableOpacity
                       style={styles.messageButton}
                       onPress={() => {
-                        if (stayData?.landlord?.id && stayData?.property?.id) {
+                        if (activeLandlord?.id && activeProperty?.id) {
                           navigation.navigate('Messages', {
                             startConversation: true,
                             recipient: {
-                              id: stayData.landlord.id,
-                              name: stayData.landlord.name,
+                              id: activeLandlord.id,
+                              name: activeLandlord.name,
                             },
                             property: {
-                              id: stayData.property.id,
-                              title: stayData.property.title || stayData.property.name,
+                              id: activeProperty.id,
+                              title: activeProperty.title || activeProperty.name,
                             },
                           });
                         } else {
@@ -255,7 +262,7 @@ const DashboardScreen = () => {
                       styles.primaryButton,
                       {
                         marginTop: 16,
-                        backgroundColor: stayData.booking?.status === 'completed' ? '#F59E0B' : theme.colors.primary,
+                        backgroundColor: activeBooking?.status === 'completed' ? '#F59E0B' : theme.colors.primary,
                       },
                     ]}
                     onPress={() => {
@@ -263,14 +270,14 @@ const DashboardScreen = () => {
                       // For now, we'll assume there's an 'ExtensionRequest' screen or similar
                       navigation.navigate('MyBookings', { 
                         screen: 'BookingDetails', 
-                        params: { bookingId: stayData.booking.id, initiateExtension: true } 
+                        params: { bookingId: activeBooking.id, initiateExtension: true } 
                       });
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Ionicons name="time-outline" size={20} color="#fff" />
                       <Text style={styles.primaryButtonText}>
-                        {stayData.booking?.status === 'completed' ? 'Renew Stay' : 'Extend Stay'}
+                        {activeBooking?.status === 'completed' ? 'Renew Stay' : 'Extend Stay'}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -294,6 +301,47 @@ const DashboardScreen = () => {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Overdue Payment Alert */}
+            {stats?.payments?.hasOverdueInvoices && (
+              <View style={[styles.upcomingCard, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', marginBottom: 16 }]}>
+                <View style={[styles.upcomingIcon, { backgroundColor: '#EF4444' }]}>
+                  <Ionicons name="wallet" size={24} color="#fff" />
+                </View>
+                <View style={styles.upcomingContent}>
+                  <Text style={[styles.upcomingTitle, { color: '#B91C1C' }]}>Action Required: Balance Overdue</Text>
+                  <Text style={[styles.upcomingText, { color: '#7F1D1D' }]}>
+                    You have one or more overdue invoices. Please settle your balance to avoid late fees or potential service interruption.
+                  </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Payments')}>
+                    <Text style={[styles.upcomingLink, { color: '#B91C1C' }]}>Pay Balance →</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Pending Check-In (Overdue for move-in) */}
+            {stayData?.pendingCheckIns && stayData.pendingCheckIns.length > 0 && stayData.pendingCheckIns.map(pending => (
+              <View key={pending.id} style={[styles.upcomingCard, { backgroundColor: pending.status === 'confirmed' ? '#FEE2E2' : '#FEF3C7', borderColor: pending.status === 'confirmed' ? '#FECACA' : '#FDE68A', marginBottom: 16 }]}>
+                <View style={[styles.upcomingIcon, { backgroundColor: pending.status === 'confirmed' ? '#EF4444' : '#F59E0B' }]}>
+                  <Ionicons name={pending.status === 'confirmed' ? "alert-circle" : "time"} size={24} color="#fff" />
+                </View>
+                <View style={styles.upcomingContent}>
+                  <Text style={[styles.upcomingTitle, { color: pending.status === 'confirmed' ? '#B91C1C' : '#92400E' }]}>
+                    {pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending'}
+                  </Text>
+                  <Text style={[styles.upcomingText, { color: pending.status === 'confirmed' ? '#7F1D1D' : '#78350F' }]}>
+                    {pending.status === 'confirmed' 
+                      ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord to finalize your check-in.`
+                      : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`
+                    }
+                  </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('MyBookings')}>
+                    <Text style={[styles.upcomingLink, { color: pending.status === 'confirmed' ? '#B91C1C' : '#92400E' }]}>View Booking →</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
 
             {/* Upcoming Booking (Shown regardless of active stay if it exists) */}
             {stayData?.upcomingBooking && (

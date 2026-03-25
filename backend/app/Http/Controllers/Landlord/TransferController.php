@@ -37,6 +37,7 @@ class TransferController extends Controller
             'damage_charge' => 'nullable|numeric|min:0',
             'damage_description' => 'nullable|string|required_if:damage_charge,>0',
             'landlord_notes' => 'nullable|string|max:500',
+            'prorated_adjustment' => 'nullable|numeric',
         ]);
 
         if ($validated['action'] === 'reject') {
@@ -53,13 +54,6 @@ class TransferController extends Controller
         try {
             DB::beginTransaction();
 
-            // We can reuse the TenantController's logic by instantiating it or moving it to a service.
-            // Since I've already verified the logic in TenantController@transferRoom,
-            // I'll call it internally or replicate it here for speed.
-
-            // Actually, let's call the transferRoom logic from the service if possible.
-            // I saw TenantController uses BookingService.
-
             $tenantController = app(\App\Http\Controllers\Landlord\TenantController::class);
 
             // Create a fake request to pass to transferRoom
@@ -68,6 +62,8 @@ class TransferController extends Controller
                 'reason' => $transferReq->reason,
                 'damage_charge' => $validated['damage_charge'] ?? 0,
                 'damage_description' => $validated['damage_description'] ?? null,
+                'new_end_date' => $transferReq->new_end_date ? $transferReq->new_end_date : null,
+                'prorated_adjustment' => $validated['prorated_adjustment'] ?? 0,
             ]);
 
             // Set the authenticated user resolver on the fake request so ResolvesLandlordAccess works
@@ -97,5 +93,53 @@ class TransferController extends Controller
 
             return response()->json(['error' => 'Approval failed', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function calculateProration(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        $transferReq = TransferRequest::where('landlord_id', $context['landlord_id'])->with('requestedRoom')->findOrFail($id);
+
+        $activeBooking = \App\Models\Booking::where('tenant_id', $transferReq->tenant_id)
+            ->where('room_id', $transferReq->current_room_id)
+            ->whereIn('status', ['confirmed', 'active'])
+            ->first();
+
+        if (!$activeBooking) {
+            return response()->json([
+                'suggested_adjustment' => 0,
+                'remaining_days' => 0,
+                'old_room_unused_value' => 0,
+                'new_room_cost' => 0,
+            ]);
+        }
+
+        $startDate = \Carbon\Carbon::parse($activeBooking->start_date);
+        $today = now();
+        
+        $nextBillingDate = $startDate->copy();
+        while ($nextBillingDate->lte($today)) {
+            $nextBillingDate->addMonth();
+        }
+        
+        $remainingDays = $today->diffInDays($nextBillingDate);
+        $monthlyRent = $activeBooking->monthly_rent ?? 0;
+        
+        $oldRoomDailyRate = $monthlyRent / 30;
+        $unusedValueOldRoom = $oldRoomDailyRate * $remainingDays;
+        
+        $newRoom = $transferReq->requestedRoom;
+        $newMonthlyRent = $newRoom->monthly_rate ?? $newRoom->price ?? 0;
+        $newRoomDailyRate = $newMonthlyRent / 30;
+        $costOfNewRoomForRemainingDays = $newRoomDailyRate * $remainingDays;
+        
+        $suggestedAdjustment = round($costOfNewRoomForRemainingDays - $unusedValueOldRoom, 2);
+
+        return response()->json([
+            'suggested_adjustment' => $suggestedAdjustment,
+            'remaining_days' => $remainingDays,
+            'old_room_unused_value' => round($unusedValueOldRoom, 2),
+            'new_room_cost' => round($costOfNewRoomForRemainingDays, 2),
+        ]);
     }
 }

@@ -21,6 +21,19 @@ class BookingService
     {
         return DB::transaction(function () use ($data, $tenantId) {
             $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
+
+            if ($tenantId) {
+                // Check for any booking for this room by this tenant that isn't cancelled
+                $hasExistingBooking = Booking::where('room_id', $room->id)
+                    ->where('tenant_id', $tenantId)
+                    ->whereNotIn('status', ['cancelled'])
+                    ->exists();
+
+                if ($hasExistingBooking) {
+                    throw new \Exception('You already have a history or an active stay for this room. You can only book a specific room once per account. If you need to stay again, please contact your landlord to extend your previous booking or request a renewal.');
+                }
+            }
+
             $requestedBeds = (int) ($data['bed_count'] ?? 1);
 
             // If pricing model is 'full_room', force requestedBeds to room capacity

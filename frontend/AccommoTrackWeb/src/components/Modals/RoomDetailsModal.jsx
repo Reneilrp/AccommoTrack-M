@@ -635,8 +635,8 @@ export default function RoomDetailsModal({
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          Available: {room.available_slots} / {room.capacity}
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                          Occupied: {room.capacity - (room.available_slots || 0)} / {room.capacity}
                         </p>
                       </div>
                     )}

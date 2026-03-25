@@ -264,6 +264,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/tenants/{id}/evict', [TenantController::class, 'evict']);
         Route::get('/transfers', [\App\Http\Controllers\Landlord\TransferController::class, 'index']);
         Route::patch('/transfers/{id}/handle', [\App\Http\Controllers\Landlord\TransferController::class, 'handle']);
+        Route::get('/transfers/{id}/proration', [\App\Http\Controllers\Landlord\TransferController::class, 'calculateProration']);
     });
 
     // ===== SHARED BOOKINGS =====

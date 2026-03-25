@@ -510,6 +510,8 @@ class TenantController extends Controller
             'reason' => 'required|string',
             'damage_charge' => 'nullable|numeric|min:0',
             'damage_description' => 'nullable|string|required_if:damage_charge,>0',
+            'new_end_date' => 'nullable|date',
+            'prorated_adjustment' => 'nullable|numeric',
         ]);
 
         $tenant = User::where('role', 'tenant')->with(['roomAssignments', 'tenantProfile'])->findOrFail($id);
@@ -577,16 +579,19 @@ class TenantController extends Controller
             // 3. Start new booking for the new room
             $moveInDate = now()->format('Y-m-d');
 
-            if ($originalEndDate) {
-                // Fix #4: Wrap in Carbon::parse() — end_date may be a raw string, not a Carbon instance
-                $parsedOriginalEnd = \Carbon\Carbon::parse($originalEndDate);
-                if ($parsedOriginalEnd->lte(\Carbon\Carbon::parse($moveInDate))) {
-                    $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(1)->format('Y-m-d');
-                } else {
-                    $endDate = $parsedOriginalEnd->format('Y-m-d');
-                }
+            if (!empty($validated['new_end_date'])) {
+                $endDate = \Carbon\Carbon::parse($validated['new_end_date'])->format('Y-m-d');
             } else {
-                $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+                if ($originalEndDate) {
+                    $parsedOriginalEnd = \Carbon\Carbon::parse($originalEndDate);
+                    if ($parsedOriginalEnd->lte(\Carbon\Carbon::parse($moveInDate))) {
+                        $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(1)->format('Y-m-d');
+                    } else {
+                        $endDate = $parsedOriginalEnd->format('Y-m-d');
+                    }
+                } else {
+                    $endDate = \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
+                }
             }
 
             $newBooking = $this->bookingService->createBooking([
@@ -598,6 +603,50 @@ class TenantController extends Controller
 
             // Confirm the booking immediately
             $this->bookingService->updateStatus($newBooking, ['status' => 'confirmed']);
+
+            // 3.5. Apply Prorated Rent Adjustment
+            if (isset($validated['prorated_adjustment']) && round((float)$validated['prorated_adjustment'], 2) !== 0.00) {
+                $adj = round((float)$validated['prorated_adjustment'], 2);
+                if ($adj > 0) {
+                    // It's an extra charge (upgrade). Create an invoice.
+                    $reference = 'ADJ-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
+                    Invoice::create([
+                        'reference' => $reference,
+                        'landlord_id' => $context['landlord_id'],
+                        'property_id' => $newRoom->property_id,
+                        'booking_id' => $newBooking->id,
+                        'tenant_id' => $tenant->id,
+                        'description' => 'Prorated rent adjustment charge for transferring to '.$newRoom->room_number,
+                        'amount_cents' => (int) round($adj * 100),
+                        'currency' => 'PHP',
+                        'status' => 'pending',
+                        'issued_at' => now(),
+                        'due_date' => now()->addDays(3),
+                    ]);
+                } else {
+                    // It's a discount (negative adjustment). Let's find the auto-generated initial invoice for the new booking
+                    // and apply the discount.
+                    $initialInvoice = Invoice::where('booking_id', $newBooking->id)
+                        ->where('status', 'pending')
+                        ->orderBy('id', 'asc')
+                        ->first();
+
+                    if ($initialInvoice) {
+                        $discountCents = abs((int) round($adj * 100));
+                        $newAmountCents = max(0, $initialInvoice->amount_cents - $discountCents);
+                        
+                        $initialInvoice->update([
+                            'amount_cents' => $newAmountCents,
+                            'description' => $initialInvoice->description . " (Includes Prorated Discount of ₱" . abs($adj) . " for unused days in previous room)",
+                            'status' => $newAmountCents == 0 ? 'paid' : 'pending',
+                        ]);
+                        
+                        if ($newAmountCents == 0 && $initialInvoice->paid_at == null) {
+                             $initialInvoice->update(['paid_at' => now()]);
+                        }
+                    }
+                }
+            }
 
             // 4. Update tenant profile notes
             if ($tenant->tenantProfile) {

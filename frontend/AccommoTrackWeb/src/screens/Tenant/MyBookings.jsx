@@ -46,6 +46,7 @@ const MyBookings = () => {
   const [activeStays, setActiveStays] = useState(cachedData?.activeStays || []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
+  const [pendingCheckIns, setPendingCheckIns] = useState(cachedData?.pendingCheckIns || []);
   const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
   const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
@@ -146,6 +147,7 @@ const MyBookings = () => {
       if (activeTab === 'current' || activeTab === 'financials') {
         const response = await tenantService.getCurrentStay();
         const stays = response?.stays || response?.data?.stays || [];
+        const pendingCheckInsData = response?.pendingCheckIns || response?.data?.pendingCheckIns || [];
         const upcoming =
           response?.upcomingBooking ||
           response?.upcoming_booking ||
@@ -154,6 +156,7 @@ const MyBookings = () => {
           null;
         
         setActiveStays(stays);
+        setPendingCheckIns(pendingCheckInsData);
         setUpcomingBooking(upcoming);
         
         // Also fetch tenant bookings to detect pending bookings
@@ -194,6 +197,7 @@ const MyBookings = () => {
           ...(prev || {}), 
           activeStays: stays, 
           pendingBookings: pending,
+          pendingCheckIns: pendingCheckInsData,
           upcomingBooking: upcoming 
         }));
 
@@ -383,6 +387,7 @@ const MyBookings = () => {
               selectedIndex={selectedStayIndex}
               onSelectStay={setSelectedStayIndex}
               pendingBookings={pendingBookings}
+              pendingCheckIns={pendingCheckIns}
               upcomingBooking={upcomingBooking}
               onRequestAddon={() => setShowAddonModal(true)}
               onCancelAddon={handleCancelAddonRequest}
@@ -482,9 +487,9 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, hasPendingTransfer = false, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, hasPendingTransfer = false, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
-  const hasPending = pendingBookings && pendingBookings.length > 0;
+  const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
   
   const formatDate = (dateString) => {
@@ -601,8 +606,29 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       </div>
 
       {/* PENDING VIEW */}
-      {viewMode === 'pending' && hasPending && (
+      {viewMode === 'pending' && (hasPending || (pendingCheckIns && pendingCheckIns.length > 0)) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {pendingCheckIns.map(pc => (
+              <div key={pc.id} className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Check-in Overdue</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Action required: finalize your move-in with the landlord.</p>
+                
+                <div className="bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 p-6 rounded-2xl border border-red-100 dark:border-red-900/20 shadow-sm mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+                      <Home className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-base leading-tight">{pc.property}</p>
+                      <p className="text-xs opacity-80 font-medium mt-0.5">
+                        Scheduled start: {formatDate(pc.startDate)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+          ))}
           {pendingBookings.map(pb => {
             const startDate = pb?.start_date ? new Date(pb.start_date) : null;
             const daysUntil = startDate ? Math.max(0, Math.ceil((startDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
@@ -749,7 +775,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         })()}
                         <StatCard 
                           label="Status" 
-                          value={booking.paymentStatus} 
+                          value={booking.is_overdue || booking.isOverdue ? 'Overdue' : booking.paymentStatus} 
                           icon={CreditCard} 
                         />
                       </div>
@@ -1164,7 +1190,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                   <p className="font-bold text-green-600 dark:text-green-400 text-lg">₱{(booking.financials?.totalPaid || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <StatusBadge status={booking.status} />
+                  <StatusBadge status={booking.has_overdue_invoices || (booking.invoices && booking.invoices.some(inv => inv.status === 'overdue')) ? 'overdue' : (booking.is_overdue || booking.isOverdue ? 'overdue' : booking.status)} />
                   <div className="flex items-center gap-4">
                     {['completed', 'confirmed'].includes(booking.status) && !booking.review && (
                       <button 
@@ -1285,16 +1311,18 @@ const StatusBadge = ({ status }) => {
     confirmed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
     pending: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
     unpaid: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    overdue: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    overdue: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 animate-pulse',
     partial: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
     cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
     rejected: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
     refunded: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
   };
 
+  const label = s === 'overdue' ? 'Payment Overdue' : status;
+
   return (
     <span className={`px-2 py-2 rounded-full text-xs font-medium capitalize ${styles[s] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
-      {status}
+      {label}
     </span>
   );
 };
@@ -1643,6 +1671,8 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [roomsMessage, setRoomsMessage] = useState('');
+  const [leaseDurationPreference, setLeaseDurationPreference] = useState('keep_current');
+  const [newEndDate, setNewEndDate] = useState('');
   const [formData, setFormData] = useState({
     requested_room_id: '',
     reason: '',
@@ -1691,13 +1721,21 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
       toast.error('Please select a room and provide a reason');
       return;
     }
-    onSubmit(formData);
+    if (leaseDurationPreference === 'new_lease' && !newEndDate) {
+      toast.error('Please select a new lease end date');
+      return;
+    }
+    
+    onSubmit({
+      ...formData,
+      new_end_date: leaseDurationPreference === 'new_lease' ? newEndDate : null
+    });
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 shrink-0">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Room Transfer</h3>
             <button onClick={onClose} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
@@ -1706,51 +1744,89 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
-            Requesting a transfer from your current room in <strong>{property.title}</strong>.
-          </div>
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
+          <form id="transfer-form" onSubmit={handleSubmit} className="space-y-6">
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+              Requesting a transfer from your current room in <strong>{property.title}</strong>.
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New Room *</label>
-            <select
-              required
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
-              value={formData.requested_room_id}
-              onChange={e => setFormData({ ...formData, requested_room_id: e.target.value })}
-              disabled={loadingRooms}
-            >
-              <option value="">{loadingRooms ? 'Loading available rooms...' : 'Select a Room'}</option>
-              {availableRooms.map(r => (
-                <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
-              ))}
-            </select>
-            {availableRooms.length === 0 && !loadingRooms && (
-              <p className="text-[10px] text-red-500 mt-2 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
-            )}
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New Room *</label>
+              <select
+                required
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                value={formData.requested_room_id}
+                onChange={e => setFormData({ ...formData, requested_room_id: e.target.value })}
+                disabled={loadingRooms}
+              >
+                <option value="">{loadingRooms ? 'Loading available rooms...' : 'Select a Room'}</option>
+                {availableRooms.map(r => (
+                  <option key={r.id} value={r.id}>Room {r.room_number} ({r.type_label})</option>
+                ))}
+              </select>
+              {availableRooms.length === 0 && !loadingRooms && (
+                <p className="text-[10px] text-red-500 mt-2 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
+              )}
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason for Transfer *</label>
-            <textarea
-              required
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm"
-              value={formData.reason}
-              onChange={e => setFormData({ ...formData, reason: e.target.value })}
-              placeholder="e.g., I need a room with a better view, or my roommate is too loud..."
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Lease Duration *</label>
+              <div className="flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl border border-gray-300 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setLeaseDurationPreference('keep_current')}
+                  className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${leaseDurationPreference === 'keep_current' ? 'bg-white dark:bg-gray-700 text-amber-600 shadow-sm border border-gray-200 dark:border-gray-600' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+                >
+                  Keep Current End Date
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaseDurationPreference('new_lease')}
+                  className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${leaseDurationPreference === 'new_lease' ? 'bg-white dark:bg-gray-700 text-amber-600 shadow-sm border border-gray-200 dark:border-gray-600' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+                >
+                  Start New Lease
+                </button>
+              </div>
+              
+              {leaseDurationPreference === 'new_lease' && (
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New End Date *</label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date(new Date().getTime() + 86400000).toISOString().split('T')[0]} // tomorrow
+                    value={newEndDate}
+                    onChange={(e) => setNewEndDate(e.target.value)}
+                    className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-2 font-medium">Pick a specific check-out date for your new room.</p>
+                </div>
+              )}
+            </div>
 
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading || availableRooms.length === 0}
-              className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Send Request'}
-            </button>
-          </div>
-        </form>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason for Transfer *</label>
+              <textarea
+                required
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm"
+                value={formData.reason}
+                onChange={e => setFormData({ ...formData, reason: e.target.value })}
+                placeholder="e.g., I need a room with a better view, or my roommate is too loud..."
+              />
+            </div>
+          </form>
+        </div>
+        
+        <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 shrink-0">
+          <button
+            type="submit"
+            form="transfer-form"
+            disabled={loading || availableRooms.length === 0}
+            className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Send Request'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -221,13 +221,15 @@ export default function BookingDetails() {
 
     const getStatusStyles = (status) => {
         const s = (status || '').toLowerCase();
+        if (s === 'overdue') return { color: '#B91C1C', bg: '#FEE2E2' };
         if (s === 'confirmed' || s === 'completed' || s === 'paid') return { color: '#059669', bg: '#DCFCE7' };
         if (s === 'pending') return { color: '#F59E0B', bg: '#FEF3C7' };
         if (s === 'cancelled' || s === 'canceled' || s === 'failed' || s === 'unpaid') return { color: '#EF4444', bg: '#FEE2E2' };
         return { color: '#6B7280', bg: '#F3F4F6' };
     };
 
-    const statusStyle = getStatusStyles(booking.status);
+    const bookingStatus = (booking.isOverdue || booking.is_overdue) ? 'overdue' : booking.status;
+    const statusStyle = getStatusStyles(bookingStatus);
     const paymentStyle = getStatusStyles(booking.paymentStatus);
 
     const handleCancelAddon = (addon) => {
@@ -307,7 +309,7 @@ export default function BookingDetails() {
                     <View style={styles.heroGradient} />
                     <View style={styles.heroContent}>
                         <View style={[styles.heroBadge, { backgroundColor: statusStyle.bg }]}>
-                            <Text style={[styles.heroBadgeText, { color: statusStyle.color }]}>{booking.status?.toUpperCase()}</Text>
+                            <Text style={[styles.heroBadgeText, { color: statusStyle.color }]}>{bookingStatus?.toUpperCase()}</Text>
                         </View>
                         <Text style={styles.heroTitle}>{property.title || 'Accommodation'}</Text>
                         <View style={styles.heroLocation}>

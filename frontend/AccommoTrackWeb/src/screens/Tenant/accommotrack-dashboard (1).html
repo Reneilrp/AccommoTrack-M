@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccommoTrack – Tenant Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #0f1117;
+    --bg-surface: #181c25;
+    --bg-card: #1e2332;
+    --bg-card-hover: #232840;
+    --bg-subtle: #252b3b;
+    --border: #2a3045;
+    --border-light: #303650;
+    --green: #22c55e;
+    --green-dim: #16a34a;
+    --green-glow: rgba(34,197,94,0.15);
+    --blue: #60a5fa;
+    --blue-dim: #3b82f6;
+    --purple: #a78bfa;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --red-dim: #ef4444;
+    --red-glow: rgba(248,113,113,0.12);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --sidebar-w: 240px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--green), #15803d);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text { font-size: 15px; font-weight: 700; color: var(--green); letter-spacing: -0.3px; }
+
+  .user-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    margin-bottom: 8px;
+  }
+
+  .avatar {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, #334155, #475569);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: var(--text-primary);
+    border: 2px solid var(--green);
+    flex-shrink: 0;
+  }
+
+  .user-name { font-size: 13px; font-weight: 600; }
+  .user-role { font-size: 11px; color: var(--green); font-weight: 500; }
+
+  .nav { flex: 1; padding: 0 12px; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 2px;
+  }
+
+  .nav-item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+  .nav-item.active { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .nav-item .icon { font-size: 16px; }
+
+  .logout {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    color: var(--red);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    padding: 32px 36px;
+    max-width: 1200px;
+  }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .page-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  .notif-btn {
+    width: 38px; height: 38px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+    position: relative;
+  }
+
+  .notif-btn::after {
+    content: ''; position: absolute; top: 8px; right: 8px;
+    width: 7px; height: 7px;
+    background: var(--red); border-radius: 50%;
+    border: 2px solid var(--bg-base);
+  }
+
+  /* ── STAT CARDS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all .25s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.blue::before { background: var(--blue); }
+  .stat-card.purple::before { background: var(--purple); }
+  .stat-card.red::before { background: var(--red); }
+
+  .stat-card:hover { background: var(--bg-card-hover); border-color: var(--border-light); transform: translateY(-2px); }
+  .stat-card.active { border-color: var(--border-light); }
+
+  .stat-card.green.active { box-shadow: 0 0 0 1px var(--green), 0 8px 24px var(--green-glow); border-color: var(--green); }
+  .stat-card.red.active   { box-shadow: 0 0 0 1px var(--red), 0 8px 24px var(--red-glow); border-color: var(--red); }
+  .stat-card.blue.active  { box-shadow: 0 0 0 1px var(--blue); border-color: var(--blue); }
+  .stat-card.purple.active { box-shadow: 0 0 0 1px var(--purple); border-color: var(--purple); }
+
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card.green .stat-icon { background: var(--green-glow); }
+  .stat-card.blue .stat-icon  { background: rgba(96,165,250,0.12); }
+  .stat-card.purple .stat-icon { background: rgba(167,139,250,0.12); }
+  .stat-card.red .stat-icon   { background: var(--red-glow); }
+
+  .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; font-family: 'DM Mono', monospace; }
+  .stat-label { font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 4px; }
+  .stat-hint  { font-size: 11px; color: var(--text-muted); margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+  .expand-hint { font-size: 10px; color: var(--text-muted); margin-top: 10px; opacity: .6; }
+
+  /* ── BREAKDOWN PANEL ── */
+  .breakdown-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    overflow: hidden;
+    animation: slideDown .25s ease;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .panel-title { font-size: 14px; font-weight: 700; }
+  .panel-tag {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .tag-green { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .tag-blue  { background: rgba(96,165,250,0.1); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+  .tag-purple { background: rgba(167,139,250,0.1); color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+  .tag-red   { background: var(--red-glow); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+
+  .panel-body { padding: 20px 24px; }
+
+  /* ── BREAKDOWN TABLE ── */
+  .breakdown-table { width: 100%; border-collapse: collapse; }
+
+  .breakdown-table th {
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .breakdown-table th:not(:first-child) { text-align: right; }
+
+  .breakdown-table td {
+    padding: 13px 0;
+    font-size: 13.5px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .breakdown-table td:not(:first-child) { text-align: right; }
+  .breakdown-table tr:last-child td { border-bottom: none; }
+
+  .room-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
+  .room-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-pill {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; display: inline-block;
+  }
+
+  .status-active { background: var(--green-glow); color: var(--green); }
+  .status-ended  { background: rgba(100,116,139,0.15); color: var(--text-muted); }
+
+  .bar-wrap { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .mini-bar { height: 5px; border-radius: 4px; background: var(--bg-subtle); width: 80px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 4px; }
+
+  .mono { font-family: 'DM Mono', monospace; }
+
+  /* ── PANEL FOOTER TOTALS ── */
+  .panel-footer {
+    padding: 14px 24px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 32px;
+  }
+
+  .total-item { text-align: right; }
+  .total-label { font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
+  .total-value { font-size: 15px; font-weight: 700; font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+
+  .info-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .info-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .info-card-body { padding: 16px 20px; }
+
+  .activity-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .activity-item:last-child { border-bottom: none; }
+
+  .act-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    margin-top: 5px; flex-shrink: 0;
+  }
+
+  .act-text { font-size: 13px; line-height: 1.4; }
+  .act-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .due-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .due-row:last-child { border-bottom: none; }
+  .due-label { color: var(--text-secondary); }
+  .due-val { font-family: 'DM Mono', monospace; font-weight: 600; }
+  .due-val.red { color: var(--red); }
+  .due-val.green { color: var(--green); }
+  .due-val.amber { color: var(--amber); }
+
+  /* close button on panels */
+  .close-panel {
+    width: 24px; height: 24px;
+    background: var(--bg-subtle);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    transition: all .2s;
+  }
+
+  .close-panel:hover { background: var(--red-glow); color: var(--red); border-color: var(--red); }
+
+  .click-note {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🏠</div>
+    <span class="logo-text">AccommoTrack</span>
+  </div>
+
+  <div class="user-block">
+    <div class="avatar">NC</div>
+    <div>
+      <div class="user-name">Neal Jean Claro</div>
+      <div class="user-role">Tenant</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-item active"><span class="icon">⊞</span> Dashboard</div>
+    <div class="nav-item"><span class="icon">🔍</span> Explore</div>
+    <div class="nav-item"><span class="icon">📅</span> My Bookings</div>
+    <div class="nav-item"><span class="icon">💳</span> Billing & Payments</div>
+    <div class="nav-item"><span class="icon">💬</span> Messages</div>
+    <div class="nav-item"><span class="icon">⚙️</span> Settings</div>
+  </nav>
+
+  <div class="logout">↩ Log out</div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Good morning, Neal — here's your stay overview.</div>
+    </div>
+    <div class="notif-btn">🔔</div>
+  </div>
+
+  <p class="click-note">💡 Click any card to see a detailed breakdown</p>
+
+  <!-- STAT CARDS -->
+  <div class="stats-grid">
+
+    <!-- Card 1: Active Rooms -->
+    <div class="stat-card green" onclick="togglePanel('rooms-panel', this)">
+      <div class="stat-icon">🏠</div>
+      <div class="stat-value">2</div>
+      <div class="stat-label">Active Rooms</div>
+      <div class="stat-hint">📍 2 properties rented</div>
+      <div class="expand-hint">▼ Click to view rooms</div>
+    </div>
+
+    <!-- Card 2: Days Stayed -->
+    <div class="stat-card blue" onclick="togglePanel('days-panel', this)">
+      <div class="stat-icon">📅</div>
+      <div class="stat-value">134</div>
+      <div class="stat-label">Total Days Stayed</div>
+      <div class="stat-hint">🗓 Across all rooms</div>
+      <div class="expand-hint">▼ Click to view per room</div>
+    </div>
+
+    <!-- Card 3: Monthly Rent -->
+    <div class="stat-card purple" onclick="togglePanel('rent-panel', this)">
+      <div class="stat-icon">🧾</div>
+      <div class="stat-value">₱9,500</div>
+      <div class="stat-label">Monthly Rent</div>
+      <div class="stat-hint">➕ Add-ons: ₱1,200</div>
+      <div class="expand-hint">▼ Click to view per room</div>
+    </div>
+
+    <!-- Card 4: Unpaid Balance -->
+    <div class="stat-card red" onclick="togglePanel('balance-panel', this)">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-value">₱3,700</div>
+      <div class="stat-label">Unpaid Balance</div>
+      <div class="stat-hint">🔴 Due this month</div>
+      <div class="expand-hint">▼ Click to view breakdown</div>
+    </div>
+
+  </div>
+
+  <!-- BREAKDOWN PANELS (hidden by default) -->
+
+  <!-- ROOMS BREAKDOWN -->
+  <div class="breakdown-panel" id="rooms-panel" style="display:none">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">🏠 Active Rooms — Detailed View</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="panel-tag tag-green">2 Rooms Active</span>
+        <div class="close-panel" onclick="closePanel('rooms-panel')">✕</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <table class="breakdown-table">
+        <thead>
+          <tr>
+            <th>Room</th>
+            <th>Property</th>
+            <th>Floor</th>
+            <th>Type</th>
+            <th>Move-in Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#22c55e"></span>Room 204</span></td>
+            <td style="color:var(--text-secondary)">Sunrise Residences</td>
+            <td style="text-align:right; color:var(--text-secondary)">2nd Floor</td>
+            <td style="text-align:right; color:var(--text-secondary)">Studio</td>
+            <td style="text-align:right;" class="mono">Oct 1, 2024</td>
+            <td><span class="status-pill status-active">Active</span></td>
+          </tr>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#60a5fa"></span>Room 312</span></td>
+            <td style="color:var(--text-secondary)">Bayanihan Suites</td>
+            <td style="text-align:right; color:var(--text-secondary)">3rd Floor</td>
+            <td style="text-align:right; color:var(--text-secondary)">1-BR</td>
+            <td style="text-align:right;" class="mono">Dec 15, 2024</td>
+            <td><span class="status-pill status-active">Active</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel-footer">
+      <div class="total-item">
+        <div class="total-label">Total Rooms</div>
+        <div class="total-value" style="color:var(--green)">2</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAYS STAYED BREAKDOWN -->
+  <div class="breakdown-panel" id="days-panel" style="display:none">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">📅 Days Stayed — Per Room Breakdown</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="panel-tag tag-blue">134 Days Total</span>
+        <div class="close-panel" onclick="closePanel('days-panel')">✕</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <table class="breakdown-table">
+        <thead>
+          <tr>
+            <th>Room</th>
+            <th>Move-in</th>
+            <th>Days Stayed</th>
+            <th>Share</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#22c55e"></span>Room 204</span></td>
+            <td style="text-align:right;" class="mono" style="color:var(--text-secondary)">Oct 1, 2024</td>
+            <td style="text-align:right; font-weight:700;" class="mono">97 days</td>
+            <td>
+              <div class="bar-wrap">
+                <span style="font-size:12px; color:var(--text-muted)" class="mono">72%</span>
+                <div class="mini-bar"><div class="mini-bar-fill" style="width:72%; background:var(--green)"></div></div>
+              </div>
+            </td>
+            <td><span class="status-pill status-active">Active</span></td>
+          </tr>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#60a5fa"></span>Room 312</span></td>
+            <td style="text-align:right;" class="mono">Dec 15, 2024</td>
+            <td style="text-align:right; font-weight:700;" class="mono">37 days</td>
+            <td>
+              <div class="bar-wrap">
+                <span style="font-size:12px; color:var(--text-muted)" class="mono">28%</span>
+                <div class="mini-bar"><div class="mini-bar-fill" style="width:28%; background:var(--blue)"></div></div>
+              </div>
+            </td>
+            <td><span class="status-pill status-active">Active</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel-footer">
+      <div class="total-item">
+        <div class="total-label">Total Days</div>
+        <div class="total-value" style="color:var(--blue)">134 days</div>
+      </div>
+      <div class="total-item">
+        <div class="total-label">Avg / Room</div>
+        <div class="total-value" style="color:var(--text-secondary)">67 days</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MONTHLY RENT BREAKDOWN -->
+  <div class="breakdown-panel" id="rent-panel" style="display:none">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">🧾 Monthly Rent — Per Room Breakdown</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="panel-tag tag-purple">March 2025</span>
+        <div class="close-panel" onclick="closePanel('rent-panel')">✕</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <table class="breakdown-table">
+        <thead>
+          <tr>
+            <th>Room</th>
+            <th>Base Rent</th>
+            <th>Electricity</th>
+            <th>Water</th>
+            <th>Internet</th>
+            <th>Add-on Total</th>
+            <th>Room Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#22c55e"></span>Room 204</span></td>
+            <td class="mono" style="text-align:right;">₱4,500</td>
+            <td class="mono" style="text-align:right; color:var(--amber);">₱480</td>
+            <td class="mono" style="text-align:right; color:var(--blue);">₱120</td>
+            <td class="mono" style="text-align:right; color:var(--purple);">₱350</td>
+            <td class="mono" style="text-align:right; color:var(--text-secondary);">₱950</td>
+            <td class="mono" style="text-align:right; font-weight:700; color:var(--green);">₱5,450</td>
+          </tr>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#60a5fa"></span>Room 312</span></td>
+            <td class="mono" style="text-align:right;">₱5,000</td>
+            <td class="mono" style="text-align:right; color:var(--amber);">₱130</td>
+            <td class="mono" style="text-align:right; color:var(--blue);">₱80</td>
+            <td class="mono" style="text-align:right; color:var(--purple);">₱40</td>
+            <td class="mono" style="text-align:right; color:var(--text-secondary);">₱250</td>
+            <td class="mono" style="text-align:right; font-weight:700; color:var(--blue);">₱5,250</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel-footer">
+      <div class="total-item">
+        <div class="total-label">Base Rent</div>
+        <div class="total-value" style="color:var(--text-secondary)">₱9,500</div>
+      </div>
+      <div class="total-item">
+        <div class="total-label">Add-ons</div>
+        <div class="total-value" style="color:var(--amber)">₱1,200</div>
+      </div>
+      <div class="total-item">
+        <div class="total-label">Grand Total</div>
+        <div class="total-value" style="color:var(--purple)">₱10,700</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNPAID BALANCE BREAKDOWN -->
+  <div class="breakdown-panel" id="balance-panel" style="display:none">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">⚠️ Unpaid Balance — Detailed Breakdown</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="panel-tag tag-red">₱3,700 Due</span>
+        <div class="close-panel" onclick="closePanel('balance-panel')">✕</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <table class="breakdown-table">
+        <thead>
+          <tr>
+            <th>Room</th>
+            <th>Description</th>
+            <th>Due Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#22c55e"></span>Room 204</span></td>
+            <td style="color:var(--text-secondary)">March Rent (base)</td>
+            <td class="mono" style="text-align:right; color:var(--amber);">Mar 5, 2025</td>
+            <td class="mono" style="text-align:right; font-weight:700; color:var(--red);">₱4,500</td>
+            <td><span class="status-pill" style="background:var(--red-glow); color:var(--red);">Overdue</span></td>
+          </tr>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#22c55e"></span>Room 204</span></td>
+            <td style="color:var(--text-secondary)">Electricity (Feb)</td>
+            <td class="mono" style="text-align:right; color:var(--amber);">Mar 5, 2025</td>
+            <td class="mono" style="text-align:right; font-weight:700; color:var(--red);">₱480</td>
+            <td><span class="status-pill" style="background:var(--red-glow); color:var(--red);">Overdue</span></td>
+          </tr>
+          <tr>
+            <td><span class="room-badge"><span class="room-dot" style="background:#60a5fa"></span>Room 312</span></td>
+            <td style="color:var(--text-secondary)">March Rent (base)</td>
+            <td class="mono" style="text-align:right; color:var(--text-muted);">Mar 15, 2025</td>
+            <td class="mono" style="text-align:right; font-weight:700; color:var(--amber);">₱5,000</td>
+            <td><span class="status-pill" style="background:rgba(251,191,36,0.1); color:var(--amber);">Pending</span></td>
+          </tr>
+          <tr>
+            <td colspan="2" style="color:var(--text-muted); font-style: italic; padding-top:16px; border-bottom:none;">Partial payment on Mar 2</td>
+            <td style="text-align:right; color:var(--text-muted); padding-top:16px; border-bottom:none;" class="mono">—</td>
+            <td style="text-align:right; font-weight:700; color:var(--green); padding-top:16px; border-bottom:none;" class="mono">−₱6,280</td>
+            <td style="padding-top:16px; border-bottom:none;"><span class="status-pill" style="background:var(--green-glow); color:var(--green);">Paid</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel-footer">
+      <div class="total-item">
+        <div class="total-label">Total Billed</div>
+        <div class="total-value" style="color:var(--text-secondary)">₱9,980</div>
+      </div>
+      <div class="total-item">
+        <div class="total-label">Paid</div>
+        <div class="total-value" style="color:var(--green)">₱6,280</div>
+      </div>
+      <div class="total-item">
+        <div class="total-label">Unpaid Balance</div>
+        <div class="total-value" style="color:var(--red)">₱3,700</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-grid">
+
+    <!-- Recent Activity -->
+    <div class="info-card">
+      <div class="info-card-header">
+        Recent Activity
+        <span style="font-size:11px; color:var(--text-muted); font-weight:400; cursor:pointer;">View All →</span>
+      </div>
+      <div class="info-card-body">
+        <div class="activity-item">
+          <div class="act-dot" style="background:var(--green)"></div>
+          <div>
+            <div class="act-text">Payment received – ₱6,280 for Room 204 & 312</div>
+            <div class="act-time">Mar 2, 2025 · 10:14 AM</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-dot" style="background:var(--blue)"></div>
+          <div>
+            <div class="act-text">Lease renewed – Room 204 extended to Oct 2025</div>
+            <div class="act-time">Feb 28, 2025 · 3:00 PM</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-dot" style="background:var(--amber)"></div>
+          <div>
+            <div class="act-text">Maintenance request filed – Leaking faucet, Room 312</div>
+            <div class="act-time">Feb 25, 2025 · 9:41 AM</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-dot" style="background:var(--purple)"></div>
+          <div>
+            <div class="act-text">Invoice generated for March 2025</div>
+            <div class="act-time">Mar 1, 2025 · 12:00 AM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Summary -->
+    <div class="info-card">
+      <div class="info-card-header">
+        Payment Summary – March 2025
+        <span class="panel-tag tag-red">1 Overdue</span>
+      </div>
+      <div class="info-card-body">
+        <div class="due-row">
+          <span class="due-label">Room 204 – Base Rent</span>
+          <span class="due-val red">₱4,500 overdue</span>
+        </div>
+        <div class="due-row">
+          <span class="due-label">Room 204 – Electricity</span>
+          <span class="due-val red">₱480 overdue</span>
+        </div>
+        <div class="due-row">
+          <span class="due-label">Room 312 – Base Rent</span>
+          <span class="due-val amber">₱5,000 pending</span>
+        </div>
+        <div class="due-row">
+          <span class="due-label">Partial Payment (Mar 2)</span>
+          <span class="due-val green">−₱6,280 paid</span>
+        </div>
+        <div class="due-row" style="border-top: 1px solid var(--border-light); margin-top:4px; padding-top:14px;">
+          <span class="due-label" style="font-weight:700; color:var(--text-primary);">Net Unpaid Balance</span>
+          <span class="due-val red" style="font-size:16px;">₱3,700</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+  const panels = ['rooms-panel','days-panel','rent-panel','balance-panel'];
+  const cards = document.querySelectorAll('.stat-card');
+
+  function togglePanel(id, card) {
+    const panel = document.getElementById(id);
+    const isOpen = panel.style.display !== 'none';
+
+    // close all
+    panels.forEach(p => document.getElementById(p).style.display = 'none');
+    cards.forEach(c => c.classList.remove('active'));
+
+    if (!isOpen) {
+      panel.style.display = 'block';
+      card.classList.add('active');
+      panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
+  }
+
+  function closePanel(id) {
+    document.getElementById(id).style.display = 'none';
+    cards.forEach(c => c.classList.remove('active'));
+  }
+</script>
+</body>
+</html>

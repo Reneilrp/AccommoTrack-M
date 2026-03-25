@@ -49,7 +49,7 @@ export default function TenantLogs() {
   const [paymentSort] = useState({ key: 'date', dir: 'desc' });
   const [paymentGroup, setPaymentGroup] = useState('none'); 
   const [handlingTransferId, setHandlingTransferId] = useState(null);
-  const [transferForms, setTransferForms] = useState({});
+  const [approvingTransferId, setApprovingTransferId] = useState(null);
 
   const updateTransferForm = (transferId, patch) => {
     setTransferForms((prev) => ({
@@ -59,6 +59,9 @@ export default function TenantLogs() {
           damage_charge: '',
           damage_description: '',
           landlord_notes: '',
+          prorated_adjustment: '',
+          prorationDetails: null,
+          loadingProration: false,
         }),
         ...patch,
       },
@@ -70,7 +73,25 @@ export default function TenantLogs() {
       damage_charge: '',
       damage_description: '',
       landlord_notes: '',
+      prorated_adjustment: '',
+      prorationDetails: null,
+      loadingProration: false,
     };
+  };
+
+  const startTransferApproval = async (transferId) => {
+    setApprovingTransferId(transferId);
+    updateTransferForm(transferId, { loadingProration: true });
+    try {
+      const res = await api.get(`/landlord/transfers/${transferId}/proration`);
+      updateTransferForm(transferId, {
+        prorationDetails: res.data,
+        prorated_adjustment: res.data.suggested_adjustment,
+        loadingProration: false
+      });
+    } catch (err) {
+      updateTransferForm(transferId, { loadingProration: false });
+    }
   };
 
   const handleTransferAction = async (transfer, action) => {
@@ -86,8 +107,8 @@ export default function TenantLogs() {
       action,
       landlord_notes: String(form.landlord_notes || '').trim() || undefined,
       damage_charge: damageCharge > 0 ? damageCharge : undefined,
-      damage_description:
-        damageCharge > 0 ? String(form.damage_description || '').trim() : undefined,
+      damage_description: damageCharge > 0 ? String(form.damage_description || '').trim() : undefined,
+      prorated_adjustment: form.prorated_adjustment !== '' ? Number(form.prorated_adjustment) : undefined,
     };
 
     setHandlingTransferId(transfer.id);
@@ -575,50 +596,105 @@ export default function TenantLogs() {
                           "{req.reason}"
                         </div>
                         {req.status === 'pending' && (
-                          <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 space-y-2">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={getTransferForm(req.id).damage_charge}
-                                onChange={(e) => updateTransferForm(req.id, { damage_charge: e.target.value })}
-                                placeholder="Damage charge (optional)"
-                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
-                              />
-                              <input
-                                type="text"
-                                value={getTransferForm(req.id).damage_description}
-                                onChange={(e) => updateTransferForm(req.id, { damage_description: e.target.value })}
-                                placeholder="Damage description"
-                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
-                              />
-                            </div>
-                            <textarea
-                              value={getTransferForm(req.id).landlord_notes}
-                              onChange={(e) => updateTransferForm(req.id, { landlord_notes: e.target.value })}
-                              placeholder="Landlord notes (optional)"
-                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-20 resize-none"
-                            />
+                          <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 space-y-4">
+                            {approvingTransferId === req.id ? (
+                              <div className="animate-in slide-in-from-top-2 space-y-4">
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                                  <p className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase mb-2">Rent Proration Details</p>
+                                  {getTransferForm(req.id).loadingProration ? (
+                                    <div className="text-blue-600 text-xs flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin"/> Calculating...</div>
+                                  ) : getTransferForm(req.id).prorationDetails ? (
+                                    <>
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600 dark:text-gray-400">Unused Days (Old Room):</span>
+                                        <span className="font-bold">{getTransferForm(req.id).prorationDetails.remaining_days}</span>
+                                      </div>
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600 dark:text-gray-400">Suggested Final Adjustment:</span>
+                                        <span className={`font-black ${getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{getTransferForm(req.id).prorationDetails.suggested_adjustment.toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <p className="text-xs text-red-500">Failed to calculate proration.</p>
+                                  )}
+                                  
+                                  <div className="mt-3">
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mt-2 mb-1">Final Override Adjustment (₱)</label>
+                                    <input 
+                                      type="number" 
+                                      step="0.01"
+                                      value={getTransferForm(req.id).prorated_adjustment}
+                                      onChange={e => updateTransferForm(req.id, { prorated_adjustment: e.target.value })}
+                                      className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                    />
+                                  </div>
+                                </div>
 
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => handleTransferAction(req, 'reject')}
-                                disabled={handlingTransferId === req.id}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
-                                Reject
-                              </button>
-                              <button
-                                onClick={() => handleTransferAction(req, 'approve')}
-                                disabled={handlingTransferId === req.id}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Approve
-                              </button>
-                            </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={getTransferForm(req.id).damage_charge}
+                                    onChange={(e) => updateTransferForm(req.id, { damage_charge: e.target.value })}
+                                    placeholder="Damage charge (optional)"
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                                  />
+                                  {parseFloat(getTransferForm(req.id).damage_charge) > 0 && (
+                                    <input
+                                      type="text"
+                                      value={getTransferForm(req.id).damage_description}
+                                      onChange={(e) => updateTransferForm(req.id, { damage_description: e.target.value })}
+                                      placeholder="Damage description"
+                                      className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
+                                    />
+                                  )}
+                                </div>
+                                <textarea
+                                  value={getTransferForm(req.id).landlord_notes}
+                                  onChange={(e) => updateTransferForm(req.id, { landlord_notes: e.target.value })}
+                                  placeholder="Landlord notes / instructions..."
+                                  className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-20 resize-none"
+                                />
+
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setApprovingTransferId(null)}
+                                    className="px-4 py-2 rounded-lg text-xs font-bold border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleTransferAction(req, 'approve')}
+                                    disabled={handlingTransferId === req.id || getTransferForm(req.id).loadingProration}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-green-600 text-white shadow-md shadow-green-500/20 disabled:opacity-50"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Confirm Approve
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleTransferAction(req, 'reject')}
+                                  disabled={handlingTransferId === req.id}
+                                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  Reject
+                                </button>
+                                <button
+                                  onClick={() => startTransferApproval(req.id)}
+                                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Approve
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                         <div className="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase">

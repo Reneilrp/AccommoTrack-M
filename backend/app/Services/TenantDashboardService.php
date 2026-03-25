@@ -42,6 +42,8 @@ class TenantDashboardService
             ->orderBy('due_date', 'asc')
             ->first();
 
+        $hasOverdueInvoices = Invoice::where('tenant_id', $tenantId)->where('status', 'overdue')->exists();
+
         $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
 
         $bookings = [
@@ -54,6 +56,7 @@ class TenantDashboardService
             'totalDue' => (float) ($totalDueCents / 100),
             'totalPaid' => (float) ($totalPaidCents / 100),
             'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
+            'hasOverdueInvoices' => $hasOverdueInvoices,
         ];
         $notifications = [
             'unread' => $unreadNotifications,
@@ -99,8 +102,11 @@ class TenantDashboardService
             ->where(function ($query) {
                 // Bookings that are confirmed, completed, or partial-completed
                 $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-                      // And lease hasn't historically ended
-                    ->where('end_date', '>=', now()->startOfDay());
+                      // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
+                    ->where(function($q) {
+                        $q->where('end_date', '>=', now()->startOfDay())
+                          ->orWhere('status', 'confirmed');
+                    });
             })
             // Only bookings where the tenant is actually still actively assigned to the room!
             ->whereHas('room.tenants', function ($query) use ($tenantId) {
@@ -133,6 +139,19 @@ class TenantDashboardService
             ->with(['room', 'property.landlord', 'landlord'])
             ->orderBy('start_date', 'asc')
             ->first();
+    }
+
+    public function getPendingCheckInBookings(int $tenantId)
+    {
+        return Booking::where('tenant_id', $tenantId)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->where('start_date', '<=', now())
+            // Not assigned to room yet
+            ->whereDoesntHave('room.tenants', function ($query) use ($tenantId) {
+                $query->where('users.id', $tenantId);
+            })
+            ->with(['room', 'property.landlord', 'landlord'])
+            ->get();
     }
 
     public function getHistory(int $tenantId)
@@ -256,8 +275,8 @@ class TenantDashboardService
             ->where(function ($query) {
                 // Currently confirmed and active bookings
                 $query->where(function ($q) {
-                    $q->where('status', 'confirmed')
-                        ->where('end_date', '>=', now());
+                    $q->where('status', 'confirmed');
+                        // No end date restriction here for confirmed stays to show overdue ones
                 })
                 // OR recently completed bookings (last 30 days)
                     ->orWhere(function ($q) {

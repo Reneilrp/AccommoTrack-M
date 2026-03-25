@@ -192,6 +192,7 @@ export default function MyBookings() {
 
   const getStatusColor = (status) => {
     const s = String(status || '').toLowerCase();
+    if (s.includes('overdue')) return '#EF4444';
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.primary;
     if (s.includes('pending') || s.includes('partial')) return '#F59E0B';
     if (s.includes('cancel') || s.includes('reject')) return '#EF4444';
@@ -377,9 +378,9 @@ export default function MyBookings() {
           <View style={styles.bookingInfo}>
             <View style={styles.bookingHeader}>
               <Text style={styles.bookingName}>{property.title}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.status)}15` }]}>
-                <Text style={[styles.statusText, { color: getStatusColor(booking.status) }]}>
-                  {booking.status}
+              <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status) }]}>
+                  {booking.isOverdue || booking.is_overdue ? 'Overdue' : booking.status}
                 </Text>
               </View>
             </View>
@@ -627,8 +628,10 @@ export default function MyBookings() {
                     <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
                       {formatDate(booking.period?.startDate || booking.start_date)} - {formatDate(booking.period?.endDate || booking.end_date)}
                     </Text>
-                    <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.status)}15` }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(booking.status), fontSize: 10 }]}>{booking.status}</Text>
+                    <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
+                      <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status), fontSize: 10 }]}>
+                        {booking.isOverdue || booking.is_overdue ? 'Overdue' : booking.status}
+                      </Text>
                     </View>
                  </View>
                  <View style={styles.historyItemRight}>

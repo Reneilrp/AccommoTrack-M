@@ -961,7 +961,9 @@ const ExtensionRequestsList = ({ requests, loading, onHandle }) => {
 // ==================== Transfer Requests List ====================
 const TransferRequestsList = ({ requests, loading, onHandle }) => {
   const [approving, setApproving] = useState(null); // id of request being approved (to show form)
-  const [approvalData, setApprovalData] = useState({ damage_charge: '', damage_description: '', landlord_notes: '' });
+  const [approvalData, setApprovalData] = useState({ damage_charge: '', damage_description: '', landlord_notes: '', prorated_adjustment: '' });
+  const [prorationDetails, setProrationDetails] = useState(null);
+  const [loadingProration, setLoadingProration] = useState(false);
 
   if (loading) {
     return (
@@ -982,15 +984,27 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
     );
   }
 
-  const startApprove = (req) => {
+  const startApprove = async (req) => {
     setApproving(req.id);
-    setApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
+    setApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '', prorated_adjustment: '' });
+    
+    setLoadingProration(true);
+    setProrationDetails(null);
+    try {
+      const res = await api.get(`/landlord/transfers/${req.id}/proration`);
+      setProrationDetails(res.data);
+      setApprovalData(prev => ({ ...prev, prorated_adjustment: res.data.suggested_adjustment }));
+    } catch (err) {
+      console.error("Failed to load proration details", err);
+    } finally {
+      setLoadingProration(false);
+    }
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {requests.map((req) => (
-        <div key={req.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700">
+        <div key={req.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-300 dark:border-gray-700 max-w-2xl mx-auto w-full">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h4 className="font-bold text-gray-900 dark:text-white text-lg">{req.tenant?.full_name || (req.tenant?.first_name + ' ' + req.tenant?.last_name)}</h4>
@@ -1006,19 +1020,39 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
               <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Current Room</p>
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Room {req.current_room?.room_number}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-gray-700 dark:text-gray-300">Room {req.current_room?.room_number}</p>
+                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <X className="w-4 h-4 text-red-500" />
+                </div>
+              </div>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-100 dark:border-amber-800">
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-100 dark:border-amber-800 flex flex-col justify-between">
               <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-2">Requested Room</p>
-              <p className="text-sm font-bold text-amber-900 dark:text-blue-200">Room {req.requested_room?.room_number}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-amber-900 dark:text-amber-300">Room {req.requested_room?.room_number}</p>
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="col-span-2 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex items-center justify-between">
+               <div>
+                 <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">New Lease Duration</p>
+                 <p className="text-sm font-bold text-blue-900 dark:text-blue-200">
+                   {req.new_end_date ? 'Ends on: ' + new Date(req.new_end_date).toLocaleDateString() : 'Keep current lease logic'}
+                 </p>
+               </div>
+               <CalendarDays className="w-5 h-5 text-blue-500 opacity-50"/>
             </div>
           </div>
 
           <div className="mb-6">
             <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Reason for Transfer</p>
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-xs italic text-gray-600 dark:text-gray-400 leading-relaxed">
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg text-sm italic text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
               "{req.reason}"
             </div>
           </div>
@@ -1026,16 +1060,70 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
           {req.status === 'pending' && (
             <div className="space-y-4">
               {approving === req.id ? (
-                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Damage Charge (Optional)</label>
-                    <div className="flex gap-2">
+                <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2 mx-auto">
+                  
+                  {/* Proration Calculation block */}
+                  <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 space-y-4">
+                    <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase flex items-center gap-2">
+                       <Calculator className="w-4 h-4" /> Rent Proration Math
+                    </p>
+                    {loadingProration ? (
+                      <div className="flex items-center gap-2 text-sm text-blue-600 py-4">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Calculating unused days...
+                      </div>
+                    ) : prorationDetails ? (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Unused Days in Old Room:</span>
+                            <span className="font-bold text-gray-800 dark:text-gray-200">{prorationDetails.remaining_days} Days</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Credit from Old Room:</span>
+                            <span className="font-bold text-green-600">- ₱{prorationDetails.old_room_unused_value.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Cost of New Room (for {prorationDetails.remaining_days} Days):</span>
+                            <span className="font-bold text-amber-600">+ ₱{prorationDetails.new_room_cost.toLocaleString()}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center border-t border-blue-200 dark:border-blue-800 pt-3 mt-3">
+                          <span className="font-bold text-blue-900 dark:text-blue-100">Suggested Final Adjustment:</span>
+                          <div className="text-right">
+                            <span className={`text-xl font-black ${prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                              {prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{prorationDetails.suggested_adjustment.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-red-500 py-4">Could not calculate proration automatically.</p>
+                    )}
+                    
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mt-2 mb-2">Final Override Adjustment (₱)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0.00"
+                        value={approvalData.prorated_adjustment}
+                        onChange={e => setApprovalData({...approvalData, prorated_adjustment: e.target.value})}
+                        className="w-full text-base font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-gray-900 dark:text-white"
+                      />
+                      <p className="text-[10px] text-gray-500 font-medium mt-2">Positive = Create Invoice Charge. Negative = Apply Discount to Next Bill.</p>
+                    </div>
+                  </div>
+
+                  {/* Damages Block */}
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Damage Charge for Old Room (Optional)</label>
+                    <div className="flex flex-col md:flex-row gap-3">
                       <input 
                         type="number" 
                         placeholder="0.00"
                         value={approvalData.damage_charge}
                         onChange={e => setApprovalData({...approvalData, damage_charge: e.target.value})}
-                        className="flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 outline-none"
+                        className="w-full md:w-1/3 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500"
                       />
                       {parseFloat(approvalData.damage_charge) > 0 && (
                         <input 
@@ -1044,32 +1132,33 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                           required
                           value={approvalData.damage_description}
                           onChange={e => setApprovalData({...approvalData, damage_description: e.target.value})}
-                          className="flex-[2] text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 outline-none"
+                          className="w-full md:flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500"
                         />
                       )}
                     </div>
                   </div>
+                  
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Landlord Notes</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Landlord Notes / Message to Tenant</label>
                     <textarea 
-                      placeholder="Any notes for the tenant..."
+                      placeholder="Any instructions for moving in..."
                       value={approvalData.landlord_notes}
                       onChange={e => setApprovalData({...approvalData, landlord_notes: e.target.value})}
-                      className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 outline-none h-16 resize-none"
+                      className="w-full text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 min-h-[80px] resize-none"
                     />
                   </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => onHandle(req.id, 'approve', approvalData)}
-                      className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-green-500/20"
-                    >
-                      Confirm Transfer
-                    </button>
+                  <div className="flex gap-4 pt-4">
                     <button 
                       onClick={() => setApproving(null)}
-                      className="px-4 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-2 rounded-lg text-xs font-bold"
+                      className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 py-4 rounded-xl font-bold bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       Cancel
+                    </button>
+                    <button 
+                      onClick={() => onHandle(req.id, 'approve', approvalData)}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    >
+                      <CheckCircle className="w-5 h-5" /> Execute Transfer
                     </button>
                   </div>
                 </div>

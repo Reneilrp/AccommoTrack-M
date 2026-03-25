@@ -83,6 +83,7 @@ class TenantDashboardController extends Controller
             $tenantId = Auth::id();
             $bookings = $this->dashboardService->getActiveStays($tenantId);
             $upcomingBooking = $this->dashboardService->getUpcomingBooking($tenantId);
+            $pendingCheckIns = $this->dashboardService->getPendingCheckInBookings($tenantId);
 
             $formattedUpcoming = $upcomingBooking ? [
                 'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
@@ -90,11 +91,22 @@ class TenantDashboardController extends Controller
                 'daysUntil' => now()->diffInDays($upcomingBooking->start_date),
             ] : null;
 
+            $formattedPendingCheckIns = $pendingCheckIns->map(function ($b) {
+                return [
+                    'id' => $b->id, 'property' => $b->property->title,
+                    'room' => $b->room->room_number, 'startDate' => $b->start_date->format('Y-m-d'),
+                    'daysOverdue' => now()->diffInDays($b->start_date),
+                    'status' => $b->status,
+                    'isOverdue' => true
+                ];
+            });
+
             if ($bookings->isEmpty()) {
                 return response()->json([
                     'hasActiveStay' => false,
                     'stays' => [],
                     'upcomingBooking' => $formattedUpcoming,
+                    'pendingCheckIns' => $formattedPendingCheckIns,
                 ], 200);
             }
 
@@ -130,6 +142,8 @@ class TenantDashboardController extends Controller
                         'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
                         'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
                         'hasReview' => (bool) $booking->review,
+                        'isOverdue' => now()->gt($booking->end_date) && !in_array($booking->status, ['completed', 'cancelled']),
+                        'due_day' => (int) $booking->start_date->format('d'),
                         'daysRemaining' => now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)),
                         'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : (int) floor(abs(now()->diffInDays($booking->start_date, false))),
                         'monthsRemaining' => now()->diffInMonths($booking->end_date),
@@ -201,6 +215,7 @@ class TenantDashboardController extends Controller
             return response()->json([
                 'hasActiveStay' => true,
                 'stays' => $stays,
+                'pendingCheckIns' => $formattedPendingCheckIns,
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch current stays', 'error' => $e->getMessage()], 500);

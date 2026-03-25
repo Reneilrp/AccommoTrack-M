@@ -43,6 +43,7 @@ class BookingResource extends JsonResource
             'unit_price' => (float) ($this->room?->billing_policy === 'daily' ? ($this->room->daily_rate ?? ($this->monthly_rent / 30)) : $this->monthly_rent),
             'billing_policy' => $this->room?->billing_policy ?? 'monthly',
             'status' => $this->status,
+            'is_overdue' => now()->gt($this->end_date) && !in_array($this->status, ['completed', 'cancelled']),
             'paymentStatus' => $this->payment_status,
             'payment_status' => $this->payment_status,
             'paymentPlan' => $this->payment_plan,

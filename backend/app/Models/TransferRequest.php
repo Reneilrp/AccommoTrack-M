@@ -14,6 +14,7 @@ class TransferRequest extends Model
         'landlord_id',
         'current_room_id',
         'requested_room_id',
+        'new_end_date',
         'reason',
         'status',
         'landlord_notes',

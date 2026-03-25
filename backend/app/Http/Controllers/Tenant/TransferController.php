@@ -86,6 +86,7 @@ class TransferController extends Controller
             'booking_id' => 'required|integer|exists:bookings,id',
             'property_id' => 'required|integer|exists:properties,id',
             'requested_room_id' => 'required|exists:rooms,id',
+            'new_end_date' => 'nullable|date|after_or_equal:today',
             'reason' => 'required|string|max:500',
         ]);
 
@@ -139,6 +140,7 @@ class TransferController extends Controller
             'landlord_id' => $activeBooking->landlord_id,
             'current_room_id' => $activeBooking->room_id,
             'requested_room_id' => $requestedRoom->id,
+            'new_end_date' => $validated['new_end_date'] ?? null,
             'reason' => $validated['reason'],
             'status' => 'pending',
         ]);

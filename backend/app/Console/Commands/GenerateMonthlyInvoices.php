@@ -62,15 +62,28 @@ class GenerateMonthlyInvoices extends Command
                 continue; // Skip bookings with no monthly charge
             }
 
-            // Loop through each month from the start date to the current month
-            for ($i = 0; $i < $monthsSinceStart; $i++) {
+            // Loop through each month from the start date to the current month, but not exceeding total_months
+            $maxMonths = (int) ($booking->total_months || 1);
+            for ($i = 0; $i < min($monthsSinceStart, $maxMonths); $i++) {
                 $billingDateForLoop = $startDate->copy()->addMonths($i);
 
                 // Check if an invoice for this specific billing month already exists
+                // OR if this is the first recurring month and an advance was already paid
                 $invoiceExists = $booking->invoices()
                     ->whereYear('due_date', $billingDateForLoop->year)
                     ->whereMonth('due_date', $billingDateForLoop->month)
                     ->exists();
+
+                // Logic: If i == 1 (second month), check if the FIRST invoice (i=0) included an advance.
+                // In AccommoTrack, the advance covers the LAST month or the NEXT month depending on landlord policy.
+                // Usually, 1 month advance means you've paid for the next month already.
+                if ($i === 1 && ! $invoiceExists) {
+                    $firstInvoice = $booking->invoices()->orderBy('created_at', 'asc')->first();
+                    if ($firstInvoice && str_contains(strtolower($firstInvoice->description), 'advance')) {
+                        Log::info("Skipping second month invoice for booking #{$booking->id} as advance was detected in initial invoice.");
+                        continue; 
+                    }
+                }
 
                 if (! $invoiceExists) {
                     // Create the missing invoice for this billing period
