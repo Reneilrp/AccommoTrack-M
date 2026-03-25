@@ -21,6 +21,21 @@ export default function Addons() {
 
   useEffect(() => { loadAddons(); }, []);
 
+  const normalizeNote = (value) => {
+    const trimmed = String(value || '').trim();
+    return trimmed || null;
+  };
+
+  const normalizeSuggestedPrice = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const numericValue = Number(raw);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null;
+
+    return numericValue;
+  };
+
   const loadAddons = async () => {
     setLoading(true);
     try {
@@ -56,11 +71,25 @@ export default function Addons() {
   };
 
   const onRequest = async (addon, isCustom = false) => {
-    const payload = isCustom ? {
-      is_custom: true, ...customData, quantity: 1
-    } : {
-      addon_id: addon.id, quantity: qtys[addon.id] || 1, note: notes[addon.id] || null
-    };
+    const normalizedSuggestedPrice = normalizeSuggestedPrice(customData.suggested_price);
+
+    const payload = isCustom
+      ? {
+          is_custom: true,
+          name: customData.name.trim(),
+          addon_type: customData.addon_type,
+          price_type: customData.price_type,
+          quantity: 1,
+          note: normalizeNote(customData.note),
+          ...(normalizedSuggestedPrice !== null
+            ? { suggested_price: normalizedSuggestedPrice }
+            : {}),
+        }
+      : {
+          addon_id: addon.id,
+          quantity: qtys[addon.id] || 1,
+          note: normalizeNote(notes[addon.id]),
+        };
 
     setSubmittingId(isCustom ? 'custom' : addon.id);
     try {

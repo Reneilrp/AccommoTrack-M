@@ -813,13 +813,13 @@ export default function RoomDetailsModal({
                           !agreedToRules
                         }
                         className={`
-                          w-full rounded-xl font-bold text-white shadow-md transition-all px-8 py-4 
+                          w-full px-8 py-4 rounded-xl font-bold text-white shadow-md transition-all
                           ${
                             isSubmitting ||
                             room.status !== "available" ||
                             !agreedToRules
                               ? "bg-gray-400 cursor-not-allowed opacity-70"
-                              : "bg-green-600 hover:bg-green-700 hover:shadow-lg transform hover:-translate-y-0.5"
+                              : "bg-green-600 hover:bg-green-700"
                           }
                         `}
                       >

@@ -147,6 +147,19 @@ class PropertyService
 
     public function getPublicProperties(Request $request)
     {
+        $tenantId = Auth::id();
+        $blockedStatuses = ['pending', 'confirmed', 'active', 'completed', 'partial-completed'];
+        $excludeTenantBookedRooms = function ($roomQuery) use ($tenantId, $blockedStatuses) {
+            if (! $tenantId) {
+                return;
+            }
+
+            $roomQuery->whereDoesntHave('bookings', function ($bookingQuery) use ($tenantId, $blockedStatuses) {
+                $bookingQuery->where('tenant_id', $tenantId)
+                    ->whereIn('status', $blockedStatuses);
+            });
+        };
+
         $query = Property::where('is_published', true)->where('is_available', true);
 
         if ($request->has('search') && ! empty($request->search)) {
@@ -177,7 +190,8 @@ class PropertyService
         }
 
         if ($request->has('min_price') || $request->has('max_price')) {
-            $query->whereHas('rooms', function ($q) use ($request) {
+            $query->whereHas('rooms', function ($q) use ($request, $excludeTenantBookedRooms) {
+                $excludeTenantBookedRooms($q);
                 $q->where('status', 'available');
                 if ($request->has('min_price') && ! empty($request->min_price)) {
                     $q->where('monthly_rate', '>=', $request->min_price);
@@ -189,7 +203,8 @@ class PropertyService
         }
 
         if ($request->boolean('availability')) {
-            $query->whereHas('rooms', function ($q) {
+            $query->whereHas('rooms', function ($q) use ($excludeTenantBookedRooms) {
+                $excludeTenantBookedRooms($q);
                 $q->where('status', 'available');
             });
         }
@@ -213,7 +228,11 @@ class PropertyService
         }
 
         return $query->with([
-            'rooms.images', 'rooms.amenities', 'images', 'landlord:id,first_name,last_name',
+            'rooms' => function ($q) use ($excludeTenantBookedRooms) {
+                $excludeTenantBookedRooms($q);
+                $q->with(['images', 'amenities']);
+            },
+            'images', 'landlord:id,first_name,last_name',
             'reviews' => function ($q) {
                 $q->where('is_published', true);
             },

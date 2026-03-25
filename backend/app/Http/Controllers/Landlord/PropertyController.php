@@ -89,6 +89,7 @@ class PropertyController extends Controller
     {
         try {
             $tenantId = Auth::id();
+            $blockedStatuses = ['pending', 'confirmed', 'active', 'completed', 'partial-completed'];
             $roomEagerLoads = ['amenities', 'images'];
             if ($tenantId) {
                 $roomEagerLoads['bookings'] = function ($bq) use ($tenantId) {
@@ -102,7 +103,14 @@ class PropertyController extends Controller
                 ->where('is_available', true)
                 ->with([
                     'amenities',
-                    'rooms' => function ($q) use ($roomEagerLoads) {
+                    'rooms' => function ($q) use ($roomEagerLoads, $tenantId, $blockedStatuses) {
+                        if ($tenantId) {
+                            $q->whereDoesntHave('bookings', function ($bq) use ($tenantId, $blockedStatuses) {
+                                $bq->where('tenant_id', $tenantId)
+                                    ->whereIn('status', $blockedStatuses);
+                            });
+                        }
+
                         $q->with($roomEagerLoads);
                     },
                     'images', 'landlord:id,first_name,last_name,email,phone,payment_methods_settings',

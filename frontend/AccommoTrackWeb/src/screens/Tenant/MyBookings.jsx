@@ -12,7 +12,7 @@ import {
   Calendar, 
   DollarSign,
   Clock,
-  CheckCircle,
+  AlertCircle,
   XCircle,
   X,
   Plus,
