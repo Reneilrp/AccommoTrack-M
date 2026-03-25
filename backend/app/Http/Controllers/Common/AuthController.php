@@ -62,7 +62,7 @@ class AuthController extends Controller
                 'role' => 'required|in:landlord,tenant',
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'required|date',
-                'gender' => ['required', Rule::in(['male', 'female', 'rather_not_say'])],
+                'gender' => ['required', Rule::in(['male', 'female', 'prefer_not_to_say'])],
             ], [
                 'email.unique' => 'This email is already taken. Please use a different email address.',
                 'email.email' => 'Email address is not valid or cannot receive mail.',
@@ -278,7 +278,7 @@ class AuthController extends Controller
                 'last_name' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^[\pL\s\'\-]+$/u'],
                 'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'nullable|date',
-                'gender' => ['nullable', Rule::in(['male', 'female', 'rather_not_say'])],
+                'gender' => ['nullable', Rule::in(['male', 'female', 'prefer_not_to_say'])],
                 'identified_as' => 'nullable|string|max:50',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
                 'payment_methods_settings' => 'nullable|array',

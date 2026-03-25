@@ -4,6 +4,7 @@ namespace App\Http\Requests\Booking;
 
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreBookingRequest extends FormRequest
 {
@@ -22,7 +23,13 @@ class StoreBookingRequest extends FormRequest
     {
         return [
             'room_id' => 'required|exists:rooms,id',
-            'guest_name' => 'nullable|string|max:255',
+            'tenant_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'tenant')),
+                'required_without:guest_name',
+            ],
+            'guest_name' => 'nullable|string|max:255|required_without:tenant_id',
             'bed_count' => 'nullable|integer|min:1',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => [
@@ -52,6 +59,9 @@ class StoreBookingRequest extends FormRequest
         return [
             'room_id.required' => 'Please select a room to book.',
             'room_id.exists' => 'The selected room does not exist.',
+            'tenant_id.required_without' => 'Please select an existing tenant or enter a guest name.',
+            'tenant_id.exists' => 'The selected tenant is invalid.',
+            'guest_name.required_without' => 'Please enter a guest name when no tenant is selected.',
             'start_date.required' => 'Please select a check-in date.',
             'start_date.after_or_equal' => 'Check-in date must be today or later.',
             'end_date.required' => 'Please select a check-out date.',
