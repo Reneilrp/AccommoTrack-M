@@ -124,13 +124,14 @@ class TransferController extends Controller
             return response()->json(['message' => 'The requested room is not compatible with your gender restriction.'], 422);
         }
 
-        // Check for existing pending request
+        // Check for existing pending request for this specific room
         $exists = TransferRequest::where('tenant_id', $tenantId)
+            ->where('current_room_id', $activeBooking->room_id)
             ->where('status', 'pending')
             ->exists();
 
         if ($exists) {
-            return response()->json(['message' => 'You already have a pending transfer request.'], 422);
+            return response()->json(['message' => 'There is already a pending transfer request for this room/booking.'], 422);
         }
 
         $transferRequest = TransferRequest::create([
