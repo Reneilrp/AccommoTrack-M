@@ -142,6 +142,19 @@ class LandlordVerificationController extends Controller
             ->first();
 
         if (! $verification) {
+            if ($user->is_verified) {
+                return response()->json([
+                    'message' => 'Verification already approved',
+                    'status' => 'approved',
+                    'user' => [
+                        'is_verified' => true,
+                    ],
+                    'valid_id_path' => null,
+                    'permit_path' => null,
+                    'history' => [],
+                ]);
+            }
+
             return response()->json([
                 'message' => 'No verification record found',
                 'status' => 'not_submitted',

@@ -248,7 +248,7 @@ class AuthController extends Controller
 
             $verification = \App\Models\LandlordVerification::where('user_id', $user->id)->first();
 
-            if (! $verification || $verification->status !== 'approved') {
+            if (! $user->is_verified && (! $verification || $verification->status !== 'approved')) {
                 return response()->json([
                     'message' => 'Your landlord verification is not yet approved. Please complete verification first.',
                     'status' => $verification ? $verification->status : 'not_submitted',
