@@ -212,22 +212,15 @@ class ReviewController extends Controller
                 $query->where('property_id', $request->property_id);
             }
 
-            $query->with([
+            $reviews = $query->with([
                 'tenant:id,first_name,last_name,profile_image',
                 'property:id,title',
                 'booking:id,start_date,end_date,room_id',
                 'booking.room:id,room_number',
-            ])->orderBy('created_at', 'desc');
-
-            if ($request->input('replied') === 'false' || $request->input('replied') === '0') {
-                $query->whereNull('landlord_response');
-            }
-
-            if ($request->has('limit')) {
-                $query->limit((int)$request->input('limit'));
-            }
-
-            $reviews = $query->get()->map(function ($review) {
+            ])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($review) {
                     return [
                         'id' => $review->id,
                         'property_id' => $review->property_id,
