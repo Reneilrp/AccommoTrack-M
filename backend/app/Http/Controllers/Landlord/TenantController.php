@@ -585,7 +585,7 @@ class TenantController extends Controller
                             'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Cancelled due to room transfer)')"),
                         ]);
 
-                    $this->bookingService->updateStatus($activeBooking, ['status' => 'completed']);
+                    $this->bookingService->updateStatus($activeBooking, ['status' => 'transferred']);
                 }
 
                 $oldRoom->removeTenant($tenant->id);

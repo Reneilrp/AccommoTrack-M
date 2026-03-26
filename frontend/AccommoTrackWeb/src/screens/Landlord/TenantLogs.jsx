@@ -511,8 +511,14 @@ export default function TenantLogs() {
                               <p className="text-[10px] text-gray-500 uppercase mt-0.5">{formatDate(inv.paid_at || inv.due_date || inv.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {(inv.status === 'paid' || inv.paid_at) ? 'PAID' : 'DUE'}
+                              <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
+                                (inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 
+                                (inv.status === 'cancelled' || inv.status === 'void') ? 'bg-gray-200 text-gray-600' : 'bg-red-100 text-red-700'
+                              }`}>
+                                {
+                                  (inv.status === 'paid' || inv.paid_at) ? 'PAID' : 
+                                  (inv.status === 'cancelled' || inv.status === 'void') ? 'CANCELLED' : 'DUE'
+                                }
                               </span>
                               <button onClick={() => navigate('/payments')} className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-white dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-all">
                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -631,7 +637,7 @@ export default function TenantLogs() {
                                     <>
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600 dark:text-gray-400">Unused Days (Old Room):</span>
-                                        <span className="font-bold">{getTransferForm(req.id).prorationDetails.remaining_days}</span>
+                                        <span className="font-bold">{Number(getTransferForm(req.id).prorationDetails.remaining_days).toFixed(2)}</span>
                                       </div>
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600 dark:text-gray-400">Suggested Final Adjustment:</span>
