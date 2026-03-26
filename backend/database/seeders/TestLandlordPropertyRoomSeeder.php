@@ -182,42 +182,44 @@ class TestLandlordPropertyRoomSeeder extends Seeder
 
         if ($propertyType === 'bedSpacer') {
             return [
-                $this->roomTemplate('R01', 'bedSpacer', 'daily', 1),
-                $this->roomTemplate('R02', 'bedSpacer', 'daily', 1),
-                $this->roomTemplate('R03', 'bedSpacer', 'monthly', 1),
-                $this->roomTemplate('R04', 'bedSpacer', 'monthly', 1),
-                $this->roomTemplate('R05', 'bedSpacer', 'monthly_with_daily', 1),
-                $this->roomTemplate('R06', 'bedSpacer', 'monthly_with_daily', 1),
+                $this->roomTemplate('R01', 'bedSpacer', 'daily', 1, 1),
+                $this->roomTemplate('R02', 'bedSpacer', 'daily', 1, 2),
+                $this->roomTemplate('R03', 'bedSpacer', 'monthly', 1, 1),
+                $this->roomTemplate('R04', 'bedSpacer', 'monthly', 1, 2),
+                $this->roomTemplate('R05', 'bedSpacer', 'monthly_with_daily', 1, 1),
+                $this->roomTemplate('R06', 'bedSpacer', 'monthly_with_daily', 1, 2),
             ];
         }
 
         if ($propertyType === 'dormitory') {
             return [
                 $this->roomTemplate('R01', 'single', 'daily', 1),
-                $this->roomTemplate('R02', 'double', 'daily', 1),
-                $this->roomTemplate('R03', 'double', 'monthly', 2),
-                $this->roomTemplate('R04', 'quad', 'monthly', 2),
-                $this->roomTemplate('R05', 'quad', 'monthly_with_daily', 2),
-                $this->roomTemplate('R06', 'quad', 'monthly_with_daily', 2),
+                $this->roomTemplate('R02', 'bedSpacer', 'daily', 1, 1),
+                $this->roomTemplate('R03', 'single', 'monthly', 2),
+                $this->roomTemplate('R04', 'bedSpacer', 'monthly', 2, 2),
+                $this->roomTemplate('R05', 'single', 'monthly_with_daily', 2),
+                $this->roomTemplate('R06', 'bedSpacer', 'monthly_with_daily', 2, 2),
             ];
         }
 
+        // boardingHouse uses only single and bedSpacer room types.
         return [
             $this->roomTemplate('R01', 'single', 'daily', 1),
-            $this->roomTemplate('R02', 'double', 'daily', 1),
-            $this->roomTemplate('R03', 'single', 'monthly', 1),
-            $this->roomTemplate('R04', 'double', 'monthly', 2),
-            $this->roomTemplate('R05', 'quad', 'monthly_with_daily', 2),
-            $this->roomTemplate('R06', 'quad', 'monthly_with_daily', 2),
+            $this->roomTemplate('R02', 'bedSpacer', 'daily', 1, 1),
+            $this->roomTemplate('R03', 'single', 'monthly', 2),
+            $this->roomTemplate('R04', 'bedSpacer', 'monthly', 2, 2),
+            $this->roomTemplate('R05', 'single', 'monthly_with_daily', 2),
+            $this->roomTemplate('R06', 'bedSpacer', 'monthly_with_daily', 2, 2),
         ];
     }
 
-    private function roomTemplate(string $roomNumber, string $roomType, string $billingPolicy, int $floor): array
+    private function roomTemplate(string $roomNumber, string $roomType, string $billingPolicy, int $floor, ?int $explicitCapacity = null): array
     {
-        $capacity = match ($roomType) {
+        $capacity = $explicitCapacity ?? match ($roomType) {
             'single' => 1,
             'double' => 2,
             'quad' => 4,
+            'bedSpacer' => 1,
             default => 1,
         };
 
@@ -225,6 +227,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
             'single' => 4500,
             'double' => 7500,
             'quad' => 12000,
+            'bedSpacer' => $capacity === 2 ? 3200 : 2500,
             default => 2500,
         };
 

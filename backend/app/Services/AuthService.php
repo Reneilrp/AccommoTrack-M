@@ -4,13 +4,17 @@ namespace App\Services;
 
 use App\Exceptions\AccountBlockedException;
 use App\Exceptions\PendingVerificationException;
+use App\Mail\EmailOtpMail;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+    private const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
     /**
      * Register a new user and generate an OTP.
      *
@@ -59,6 +63,41 @@ class AuthService
 
         if ($user->is_blocked) {
             throw new AccountBlockedException('Your account has been blocked by the administrator. Please contact support for assistance.');
+        }
+
+        // Prevent OTP bypass: users must complete email verification before login.
+        if (! $user->is_verified && $user->role !== 'admin') {
+            $retryAfterSeconds = null;
+            $otpResent = false;
+
+            // Prevent frequent OTP regeneration when users repeatedly tap login.
+            if ($user->email_otp_expires_at) {
+                $otpExpiresAt = $user->email_otp_expires_at instanceof Carbon
+                    ? $user->email_otp_expires_at
+                    : Carbon::parse($user->email_otp_expires_at);
+
+                $secondsSinceOtpIssued = Carbon::now()->diffInSeconds($otpExpiresAt->copy()->subMinutes(15), false);
+                if ($secondsSinceOtpIssued < self::OTP_RESEND_COOLDOWN_SECONDS) {
+                    $retryAfterSeconds = self::OTP_RESEND_COOLDOWN_SECONDS - max($secondsSinceOtpIssued, 0);
+                }
+            }
+
+            if ($retryAfterSeconds === null || $retryAfterSeconds <= 0) {
+                $otp = (string) random_int(100000, 999999);
+                $user->forceFill([
+                    'email_otp_code' => Hash::make($otp),
+                    'email_otp_expires_at' => Carbon::now()->addMinutes(15),
+                ])->save();
+
+                Mail::to($user->email)->send(new EmailOtpMail($otp));
+                $otpResent = true;
+            }
+
+            throw new PendingVerificationException(
+                'Please verify your email with the OTP code before logging in.',
+                $otpResent,
+                $retryAfterSeconds
+            );
         }
 
         // Check landlord verification status

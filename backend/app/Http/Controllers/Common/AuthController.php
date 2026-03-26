@@ -193,10 +193,17 @@ class AuthController extends Controller
                 'message' => $e->getMessage(),
             ], 403);
         } catch (PendingVerificationException $e) {
-            return response()->json([
+            $response = [
                 'status' => 'pending_verification',
                 'message' => $e->getMessage(),
-            ], 403);
+                'otp_resent' => $e->otpResent,
+            ];
+
+            if ($e->retryAfterSeconds !== null && $e->retryAfterSeconds > 0) {
+                $response['retry_after_seconds'] = $e->retryAfterSeconds;
+            }
+
+            return response()->json($response, 403);
         }
     }
 
