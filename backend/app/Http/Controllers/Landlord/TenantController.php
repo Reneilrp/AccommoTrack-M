@@ -541,6 +541,11 @@ class TenantController extends Controller
             return response()->json(['error' => 'New room is not available'], 400);
         }
 
+        // Guard against stale occupancy counters: enforce capacity check using active assignments.
+        if ((int) $newRoom->tenants()->count() >= (int) $newRoom->capacity) {
+            return response()->json(['error' => 'Room is fully occupied by active tenants'], 422);
+        }
+
         try {
             \Illuminate\Support\Facades\DB::beginTransaction();
 
@@ -585,7 +590,8 @@ class TenantController extends Controller
                             'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Cancelled due to room transfer)')"),
                         ]);
 
-                    $this->bookingService->updateStatus($activeBooking, ['status' => 'transferred']);
+                    // Use a valid booking enum status when ending a booking due to transfer.
+                    $this->bookingService->updateStatus($activeBooking, ['status' => 'partial-completed']);
                 }
 
                 $oldRoom->removeTenant($tenant->id);
@@ -682,7 +688,17 @@ class TenantController extends Controller
             \Illuminate\Support\Facades\DB::rollBack();
             Log::error('Room transfer failed: '.$e->getMessage());
 
-            return response()->json(['error' => 'Failed to transfer room', 'message' => $e->getMessage()], 500);
+            $message = $e->getMessage();
+            $statusCode = 500;
+
+            // Surface domain/business errors as 4xx so UI does not show a generic server failure.
+            if (str_contains($message, 'fully occupied')
+                || str_contains($message, 'not available')
+                || str_contains($message, 'at least one day after today')) {
+                $statusCode = 422;
+            }
+
+            return response()->json(['error' => 'Failed to transfer room', 'message' => $message], $statusCode);
         }
     }
 
