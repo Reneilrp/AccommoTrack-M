@@ -830,7 +830,8 @@ export default function Payments() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Paid</p>
@@ -844,7 +845,8 @@ export default function Payments() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Balance</p>
@@ -858,7 +860,8 @@ export default function Payments() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Paid</p>
@@ -870,7 +873,8 @@ export default function Payments() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
@@ -882,7 +886,8 @@ export default function Payments() {
             </div>
           </div>
           
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Overdue</p>
@@ -897,8 +902,9 @@ export default function Payments() {
           {stats.pendingVerifCount > 0 && (
             <div
               onClick={() => setPaymentFilter('pending_verification')}
-              className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 shadow-sm border-2 border-orange-300 dark:border-orange-700 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors col-span-2 md:col-span-1"
+              className="relative overflow-hidden bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 shadow-sm border-2 border-orange-300 dark:border-orange-700 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors col-span-2 md:col-span-1"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-2">Cash Pending Verification</p>

@@ -224,6 +224,27 @@ export default function Analytics() {
   const ghostPaymentData = [ { name: 'Paid', value: 20, fill: '#d1d5db' }, { name: 'Pending', value: 10, fill: '#e5e7eb' }, { name: 'Partial', value: 5, fill: '#c7d2fe' }, { name: 'Overdue', value: 2, fill: '#fca5a5' } ];
   const realPaymentData = [ { name: 'Paid', value: Number(paymentCounts?.paid || 0), fill: COLORS.primary }, { name: 'Pending', value: Number(paymentCounts?.unpaid || 0), fill: COLORS.warning }, { name: 'Partial', value: Number(paymentCounts?.partial || 0), fill: COLORS.secondary }, { name: 'Overdue', value: Number(paymentCounts?.overdue || 0), fill: COLORS.danger } ];
   const paymentChartData = totalPaymentCount === 0 ? ghostPaymentData : realPaymentData;
+  const computedPaymentRate = analytics ? (() => {
+    const paid = Number(analytics.payments.paid || 0);
+    const total = paid + Number(analytics.payments.unpaid || 0) + Number(analytics.payments.partial || 0) + Number(analytics.payments.overdue || 0);
+    return total > 0 ? Math.round((paid / total) * 100) : (Number(analytics.payments.payment_rate) || 0);
+  })() : 0;
+
+  const MetricCard = ({ Icon, iconBgClass, iconColorClass, accentClass = 'bg-gray-400 dark:bg-gray-600', title, meta, value, valueClass = 'text-gray-900 dark:text-white' }) => (
+    <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
+      <div className={`absolute top-0 left-0 right-0 h-1 ${accentClass}`} />
+      <div className="grid grid-cols-[auto,1fr] items-center gap-3 mb-4">
+        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center ${iconBgClass}`}>
+          <Icon className={`w-5 h-5 md:w-6 md:h-6 ${iconColorClass}`} />
+        </div>
+        <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white">{title}</p>
+      </div>
+      <div className="grid grid-cols-[1fr,auto] items-end gap-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400">{meta}</p>
+        <p className={`text-lg md:text-2xl font-bold ${valueClass}`}>{value}</p>
+      </div>
+    </div>
+  );
 
   const AnalyticsSkeleton = () => (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -321,107 +342,89 @@ export default function Analytics() {
               {/* Key Metrics - Business Overview & Inventory */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                 {/* Row 1: Financials */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Cumulative</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Total Revenue</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.total_revenue.toLocaleString()}</p>
-                </div>
+                <MetricCard
+                  Icon={LucidePhilippinePeso}
+                  iconBgClass="bg-green-100"
+                  iconColorClass="text-green-600"
+                  accentClass="bg-green-500"
+                  title="Total Revenue"
+                  meta="Cumulative"
+                  value={`₱${analytics.overview.total_revenue.toLocaleString()}`}
+                />
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Month</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Monthly Revenue</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{analytics.overview.monthly_revenue.toLocaleString()}</p>
-                </div>
+                <MetricCard
+                  Icon={TrendingUp}
+                  iconBgClass="bg-emerald-100"
+                  iconColorClass="text-emerald-600"
+                  accentClass="bg-emerald-500"
+                  title="Monthly Revenue"
+                  meta="Month"
+                  value={`₱${analytics.overview.monthly_revenue.toLocaleString()}`}
+                />
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Target: 100%</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Collection Rate</p>
-                  <p className={`text-lg md:text-2xl font-bold ${analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {analytics.revenue.collection_rate}%
-                  </p>
-                </div>
+                <MetricCard
+                  Icon={CheckCircle}
+                  iconBgClass="bg-blue-100"
+                  iconColorClass="text-blue-600"
+                  accentClass="bg-blue-500"
+                  title="Collection Rate"
+                  meta="Target: 100%"
+                  value={`${analytics.revenue.collection_rate}%`}
+                  valueClass={analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}
+                />
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                      <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Overall</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Payment Rate</p>
-                  {(() => {
-                    const paid = Number(analytics.payments.paid || 0);
-                    const total = paid + Number(analytics.payments.unpaid || 0) + Number(analytics.payments.partial || 0) + Number(analytics.payments.overdue || 0);
-                    const rate = total > 0 ? Math.round((paid / total) * 100) : (Number(analytics.payments.payment_rate) || 0);
-                    return (
-                      <p className={`text-lg md:text-2xl font-bold ${rate >= 90 ? 'text-green-600' : 'text-orange-600'}`}>
-                        {rate}%
-                      </p>
-                    );
-                  })()}
-                </div>
+                <MetricCard
+                  Icon={LucidePhilippinePeso}
+                  iconBgClass="bg-indigo-100"
+                  iconColorClass="text-indigo-600"
+                  accentClass="bg-indigo-500"
+                  title="Payment Rate"
+                  meta="Overall"
+                  value={`${computedPaymentRate}%`}
+                  valueClass={computedPaymentRate >= 90 ? 'text-green-600' : 'text-orange-600'}
+                />
 
                 {/* Row 2: Operations */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Home className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Occupancy</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Occupancy Rate</p>
-                  <p className={`text-lg md:text-2xl font-bold ${analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}`}>
-                    {analytics.overview.occupancy_rate}%
-                  </p>
-                </div>
+                <MetricCard
+                  Icon={Home}
+                  iconBgClass="bg-blue-100"
+                  iconColorClass="text-blue-600"
+                  accentClass="bg-blue-500"
+                  title="Occupancy Rate"
+                  meta="Occupancy"
+                  value={`${analytics.overview.occupancy_rate}%`}
+                  valueClass={analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}
+                />
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Inventory</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Total Rooms</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.total_rooms}</p>
-                </div>
+                <MetricCard
+                  Icon={Building2}
+                  iconBgClass="bg-purple-100"
+                  iconColorClass="text-purple-600"
+                  accentClass="bg-purple-500"
+                  title="Total Rooms"
+                  meta="Inventory"
+                  value={analytics.overview.total_rooms}
+                />
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 md:w-6 md:h-6 text-pink-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Active</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Active Tenants</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.overview.active_tenants}</p>
-                </div>
+                <MetricCard
+                  Icon={Users}
+                  iconBgClass="bg-pink-100"
+                  iconColorClass="text-pink-600"
+                  accentClass="bg-pink-500"
+                  title="Active Tenants"
+                  meta="Active"
+                  value={analytics.overview.active_tenants}
+                />
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">Stay</span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Tenant Retention</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{analytics.tenants.average_stay_months} mo</p>
-                </div>
+                <MetricCard
+                  Icon={Calendar}
+                  iconBgClass="bg-yellow-100"
+                  iconColorClass="text-yellow-600"
+                  accentClass="bg-yellow-500"
+                  title="Tenant Retention"
+                  meta="Stay"
+                  value={`${analytics.tenants.average_stay_months} mo`}
+                />
               </div>
 
               {/* Revenue Trend */}

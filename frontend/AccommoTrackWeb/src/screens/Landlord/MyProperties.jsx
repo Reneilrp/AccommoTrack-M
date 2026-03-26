@@ -283,7 +283,8 @@ export default function MyProperties({ __user }) {
             [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)
           ) : (
             <>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Active Listings</p>
@@ -294,7 +295,8 @@ export default function MyProperties({ __user }) {
                   </div>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gray-400 dark:bg-gray-600" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Inactive Listings</p>
@@ -305,7 +307,8 @@ export default function MyProperties({ __user }) {
                   </div>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Rooms</p>
@@ -316,7 +319,8 @@ export default function MyProperties({ __user }) {
                   </div>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Inquiries</p>

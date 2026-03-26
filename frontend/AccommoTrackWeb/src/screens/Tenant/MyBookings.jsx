@@ -1352,7 +1352,8 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
 
 // ==================== Helper Components ====================
 const StatCard = ({ label, value, icon: Icon }) => (
-  <div className="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-sm transition-all">
+  <div className="relative overflow-hidden text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-sm transition-all">
+    <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
     <div className="flex justify-center mb-4">
       <Icon className="w-6 h-6 text-green-600 dark:text-green-400" />
     </div>

@@ -4,7 +4,7 @@ import api, { getImageUrl } from '../../utils/api';
 import { 
   Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
   CheckCircle, XCircle, Eye, AlertCircle, Clock, TrendingUp, Home, PackagePlus,
-  Banknote, Shuffle
+  Banknote, Shuffle, CreditCard
 } from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
@@ -27,27 +27,32 @@ function StatCard({ value, label, color = 'default', icon: Icon, onClick }) {
     danger: { 
       text: 'text-red-600 dark:text-red-400', 
       bg: 'bg-red-50 dark:bg-red-900/20', 
-      icon: 'text-red-600 dark:text-red-400' 
+      icon: 'text-red-600 dark:text-red-400',
+      border: 'bg-red-500'
     },
     warning: { 
       text: 'text-orange-500 dark:text-orange-400', 
       bg: 'bg-orange-50 dark:bg-orange-900/20', 
-      icon: 'text-orange-600 dark:text-orange-400' 
+      icon: 'text-orange-600 dark:text-orange-400',
+      border: 'bg-orange-500'
     },
     success: { 
       text: 'text-green-600 dark:text-green-400', 
       bg: 'bg-green-50 dark:bg-green-900/20', 
-      icon: 'text-green-600 dark:text-green-400' 
+      icon: 'text-green-600 dark:text-green-400',
+      border: 'bg-green-500'
     },
     info: { 
       text: 'text-blue-600 dark:text-blue-400', 
       bg: 'bg-blue-50 dark:bg-blue-900/20', 
-      icon: 'text-blue-600 dark:text-blue-400' 
+      icon: 'text-blue-600 dark:text-blue-400',
+      border: 'bg-blue-500'
     },
     default: { 
       text: 'text-gray-900 dark:text-white', 
       bg: 'bg-gray-50 dark:bg-gray-900/20', 
-      icon: 'text-gray-600 dark:text-gray-400' 
+      icon: 'text-gray-600 dark:text-gray-400',
+      border: 'bg-gray-400 dark:bg-gray-600'
     },
   };
   
@@ -56,8 +61,9 @@ function StatCard({ value, label, color = 'default', icon: Icon, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-gray-400 dark:hover:border-gray-600 transition-all w-full"
+      className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-gray-400 dark:hover:border-gray-600 transition-all w-full"
     >
+      <div className={`absolute top-0 left-0 right-0 h-1 ${theme.border}`} />
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
@@ -82,15 +88,16 @@ function FeedCard({ title, badge, badgeColor = 'gray', children, onViewAll, navi
     gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
   };
   const iconColors = {
-    danger: { bg: 'bg-red-50 dark:bg-red-900/20', icon: 'text-red-600 dark:text-red-400' },
-    warning: { bg: 'bg-amber-50 dark:bg-amber-900/20', icon: 'text-amber-600 dark:text-amber-400' },
-    info: { bg: 'bg-blue-50 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400' },
-    success: { bg: 'bg-green-50 dark:bg-green-900/20', icon: 'text-green-600 dark:text-green-400' },
-    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', icon: 'text-gray-600 dark:text-gray-400' },
+    danger: { bg: 'bg-red-50 dark:bg-red-900/20', icon: 'text-red-600 dark:text-red-400', border: 'bg-red-500' },
+    warning: { bg: 'bg-amber-50 dark:bg-amber-900/20', icon: 'text-amber-600 dark:text-amber-400', border: 'bg-amber-500' },
+    info: { bg: 'bg-blue-50 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400', border: 'bg-blue-500' },
+    success: { bg: 'bg-green-50 dark:bg-green-900/20', icon: 'text-green-600 dark:text-green-400', border: 'bg-green-500' },
+    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', icon: 'text-gray-600 dark:text-gray-400', border: 'bg-gray-300 dark:bg-gray-600' },
   };
   const theme = iconColors[iconColor] || iconColors.gray;
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+    <div className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+      <div className={`absolute top-0 left-0 right-0 h-1 ${theme.border}`} />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {Icon && (
@@ -157,7 +164,7 @@ function ActionBtn({ label, variant = 'gray', onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all ${variants[variant]}`}
+      className={`text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-md leading-none transition-all ${variants[variant]}`}
     >
       {label}
     </button>
@@ -369,7 +376,7 @@ function PropertyDashboard({ propertyId, navigate }) {
       </div>
 
       {/* Row 1: Pending Bookings + Overdue Payments + Add-ons */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
 
         <FeedCard
           title="Pending bookings"
@@ -456,7 +463,7 @@ function PropertyDashboard({ propertyId, navigate }) {
           title="Add-ons Service"
           badge={pendingAddonRequests.length}
           badgeColor={pendingAddonRequests.length > 0 ? 'info' : 'gray'}
-          onViewAll={() => navigate(`/addons?property_id=${propertyId}`)}
+          onViewAll={() => navigate(`/addons?property_id=${propertyId}`, { state: { propertyId } })}
         >
           {pendingAddonRequests.length === 0 ? (
             <EmptyRow message="No pending add-on requests" />
@@ -754,7 +761,7 @@ export default function PropertySummary() {
                 <List className="w-5 h-5" />
               </button>
               <button
-                onClick={() => navigate(`/addons?property_id=${id}`)}
+                onClick={() => navigate(`/addons?property_id=${id}`, { state: { propertyId: id } })}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Add-ons service"
               >

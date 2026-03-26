@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { addonService } from "../../services/addonService";
 import { useUIState } from "../../contexts/UIStateContext";
 import { cacheManager } from "../../utils/cache";
@@ -16,8 +17,16 @@ import {
 } from "lucide-react";
 
 const AddonManagement = ({ propertyId }) => {
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const resolvedPropertyId =
+    propertyId ||
+    queryParams.get("property_id") ||
+    location.state?.propertyId ||
+    null;
+
   const { uiState, updateData } = useUIState();
-  const cacheKey = `landlord_addons_${propertyId}`;
+  const cacheKey = `landlord_addons_${resolvedPropertyId || "all"}`;
   const cachedData = uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
 
   const [addons, setAddons] = useState(cachedData?.addons || []);
@@ -43,16 +52,21 @@ const AddonManagement = ({ propertyId }) => {
   });
 
   useEffect(() => {
+    if (!resolvedPropertyId) {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [propertyId]);
+  }, [resolvedPropertyId]);
 
   const fetchData = async () => {
+    if (!resolvedPropertyId) return;
     if (!cachedData) setLoading(true);
     try {
       const [addonsRes, pendingRes, activeRes] = await Promise.all([
-        addonService.getPropertyAddons(propertyId),
-        addonService.getPendingRequests(propertyId),
-        addonService.getActiveAddons(propertyId),
+        addonService.getPropertyAddons(resolvedPropertyId),
+        addonService.getPendingRequests(resolvedPropertyId),
+        addonService.getActiveAddons(resolvedPropertyId),
       ]);
       const addonsList = addonsRes.addons || [];
       const pendingList = pendingRes.pendingRequests || [];
@@ -90,10 +104,10 @@ const AddonManagement = ({ propertyId }) => {
       };
 
       if (editingAddon) {
-        await addonService.updateAddon(propertyId, editingAddon.id, data);
+        await addonService.updateAddon(resolvedPropertyId, editingAddon.id, data);
         toast.success("Addon updated successfully!");
       } else {
-        await addonService.createAddon(propertyId, data);
+        await addonService.createAddon(resolvedPropertyId, data);
         toast.success("Addon created successfully!");
       }
 
@@ -108,7 +122,7 @@ const AddonManagement = ({ propertyId }) => {
   const handleDelete = async (addonId) => {
     if (!confirm("Are you sure you want to delete this addon?")) return;
     try {
-      await addonService.deleteAddon(propertyId, addonId);
+      await addonService.deleteAddon(resolvedPropertyId, addonId);
       toast.success("Addon deleted successfully!");
       fetchData();
     } catch (error) {
@@ -119,7 +133,7 @@ const AddonManagement = ({ propertyId }) => {
   const handleToggleActive = async (addon) => {
     setTogglingAddonId(addon.id);
     try {
-      await addonService.updateAddon(propertyId, addon.id, {
+      await addonService.updateAddon(resolvedPropertyId, addon.id, {
         is_active: !addon.isActive,
       });
       toast.success(
@@ -199,6 +213,14 @@ const AddonManagement = ({ propertyId }) => {
     return (
       <div className="flex justify-center items-center h-48">
         <RefreshCw className="w-8 h-8 animate-spin text-green-600" />
+      </div>
+    );
+  }
+
+  if (!resolvedPropertyId) {
+    return (
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 text-sm text-amber-700 dark:text-amber-300">
+        Select a property first to manage add-ons.
       </div>
     );
   }

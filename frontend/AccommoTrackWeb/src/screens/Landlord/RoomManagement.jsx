@@ -476,7 +476,8 @@ export default function RoomManagement() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
@@ -490,7 +491,8 @@ export default function RoomManagement() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Occupied</p>
@@ -502,7 +504,8 @@ export default function RoomManagement() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Available</p>
@@ -514,7 +517,8 @@ export default function RoomManagement() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Maintenance</p>
