@@ -192,7 +192,71 @@ class TenantDashboardController extends Controller
                         'billing_policy' => $booking->room->billing_policy ?? 'monthly',
                         'unit_price' => (float) ($booking->room->billing_policy === 'daily' ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30)) : $booking->monthly_rent),
                         'monthlyTotal' => (float) ($booking->monthly_rent + $monthlyAddonTotal),
-                        'invoices' => $booking->invoices->map(function ($invoice) {
+                        'invoices' => $booking->invoices->map(function ($invoice) use ($booking) {
+                            $metadata = is_array($invoice->metadata) ? $invoice->metadata : [];
+                            $rawLineItems = collect($metadata['line_items'] ?? $metadata['lineItems'] ?? []);
+                            $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+
+                            $normalizedLineItems = $rawLineItems
+                                ->map(function ($item) {
+                                    $itemArr = is_array($item) ? $item : [];
+                                    $quantity = (float) ($itemArr['quantity'] ?? 1);
+                                    $unitAmount = (float) ($itemArr['unit_amount'] ?? $itemArr['unitAmount'] ?? 0);
+                                    $totalAmount = (float) ($itemArr['total_amount'] ?? $itemArr['totalAmount'] ?? ($unitAmount * $quantity));
+
+                                    return [
+                                        'type' => $itemArr['type'] ?? 'charge',
+                                        'label' => $itemArr['label'] ?? 'Charge',
+                                        'quantity' => $quantity,
+                                        'unit_amount' => $unitAmount,
+                                        'total_amount' => $totalAmount,
+                                        'billed_days' => (int) ($itemArr['billed_days'] ?? $itemArr['billedDays'] ?? 0),
+                                    ];
+                                })
+                                ->values();
+
+                            if ($normalizedLineItems->isEmpty()) {
+                                $addonItems = collect($metadata['addons'] ?? [])->map(function ($addon) {
+                                    $addonArr = is_array($addon) ? $addon : [];
+                                    $quantity = (float) ($addonArr['quantity'] ?? 1);
+                                    $totalAmount = (float) (($addonArr['price'] ?? 0) / 100);
+
+                                    return [
+                                        'type' => 'addon',
+                                        'label' => $addonArr['addon_name'] ?? 'Add-on',
+                                        'quantity' => $quantity,
+                                        'unit_amount' => $quantity > 0 ? ($totalAmount / $quantity) : $totalAmount,
+                                        'total_amount' => $totalAmount,
+                                        'billed_days' => 0,
+                                    ];
+                                })->values();
+
+                                $addonsTotalCents = (int) round($addonItems->sum(function ($item) {
+                                    return (float) ($item['total_amount'] ?? 0) * 100;
+                                }));
+                                $baseTotalCents = max(0, $invoiceTotalCents - $addonsTotalCents);
+                                $billingPolicy = $booking->room->billing_policy ?? 'monthly';
+                                $unitPrice = (float) ($billingPolicy === 'daily'
+                                    ? ($booking->room->daily_rate ?? ($booking->monthly_rent / 30))
+                                    : $booking->monthly_rent);
+                                $inferredDays = $billingPolicy === 'daily' && $unitPrice > 0
+                                    ? max(1, (int) round(($baseTotalCents / 100) / $unitPrice))
+                                    : 0;
+
+                                $baseItem = [
+                                    'type' => $billingPolicy === 'daily' ? 'daily_rent' : 'base_rent',
+                                    'label' => $billingPolicy === 'daily' ? 'Daily Room Charges' : 'Base Rent',
+                                    'quantity' => $billingPolicy === 'daily' ? $inferredDays : 1,
+                                    'unit_amount' => $billingPolicy === 'daily' ? $unitPrice : (float) ($baseTotalCents / 100),
+                                    'total_amount' => (float) ($baseTotalCents / 100),
+                                    'billed_days' => $inferredDays,
+                                ];
+
+                                $normalizedLineItems = collect([$baseItem])
+                                    ->merge($addonItems)
+                                    ->values();
+                            }
+
                             return [
                                 'id' => $invoice->id,
                                 'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
@@ -200,6 +264,8 @@ class TenantDashboardController extends Controller
                                 'description' => $invoice->description,
                                 'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
                                 'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : null,
+                                'metadata' => $metadata,
+                                'line_items' => $normalizedLineItems,
                                 'transactions' => $invoice->transactions->map(function ($tx) {
                                     return [
                                         'id' => $tx->id,

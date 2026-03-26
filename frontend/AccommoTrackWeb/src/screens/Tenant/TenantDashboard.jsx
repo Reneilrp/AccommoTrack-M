@@ -9,29 +9,6 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, Zap, Droplets, Wifi
 } from 'lucide-react';
 
-// ─── Shared Components ───────────────────────────────────────────────────────
-const StatusPill = ({ status }) => {
-  const styles = {
-    active: 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20',
-    ended: 'bg-gray-100 text-gray-500 border border-gray-200 dark:bg-slate-500/15 dark:text-slate-400 dark:border-slate-500/20',
-    overdue: 'bg-red-100 text-red-600 border border-red-200 dark:bg-red-500/12 dark:text-red-400 dark:border-red-500/20',
-    pending: 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
-    paid: 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20',
-  };
-  return (
-    <span className={`text-[12px] font-semibold px-4 py-2 rounded-full inline-block ${styles[status] || styles.active}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
-};
-
-const RoomBadge = ({ roomNumber, color = '#22c55e' }) => (
-  <span className="inline-flex items-center gap-2 font-semibold font-mono text-sm text-gray-800 dark:text-slate-100">
-    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-    Room {roomNumber}
-  </span>
-);
-
 const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -46,6 +23,7 @@ const TenantDashboard = () => {
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [activities, setActivities] = useState(cachedData?.activities || []);
+  const [openSummaryPanel, setOpenSummaryPanel] = useState(null);
   const initialLoadRef = React.useRef(!cachedData);
 
   const fetchDashboardData = useCallback(async () => {
@@ -100,6 +78,86 @@ const TenantDashboard = () => {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
+  const formatFloorLabel = (floor) => {
+    if (!floor || Number.isNaN(Number(floor))) return '—';
+    const floorNumber = Number(floor);
+    const suffix = floorNumber % 10 === 1 && floorNumber % 100 !== 11
+      ? 'st'
+      : floorNumber % 10 === 2 && floorNumber % 100 !== 12
+        ? 'nd'
+        : floorNumber % 10 === 3 && floorNumber % 100 !== 13
+          ? 'rd'
+          : 'th';
+    return `${floorNumber}${suffix} Floor`;
+  };
+
+  const extractInvoiceLineItems = (invoice, billingPolicy, unitPrice) => {
+    const directLineItems = Array.isArray(invoice?.line_items)
+      ? invoice.line_items
+      : Array.isArray(invoice?.lineItems)
+        ? invoice.lineItems
+        : [];
+
+    if (directLineItems.length > 0) {
+      return directLineItems.map((item) => {
+        const quantity = Number(item?.quantity ?? 1);
+        const unitAmount = Number(item?.unit_amount ?? item?.unitAmount ?? 0);
+        const totalAmount = Number(item?.total_amount ?? item?.totalAmount ?? (unitAmount * quantity));
+        const billedDays = Number(item?.billed_days ?? item?.billedDays ?? 0);
+
+        return {
+          type: String(item?.type || 'charge').toLowerCase(),
+          label: item?.label || 'Charge',
+          quantity: Number.isFinite(quantity) ? quantity : 1,
+          unitAmount: Number.isFinite(unitAmount) ? unitAmount : 0,
+          totalAmount: Number.isFinite(totalAmount) ? totalAmount : 0,
+          billedDays: Number.isFinite(billedDays) ? billedDays : 0,
+        };
+      });
+    }
+
+    const meta = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
+    const metaLineItems = Array.isArray(meta?.line_items)
+      ? meta.line_items
+      : Array.isArray(meta?.lineItems)
+        ? meta.lineItems
+        : [];
+
+    if (metaLineItems.length > 0) {
+      return metaLineItems.map((item) => {
+        const quantity = Number(item?.quantity ?? 1);
+        const unitAmount = Number(item?.unit_amount ?? item?.unitAmount ?? 0);
+        const totalAmount = Number(item?.total_amount ?? item?.totalAmount ?? (unitAmount * quantity));
+        const billedDays = Number(item?.billed_days ?? item?.billedDays ?? 0);
+
+        return {
+          type: String(item?.type || 'charge').toLowerCase(),
+          label: item?.label || 'Charge',
+          quantity: Number.isFinite(quantity) ? quantity : 1,
+          unitAmount: Number.isFinite(unitAmount) ? unitAmount : 0,
+          totalAmount: Number.isFinite(totalAmount) ? totalAmount : 0,
+          billedDays: Number.isFinite(billedDays) ? billedDays : 0,
+        };
+      });
+    }
+
+    const fallbackAmount = Number(invoice?.amount || 0);
+    if (fallbackAmount <= 0) return [];
+
+    const inferredDays = billingPolicy === 'daily' && unitPrice > 0
+      ? Math.max(1, Math.round(fallbackAmount / unitPrice))
+      : 0;
+
+    return [{
+      type: billingPolicy === 'daily' ? 'daily_rent' : 'base_rent',
+      label: billingPolicy === 'daily' ? 'Daily Room Charges' : 'Base Rent',
+      quantity: billingPolicy === 'daily' ? inferredDays : 1,
+      unitAmount: billingPolicy === 'daily' ? unitPrice : fallbackAmount,
+      totalAmount: fallbackAmount,
+      billedDays: inferredDays,
+    }];
+  };
+
 
 
   // ── Derived Data ──
@@ -113,6 +171,96 @@ const TenantDashboard = () => {
   const totalMonthlySummary = totalMonthlyRent + totalMonthlyAddons;
   const unpaidBalance = stats?.payments?.totalDue || stats?.payments?.monthlyDue || 0;
   const totalPaid = stats?.payments?.totalPaid || 0;
+
+  useEffect(() => {
+    if (unpaidBalance <= 0 && openSummaryPanel === 'status') {
+      setOpenSummaryPanel(null);
+    }
+  }, [unpaidBalance, openSummaryPanel]);
+
+  const roomBreakdownRows = stays.map((stay, idx) => {
+    const roomNumber = stay?.room?.roomNumber || stay?.room?.room_number || '—';
+    const propertyName = stay?.property?.title || stay?.property?.name || '—';
+    const floor = stay?.room?.floor || stay?.room?.floor_number || stay?.room?.floorNumber;
+    const roomType = stay?.room?.roomType || stay?.room?.room_type || 'Standard Room';
+    const moveInDate = stay?.booking?.startDate || stay?.booking?.start_date;
+    const daysStayed = Number(stay?.booking?.daysStayed || stay?.booking?.days_stayed || 0);
+    const billingPolicy = String(stay?.financials?.billing_policy || stay?.booking?.billing_policy || 'monthly').toLowerCase();
+    const billingTypeLabel = billingPolicy === 'daily' ? 'Daily' : 'Monthly';
+    const unitPrice = Number(stay?.financials?.unit_price || stay?.booking?.unit_price || 0);
+    const baseRent = Number(stay?.booking?.monthlyRent || stay?.booking?.monthly_rent || 0);
+    const addOns = Number(stay?.addons?.monthlyTotal || stay?.addons?.monthly_total || stay?.financials?.monthlyAddons || 0);
+    const roomTotal = Number(stay?.financials?.monthlyTotal || (baseRent + addOns));
+    const invoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
+    const billedLineItems = invoices.flatMap((invoice) => extractInvoiceLineItems(invoice, billingPolicy, unitPrice));
+    const roomTotalBilled = billedLineItems.reduce((sum, item) => sum + (Number(item?.totalAmount) || 0), 0);
+    const billedDays = billingPolicy === 'daily'
+      ? billedLineItems.reduce((sum, item) => sum + (Number(item?.billedDays) || 0), 0)
+      : 0;
+    const hasOverdue = invoices.some((inv) => (inv?.status || '').toLowerCase() === 'overdue')
+      || Boolean(stay?.booking?.is_overdue || stay?.booking?.isOverdue);
+
+    return {
+      id: stay?.booking?.id || `${roomNumber}-${idx}`,
+      roomNumber,
+      roomColor: ROOM_COLORS[idx % ROOM_COLORS.length],
+      propertyName,
+      floorLabel: formatFloorLabel(floor),
+      roomType,
+      moveInLabel: formatDate(moveInDate),
+      daysStayed,
+      dayShare: totalDaysStayed > 0 ? Math.round((daysStayed / totalDaysStayed) * 100) : 0,
+      baseRent,
+      addOns,
+      roomTotal,
+      billingPolicy,
+      billingTypeLabel,
+      unitPrice,
+      billedDays,
+      roomTotalBilled,
+      status: hasOverdue ? 'overdue' : 'active',
+    };
+  });
+
+  const totalBilledAmount = roomBreakdownRows.reduce((sum, row) => sum + row.roomTotalBilled, 0);
+  const totalDailyBilledDays = roomBreakdownRows.reduce((sum, row) => sum + (row.billingPolicy === 'daily' ? row.billedDays : 0), 0);
+
+  const balanceBreakdownRows = stays
+    .flatMap((stay, idx) => {
+      const invoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
+      const roomNumber = stay?.room?.roomNumber || stay?.room?.room_number || '—';
+      const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
+
+      return invoices
+        .filter((invoice) => ['pending', 'partial', 'overdue'].includes((invoice?.status || '').toLowerCase()))
+        .map((invoice) => {
+          const transactions = Array.isArray(invoice?.transactions) ? invoice.transactions : [];
+          const paidAmount = transactions
+            .filter((tx) => ['succeeded', 'completed', 'paid', 'approved', 'verified'].includes((tx?.status || '').toLowerCase()))
+            .reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
+          const invoiceAmount = Number(invoice?.amount) || 0;
+          const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
+          const status = (invoice?.status || '').toLowerCase();
+
+          return {
+            id: invoice?.id,
+            roomNumber,
+            roomColor,
+            description: invoice?.description || `Invoice #${invoice?.id}`,
+            dueDate: invoice?.dueDate || '—',
+            sortDueDate: invoice?.dueDate ? new Date(invoice.dueDate).getTime() : Number.MAX_SAFE_INTEGER,
+            amount: status === 'partial' && remainingAmount > 0 ? remainingAmount : invoiceAmount,
+            status,
+          };
+        });
+    })
+    .sort((a, b) => {
+      const rank = { overdue: 0, partial: 1, pending: 2 };
+      if ((rank[a.status] ?? 99) !== (rank[b.status] ?? 99)) {
+        return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
+      }
+      return a.sortDueDate - b.sortDueDate;
+    });
 
   const generateUpcomingSchedule = () => {
     const primaryStay = stays.length > 0 ? stays[0].booking : null;
@@ -251,6 +399,10 @@ const TenantDashboard = () => {
     },
   };
 
+  const handleStatCardClick = (cardKey) => {
+    setOpenSummaryPanel((prev) => (prev === cardKey ? null : cardKey));
+  };
+
   // ════════════════════════════════════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════════════════════════════════════
@@ -363,11 +515,38 @@ const TenantDashboard = () => {
 
       {/* ── Stat Cards Grid (Read Only) ── */}
       <h2 className="text-[18px] font-bold text-gray-900 dark:text-slate-100 mb-4">Quick Summary</h2>
+      <p className="text-[13px] text-gray-500 dark:text-slate-500 mb-4">Click any card to see a detailed breakdown</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-[-10px]">
         {statCards.map((card) => {
           const cm = colorMap[card.color];
+          const isClickable = true;
+          const isActive = openSummaryPanel === card.key;
+          const interactiveClassMap = {
+            green: 'hover:border-green-300 dark:hover:border-green-500/40',
+            blue: 'hover:border-blue-300 dark:hover:border-blue-500/40',
+            purple: 'hover:border-purple-300 dark:hover:border-purple-500/40',
+            red: 'hover:border-red-300 dark:hover:border-red-500/40',
+          };
+          const activeClassMap = {
+            green: 'border-green-300 dark:border-green-500/40 shadow-[0_0_0_1px_rgba(34,197,94,0.35)]',
+            blue: 'border-blue-300 dark:border-blue-500/40 shadow-[0_0_0_1px_rgba(96,165,250,0.35)]',
+            purple: 'border-purple-300 dark:border-purple-500/40 shadow-[0_0_0_1px_rgba(167,139,250,0.35)]',
+            red: 'border-red-300 dark:border-red-500/40 shadow-[0_0_0_1px_rgba(248,113,113,0.35)]',
+          };
           return (
-            <div key={card.key} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] p-6 relative overflow-hidden flex flex-col">
+            <div
+              key={card.key}
+              className={`bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] p-6 relative overflow-hidden flex flex-col cursor-pointer transition-all hover:shadow-md ${interactiveClassMap[card.color]} ${isActive ? activeClassMap[card.color] : ''}`}
+              onClick={isClickable ? () => handleStatCardClick(card.key) : undefined}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              onKeyDown={isClickable ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleStatCardClick(card.key);
+                }
+              } : undefined}
+            >
               <div className={`absolute top-0 left-0 right-0 h-[4px] rounded-t-[16px] ${cm.border}`} />
               <div className="flex items-center justify-between mb-4">
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${cm.iconBg}`}>
@@ -381,64 +560,302 @@ const TenantDashboard = () => {
         })}
       </div>
 
-      {/* ── Your Active Rooms (Conversational Cards) ── */}
-      <div className="mt-8">
-        <h2 className="text-[18px] font-bold text-gray-900 dark:text-slate-100 mb-6">Your Active Rooms</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {stays.map((stay, idx) => {
-            const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
-            const rent = stay.financials?.monthlyRent || stay.booking?.monthlyRent || stay.booking?.monthly_rent || 0;
-            const addons = stay.financials?.monthlyAddons || stay.addons?.monthlyTotal || stay.addons?.monthly_total || 0;
-            const roomTotal = stay.financials?.monthlyTotal || (rent + addons);
-            const moveIn = formatDate(stay.booking?.startDate || stay.booking?.start_date);
-            const daysStayed = stay.booking?.daysStayed || stay.booking?.days_stayed || 0;
-
-            return (
-              <div key={stay.booking.id} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between bg-gray-50 dark:bg-[#232840]/50">
-                  <RoomBadge roomNumber={stay.room?.roomNumber || stay.room?.room_number} color={roomColor} />
-                  <StatusPill status={
-                    (stay.financials?.invoices && stay.financials.invoices.some(inv => inv.status === 'overdue')) || 
-                    stay.booking?.is_overdue || stay.booking?.isOverdue 
-                    ? 'overdue' : 'active'
-                  } />
-                </div>
-                <div className="px-6 py-6 space-y-4">
-                  <div>
-                    <p className="text-[15px] font-semibold text-gray-800 dark:text-slate-200">{stay.property?.title}</p>
-                    <p className="text-[14px] text-gray-500 dark:text-slate-400 mt-0.5">
-                      {stay.room?.roomType || stay.room?.room_type || 'Standard Room'} • {stay.room?.floor ? `${stay.room.floor}${['st','nd','rd'][stay.room.floor - 1] || 'th'} Floor` : 'Floor not specified'}
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 dark:bg-[#181c28] rounded-xl border border-gray-200 dark:border-[#2a3045]">
-                    <div className="flex justify-between items-center text-[14px] mb-2">
-                      <span className="text-gray-500 dark:text-slate-400">Monthly Room Total</span>
-                      <span className="font-bold text-gray-900 dark:text-slate-100 text-[15px]">{formatCurrency(roomTotal)}</span>
-                    </div>
-                    {addons > 0 && (
-                      <p className="text-[12.5px] text-gray-500 dark:text-slate-500 mt-2 italic">
-                        Includes Base Rent ({formatCurrency(rent)}) and Add-ons ({formatCurrency(addons)})
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex gap-4 pt-2">
-                    <div className="flex-1">
-                      <p className="text-[13px] text-gray-500 dark:text-slate-500 mb-2">Move-in Date</p>
-                      <p className="text-[14px] font-medium text-gray-800 dark:text-slate-200">{moveIn}</p>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[13px] text-gray-500 dark:text-slate-500 mb-2">Duration</p>
-                      <p className="text-[14px] font-medium text-gray-800 dark:text-slate-200">{daysStayed} days so far</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      {openSummaryPanel === 'rooms' && (
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden mt-6">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
+            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Active Rooms - Detailed Breakdown</h3>
+            <button
+              type="button"
+              onClick={() => setOpenSummaryPanel(null)}
+              className="w-8 h-8 rounded-full border border-gray-200 dark:border-[#303650] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#252b3b] transition-colors"
+              aria-label="Close rooms breakdown"
+            >
+              ×
+            </button>
+          </div>
+          <div className="px-6 py-4 overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="text-left border-b border-gray-100 dark:border-[#2a3045]">
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Property</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Floor</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Type</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Move-in</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomBreakdownRows.length > 0 ? (
+                  roomBreakdownRows.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
+                      <td className="py-4 text-[14px] font-semibold text-gray-900 dark:text-slate-100">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.roomColor }} />
+                          Room {row.roomNumber}
+                        </span>
+                      </td>
+                      <td className="py-4 text-[14px] text-gray-600 dark:text-slate-300">{row.propertyName}</td>
+                      <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.floorLabel}</td>
+                      <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.roomType}</td>
+                      <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.moveInLabel}</td>
+                      <td className="py-4 text-right">
+                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
+                          row.status === 'overdue'
+                            ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
+                            : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
+                        }`}>
+                          {row.status === 'overdue' ? 'Overdue' : 'Active'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-[14px] text-gray-500 dark:text-slate-500">No active room records found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {openSummaryPanel === 'days' && (
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden mt-6">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
+            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Days Stayed - Room Breakdown</h3>
+            <button
+              type="button"
+              onClick={() => setOpenSummaryPanel(null)}
+              className="w-8 h-8 rounded-full border border-gray-200 dark:border-[#303650] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#252b3b] transition-colors"
+              aria-label="Close days breakdown"
+            >
+              ×
+            </button>
+          </div>
+          <div className="px-6 py-4 overflow-x-auto">
+            <table className="w-full min-w-[820px]">
+              <thead>
+                <tr className="text-left border-b border-gray-100 dark:border-[#2a3045]">
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Move-in</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Days Stayed</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomBreakdownRows.length > 0 ? (
+                  roomBreakdownRows.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
+                      <td className="py-4 text-[14px] font-semibold text-gray-900 dark:text-slate-100">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.roomColor }} />
+                          Room {row.roomNumber}
+                        </span>
+                      </td>
+                      <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.moveInLabel}</td>
+                      <td className="py-4 text-[14px] font-mono font-bold text-right text-gray-900 dark:text-slate-100">{row.daysStayed}</td>
+                      <td className="py-4 text-right">
+                        <div className="inline-flex items-center gap-3">
+                          <span className="text-[12px] font-mono text-gray-500 dark:text-slate-400 min-w-[34px] text-right">{row.dayShare}%</span>
+                          <span className="w-24 h-1.5 rounded bg-gray-200 dark:bg-[#2a3045] overflow-hidden">
+                            <span className="h-full block rounded" style={{ width: `${row.dayShare}%`, backgroundColor: row.roomColor }} />
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-[14px] text-gray-500 dark:text-slate-500">No stay duration data found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Days</p>
+              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{totalDaysStayed}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Average / Room</p>
+              <p className="text-[18px] font-bold font-mono text-blue-600 dark:text-blue-400">
+                {roomBreakdownRows.length > 0 ? Math.round(totalDaysStayed / roomBreakdownRows.length) : 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {openSummaryPanel === 'rent' && (
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden mt-6">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
+            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Monthly Rent - Room Breakdown</h3>
+            <button
+              type="button"
+              onClick={() => setOpenSummaryPanel(null)}
+              className="w-8 h-8 rounded-full border border-gray-200 dark:border-[#303650] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#252b3b] transition-colors"
+              aria-label="Close rent breakdown"
+            >
+              ×
+            </button>
+          </div>
+          <div className="px-6 py-4 overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="text-left border-b border-gray-100 dark:border-[#2a3045]">
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Billing Type</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Rate / Day</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Billed Days</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Room Total (Billed)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomBreakdownRows.length > 0 ? (
+                  roomBreakdownRows.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
+                      <td className="py-4 text-[14px] font-semibold text-gray-900 dark:text-slate-100">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.roomColor }} />
+                          Room {row.roomNumber}
+                        </span>
+                      </td>
+                      <td className="py-4 text-[14px] text-gray-600 dark:text-slate-300">{row.billingTypeLabel}</td>
+                      <td className="py-4 text-[14px] font-mono font-bold text-right text-gray-900 dark:text-slate-100">
+                        {row.billingPolicy === 'daily' ? formatCurrency(row.unitPrice) : '—'}
+                      </td>
+                      <td className="py-4 text-[14px] font-mono font-bold text-right text-blue-600 dark:text-blue-400">
+                        {row.billingPolicy === 'daily' ? row.billedDays : '—'}
+                      </td>
+                      <td className="py-4 text-[14px] font-mono font-bold text-right text-purple-600 dark:text-purple-400">{formatCurrency(row.roomTotalBilled)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-[14px] text-gray-500 dark:text-slate-500">No monthly rent data found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room Total (Billed)</p>
+              <p className="text-[18px] font-bold font-mono text-purple-600 dark:text-purple-400">{formatCurrency(totalBilledAmount)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Daily Billed Days</p>
+              <p className="text-[18px] font-bold font-mono text-blue-600 dark:text-blue-400">{totalDailyBilledDays}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Estimated Monthly</p>
+              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{formatCurrency(totalMonthlySummary)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {openSummaryPanel === 'status' && unpaidBalance > 0 && (
+        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden mt-6">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
+            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Unpaid Balance - Detailed Breakdown</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25 font-semibold">
+                {formatCurrency(unpaidBalance)} Due
+              </span>
+              <button
+                type="button"
+                onClick={() => setOpenSummaryPanel(null)}
+                className="w-8 h-8 rounded-full border border-gray-200 dark:border-[#303650] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#252b3b] transition-colors"
+                aria-label="Close balance breakdown"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 overflow-x-auto">
+            <table className="w-full min-w-[760px]">
+              <thead>
+                <tr className="text-left border-b border-gray-100 dark:border-[#2a3045]">
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Description</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Due Date</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Amount</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {balanceBreakdownRows.length > 0 ? (
+                  balanceBreakdownRows.map((row) => (
+                    <tr key={`${row.id}-${row.roomNumber}`} className="border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
+                      <td className="py-4 text-[14px] font-semibold text-gray-900 dark:text-slate-100">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.roomColor }} />
+                          Room {row.roomNumber}
+                        </span>
+                      </td>
+                      <td className="py-4 text-[14px] text-gray-600 dark:text-slate-300">{row.description}</td>
+                      <td className={`py-4 text-[14px] ${row.status === 'overdue' ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-gray-500 dark:text-slate-400'}`}>
+                        {row.dueDate}
+                      </td>
+                      <td className={`py-4 text-[14px] font-mono font-bold text-right ${row.status === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {formatCurrency(row.amount)}
+                      </td>
+                      <td className="py-4 text-right">
+                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
+                          row.status === 'overdue'
+                            ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
+                            : row.status === 'partial'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                              : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                        }`}>
+                          {row.status === 'partial' ? 'Pending' : row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-[14px] text-gray-500 dark:text-slate-500">No outstanding invoice items found.</td>
+                  </tr>
+                )}
+
+                {totalPaid > 0 && (
+                  <tr>
+                    <td colSpan={2} className="pt-5 pb-3 text-[14px] italic text-gray-500 dark:text-slate-500">Partial payment applied</td>
+                    <td className="pt-5 pb-3 text-[14px] text-gray-500 dark:text-slate-500 text-right">—</td>
+                    <td className="pt-5 pb-3 text-[14px] font-mono font-bold text-right text-green-600 dark:text-green-400">-{formatCurrency(totalPaid)}</td>
+                    <td className="pt-5 pb-3 text-right">
+                      <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold border bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20">
+                        Paid
+                      </span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Billed</p>
+              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{formatCurrency(unpaidBalance + totalPaid)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Paid</p>
+              <p className="text-[18px] font-bold font-mono text-green-600 dark:text-green-400">{formatCurrency(totalPaid)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Unpaid Balance</p>
+              <p className="text-[18px] font-bold font-mono text-red-600 dark:text-red-400">{formatCurrency(unpaidBalance)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom Row: Activity, Schedule & Simplified Payment Summary ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
