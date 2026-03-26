@@ -80,6 +80,11 @@ class TransferController extends Controller
                 'handled_at' => now(),
             ]);
 
+            $tenant = $transferReq->tenant;
+            if ($tenant) {
+                $tenant->notify(new \App\Notifications\TransferRequestHandledNotification($transferReq, 'rejected'));
+            }
+
             return response()->json(['message' => 'Request rejected']);
         }
 

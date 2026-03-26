@@ -185,7 +185,7 @@ function PropertyDashboard({ propertyId, navigate }) {
         api.get(`/landlord/properties/${propertyId}/addons/pending`),
         api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`),
         api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`),
-        api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`),
+        api.get(`/landlord/reviews?property_id=${propertyId}&limit=3&replied=false`),
         api.get(`/rooms/property/${propertyId}`),
       ]);
 

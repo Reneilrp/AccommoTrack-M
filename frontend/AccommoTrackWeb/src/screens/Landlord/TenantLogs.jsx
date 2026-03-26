@@ -50,6 +50,7 @@ export default function TenantLogs() {
   const [paymentGroup, setPaymentGroup] = useState('none'); 
   const [handlingTransferId, setHandlingTransferId] = useState(null);
   const [approvingTransferId, setApprovingTransferId] = useState(null);
+  const [rejectingTransferId, setRejectingTransferId] = useState(null);
   const [transferForms, setTransferForms] = useState({});
 
   const updateTransferForm = (transferId, patch) => {
@@ -706,10 +707,36 @@ export default function TenantLogs() {
                                   </button>
                                 </div>
                               </div>
+                            ) : rejectingTransferId === req.id ? (
+                              <div className="animate-in slide-in-from-top-2 space-y-4">
+                                <p className="text-sm font-bold text-red-700 dark:text-red-500">Reject Transfer Request</p>
+                                <textarea
+                                  value={getTransferForm(req.id).landlord_notes}
+                                  onChange={(e) => updateTransferForm(req.id, { landlord_notes: e.target.value })}
+                                  placeholder="Reason for rejection (optional, will be sent to tenant)"
+                                  className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none"
+                                />
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setRejectingTransferId(null)}
+                                    className="px-4 py-2 rounded-lg text-xs font-bold border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleTransferAction(req, 'reject')}
+                                    disabled={handlingTransferId === req.id}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-red-600 text-white shadow-md shadow-red-500/20 disabled:opacity-50"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    Confirm Reject
+                                  </button>
+                                </div>
+                              </div>
                             ) : (
                               <div className="flex items-center justify-end gap-2">
                                 <button
-                                  onClick={() => handleTransferAction(req, 'reject')}
+                                  onClick={() => setRejectingTransferId(req.id)}
                                   disabled={handlingTransferId === req.id}
                                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
                                 >
