@@ -197,6 +197,10 @@ const TenantDashboard = () => {
     const billedDays = billingPolicy === 'daily'
       ? billedLineItems.reduce((sum, item) => sum + (Number(item?.billedDays) || 0), 0)
       : 0;
+    const requiresAdvance = Boolean(
+      stay?.room?.advance_feature_enabled
+      ?? stay?.room?.require_1month_advance
+    );
     const hasOverdue = invoices.some((inv) => (inv?.status || '').toLowerCase() === 'overdue')
       || Boolean(stay?.booking?.is_overdue || stay?.booking?.isOverdue);
 
@@ -218,6 +222,7 @@ const TenantDashboard = () => {
       unitPrice,
       billedDays,
       roomTotalBilled,
+      requiresAdvance,
       status: hasOverdue ? 'overdue' : 'active',
     };
   });
@@ -407,7 +412,7 @@ const TenantDashboard = () => {
   // RENDER
   // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-8 font-sans max-w-5xl mx-auto pb-12">
+    <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6 space-y-8 font-sans">
 
 
       {/* ── High Priority Action Notification (Unpaid/Overdue Balance) ── */}
@@ -692,7 +697,7 @@ const TenantDashboard = () => {
       {openSummaryPanel === 'rent' && (
         <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden mt-6">
           <div className="px-6 py-5 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
-            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Monthly Rent - Room Breakdown</h3>
+            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Rent - Room Breakdown</h3>
             <button
               type="button"
               onClick={() => setOpenSummaryPanel(null)}
@@ -703,13 +708,14 @@ const TenantDashboard = () => {
             </button>
           </div>
           <div className="px-6 py-4 overflow-x-auto">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="text-left border-b border-gray-100 dark:border-[#2a3045]">
                   <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room</th>
                   <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Billing Type</th>
-                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Rate / Day</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Price</th>
                   <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Billed Days</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Advance Required (1+ Month)</th>
                   <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Room Total (Billed)</th>
                 </tr>
               </thead>
@@ -724,18 +730,35 @@ const TenantDashboard = () => {
                         </span>
                       </td>
                       <td className="py-4 text-[14px] text-gray-600 dark:text-slate-300">{row.billingTypeLabel}</td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-right text-gray-900 dark:text-slate-100">
-                        {row.billingPolicy === 'daily' ? formatCurrency(row.unitPrice) : '—'}
+                      <td className="py-4 text-[14px] font-mono font-bold text-right text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                        {row.billingPolicy === 'daily' ? (
+                          <span>
+                            {formatCurrency(row.unitPrice)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
+                          </span>
+                        ) : (
+                          <span>
+                            {formatCurrency(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/month</span>
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 text-[14px] font-mono font-bold text-right text-blue-600 dark:text-blue-400">
                         {row.billingPolicy === 'daily' ? row.billedDays : '—'}
+                      </td>
+                      <td className="py-4 text-right">
+                        <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
+                          row.requiresAdvance
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20'
+                        }`}>
+                          {row.requiresAdvance ? 'Yes' : 'No'}
+                        </span>
                       </td>
                       <td className="py-4 text-[14px] font-mono font-bold text-right text-purple-600 dark:text-purple-400">{formatCurrency(row.roomTotalBilled)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-6 text-[14px] text-gray-500 dark:text-slate-500">No monthly rent data found.</td>
+                    <td colSpan={6} className="py-6 text-[14px] text-gray-500 dark:text-slate-500">No rent data found.</td>
                   </tr>
                 )}
               </tbody>
