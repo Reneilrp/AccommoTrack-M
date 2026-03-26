@@ -89,12 +89,12 @@ const HomePage = ({ onGetStarted }) => {
           <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-lg mx-auto relative">
             <button 
               onClick={onGetStarted} 
-              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 md:px-8 md:py-4 min-h-[56px] text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 hover:bg-green-700 transition-all duration-300"
+              className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 md:px-8 md:py-4 min-h-[56px] text-base md:text-lg font-bold rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 hover:bg-green-700 transition-all duration-300"
             >
               Browse Properties <Search className="w-4 h-4 md:w-5 md:h-5" />
             </button>
 
-            <div className="flex-1 relative">
+            <div className="flex-1 min-w-0 relative">
               {showAppPromo && (
                 <div className="absolute top-[calc(100%+1.25rem)] md:top-auto md:bottom-[calc(100%+1.25rem)] left-1/2 z-20 animate-float-gentle pointer-events-auto">
                   <div className="bg-blue-600 text-white text-[10px] md:text-xs font-bold py-2.5 px-4 rounded-2xl shadow-2xl relative whitespace-nowrap flex items-center gap-4 border border-blue-400/50 backdrop-blur-sm">

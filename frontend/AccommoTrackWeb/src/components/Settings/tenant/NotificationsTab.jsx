@@ -92,7 +92,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 			toast.success('Preferences saved successfully');
 		} catch (error) {
 			console.error('Failed to save notification prefs', error);
-			toast.error('Failed to save preferences');
+			toast.error('Failed to save preferences')
 		} finally {
 			setSaving(false);
 		}
@@ -194,25 +194,25 @@ const ToggleItem = ({ label, description, checked, disabled, onChange }) => (
 			<p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
 			<p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
 		</div>
-		{disabled ? (
-			<span className={`text-sm font-medium px-2.5 py-0.5 rounded-full ${checked ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-400'}`}>
-				{checked ? 'Enabled' : 'Disabled'}
-			</span>
-		) : (
-			<button
-				onClick={onChange}
-				className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-600 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-					checked ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
+		<button
+			type="button"
+			onClick={disabled ? undefined : onChange}
+			disabled={disabled}
+			aria-label={`${label} notification toggle`}
+			aria-pressed={checked}
+			className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+				disabled
+					? 'cursor-not-allowed opacity-80'
+					: 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800'
+			} ${checked ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'}`}
+		>
+			<span
+				aria-hidden="true"
+				className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+					checked ? 'translate-x-5' : 'translate-x-0'
 				}`}
-			>
-				<span
-					aria-hidden="true"
-					className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-						checked ? 'translate-x-5' : 'translate-x-0'
-					}`}
-				/>
-			</button>
-		)}
+			/>
+		</button>
 	</div>
 );
 

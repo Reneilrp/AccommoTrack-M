@@ -199,14 +199,12 @@ export default function TenantLayout({ user, onLogout, children }) {
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Header - Simplified (No Menu Button) */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight pointer-events-auto">
-              {getPageTitle()}
-            </h1>
-          </div>
+        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-between px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+            {getPageTitle()}
+          </h1>
           
-          <div className="ml-auto z-10">
+          <div className="z-10">
             <NotificationDropdown />
           </div>
         </header>

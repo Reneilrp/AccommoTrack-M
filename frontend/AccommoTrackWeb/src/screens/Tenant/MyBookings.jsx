@@ -351,10 +351,10 @@ const MyBookings = () => {
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6">
-      {__err && (
+      {error && (
         <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
           <X className="w-5 h-5 cursor-pointer" onClick={() => setError(null)} />
-          <span className="font-bold text-xs uppercase tracking-wide">{__err}</span>
+          <span className="font-bold text-xs uppercase tracking-wide">{error}</span>
         </div>
       )}
       {/* Tabs */}

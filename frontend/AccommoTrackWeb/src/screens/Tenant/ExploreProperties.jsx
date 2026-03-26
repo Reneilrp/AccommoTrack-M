@@ -478,6 +478,11 @@ const ExploreProperties = () => {
               updateScreenState("explore", { currentPage: 1 });
             }}
             onClose={() => setIsFilterOpen(false)}
+            propertyTypes={PROPERTY_TYPES}
+            selectedType={selectedType}
+            onSelectType={(type) =>
+              updateScreenState("explore", { selectedType: type, currentPage: 1 })
+            }
           />
           <main className="flex-1 min-w-0">
             {/* Helper Text */}
@@ -1344,10 +1349,21 @@ const ExploreProperties = () => {
 
       {!authService.isAuthenticated() && <Footer />}
     </div>
+          </>
   );
 };
 
-const FilterSidebar = ({ isOpen, filters, amenities, onApply, onClear, onClose }) => {
+const FilterSidebar = ({
+  isOpen,
+  filters,
+  amenities,
+  onApply,
+  onClear,
+  onClose,
+  propertyTypes = [],
+  selectedType = "All",
+  onSelectType,
+}) => {
   const [localFilters, setLocalFilters] = useState(filters);
 
   useEffect(() => {
@@ -1376,12 +1392,12 @@ const FilterSidebar = ({ isOpen, filters, amenities, onApply, onClear, onClose }
         : [...prev.amenities, amenity],
     }));
   };
-  
+
   const handleApply = () => {
     onApply(localFilters);
-    onClose(); // Close on apply for mobile
+    onClose();
   };
-  
+
   const handleClear = () => {
     const cleared = {
       priceMin: "",
@@ -1392,117 +1408,201 @@ const FilterSidebar = ({ isOpen, filters, amenities, onApply, onClear, onClose }
     };
     setLocalFilters(cleared);
     onClear(cleared);
-  }
+    if (onSelectType) onSelectType("All");
+  };
 
   return (
     <>
       {/* Backdrop for mobile */}
-      <div 
-          className={`fixed inset-0 bg-black/50 z-20 transition-opacity md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-          onClick={onClose}
+      <div
+        className={`fixed inset-0 bg-black/50 z-20 transition-opacity md:hidden ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose}
       ></div>
 
       <div
         className={`
-          fixed top-0 left-0 bottom-0 z-30 
+          fixed top-0 left-0 bottom-0 z-30
           w-72 bg-white dark:bg-gray-800
           transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          
-          md:static md:z-auto md:h-auto md:w-64
-          md:translate-x-0 md:p-4
+
+          md:static md:z-auto md:h-auto
+          md:translate-x-0
           md:rounded-xl md:border md:border-gray-300 dark:md:border-gray-700 md:shadow-md md:h-fit
-          
+
           md:transition-all md:duration-300
-          ${isOpen ? 'md:w-64 md:p-4 md:opacity-100' : 'md:w-0 md:p-0 md:opacity-0 md:border-0'}
+          ${isOpen ? "md:w-64 md:p-4 md:opacity-100" : "md:w-0 md:p-0 md:opacity-0 md:border-0 md:overflow-hidden"}
         `}
       >
         <div className="p-4 md:p-0 h-full overflow-y-auto">
+          {/* Mobile header */}
           <div className="flex justify-between items-center md:hidden mb-4">
             <h2 className="text-lg font-bold">Filters</h2>
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                <X className="w-6 h-6" />
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <X className="w-6 h-6" />
             </button>
           </div>
 
           <div className="space-y-4">
+
+            {/* Property Type */}
+            {propertyTypes.length > 0 && (
+              <>
+                <div>
+                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                    Property Type
+                  </h3>
+                  <div className="space-y-1">
+                    {propertyTypes.map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => onSelectType && onSelectType(type)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                          selectedType === type
+                            ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+              </>
+            )}
+
+            {/* Price Range */}
             <div>
               <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                 Price Range (Monthly)
               </h3>
               <div className="flex items-center gap-2">
-                <input type="number" min="0" placeholder="Min" value={localFilters.priceMin} onChange={(e) => setLocalFilters((prev) => ({ ...prev, priceMin: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Min"
+                  value={localFilters.priceMin}
+                  onChange={(e) =>
+                    setLocalFilters((prev) => ({ ...prev, priceMin: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                />
                 <span className="text-gray-500 text-sm">-</span>
-                <input type="number" min="0" placeholder="Max" value={localFilters.priceMax} onChange={(e) => setLocalFilters((prev) => ({ ...prev, priceMax: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Max"
+                  value={localFilters.priceMax}
+                  onChange={(e) =>
+                    setLocalFilters((prev) => ({ ...prev, priceMax: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                />
               </div>
             </div>
 
             <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
+            {/* Availability */}
             <div>
-                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Availability</h3>
-                <button
-                  type="button"
-                  onClick={() => setLocalFilters((prev) => ({ ...prev, availabilityOnly: !prev.availabilityOnly }))}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md border-2 transition-all ${
-                    localFilters.availabilityOnly
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                      : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
-                  }`}
-                >
-                  <span className="font-semibold">Available rooms only</span>
-                  {localFilters.availabilityOnly && <Check className="w-4 h-4" />}
-                </button>
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                Availability
+              </h3>
+              <button
+                type="button"
+                onClick={() =>
+                  setLocalFilters((prev) => ({
+                    ...prev,
+                    availabilityOnly: !prev.availabilityOnly,
+                  }))
+                }
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md border-2 transition-all ${
+                  localFilters.availabilityOnly
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                    : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
+                }`}
+              >
+                <span className="font-semibold">Available rooms only</span>
+                {localFilters.availabilityOnly && <Check className="w-4 h-4" />}
+              </button>
             </div>
 
             <div className="border-t border-gray-200 dark:border-gray-700"></div>
-            
-            <div>
-                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Minimum Rating</h3>
-                <div className="flex items-center justify-center gap-1 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setLocalFilters((prev) => ({ ...prev, rating: prev.rating === star ? 0 : star }))}
-                    >
-                      <Star className={`w-6 h-6 transition-colors ${ star <= localFilters.rating ? "text-yellow-400 fill-current" : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"}`} />
-                    </button>
-                  ))}
-                </div>
-            </div>
 
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
-            
+            {/* Minimum Rating */}
             <div>
-                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Amenities</h3>
-                <div className="flex flex-wrap gap-2">
-                  {amenityOptions.slice(0, 6).map((amenity) => (
-                    <button
-                      key={amenity}
-                      type="button"
-                      onClick={() => toggleAmenity(amenity)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                        localFilters.amenities.includes(amenity)
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                          : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                Minimum Rating
+              </h3>
+              <div className="flex items-center justify-center gap-1 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() =>
+                      setLocalFilters((prev) => ({
+                        ...prev,
+                        rating: prev.rating === star ? 0 : star,
+                      }))
+                    }
+                  >
+                    <Star
+                      className={`w-6 h-6 transition-colors ${
+                        star <= localFilters.rating
+                          ? "text-yellow-400 fill-current"
+                          : "text-gray-300 dark:text-gray-600 hover:text-yellow-300"
                       }`}
-                    >
-                      {amenity}
-                    </button>
-                  ))}
-                </div>
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
-            
+
             <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
+            {/* Amenities */}
+            <div>
+              <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                Amenities
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {amenityOptions.slice(0, 6).map((amenity) => (
+                  <button
+                    key={amenity}
+                    type="button"
+                    onClick={() => toggleAmenity(amenity)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                      localFilters.amenities.includes(amenity)
+                        ? "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {amenity}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+            {/* Actions */}
             <div className="pt-2">
-                <button onClick={handleApply} className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors">
-                    Apply Filters
-                </button>
-                <button onClick={handleClear} className="w-full mt-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 font-bold hover:underline">
-                    Clear All
-                </button>
+              <button
+                onClick={handleApply}
+                className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors"
+              >
+                Apply Filters
+              </button>
+              <button
+                onClick={handleClear}
+                className="w-full mt-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 font-bold hover:underline"
+              >
+                Clear All
+              </button>
             </div>
           </div>
         </div>

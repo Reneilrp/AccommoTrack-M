@@ -565,7 +565,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
     // Stat cards (flat, uniform dark cards like the mockup)
     const statCards = [
-      property.number_of_bathrooms > 0 && { value: property.number_of_bathrooms, label: "BATHROOMS" },
       property.total_rooms > 0 && { value: property.total_rooms, label: "TOTAL ROOMS" },
       { value: property.available_rooms ?? 0, label: "AVAILABLE", highlight: true },
       property.total_floors > 0 && { value: property.total_floors, label: "FLOORS" },
@@ -578,37 +577,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
     return (
       <div className="space-y-4 animate-in fade-in duration-300">
-
-        {/* ══════ 1. MONTHLY RATE CARD ══════ */}
-        {(property.minPrice > 0 || property.priceRange) && (
-          <div className={`${CARD} p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4`}>
-            <div>
-              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-0.5">
-                Monthly Rate
-              </p>
-              <p className="text-3xl font-extrabold text-gray-900 dark:text-white leading-none">
-                {property.minPrice > 0
-                  ? `₱${Number(property.minPrice).toLocaleString()}`
-                  : property.priceRange}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">per room / month</p>
-              {property.require_reservation_fee && property.reservation_fee_amount > 0 && (
-                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
-                  + ₱{Number(property.reservation_fee_amount).toLocaleString()} reservation fee
-                </p>
-              )}
-              {property.require_1month_advance && (
-                <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">1 month advance required</p>
-              )}
-            </div>
-            <button
-              onClick={handleContactLandlord}
-              className="flex-shrink-0 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap shadow-sm"
-            >
-              Contact landlord
-            </button>
-          </div>
-        )}
 
         {/* ══════ 2. STAT ROW ══════ */}
         {statCards.length > 0 && (() => {

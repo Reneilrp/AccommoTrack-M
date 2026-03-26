@@ -15,11 +15,27 @@ class TransferController extends Controller
     public function index(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
-        $requests = TransferRequest::where('landlord_id', $context['landlord_id'])
+        $query = TransferRequest::where('landlord_id', $context['landlord_id'])
             ->with(['tenant', 'currentRoom', 'requestedRoom.property'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
 
+        if ($request->has('property_id') && $request->property_id !== 'all') {
+            // Authorization check for caretakers
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                if (!in_array($request->property_id, $assignedPropertyIds)) {
+                    return response()->json(['message' => 'Unauthorized access to this property'], 403);
+                }
+            }
+            $query->where('property_id', $request->property_id);
+        } elseif ($context['is_caretaker'] && $context['assignment']) {
+            // If no specific property is requested, limit caretaker to their assigned properties
+            $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+            $query->whereIn('property_id', $assignedPropertyIds);
+        }
+    
+        $requests = $query->get();
+    
         return response()->json($requests);
     }
 

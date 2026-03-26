@@ -107,9 +107,9 @@ export default function TenantPayments({ user }) {
   ];
 
   const timeRanges = [
-    { value: '1w', label: '1W' },
-    { value: '1m', label: '1M' },
-    { value: '1y', label: '1Y' },
+    { value: 'w', label: 'W' },
+    { value: 'm', label: 'M' },
+    { value: 'y', label: 'Y' },
     { value: 'all', label: 'All' },
   ];
 
@@ -117,9 +117,9 @@ export default function TenantPayments({ user }) {
     if (!range || range === 'all') return null;
     const now = new Date();
     switch (range) {
-      case '1w': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case '1m': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      case '1y': return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      case 'w': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case 'm': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'y': return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
       default: return null;
     }
   };
@@ -187,7 +187,7 @@ export default function TenantPayments({ user }) {
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Next Due Date</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.nextDueDate || 'N/A'}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.nextDueDate || 'No unpaid balance'}</p>
               </div>
             </div>
           </div>

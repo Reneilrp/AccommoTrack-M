@@ -176,4 +176,3 @@ export default function TenantCard({ tenant, onTransfer, onEvict, canTransfer = 
     </div>
   );
 }
-}

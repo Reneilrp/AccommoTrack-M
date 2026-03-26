@@ -172,7 +172,7 @@ const TenantDashboard = () => {
             { icon: Wallet, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
             { icon: CheckCircle2, label: 'All Paid Up', value: 'No pending balance', color: 'green' },
           ].map((card, i) => (
-            <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden">
+            <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden flex flex-col">
               <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] ${
                 card.color === 'green' ? 'bg-green-500' : card.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'
               }`} />
@@ -183,8 +183,8 @@ const TenantDashboard = () => {
                   card.color === 'green' ? 'text-green-600 dark:text-green-400' : card.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
                 }`} />
               </div>
-              <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100">{card.value}</div>
               <div className="text-[13px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2">{card.label}</div>
+              <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100">{card.value}</div>
             </div>
           ))}
         </div>
@@ -367,13 +367,15 @@ const TenantDashboard = () => {
         {statCards.map((card) => {
           const cm = colorMap[card.color];
           return (
-            <div key={card.key} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] p-6 relative overflow-hidden">
+            <div key={card.key} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] p-6 relative overflow-hidden flex flex-col">
               <div className={`absolute top-0 left-0 right-0 h-[4px] rounded-t-[16px] ${cm.border}`} />
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${cm.iconBg}`}>
-                <card.icon className={`w-5 h-5 ${cm.iconText}`} />
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${cm.iconBg}`}>
+                  <card.icon className={`w-5 h-5 ${cm.iconText}`} />
+                </div>
               </div>
-              <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono">{card.value}</div>
               <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2.5">{card.label}</div>
+              <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono">{card.value}</div>
             </div>
           );
         })}

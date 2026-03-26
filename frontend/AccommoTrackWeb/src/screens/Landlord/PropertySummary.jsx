@@ -1,109 +1,562 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import api, { getImageUrl } from "../../utils/api";
-import {
-  Building2,
-  List,
-  ArrowLeft,
-  ArrowRight,
-  Edit,
-  Users,
-  Loader2,
-  Wrench,
-  Star,
-  Sparkles,
-  X,
-} from "lucide-react";
-import RoomCard from "../../components/Rooms/RoomCard";
-import RoomDetails from "../../components/Rooms/RoomDetails";
-import PropertyActivityLogs from "./PropertyActivityLogs";
-import AddonManagement from "./AddonManagement";
-import { useSidebar } from "../../contexts/SidebarContext";
-import { useUIState } from "../../contexts/UIStateContext";
-import { cacheManager } from "../../utils/cache";
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api, { getImageUrl } from '../../utils/api';
+import { 
+  Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
+  CheckCircle, XCircle, Eye, AlertCircle, Clock, TrendingUp, Home, PackagePlus
+} from 'lucide-react';
+import RoomCard from '../../components/Rooms/RoomCard';
+import RoomDetails from '../../components/Rooms/RoomDetails';
+import PropertyActivityLogs from './PropertyActivityLogs';
+import { useSidebar } from '../../contexts/SidebarContext';
+import { useUIState } from '../../contexts/UIStateContext';
+import { cacheManager } from '../../utils/cache';
 
-import { Swiper, SwiperSlide } from "swiper/react";
-import {
-  Navigation,
-  Pagination,
-  Autoplay,
-  Keyboard,
-  A11y,
-} from "swiper/modules";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
-import NotFoundPage from "../NotFoundPage";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Autoplay, Keyboard, A11y } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import NotFoundPage from '../NotFoundPage';
+
+// ─── Property Dashboard ───────────────────────────────────────────────────────
+
+function StatCard({ value, label, color = 'default', icon: Icon, onClick }) {
+  const colorMap = {
+    danger: { 
+      text: 'text-red-600 dark:text-red-400', 
+      bg: 'bg-red-50 dark:bg-red-900/20', 
+      icon: 'text-red-600 dark:text-red-400' 
+    },
+    warning: { 
+      text: 'text-orange-500 dark:text-orange-400', 
+      bg: 'bg-orange-50 dark:bg-orange-900/20', 
+      icon: 'text-orange-600 dark:text-orange-400' 
+    },
+    success: { 
+      text: 'text-green-600 dark:text-green-400', 
+      bg: 'bg-green-50 dark:bg-green-900/20', 
+      icon: 'text-green-600 dark:text-green-400' 
+    },
+    info: { 
+      text: 'text-blue-600 dark:text-blue-400', 
+      bg: 'bg-blue-50 dark:bg-blue-900/20', 
+      icon: 'text-blue-600 dark:text-blue-400' 
+    },
+    default: { 
+      text: 'text-gray-900 dark:text-white', 
+      bg: 'bg-gray-50 dark:bg-gray-900/20', 
+      icon: 'text-gray-600 dark:text-gray-400' 
+    },
+  };
+  
+  const theme = colorMap[color] || colorMap.default;
+
+  return (
+    <button
+      onClick={onClick}
+      className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-gray-400 dark:hover:border-gray-600 transition-all w-full"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+          <p className={`text-2xl font-bold mt-2 ${theme.text}`}>{value}</p>
+        </div>
+        {Icon && (
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${theme.bg}`}>
+            <Icon className={`w-5 h-5 ${theme.icon}`} />
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function FeedCard({ title, badge, badgeColor = 'gray', children, onViewAll, navigateTo }) {
+  const badgeColors = {
+    danger: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
+    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
+    info: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400',
+    success: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',
+    gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+  };
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">{title}</span>
+        <div className="flex items-center gap-2">
+          {badge !== undefined && (
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColors[badgeColor]}`}>{badge}</span>
+          )}
+          {(onViewAll || navigateTo) && (
+            <button
+              onClick={onViewAll || navigateTo}
+              className="text-xs font-bold text-green-600 dark:text-green-400 hover:underline"
+            >
+              View all
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700/60">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function RequestRow({ initials, avatarColor = 'blue', name, sub, actions, pill }) {
+  const avatarColors = {
+    blue:   'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
+    amber:  'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
+    red:    'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+    purple: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300',
+    teal:   'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300',
+    green:  'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
+  };
+  return (
+    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColors[avatarColor]}`}>
+        {initials}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{name}</div>
+        <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 truncate uppercase tracking-tight">{sub}</div>
+      </div>
+      <div className="flex-shrink-0 flex gap-1.5 items-center">
+        {actions}
+        {pill}
+      </div>
+    </div>
+  );
+}
+
+function ActionBtn({ label, variant = 'gray', onClick }) {
+  const variants = {
+    green: 'bg-green-600 text-white hover:bg-green-700 shadow-sm shadow-green-500/20',
+    red:   'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800',
+    blue:  'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-500/20',
+    gray:  'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600',
+  };
+  return (
+    <button
+      onClick={onClick}
+      className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all ${variants[variant]}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function getInitials(name = '') {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '??';
+}
+
+function EmptyRow({ message }) {
+  return (
+    <div className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">{message}</div>
+  );
+}
+
+function PropertyDashboard({ propertyId, navigate }) {
+  const [dashData, setDashData] = useState({
+    pendingBookings: [],
+    overdueInvoices: [],
+    pendingAddonRequests: [],
+    maintenanceRequests: [],
+    transferRequests: [],
+    recentReviews: [],
+    occupancy: null,
+  });
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
+
+  useEffect(() => {
+    if (!propertyId) return;
+    loadDashboard();
+  }, [propertyId]);
+
+  const loadDashboard = async () => {
+    setLoading(true);
+    try {
+      const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes, roomsRes] = await Promise.allSettled([
+        api.get(`/bookings?property_id=${propertyId}&status=pending`),
+        api.get(`/invoices?property_id=${propertyId}&status=overdue`),
+        api.get(`/landlord/properties/${propertyId}/addons/pending`),
+        api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`),
+        api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`),
+        api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`),
+        api.get(`/rooms/property/${propertyId}`),
+      ]);
+
+      const get = (res) => (res.status === 'fulfilled' ? res.value?.data || [] : []);
+
+      const rooms = get(roomsRes);
+      const totalRooms = rooms.length;
+      const occupiedRooms = rooms.filter(r => r.status === 'occupied' || r.available_slots === 0).length;
+      const pendingAddonRequests = addonRequestsRes.status === 'fulfilled'
+        ? (addonRequestsRes.value?.data?.pendingRequests || [])
+        : [];
+
+      setDashData({
+        pendingBookings: get(bookingsRes),
+        overdueInvoices: (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [],
+        pendingAddonRequests,
+        maintenanceRequests: (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [],
+        transferRequests: get(transfersRes),
+        recentReviews: get(reviewsRes),
+        occupancy: totalRooms > 0 ? `${occupiedRooms}/${totalRooms}` : '—',
+      });
+    } catch (err) {
+      console.error('Dashboard load error', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookingAction = async (bookingId, action) => {
+    const key = `booking_${bookingId}_${action}`;
+    setActionLoading(p => ({ ...p, [key]: true }));
+    try {
+      await api.patch(`/landlord/bookings/${bookingId}/status`, { status: action === 'approve' ? 'confirmed' : 'rejected' });
+      setDashData(p => ({ ...p, pendingBookings: p.pendingBookings.filter(b => b.id !== bookingId) }));
+    } catch (err) {
+      console.error(`Failed to ${action} booking`, err);
+    } finally {
+      setActionLoading(p => ({ ...p, [key]: false }));
+    }
+  };
+
+  const handleAddonRequestAction = async (requestId, bookingId, addonId, action) => {
+    const key = `addon_${requestId}_${action}`;
+    setActionLoading(p => ({ ...p, [key]: true }));
+    try {
+      await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, { action, note: null });
+      setDashData(p => ({
+        ...p,
+        pendingAddonRequests: p.pendingAddonRequests.filter(r => r.requestId !== requestId),
+      }));
+    } catch (err) {
+      console.error(`Failed to ${action} add-on request`, err);
+    } finally {
+      setActionLoading(p => ({ ...p, [key]: false }));
+    }
+  };
+
+  const { pendingBookings, overdueInvoices, pendingAddonRequests, maintenanceRequests, transferRequests, recentReviews, occupancy } = dashData;
+
+  const renderStars = (rating) => {
+    const n = Math.round(Number(rating) || 0);
+    return '★'.repeat(n) + '☆'.repeat(5 - n);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
+        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading dashboard...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+
+      {/* Stat row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard
+          value={overdueInvoices.length || 0}
+          label="Overdue invoices"
+          color="danger"
+          onClick={() => navigate(`/payments?property_id=${propertyId}&status=overdue`)}
+        />
+        <StatCard
+          value={pendingBookings.length || 0}
+          label="Pending bookings"
+          color="warning"
+          onClick={() => navigate(`/bookings?property_id=${propertyId}&status=pending`)}
+        />
+        <StatCard
+          value={transferRequests.length || 0}
+          label="Transfer requests"
+          color="info"
+          onClick={() => navigate(`/transfers?property_id=${propertyId}`)}
+        />
+        <StatCard
+          value={occupancy || '—'}
+          label="Rooms occupied"
+          color="success"
+          onClick={() => navigate(`/rooms?property=${propertyId}`)}
+        />
+      </div>
+
+      {/* Row 1: Pending Bookings + Overdue Payments + Add-ons */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        <FeedCard
+          title="Pending bookings"
+          badge={pendingBookings.length}
+          badgeColor={pendingBookings.length > 0 ? 'warning' : 'gray'}
+          onViewAll={() => navigate(`/bookings?property_id=${propertyId}&status=pending`)}
+        >
+          {pendingBookings.length === 0 ? (
+            <EmptyRow message="No pending bookings" />
+          ) : (
+            pendingBookings.slice(0, 3).map(b => (
+              <RequestRow
+                key={b.id}
+                initials={getInitials(b.tenant?.name || b.tenant_name)}
+                avatarColor="blue"
+                name={b.tenant?.name || b.tenant_name || 'Tenant'}
+                sub={`${b.room?.name || b.room_name || 'Room'} · ${b.start_date ? new Date(b.start_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '—'} · ${b.payment_plan || 'Monthly'}`}
+                actions={
+                  <>
+                    <ActionBtn
+                      label={actionLoading[`booking_${b.id}_approve`] ? '...' : 'Approve'}
+                      variant="green"
+                      onClick={() => handleBookingAction(b.id, 'approve')}
+                    />
+                    <ActionBtn
+                      label={actionLoading[`booking_${b.id}_reject`] ? '...' : 'Decline'}
+                      variant="red"
+                      onClick={() => handleBookingAction(b.id, 'reject')}
+                    />
+                  </>
+                }
+              />
+            ))
+          )}
+        </FeedCard>
+
+        <FeedCard
+          title="Overdue payments"
+          badge={overdueInvoices.length}
+          badgeColor={overdueInvoices.length > 0 ? 'danger' : 'gray'}
+          onViewAll={() => navigate(`/payments?property_id=${propertyId}&status=overdue`)}
+        >
+          {overdueInvoices.length === 0 ? (
+            <EmptyRow message="No overdue invoices" />
+          ) : (
+            overdueInvoices.slice(0, 3).map(inv => {
+              const daysOverdue = inv.due_date
+                ? Math.floor((Date.now() - new Date(inv.due_date)) / 86400000)
+                : null;
+              return (
+                <div key={inv.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300">
+                      {getInitials(inv.tenant?.name || inv.tenant_name)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {inv.tenant?.name || inv.tenant_name || 'Tenant'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {inv.room?.name || inv.room_name || 'Room'} · {inv.month || inv.period || 'Invoice'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <div className="text-sm font-semibold text-red-600 dark:text-red-400">
+                      ₱{Number(inv.amount || inv.total_amount || 0).toLocaleString()}
+                    </div>
+                    {daysOverdue !== null && (
+                      <div className="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                        {daysOverdue}d overdue
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </FeedCard>
+
+        <FeedCard
+          title="Add-ons Service"
+          badge={pendingAddonRequests.length}
+          badgeColor={pendingAddonRequests.length > 0 ? 'info' : 'gray'}
+          onViewAll={() => navigate(`/addons?property_id=${propertyId}`)}
+        >
+          {pendingAddonRequests.length === 0 ? (
+            <EmptyRow message="No pending add-on requests" />
+          ) : (
+            pendingAddonRequests.slice(0, 3).map(req => (
+              <RequestRow
+                key={req.requestId}
+                initials={getInitials(req.tenant?.name || 'Tenant')}
+                avatarColor="green"
+                name={req.addonName || 'Add-on request'}
+                sub={`Room ${req.roomNumber || '—'} · ${req.tenant?.name || 'Tenant'}`}
+                actions={
+                  <>
+                    <ActionBtn
+                      label={actionLoading[`addon_${req.requestId}_approve`] ? '...' : 'Approve'}
+                      variant="green"
+                      onClick={() => handleAddonRequestAction(req.requestId, req.bookingId, req.addonId, 'approve')}
+                    />
+                    <ActionBtn
+                      label={actionLoading[`addon_${req.requestId}_reject`] ? '...' : 'Decline'}
+                      variant="red"
+                      onClick={() => handleAddonRequestAction(req.requestId, req.bookingId, req.addonId, 'reject')}
+                    />
+                  </>
+                }
+              />
+            ))
+          )}
+        </FeedCard>
+
+      </div>
+
+      {/* Row 2: Maintenance + Transfers + Reviews */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <FeedCard
+          title="Maintenance requests"
+          badge={maintenanceRequests.length}
+          badgeColor={maintenanceRequests.length > 0 ? 'warning' : 'gray'}
+          onViewAll={() => navigate(`/maintenance?property_id=${propertyId}`)}
+        >
+          {maintenanceRequests.length === 0 ? (
+            <EmptyRow message="No open requests" />
+          ) : (
+            maintenanceRequests.slice(0, 3).map(m => (
+              <RequestRow
+                key={m.id}
+                initials={getInitials(m.tenant?.name || m.tenant_name)}
+                avatarColor="amber"
+                name={m.title || m.issue || 'Maintenance issue'}
+                sub={`${m.room?.name || m.room_name || 'Room'} · ${m.tenant?.name || m.tenant_name || ''}`}
+                pill={
+                  <ActionBtn
+                    label="View"
+                    variant="blue"
+                    onClick={() => navigate(`/maintenance?property_id=${propertyId}&request_id=${m.id}`)}
+                  />
+                }
+              />
+            ))
+          )}
+        </FeedCard>
+
+        <FeedCard
+          title="Transfer requests"
+          badge={transferRequests.length}
+          badgeColor={transferRequests.length > 0 ? 'info' : 'gray'}
+          onViewAll={() => navigate(`/transfers?property_id=${propertyId}`)}
+        >
+          {transferRequests.length === 0 ? (
+            <EmptyRow message="No pending transfers" />
+          ) : (
+            transferRequests.slice(0, 3).map(t => (
+              <RequestRow
+                key={t.id}
+                initials={getInitials(t.tenant?.name || t.tenant_name)}
+                avatarColor="purple"
+                name={t.tenant?.name || t.tenant_name || 'Tenant'}
+                sub={`${t.from_room?.name || t.from_room_name || '—'} → ${t.to_room?.name || t.to_room_name || '—'}`}
+                pill={
+                  <ActionBtn
+                    label="View"
+                    variant="blue"
+                    onClick={() => navigate(`/transfers?property_id=${propertyId}&request_id=${t.id}`)}
+                  />
+                }
+              />
+            ))
+          )}
+        </FeedCard>
+
+        <FeedCard
+          title="Recent reviews"
+          onViewAll={() => navigate(`/reviews?property_id=${propertyId}`)}
+        >
+          {recentReviews.length === 0 ? (
+            <EmptyRow message="No reviews yet" />
+          ) : (
+            recentReviews.slice(0, 3).map(r => (
+              <RequestRow
+                key={r.id}
+                initials={getInitials(r.tenant?.name || r.reviewer_name)}
+                avatarColor="teal"
+                name={r.tenant?.name || r.reviewer_name || 'Tenant'}
+                sub={
+                  <span>
+                    <span className="text-amber-500">{renderStars(r.rating)}</span>
+                    {' · '}
+                    <span>{r.room?.name || r.room_name || ''}</span>
+                  </span>
+                }
+                pill={
+                  <ActionBtn
+                    label={r.landlord_response ? "Replied" : "Reply"}
+                    variant={r.landlord_response ? "gray" : "blue"}
+                    onClick={() => navigate(`/reviews/${r.id}`)}
+                  />
+                }
+              />
+            ))
+          )}
+        </FeedCard>
+
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PropertySummary() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { uiState, updateData } = useUIState();
-
-  // Use a stable cache key
+  
   const cacheKey = `property_summary_${id}`;
-
-  // Get cached data once during render to use for initial state
-  // Using a memo or lazy initialization might be safer to ensure it only runs once per mount/id change
+  
   const getCachedData = () => {
     return uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
   };
 
-  const [property, setProperty] = useState(
-    () => getCachedData()?.property || null,
-  );
-  const [rooms, setRooms] = useState(() => getCachedData()?.rooms || []);
+  const [property, setProperty] = useState(() => getCachedData()?.property || null);
   const [loading, setLoading] = useState(!property);
-  const [roomsLoading, setRoomsLoading] = useState(rooms.length === 0);
-  const [__isSyncing, setIsSyncing] = useState(false);
-
+  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
-  const [showRoomDetails, setShowRoomDetails] = useState(false);
-  const [showAddons, setShowAddons] = useState(false);
 
   const [images, setImages] = useState([]);
   const [idx, setIdx] = useState(0);
   const [swiperInstance, setSwiperInstance] = useState(null);
-  const [__imageAspects, _setImageAspects] = useState({});
-  const [__currentAspect, _setCurrentAspect] = useState(null);
   const galleryRef = useRef(null);
-  const [__containerWidth, _setContainerWidth] = useState(null);
+
+  const [showActivityLogs, setShowActivityLogs] = useState(false);
+
+  // Keep RoomDetails modal state for if user navigates to rooms
+  const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
+  const [showRoomDetails, setShowRoomDetails] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-
-    // Check if we need to sync based on if we have data or not
     loadProperty();
-    loadRooms();
   }, [id]);
 
-  // Update local state if cache changes (e.g. from MyProperties background fetch)
   useEffect(() => {
     const cached = getCachedData();
     if (cached?.property && !property) {
       setProperty(cached.property);
       setLoading(false);
     }
-    if (cached?.rooms && rooms.length === 0) {
-      setRooms(cached.rooms);
-      setRoomsLoading(false);
-    }
   }, [uiState.data?.[cacheKey]]);
 
-  // Update images when property data changes (from cache or API)
   useEffect(() => {
     if (property?.images) {
-      const imgs = (property.images || [])
-        .map((it) => {
-          if (!it) return null;
-          if (typeof it === "string") return getImageUrl(it);
-          if (it.image_url) return getImageUrl(it.image_url);
-          if (it.url) return getImageUrl(it.url);
-          if (it.image_path) return getImageUrl(it.image_path);
-          return null;
-        })
-        .filter(Boolean);
+      const imgs = (property.images || []).map((it) => {
+        if (!it) return null;
+        if (typeof it === 'string') return getImageUrl(it);
+        if (it.image_url) return getImageUrl(it.image_url);
+        if (it.url) return getImageUrl(it.url);
+        if (it.image_path) return getImageUrl(it.image_path);
+        return null;
+      }).filter(Boolean);
       setImages(imgs);
     }
   }, [property]);
@@ -112,23 +565,17 @@ export default function PropertySummary() {
     try {
       if (!property) setLoading(true);
       else setIsSyncing(true);
-
       setError(null);
       const res = await api.get(`/landlord/properties/${id}?t=${Date.now()}`);
-      const data = res.data?.data || res.data;
+      const data = res.data;
       setProperty(data);
-
       const newState = { ...uiState.data?.[cacheKey], property: data };
       updateData(cacheKey, newState);
       cacheManager.set(cacheKey, newState);
     } catch (err) {
-      console.error("Failed to fetch property", err);
+      console.error('Failed to fetch property', err);
       if (!property) {
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            "Failed to load property",
-        );
+        setError(err.response?.data?.message || err.message || 'Failed to load property');
       }
     } finally {
       setLoading(false);
@@ -136,42 +583,15 @@ export default function PropertySummary() {
     }
   };
 
-  const loadRooms = async () => {
-    try {
-      if (rooms.length === 0) setRoomsLoading(true);
-      const res = await api.get(`/rooms/property/${id}?t=${Date.now()}`);
-      const data = res.data?.data || res.data || [];
-      setRooms(data);
-
-      const newState = { ...uiState.data?.[cacheKey], rooms: data };
-      updateData(cacheKey, newState);
-      cacheManager.set(cacheKey, newState);
-    } catch (err) {
-      console.error("Failed to fetch rooms", err);
-    } finally {
-      setRoomsLoading(false);
-    }
-  };
-
-  const __prev = () => setIdx((s) => (s - 1 + images.length) % images.length);
-  const __next = () => setIdx((s) => (s + 1) % images.length);
   const goToEdit = () => navigate(`/properties/${id}/edit`);
   const { open, setIsSidebarOpen, collapse } = useSidebar();
-  const [showActivityLogs, setShowActivityLogs] = useState(false);
-
-  // Swiper's autoplay handles automatic advancement and pause-on-hover.
 
   const handleBackClick = async () => {
-    try {
-      await open();
-    } catch (__e) {
-      // ignore
-    }
+    try { await open(); } catch (e) {}
     setIsSidebarOpen(true);
-    navigate("/properties");
+    navigate('/properties');
   };
 
-  // Ensure sidebar is collapsed when landing on a property detail page (including on refresh)
   useEffect(() => {
     if (collapse) collapse().catch(() => {});
   }, [collapse]);
@@ -181,9 +601,7 @@ export default function PropertySummary() {
       <div className="min-h-screen bg-transparent dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-16 h-16 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300">
-            Loading property...
-          </p>
+          <p className="text-gray-600 dark:text-gray-300">Loading property...</p>
         </div>
       </div>
     );
@@ -194,9 +612,7 @@ export default function PropertySummary() {
       <div className="min-h-screen bg-transparent dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-xl w-full bg-white dark:bg-gray-800 rounded-lg p-6 border border-red-100 dark:border-red-900">
           <p className="text-red-700 font-medium">Error</p>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-            {error}
-          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{error}</p>
         </div>
       </div>
     );
@@ -204,9 +620,9 @@ export default function PropertySummary() {
 
   if (!property) {
     return (
-      <NotFoundPage
-        title="Property Not Found"
-        message="The property you are looking for does not exist or has been removed."
+      <NotFoundPage 
+        title="Property Not Found" 
+        message="The property you are looking for does not exist or has been removed." 
       />
     );
   }
@@ -215,29 +631,24 @@ export default function PropertySummary() {
   const rules = property.property_rules || property.rules || [];
 
   const renderAmenityLabel = (a) => {
-    if (!a && a !== 0) return "";
-    if (typeof a === "string") return a;
-    if (typeof a === "object")
-      return a.name || a.title || String(a.id || a.description || "Amenity");
+    if (!a && a !== 0) return '';
+    if (typeof a === 'string') return a;
+    if (typeof a === 'object') return a.name || a.title || String(a.id || a.description || 'Amenity');
     return String(a);
   };
 
   const renderRuleLabel = (r) => {
-    if (!r && r !== 0) return "";
-    if (typeof r === "string") return r;
-    if (typeof r === "object")
-      return (
-        r.name || r.title || r.rule || String(r.id || r.description || "Rule")
-      );
+    if (!r && r !== 0) return '';
+    if (typeof r === 'string') return r;
+    if (typeof r === 'object') return r.name || r.title || r.rule || String(r.id || r.description || 'Rule');
     return String(r);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-center relative min-h-[40px]">
-            {/* Left: Back button */}
             <div className="absolute left-0 flex items-center">
               <button
                 onClick={handleBackClick}
@@ -248,28 +659,26 @@ export default function PropertySummary() {
               </button>
             </div>
 
-            {/* Center: Property Name */}
             <div className="text-center">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate max-w-[500px]">
-                {property.title || "Untitled Property"}
+                {property.title || 'Untitled Property'}
               </h1>
             </div>
 
-            {/* Right: Navigation Icons */}
             <div className="absolute right-0 flex items-center gap-2">
-              <button
-                onClick={() => setShowAddons(!showAddons)}
-                className={`p-2 rounded-lg transition-colors ${showAddons ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
-                title="Add-ons / Services"
-              >
-                <Sparkles className="w-5 h-5" />
-              </button>
               <button
                 onClick={() => setShowActivityLogs(true)}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Activity logs"
               >
                 <List className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate(`/addons?property_id=${id}`)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Add-ons service"
+              >
+                <PackagePlus className="w-5 h-5" />
               </button>
               <button
                 onClick={() => navigate(`/rooms?property=${id}`)}
@@ -305,14 +714,23 @@ export default function PropertySummary() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
+
+        {/* Property Dashboard — replaces Room Management */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+            <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
+            </div>
+            <PropertyDashboard propertyId={id} navigate={navigate} />
+          </div>
+        </div>
+
+        {/* Property Details Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 relative">
           <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-              Property Details & Information
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Details & Information</h2>
           </div>
 
-          {/* Edit button moved here (upper-right of the details card) */}
           <button
             onClick={goToEdit}
             className="absolute top-4 right-4 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
@@ -321,62 +739,27 @@ export default function PropertySummary() {
           >
             <Edit className="w-5 h-5 text-green-600" />
           </button>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 m-2 items-stretch">
-            {/* Left: Gallery */}
+            {/* Gallery */}
             <div className="w-full flex flex-col">
               <div className="relative w-full h-full flex flex-col">
-                <div
-                  ref={galleryRef}
-                  className="relative flex-1 bg-black rounded-xl overflow-hidden flex flex-col min-h-[400px]"
-                >
+                <div ref={galleryRef} className="relative flex-1 bg-black rounded-xl overflow-hidden flex flex-col min-h-[400px]">
                   <div className="w-full flex-1 relative flex flex-col">
-                    {images.length > 0 || property?.video_url ? (
+                    {images.length > 0 ? (
                       <>
                         <Swiper
-                          modules={[
-                            Navigation,
-                            Pagination,
-                            Autoplay,
-                            Keyboard,
-                            A11y,
-                          ]}
+                          modules={[Navigation, Pagination, Autoplay, Keyboard, A11y]}
                           spaceBetween={0}
                           slidesPerView={1}
                           navigation={false}
                           pagination={false}
-                          autoplay={{
-                            delay: 5000,
-                            disableOnInteraction: false,
-                            pauseOnMouseEnter: true,
-                          }}
-                          loop={
-                            images.length + (property?.video_url ? 1 : 0) > 1
-                          }
+                          autoplay={{ delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: true }}
+                          loop={images.length > 1}
                           className="w-full h-full"
                           onSlideChange={(swiper) => setIdx(swiper.realIndex)}
                           onSwiper={(s) => setSwiperInstance(s)}
                         >
-                          {property?.video_url && (
-                            <SwiperSlide
-                              key="video"
-                              className="h-full bg-black"
-                            >
-                              <div className="w-full h-full flex items-center justify-center relative">
-                                <video
-                                  src={property.video_url}
-                                  controls
-                                  className="max-w-full max-h-[400px] object-contain"
-                                  onPlay={() =>
-                                    swiperInstance?.autoplay?.stop()
-                                  }
-                                  onPause={() =>
-                                    swiperInstance?.autoplay?.start()
-                                  }
-                                  onEnded={() => swiperInstance?.slideNext()}
-                                />
-                              </div>
-                            </SwiperSlide>
-                          )}
                           {images.map((src, i) => (
                             <SwiperSlide key={i} className="h-full bg-black">
                               <div className="w-full h-full flex items-center justify-center">
@@ -391,43 +774,34 @@ export default function PropertySummary() {
                           ))}
                         </Swiper>
 
-                        {swiperInstance &&
-                          images.length + (property?.video_url ? 1 : 0) > 1 && (
-                            <div className="absolute inset-0 flex items-center justify-between px-4 z-20 pointer-events-none">
-                              <button
-                                aria-label="Previous image"
-                                onClick={() => swiperInstance.slidePrev()}
-                                className="pointer-events-auto w-10 h-10 bg-white/60 rounded-full shadow flex items-center justify-center hover:scale-105 transition-transform"
-                              >
-                                <ArrowLeft className="w-5 h-5 text-green-600" />
-                              </button>
+                        {swiperInstance && (
+                          <div className="absolute inset-0 flex items-center justify-between px-3 z-20 pointer-events-none">
+                            <button
+                              aria-label="Previous image"
+                              onClick={() => swiperInstance.slidePrev()}
+                              className="pointer-events-auto w-10 h-10 bg-white/60 rounded-full shadow flex items-center justify-center hover:scale-105 transition-transform"
+                            >
+                              <ArrowLeft className="w-5 h-5 text-green-600" />
+                            </button>
+                            <button
+                              aria-label="Next image"
+                              onClick={() => swiperInstance.slideNext()}
+                              className="pointer-events-auto w-10 h-10 bg-white/60 rounded-full shadow flex items-center justify-center hover:scale-105 transition-transform"
+                            >
+                              <ArrowRight className="w-5 h-5 text-green-600" />
+                            </button>
+                          </div>
+                        )}
 
-                              <button
-                                aria-label="Next image"
-                                onClick={() => swiperInstance.slideNext()}
-                                className="pointer-events-auto w-10 h-10 bg-white/60 rounded-full shadow flex items-center justify-center hover:scale-105 transition-transform"
-                              >
-                                <ArrowRight className="w-5 h-5 text-green-600" />
-                              </button>
-                            </div>
-                          )}
-
-                        {/* Thumbnails removed per UX request; overlay arrows remain */}
-                        {images.length + (property?.video_url ? 1 : 0) > 1 && (
+                        {images.length > 1 && (
                           <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center z-20">
                             <div className="flex items-center gap-2">
-                              {Array.from({
-                                length:
-                                  images.length + (property?.video_url ? 1 : 0),
-                              }).map((_, i) => (
+                              {images.map((_, i) => (
                                 <button
                                   key={i}
-                                  aria-label={`Go to slide ${i + 1}`}
-                                  onClick={() => {
-                                    if (!swiperInstance) return;
-                                    swiperInstance.slideToLoop(i);
-                                  }}
-                                  className={`w-2.5 h-2.5 rounded-full ${i === idx ? "bg-blue-600" : "bg-gray-300"} transition-all`}
+                                  aria-label={`Go to image ${i + 1}`}
+                                  onClick={() => { if (!swiperInstance) return; swiperInstance.slideToLoop(i); }}
+                                  className={`w-2.5 h-2.5 rounded-full ${i === idx ? 'bg-blue-600' : 'bg-gray-300'} transition-all`}
                                 />
                               ))}
                             </div>
@@ -435,9 +809,9 @@ export default function PropertySummary() {
                         )}
                       </>
                     ) : (
-                      <div className="text-center text-gray-500 dark:text-gray-400 m-auto">
+                      <div className="text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
                         <Building2 className="w-16 h-16 mx-auto mb-2" />
-                        <p>No photos or video available</p>
+                        <p>No photos available</p>
                       </div>
                     )}
                   </div>
@@ -448,66 +822,42 @@ export default function PropertySummary() {
               </div>
             </div>
 
-            {/* Right: Details (Description, Address, Rules, Amenities) */}
+            {/* Details */}
             <aside className="flex flex-col gap-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  Description
-                </h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  {property.description || "No description provided."}
-                </p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{property.description || 'No description provided.'}</p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  Full Address
-                </h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Full Address</h3>
                 <div className="text-sm text-gray-700 dark:text-gray-300">
                   <div>{property.street_address}</div>
-                  <div>
-                    {property.barangay ? `${property.barangay}, ` : ""}
-                    {property.city}
-                    {property.province ? `, ${property.province}` : ""}
-                    {property.postal_code ? ` ${property.postal_code}` : ""}
-                  </div>
+                  <div>{property.barangay ? `${property.barangay}, ` : ''}{property.city}{property.province ? `, ${property.province}` : ''}{property.postal_code ? ` ${property.postal_code}` : ''}</div>
                   {property.country && <div>{property.country}</div>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    Property Rules
-                  </h3>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Property Rules</h3>
                   {rules.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      No rules provided.
-                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No rules provided.</p>
                   ) : (
-                    <ul className="list-disc ml-6 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                      {rules.map((r, i) => (
-                        <li key={i}>{renderRuleLabel(r)}</li>
-                      ))}
+                    <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                      {rules.map((r, i) => <li key={i}>{renderRuleLabel(r)}</li>)}
                     </ul>
                   )}
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    Amenities
-                  </h3>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Amenities</h3>
                   {amenities.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      No amenities listed.
-                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No amenities listed.</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {amenities.map((a, i) => (
-                        <span
-                          key={i}
-                          className="px-4 py-2 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium border border-green-100 dark:border-green-800"
-                        >
+                        <span key={i} className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium border border-green-100 dark:border-green-800">
                           {renderAmenityLabel(a)}
                         </span>
                       ))}
@@ -519,72 +869,20 @@ export default function PropertySummary() {
           </div>
         </div>
 
-        {/* Room Management section below spanning both columns */}
-        <div className="mt-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm p-6 relative">
-            <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                Room Management
-              </h2>
-            </div>
-            <button
-              onClick={() => navigate(`/rooms?property=${id}`)}
-              className="absolute top-4 right-4 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
-            >
-              View more Rooms
-            </button>
-
-            {roomsLoading ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Loading rooms...
-              </p>
-            ) : rooms.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                No rooms found.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {rooms.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    className="h-full"
-                    room={room}
-                    onClick={() => {
-                      setSelectedRoomDetails(room);
-                      setShowRoomDetails(true);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Room Details Modal */}
+        {/* Room Details Modal (kept for deep-link use) */}
         <RoomDetails
           room={selectedRoomDetails}
           isOpen={showRoomDetails}
-          onClose={() => {
-            setShowRoomDetails(false);
-            setSelectedRoomDetails(null);
-          }}
-          onExtend={async ({ roomId, days, months, tenant_id }) => {
+          onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
+          onExtend={async ({ roomId, days, months }) => {
             if (!roomId) return;
             try {
               const payload = {};
               if (days) payload.days = days;
               if (months) payload.months = months;
-              if (tenant_id) payload.tenant_id = tenant_id;
               await api.post(`/rooms/${roomId}/extend`, payload);
-              // refresh rooms list on this property summary
-              const res = await api.get(`/rooms/property/${id}`);
-              setRooms(res.data || []);
             } catch (err) {
-              console.error("Failed to extend stay", err);
-              setError(
-                err.response?.data?.message ||
-                  err.message ||
-                  "Failed to extend stay",
-              );
+              console.error('Failed to extend stay', err);
               throw err;
             }
           }}
@@ -595,38 +893,7 @@ export default function PropertySummary() {
           isOpen={showActivityLogs}
           onClose={() => setShowActivityLogs(false)}
         />
-
-        {/* Add-ons Modal */}
-        {showAddons && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-6 font-sans">
-            <div
-              className="absolute inset-0 bg-black/50"
-              onClick={() => setShowAddons(false)}
-            />
-            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto z-10">
-              <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    Add-ons & Extra Services
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {property?.title} — manage extra services for tenants
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddons(false)}
-                  className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                </button>
-              </div>
-              <div className="p-4">
-                <AddonManagement propertyId={id} />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
-}
+}   
