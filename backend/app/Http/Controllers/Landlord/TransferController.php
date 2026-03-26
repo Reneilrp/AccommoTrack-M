@@ -19,6 +19,10 @@ class TransferController extends Controller
             ->with(['tenant', 'currentRoom', 'requestedRoom.property'])
             ->orderBy('created_at', 'desc');
 
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
         if ($request->has('property_id') && $request->property_id !== 'all') {
             // Authorization check for caretakers
             if ($context['is_caretaker'] && $context['assignment']) {
@@ -27,11 +31,24 @@ class TransferController extends Controller
                     return response()->json(['message' => 'Unauthorized access to this property'], 403);
                 }
             }
-            $query->where('property_id', $request->property_id);
+
+            $query->where(function ($q) use ($request) {
+                $q->whereHas('requestedRoom', function ($roomQuery) use ($request) {
+                    $roomQuery->where('property_id', $request->property_id);
+                })->orWhereHas('currentRoom', function ($roomQuery) use ($request) {
+                    $roomQuery->where('property_id', $request->property_id);
+                });
+            });
         } elseif ($context['is_caretaker'] && $context['assignment']) {
             // If no specific property is requested, limit caretaker to their assigned properties
             $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
-            $query->whereIn('property_id', $assignedPropertyIds);
+            $query->where(function ($q) use ($assignedPropertyIds) {
+                $q->whereHas('requestedRoom', function ($roomQuery) use ($assignedPropertyIds) {
+                    $roomQuery->whereIn('property_id', $assignedPropertyIds);
+                })->orWhereHas('currentRoom', function ($roomQuery) use ($assignedPropertyIds) {
+                    $roomQuery->whereIn('property_id', $assignedPropertyIds);
+                });
+            });
         }
     
         $requests = $query->get();

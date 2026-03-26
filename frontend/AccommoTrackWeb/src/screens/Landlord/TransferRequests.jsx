@@ -15,6 +15,15 @@ function formatDate(value) {
   });
 }
 
+function getPropertyId(request) {
+  return request?.property_id
+    || request?.requested_room?.property?.id
+    || request?.requestedRoom?.property?.id
+    || request?.current_room?.property_id
+    || request?.currentRoom?.property_id
+    || null;
+}
+
 function getTenantName(request) {
   const tenant = request?.tenant || {};
   const full = `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
