@@ -157,6 +157,17 @@ class TransferController extends Controller
             return response()->json(['message' => 'There is already a pending transfer request for this room/booking.'], 422);
         }
 
+        // Check transfer limit: maximum 2 transfers per tenant per month
+        $currentMonth = now()->startOfMonth();
+        $monthEndTransfers = TransferRequest::where('tenant_id', $tenantId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        if ($monthEndTransfers >= 2) {
+            return response()->json(['message' => 'Note: as transferring requires effort in checking and more time preparing, transferring of room is only allowed twice per tenant and will be approved only by the Landlord when all records are cleared and all things are ready.'], 422);
+        }
+
         $transferRequest = TransferRequest::create([
             'tenant_id' => $tenantId,
             'landlord_id' => $activeBooking->landlord_id,

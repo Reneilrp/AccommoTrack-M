@@ -91,6 +91,7 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
           />
           <Route path="/verification" element={<VerificationStatus user={user} onUpdate={onUserUpdate} />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </LandlordLayout>
     </SidebarProvider>

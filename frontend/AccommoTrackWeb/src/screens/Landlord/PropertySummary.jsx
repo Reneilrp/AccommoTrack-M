@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import { 
   Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
-  CheckCircle, XCircle, Eye, AlertCircle, Clock, TrendingUp, Home, PackagePlus
+  CheckCircle, XCircle, Eye, AlertCircle, Clock, TrendingUp, Home, PackagePlus,
+  Banknote, Shuffle
 } from 'lucide-react';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
@@ -72,7 +73,7 @@ function StatCard({ value, label, color = 'default', icon: Icon, onClick }) {
   );
 }
 
-function FeedCard({ title, badge, badgeColor = 'gray', children, onViewAll, navigateTo }) {
+function FeedCard({ title, badge, badgeColor = 'gray', children, onViewAll, navigateTo, icon: Icon, iconColor = 'gray' }) {
   const badgeColors = {
     danger: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
     warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
@@ -80,10 +81,25 @@ function FeedCard({ title, badge, badgeColor = 'gray', children, onViewAll, navi
     success: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',
     gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
   };
+  const iconColors = {
+    danger: { bg: 'bg-red-50 dark:bg-red-900/20', icon: 'text-red-600 dark:text-red-400' },
+    warning: { bg: 'bg-amber-50 dark:bg-amber-900/20', icon: 'text-amber-600 dark:text-amber-400' },
+    info: { bg: 'bg-blue-50 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400' },
+    success: { bg: 'bg-green-50 dark:bg-green-900/20', icon: 'text-green-600 dark:text-green-400' },
+    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', icon: 'text-gray-600 dark:text-gray-400' },
+  };
+  const theme = iconColors[iconColor] || iconColors.gray;
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">{title}</span>
+        <div className="flex items-center gap-2">
+          {Icon && (
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${theme.bg}`}>
+              <Icon className={`w-5 h-5 ${theme.icon}`} />
+            </div>
+          )}
+          <span className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">{title}</span>
+        </div>
         <div className="flex items-center gap-2">
           {badge !== undefined && (
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColors[badgeColor]}`}>{badge}</span>
@@ -252,9 +268,67 @@ function PropertyDashboard({ propertyId, navigate }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
-        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading dashboard...</span>
+      <div className="flex flex-col gap-5 animate-pulse">
+        {/* Stat row skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[100px]">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="h-2 w-20 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                  <div className="h-8 w-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700/50"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Row 1 skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[240px]">
+              <div className="flex items-center justify-between mb-6">
+                <div className="h-2.5 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-4 w-12 bg-gray-100 dark:bg-gray-700/50 rounded-full"></div>
+              </div>
+              <div className="space-y-5">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 flex-shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Row 2 skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[240px]">
+              <div className="flex items-center justify-between mb-6">
+                <div className="h-2.5 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-4 w-12 bg-gray-100 dark:bg-gray-700/50 rounded-full"></div>
+              </div>
+              <div className="space-y-5">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 flex-shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -268,24 +342,28 @@ function PropertyDashboard({ propertyId, navigate }) {
           value={overdueInvoices.length || 0}
           label="Overdue invoices"
           color="danger"
+          icon={AlertCircle}
           onClick={() => navigate(`/payments?property_id=${propertyId}&status=overdue`)}
         />
         <StatCard
           value={pendingBookings.length || 0}
           label="Pending bookings"
           color="warning"
+          icon={Clock}
           onClick={() => navigate(`/bookings?property_id=${propertyId}&status=pending`)}
         />
         <StatCard
           value={transferRequests.length || 0}
           label="Transfer requests"
           color="info"
+          icon={Shuffle}
           onClick={() => navigate(`/transfers?property_id=${propertyId}`)}
         />
         <StatCard
           value={occupancy || '—'}
           label="Rooms occupied"
           color="success"
+          icon={Home}
           onClick={() => navigate(`/rooms?property=${propertyId}`)}
         />
       </div>
@@ -332,6 +410,8 @@ function PropertyDashboard({ propertyId, navigate }) {
           title="Overdue payments"
           badge={overdueInvoices.length}
           badgeColor={overdueInvoices.length > 0 ? 'danger' : 'gray'}
+          icon={CreditCard}
+          iconColor={overdueInvoices.length > 0 ? 'danger' : 'gray'}
           onViewAll={() => navigate(`/payments?property_id=${propertyId}&status=overdue`)}
         >
           {overdueInvoices.length === 0 ? (

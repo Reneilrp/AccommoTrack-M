@@ -59,12 +59,14 @@ const MyBookings = () => {
   const [error, setError] = useState(null);
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
+  const [showTransferWarning, setShowTransferWarning] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [requestingAddon, setRequestingAddon] = useState(null);
   const [extendingStay, setExtendingStay] = useState(false);
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
-  const [hasPendingTransfer, setHasPendingTransfer] = useState(false);
+  const [pendingTransferBookingIds, setPendingTransferBookingIds] = useState([]);
+  const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
   // cancelConfirm stores the bookingId pending user confirmation (null = none)
   const [__cancelConfirm, setCancelConfirm] = useState(null);
 
@@ -96,7 +98,13 @@ const MyBookings = () => {
       await api.post('/tenant/transfers', payload);
       toast.success('Room transfer request sent to landlord');
       invalidateTenantStayCache();
-      setHasPendingTransfer(true); // immediately grey out the button
+      
+      // Update local state to immediately reflect the new request
+      if (payload.booking_id) {
+        setPendingTransferBookingIds(prev => [...prev, payload.booking_id]);
+      }
+      setMonthlyTransferCount(prev => prev + 1);
+
       fetchData();
       setShowTransferModal(false);
     } catch (err) {
@@ -182,14 +190,28 @@ const MyBookings = () => {
           console.warn('Failed to fetch tenant bookings for pending detection', e);
         }
 
-        // Load pending transfers (tenant-level — backend prevents more than one)
+        // Load transfers
         try {
           const transfersResp = await api.get('/tenant/transfers');
           const transfersList = transfersResp?.data?.data || transfersResp?.data?.transfers || transfersResp?.data || [];
-          const hasPending = (Array.isArray(transfersList) ? transfersList : []).some(
-            t => ['pending', 'approved'].includes(String(t.status || '').toLowerCase())
-          );
-          setHasPendingTransfer(hasPending);
+          const list = Array.isArray(transfersList) ? transfersList : [];
+          
+          // Identify bookings with active transfer requests
+          const pendingIds = list
+            .filter(t => ['pending', 'approved'].includes(String(t.status || '').toLowerCase()))
+            .map(t => t.booking_id);
+          setPendingTransferBookingIds(pendingIds);
+
+          // Calculate transfers this month (limit of 2)
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const thisMonthCount = list.filter(t => {
+            const dateStr = t.created_at || t.date;
+            if (!dateStr) return false;
+            const createdAt = new Date(dateStr);
+            return createdAt >= startOfMonth;
+          }).length;
+          setMonthlyTransferCount(thisMonthCount);
         } catch (e) {
           console.warn('Failed to load transfers', e);
         }
@@ -404,8 +426,9 @@ const MyBookings = () => {
               onCancelBooking={handleCancelBooking}
               isCancelling={cancellingBooking}
               onRequestExtension={() => setShowExtensionModal(true)}
-              onRequestTransfer={() => setShowTransferModal(true)}
-              hasPendingTransfer={hasPendingTransfer}
+              onRequestTransfer={() => setShowTransferWarning(true)}
+              pendingTransferBookingIds={pendingTransferBookingIds}
+              monthlyTransferCount={monthlyTransferCount}
               onReview={handleReview}
               onReport={handleReport}
               navigate={navigate}
@@ -441,6 +464,17 @@ const MyBookings = () => {
           onClose={() => setShowExtensionModal(false)}
           onSubmit={handleRequestExtension}
           loading={extendingStay}
+        />
+      )}
+
+      {/* Transfer Limit Warning Modal */}
+      {showTransferWarning && (
+        <TransferLimitWarningModal
+          onClose={() => setShowTransferWarning(false)}
+          onContinue={() => {
+            setShowTransferWarning(false);
+            setShowTransferModal(true);
+          }}
         />
       )}
 
@@ -497,7 +531,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, hasPendingTransfer = false, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, pendingTransferBookingIds = [], monthlyTransferCount = 0, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
@@ -818,19 +852,34 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             return null;
                           })()}
                           {(() => {
+                            const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
+                            const limitReached = monthlyTransferCount >= 2;
+                            const isDisabled = isPendingForThisBooking || limitReached;
+                            
+                            let buttonText = 'Transfer';
+                            let buttonTitle = 'Request a room transfer';
+                            
+                            if (isPendingForThisBooking) {
+                              buttonText = 'Transfer Pending';
+                              buttonTitle = 'You already have a pending transfer request for this booking';
+                            } else if (limitReached) {
+                              buttonText = 'Limit Reached';
+                              buttonTitle = 'Monthly transfer limit reached (2 per month)';
+                            }
+
                             return (
                               <button
-                                onClick={hasPendingTransfer ? undefined : onRequestTransfer}
-                                disabled={!!hasPendingTransfer}
-                                title={hasPendingTransfer ? 'You already have a pending transfer request' : 'Request a room transfer'}
+                                onClick={isDisabled ? undefined : onRequestTransfer}
+                                disabled={isDisabled}
+                                title={buttonTitle}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                  hasPendingTransfer
+                                  isDisabled
                                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
                                     : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
                                 }`}
                               >
                                 <Shuffle className="w-4 h-4" />
-                                {hasPendingTransfer ? 'Transfer Pending' : 'Transfer'}
+                                {buttonText}
                               </button>
                             );
                           })()}
@@ -1835,6 +1884,75 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
             className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Send Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TransferLimitWarningModal = ({ onClose, onContinue }) => {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Room Transfer Policy</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Please read before requesting a transfer</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg p-4">
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-3">
+              📌 Note: Transfer Limit Policy
+            </p>
+            <ul className="space-y-2 text-sm text-amber-800 dark:text-amber-200">
+              <li className="flex gap-2">
+                <span className="font-bold flex-shrink-0">•</span>
+                <span>Room transfers are <strong>limited to 2 transfers per tenant per month</strong></span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold flex-shrink-0">•</span>
+                <span>Transferring requires significant effort in checking and preparation</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold flex-shrink-0">•</span>
+                <span>Requests will <strong>only be approved by the Landlord when:</strong></span>
+              </li>
+              <li className="pl-6 flex gap-2">
+                <span className="text-amber-700 dark:text-amber-300">✓</span>
+                <span>All of your payment records are cleared</span>
+              </li>
+              <li className="pl-6 flex gap-2">
+                <span className="text-amber-700 dark:text-amber-300">✓</span>
+                <span>Everything is ready for the move</span>
+              </li>
+            </ul>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center italic">
+            Once you proceed, the Landlord will review your request and contact you.
+          </p>
+        </div>
+
+        <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onContinue}
+            className="flex-1 py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold shadow-md transition-colors active:scale-[0.98]"
+          >
+            I Understand, Continue
           </button>
         </div>
       </div>

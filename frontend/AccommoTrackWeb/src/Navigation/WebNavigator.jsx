@@ -18,6 +18,7 @@ const PublicDetailsWrapper = () => {
 };
 
 export default function WebNavigator({ user, onLogout, onUserUpdate }) {
+  const role = (user?.role || '').toLowerCase();
   
   // Guest routes (no user)
   if (!user) {
@@ -36,19 +37,19 @@ export default function WebNavigator({ user, onLogout, onUserUpdate }) {
   }
   
   // Admin role
-  if (user?.role === 'admin') {
+  if (role === 'admin') {
     return <AdminNavigator user={user} onLogout={onLogout} />;
   }
 
   // Landlord and caretaker roles
-  if (user?.role === 'landlord' || user?.role === 'caretaker') {
+  if (role === 'landlord' || role === 'caretaker') {
     return <LandlordNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
   }
 
   // Tenant role
-  if (user?.role === 'tenant') {
+  if (role === 'tenant') {
     return <TenantNavigator user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
   }
 
-  return null;
+  return <Navigate to="/" replace />;
 }
