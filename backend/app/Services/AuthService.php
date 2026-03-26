@@ -65,7 +65,8 @@ class AuthService
         if ($user->role === 'landlord') {
             $verification = $user->landlordVerification;
 
-            if (! $verification || $verification->status === 'pending') {
+            // Allow verified landlords to log in even if verification row is missing (legacy/test data).
+            if (! $user->is_verified && (! $verification || $verification->status === 'pending')) {
                 throw new PendingVerificationException('Your account is still under review. Please wait for 1-3 working days for the admin to approve your request.');
             }
         }

@@ -35,6 +35,10 @@ function getRoomLabel(room) {
   return room.room_number || room.name || `Room ${room.id || 'N/A'}`;
 }
 
+function getRequestedRoom(request) {
+  return request?.requested_room || request?.requestedRoom || null;
+}
+
 export default function TransferRequests() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -200,6 +204,7 @@ export default function TransferRequests() {
       const damageCharge = Number(form.damage_charge || 0);
       const fallbackNotes = selectedRequestId === transferId ? String(notes || '').trim() : '';
       const landlordNotes = String(form.landlord_notes || '').trim() || fallbackNotes || undefined;
+      const transferRequest = requests.find(item => Number(item.id) === Number(transferId)) || null;
 
       if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
         toast.error('Damage description is required when damage charge is set.');
@@ -209,6 +214,32 @@ export default function TransferRequests() {
       if (action === 'reject' && !landlordNotes) {
         toast.error('Please provide a reason before rejecting this request.');
         return;
+      }
+
+      if (action === 'approve') {
+        const requestedRoom = getRequestedRoom(transferRequest);
+        const billingPolicy = String(requestedRoom?.billing_policy || 'monthly').toLowerCase();
+        const configuredMinStay = Number(requestedRoom?.min_stay_days || 0);
+        const minimumStayDays = billingPolicy === 'monthly' || billingPolicy === 'monthly_with_daily'
+          ? Math.max(30, configuredMinStay || 0)
+          : Math.max(0, configuredMinStay || 0);
+
+        if (minimumStayDays > 0 && transferRequest?.new_end_date) {
+          const startDate = new Date();
+          startDate.setHours(0, 0, 0, 0);
+
+          const endDate = new Date(transferRequest.new_end_date);
+          if (!Number.isNaN(endDate.getTime())) {
+            endDate.setHours(0, 0, 0, 0);
+            const diffMs = endDate.getTime() - startDate.getTime();
+            const requestedDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+            if (requestedDays < minimumStayDays) {
+              toast.error(`This requested room needs at least ${minimumStayDays} days.`);
+              return;
+            }
+          }
+        }
       }
 
       setHandlingAction(action);

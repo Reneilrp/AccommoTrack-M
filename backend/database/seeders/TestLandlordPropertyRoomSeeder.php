@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Property;
+use App\Models\LandlordVerification;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -30,6 +31,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
 
         for ($landlordNumber = 1; $landlordNumber <= self::LANDLORD_COUNT; $landlordNumber++) {
             $landlord = $this->upsertLandlord($landlordNumber, $landlordStats);
+            $this->upsertLandlordVerification($landlord);
 
             foreach (self::PROPERTY_TYPES as $propertyType) {
                 $property = $this->upsertProperty($landlord, $landlordNumber, $propertyType, $propertyStats);
@@ -41,6 +43,26 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $this->command?->line("Landlords - created: {$landlordStats['created']}, updated: {$landlordStats['updated']}");
         $this->command?->line("Properties - created: {$propertyStats['created']}, updated: {$propertyStats['updated']}");
         $this->command?->line("Rooms - created: {$roomStats['created']}, updated: {$roomStats['updated']}");
+    }
+
+    private function upsertLandlordVerification(User $landlord): void
+    {
+        LandlordVerification::updateOrCreate(
+            ['user_id' => $landlord->id],
+            [
+                'first_name' => $landlord->first_name,
+                'middle_name' => $landlord->middle_name,
+                'last_name' => $landlord->last_name,
+                'valid_id_type' => 'passport',
+                'valid_id_other' => null,
+                'valid_id_path' => 'test/ids/'.$landlord->id.'.jpg',
+                'permit_path' => 'test/permits/'.$landlord->id.'.jpg',
+                'status' => 'approved',
+                'rejection_reason' => null,
+                'reviewed_at' => now(),
+                'reviewed_by' => null,
+            ]
+        );
     }
 
     private function upsertLandlord(int $landlordNumber, array &$stats): User
