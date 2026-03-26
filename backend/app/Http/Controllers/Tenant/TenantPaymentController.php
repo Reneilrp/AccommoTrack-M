@@ -155,4 +155,88 @@ class TenantPaymentController extends Controller
             ], 404);
         }
     }
+
+    /**
+     * Get payment schedule grouped by month with per-booking room totals.
+     */
+    public function getBreakdown(Request $request)
+    {
+        try {
+            $tenantId = Auth::id();
+            $months = max(1, min((int) $request->query('months', 6), 12));
+            $windowEnd = now()->copy()->addMonthsNoOverflow($months)->endOfMonth();
+
+            $invoices = Invoice::with(['booking.room'])
+                ->where('tenant_id', $tenantId)
+                ->whereNotNull('due_date')
+                ->whereDate('due_date', '<=', $windowEnd)
+                ->orderBy('due_date', 'asc')
+                ->get();
+
+            $monthly = $invoices
+                ->groupBy(fn ($invoice) => optional($invoice->due_date)->format('Y-m'))
+                ->map(function ($monthInvoices) {
+                    $monthTotal = 0;
+
+                    $bookings = $monthInvoices
+                        ->groupBy('booking_id')
+                        ->map(function ($bookingInvoices) use (&$monthTotal) {
+                            $invoice = $bookingInvoices->first();
+                            $room = optional($invoice->booking)->room;
+
+                            $totalCents = $bookingInvoices->sum(function ($item) {
+                                return $item->total_cents ?? $item->amount_cents ?? 0;
+                            });
+
+                            $paidCents = $bookingInvoices->sum(function ($item) {
+                                return $item->transactions
+                                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                                    ->sum(function ($tx) {
+                                        return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
+                                    });
+                            });
+
+                            $remainingCents = max(0, $totalCents - $paidCents);
+                            $monthTotal += $remainingCents;
+
+                            return [
+                                'booking_id' => $invoice->booking_id,
+                                'room_number' => $room->room_number ?? 'N/A',
+                                'rent' => (float) ($totalCents / 100),
+                                'addons' => 0.0,
+                                'total' => (float) ($remainingCents / 100),
+                                'status' => (string) $invoice->status,
+                            ];
+                        })
+                        ->values();
+
+                    $firstDue = $monthInvoices->sortBy('due_date')->first();
+
+                    return [
+                        'month' => optional($firstDue->due_date)->format('F Y'),
+                        'due_date' => optional($firstDue->due_date)->format('Y-m-d'),
+                        'bookings' => $bookings,
+                        'month_total' => (float) ($monthTotal / 100),
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'upcoming_months' => $monthly,
+                ],
+                'message' => '',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'data' => [
+                    'upcoming_months' => [],
+                ],
+                'message' => 'Failed to fetch payment breakdown',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

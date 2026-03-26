@@ -55,8 +55,15 @@ class TenantDashboardService
             'monthlyDue' => (float) ($monthlyDueCents / 100),
             'totalDue' => (float) ($totalDueCents / 100),
             'totalPaid' => (float) ($totalPaidCents / 100),
+            'pendingAmount' => (float) ($totalDueCents / 100),
             'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
             'hasOverdueInvoices' => $hasOverdueInvoices,
+            'invoice_breakdown' => [
+                'pending' => Invoice::where('tenant_id', $tenantId)->where('status', 'pending')->count(),
+                'partial' => Invoice::where('tenant_id', $tenantId)->where('status', 'partial')->count(),
+                'overdue' => Invoice::where('tenant_id', $tenantId)->where('status', 'overdue')->count(),
+                'paid' => Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->count(),
+            ],
         ];
         $notifications = [
             'unread' => $unreadNotifications,

@@ -380,6 +380,9 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'flex-start',
     gap: 16,
   },
+  roomCardOccupied: {
+    opacity: 0.5,
+  },
   roomImageWrapper: {
     width: 96,
     height: 96,

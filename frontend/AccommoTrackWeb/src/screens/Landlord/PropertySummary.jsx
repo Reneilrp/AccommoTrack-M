@@ -138,7 +138,7 @@ function RequestRow({ initials, avatarColor = 'blue', name, sub, actions, pill }
     green:  'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
   };
   return (
-    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+    <div className="flex items-center gap-3 py-2.5 min-h-[50px] first:pt-0 last:pb-0">
       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColors[avatarColor]}`}>
         {initials}
       </div>
@@ -212,7 +212,13 @@ function PropertyDashboard({ propertyId, navigate }) {
         api.get(`/rooms/property/${propertyId}`),
       ]);
 
-      const get = (res) => (res.status === 'fulfilled' ? res.value?.data || [] : []);
+      const get = (res) => {
+        if (res.status !== 'fulfilled') return [];
+        const payload = res.value?.data;
+        if (Array.isArray(payload?.data)) return payload.data;
+        if (Array.isArray(payload)) return payload;
+        return [];
+      };
 
       const rooms = get(roomsRes);
       const totalRooms = rooms.length;
@@ -429,31 +435,25 @@ function PropertyDashboard({ propertyId, navigate }) {
                 ? Math.floor((Date.now() - new Date(inv.due_date)) / 86400000)
                 : null;
               return (
-                <div key={inv.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300">
-                      {getInitials(inv.tenant?.name || inv.tenant_name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {inv.tenant?.name || inv.tenant_name || 'Tenant'}
+                <RequestRow
+                  key={inv.id}
+                  initials={getInitials(inv.tenant?.name || inv.tenant_name)}
+                  avatarColor="red"
+                  name={inv.tenant?.name || inv.tenant_name || 'Tenant'}
+                  sub={`${inv.room?.name || inv.room_name || 'Room'} · ${inv.month || inv.period || 'Invoice'}`}
+                  pill={
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <div className="text-sm font-semibold text-red-600 dark:text-red-400">
+                        ₱{Number(inv.amount || inv.total_amount || 0).toLocaleString()}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {inv.room?.name || inv.room_name || 'Room'} · {inv.month || inv.period || 'Invoice'}
-                      </div>
+                      {daysOverdue !== null && (
+                        <div className="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                          {daysOverdue}d overdue
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="text-right flex-shrink-0 ml-2">
-                    <div className="text-sm font-semibold text-red-600 dark:text-red-400">
-                      ₱{Number(inv.amount || inv.total_amount || 0).toLocaleString()}
-                    </div>
-                    {daysOverdue !== null && (
-                      <div className="text-xs text-red-500 dark:text-red-400 mt-0.5">
-                        {daysOverdue}d overdue
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  }
+                />
               );
             })
           )}

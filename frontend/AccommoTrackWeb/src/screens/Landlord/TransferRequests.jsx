@@ -124,9 +124,10 @@ export default function TransferRequests() {
     updateTransferForm(transferId, { loadingProration: true });
     try {
       const res = await api.get(`/landlord/transfers/${transferId}/proration`);
+      const details = res?.data?.data || res?.data || null;
       updateTransferForm(transferId, {
-        prorationDetails: res.data,
-        prorated_adjustment: res.data.suggested_adjustment,
+        prorationDetails: details,
+        prorated_adjustment: details?.suggested_adjustment ?? '',
         loadingProration: false,
       });
     } catch (err) {

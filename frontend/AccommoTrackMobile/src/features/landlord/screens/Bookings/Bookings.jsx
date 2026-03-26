@@ -68,6 +68,8 @@ export default function BookingsScreen({ navigation }) {
   const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [requestActionLoading, setRequestActionLoading] = useState(false);
   const [approvingTransferRequestId, setApprovingTransferRequestId] = useState(null);
+  const [rejectingTransferRequestId, setRejectingTransferRequestId] = useState(null);
+  const [rejectNotes, setRejectNotes] = useState('');
   const [transferApprovalData, setTransferApprovalData] = useState({
     damage_charge: '',
     damage_description: '',
@@ -177,6 +179,10 @@ export default function BookingsScreen({ navigation }) {
         setApprovingTransferRequestId(null);
         setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
       }
+      if (action === 'reject') {
+        setRejectingTransferRequestId(null);
+        setRejectNotes('');
+      }
       Alert.alert('Transfer Request', `Request ${action}d successfully.`);
     } catch (err) {
       Alert.alert('Transfer Request', err.message || 'Unable to process transfer request');
@@ -224,6 +230,7 @@ export default function BookingsScreen({ navigation }) {
   const renderTransferRequestCard = (item) => {
     const tenantName = item.tenant?.full_name || [item.tenant?.first_name, item.tenant?.last_name].filter(Boolean).join(' ') || 'Tenant';
     const isApprovingCurrent = approvingTransferRequestId === item.id;
+    const isRejectingCurrent = rejectingTransferRequestId === item.id;
     return (
       <View key={`trf-${item.id}`} style={styles.requestCard}>
         <View style={styles.requestCardTop}>
@@ -298,6 +305,46 @@ export default function BookingsScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             </View>
+          ) : isRejectingCurrent ? (
+            <View style={styles.transferApprovalWrap}>
+              <Text style={styles.transferApprovalLabel}>Rejection Reason *</Text>
+              <TextInput
+                value={rejectNotes}
+                onChangeText={setRejectNotes}
+                placeholder="Why are you rejecting this transfer?"
+                style={styles.transferApprovalTextArea}
+                multiline
+              />
+              <View style={styles.requestActionsRow}>
+                <TouchableOpacity
+                  style={styles.requestRejectBtn}
+                  disabled={requestActionLoading}
+                  onPress={() => {
+                    const notes = rejectNotes.trim();
+                    if (!notes) {
+                      Alert.alert('Transfer Request', 'Please provide a rejection reason.');
+                      return;
+                    }
+
+                    handleTransferRequestAction(item.id, 'reject', {
+                      landlord_notes: notes
+                    });
+                  }}
+                >
+                  <Text style={styles.requestRejectText}>Confirm Reject</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.requestNeutralBtn}
+                  disabled={requestActionLoading}
+                  onPress={() => {
+                    setRejectingTransferRequestId(null);
+                    setRejectNotes('');
+                  }}
+                >
+                  <Text style={styles.requestNeutralText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : (
             <View style={styles.requestActionsRow}>
               <TouchableOpacity
@@ -305,6 +352,8 @@ export default function BookingsScreen({ navigation }) {
                 disabled={requestActionLoading}
                 onPress={() => {
                   setApprovingTransferRequestId(item.id);
+                  setRejectingTransferRequestId(null);
+                  setRejectNotes('');
                   setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
                 }}
               >
@@ -313,7 +362,12 @@ export default function BookingsScreen({ navigation }) {
               <TouchableOpacity
                 style={styles.requestRejectBtn}
                 disabled={requestActionLoading}
-                onPress={() => handleTransferRequestAction(item.id, 'reject')}
+                onPress={() => {
+                  setApprovingTransferRequestId(null);
+                  setTransferApprovalData({ damage_charge: '', damage_description: '', landlord_notes: '' });
+                  setRejectingTransferRequestId(item.id);
+                  setRejectNotes('');
+                }}
               >
                 <Text style={styles.requestRejectText}>Reject</Text>
               </TouchableOpacity>

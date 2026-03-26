@@ -43,10 +43,86 @@ class TenantService {
         data: {
           payments: {
             monthlyDue: 0,
+            pendingAmount: 0,
+            totalDue: 0,
             totalPaid: 0,
             nextDueDate: null,
+            invoice_breakdown: {
+              pending: 0,
+              partial: 0,
+              overdue: 0,
+              paid: 0,
+            },
           },
         },
+      };
+    }
+  }
+
+  /**
+   * Get recent tenant activities for dashboard feed.
+   */
+  async getDashboardActivities() {
+    try {
+      const response = await api.get(`/tenant/dashboard/activities`);
+
+      return {
+        success: true,
+        data: response.data.data || response.data || [],
+      };
+    } catch (error) {
+      console.error("Error fetching dashboard activities:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch dashboard activities",
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * Get upcoming payment/check-in items for dashboard alerts.
+   */
+  async getDashboardUpcoming() {
+    try {
+      const response = await api.get(`/tenant/dashboard/upcoming`);
+
+      return {
+        success: true,
+        data: response.data.data || response.data || {},
+      };
+    } catch (error) {
+      console.error("Error fetching dashboard upcoming data:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch dashboard upcoming data",
+        data: { upcomingCheckouts: [], unpaidBookings: [] },
+      };
+    }
+  }
+
+  /**
+   * Get month-by-month payment schedule breakdown for dashboard timeline.
+   */
+  async getPaymentBreakdown(months = 6) {
+    try {
+      const response = await api.get(`/tenant/payments/breakdown?months=${months}`);
+
+      return {
+        success: true,
+        data: response.data.data || response.data || { upcoming_months: [] },
+      };
+    } catch (error) {
+      console.error("Error fetching payment breakdown:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to fetch payment breakdown",
+        data: { upcoming_months: [] },
       };
     }
   }

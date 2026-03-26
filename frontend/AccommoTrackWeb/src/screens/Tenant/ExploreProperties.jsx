@@ -488,7 +488,7 @@ const ExploreProperties = () => {
             {/* Helper Text */}
             <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
               <Filter className="w-4 h-4" />
-              <span>Showing {filteredProperties.length} properties</span>
+              <span>Showing {filteredProperties.length} {filteredProperties.length === 1 ? "property" : "properties"}</span>
             </div>
 
             {loading && (

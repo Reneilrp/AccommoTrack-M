@@ -754,6 +754,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             const data = stays[selectedIndex] || stays[0];
             const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
             const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
+            const effectivePaymentStatus = booking.is_overdue || booking.isOverdue ? 'overdue' : booking.paymentStatus;
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -848,7 +849,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         })()}
                         <StatCard 
                           label="Status" 
-                          value={booking.is_overdue || booking.isOverdue ? 'Overdue' : booking.paymentStatus} 
+                          value={booking.is_overdue || booking.isOverdue ? 'Overdue' : booking.paymentStatus}
+                          tone="status"
+                          statusKey={effectivePaymentStatus}
                           icon={CreditCard} 
                         />
                       </div>
@@ -886,6 +889,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                               (request) => Number(request.booking_id) === Number(booking.id),
                             );
                             const limitReached = monthlyTransferCount >= 2;
+                            const now = new Date();
+                            const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                            const daysUntilTransferReset = Math.max(
+                              1,
+                              Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                            );
                             const isDisabled = isPendingForThisBooking || limitReached;
                             
                             let buttonText = 'Transfer';
@@ -896,14 +905,23 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                               buttonTitle = 'You already have a pending transfer request for this booking';
                             } else if (limitReached) {
                               buttonText = 'Limit Reached';
-                              buttonTitle = 'Monthly transfer limit reached (2 per month)';
+                              buttonTitle = `Monthly transfer limit reached. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
                             }
 
                             return (
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={isDisabled ? undefined : onRequestTransfer}
-                                  disabled={isDisabled}
+                                  onClick={() => {
+                                    if (isPendingForThisBooking) return;
+                                    if (limitReached) {
+                                      toast.error(
+                                        `Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`
+                                      );
+                                      return;
+                                    }
+                                    onRequestTransfer?.();
+                                  }}
+                                  disabled={isPendingForThisBooking}
                                   title={buttonTitle}
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                                     isDisabled
@@ -1406,37 +1424,110 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
 };
 
 // ==================== Helper Components ====================
-const StatCard = ({ label, value, icon: Icon }) => (
-  <div className="relative overflow-hidden text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-sm transition-all">
-    <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
-    <div className="flex justify-center mb-4">
-      <Icon className="w-6 h-6 text-green-600 dark:text-green-400" />
+const PAYMENT_STATUS_THEME = {
+  paid: {
+    badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    accent: 'bg-green-500',
+    icon: 'text-green-600 dark:text-green-400',
+    value: 'text-green-700 dark:text-green-400',
+  },
+  completed: {
+    badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    accent: 'bg-green-500',
+    icon: 'text-green-600 dark:text-green-400',
+    value: 'text-green-700 dark:text-green-400',
+  },
+  active: {
+    badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    accent: 'bg-green-500',
+    icon: 'text-green-600 dark:text-green-400',
+    value: 'text-green-700 dark:text-green-400',
+  },
+  confirmed: {
+    badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    accent: 'bg-green-500',
+    icon: 'text-green-600 dark:text-green-400',
+    value: 'text-green-700 dark:text-green-400',
+  },
+  pending: {
+    badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+    accent: 'bg-amber-500',
+    icon: 'text-amber-600 dark:text-amber-400',
+    value: 'text-amber-700 dark:text-amber-400',
+  },
+  unpaid: {
+    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    accent: 'bg-red-500',
+    icon: 'text-red-600 dark:text-red-400',
+    value: 'text-red-700 dark:text-red-400',
+  },
+  overdue: {
+    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 animate-pulse',
+    accent: 'bg-red-500 animate-pulse',
+    icon: 'text-red-600 dark:text-red-400',
+    value: 'text-red-700 dark:text-red-400',
+  },
+  partial: {
+    badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+    accent: 'bg-amber-500',
+    icon: 'text-amber-600 dark:text-amber-400',
+    value: 'text-amber-700 dark:text-amber-400',
+  },
+  cancelled: {
+    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    accent: 'bg-red-500',
+    icon: 'text-red-600 dark:text-red-400',
+    value: 'text-red-700 dark:text-red-400',
+  },
+  rejected: {
+    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    accent: 'bg-red-500',
+    icon: 'text-red-600 dark:text-red-400',
+    value: 'text-red-700 dark:text-red-400',
+  },
+  refunded: {
+    badge: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+    accent: 'bg-purple-500',
+    icon: 'text-purple-600 dark:text-purple-400',
+    value: 'text-purple-700 dark:text-purple-400',
+  },
+  default: {
+    badge: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
+    accent: 'bg-gray-400 dark:bg-gray-500',
+    icon: 'text-gray-600 dark:text-gray-400',
+    value: 'text-gray-900 dark:text-white',
+  },
+  neutral: {
+    accent: 'bg-gray-300 dark:bg-gray-600',
+    icon: 'text-gray-600 dark:text-gray-400',
+    value: 'text-gray-900 dark:text-white',
+  },
+};
+
+const StatCard = ({ label, value, icon: Icon, tone = 'neutral', statusKey = '' }) => {
+  const statusTheme = PAYMENT_STATUS_THEME[(statusKey || '').toLowerCase()] || PAYMENT_STATUS_THEME.default;
+  const resolvedTheme = tone === 'status' ? statusTheme : PAYMENT_STATUS_THEME.neutral;
+
+  return (
+    <div className="relative overflow-hidden text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-300 dark:border-gray-700 shadow-sm transition-all">
+      <div className={`absolute top-0 left-0 right-0 h-1 ${resolvedTheme.accent}`} />
+      <div className="flex justify-center mb-4">
+        <Icon className={`w-6 h-6 ${resolvedTheme.icon}`} />
+      </div>
+      <p className={`text-xl font-bold leading-tight ${resolvedTheme.value}`}>{value}</p>
+      <p className="text-[10px] font-medium text-gray-500 dark:text-gray-500 uppercase mt-2.5 tracking-wider">{label}</p>
     </div>
-    <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
-    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-500 uppercase mt-2.5 tracking-wider">{label}</p>
-  </div>
-);
+  );
+};
 
 const StatusBadge = ({ status }) => {
   const s = (status || "").toLowerCase();
-  const styles = {
-    paid: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-    completed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-    active: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-    confirmed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-    pending: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-    unpaid: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    overdue: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 animate-pulse',
-    partial: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-    cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    rejected: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    refunded: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-  };
+  const styleClass = (PAYMENT_STATUS_THEME[s] || PAYMENT_STATUS_THEME.default).badge;
 
   const label = s === 'overdue' ? 'Payment Overdue' : status;
 
   return (
-    <span className={`px-2 py-2 rounded-full text-xs font-medium capitalize ${styles[s] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+    <span className={`px-2 py-2 rounded-full text-xs font-medium capitalize ${styleClass}`}>
       {label}
     </span>
   );
@@ -1946,7 +2037,13 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
             disabled={loading || availableRooms.length === 0}
             className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Send Request'}
+            {loading ? (
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            ) : availableRooms.length === 0 ? (
+              'No Eligible Rooms Available'
+            ) : (
+              'Send Request'
+            )}
           </button>
         </div>
       </div>

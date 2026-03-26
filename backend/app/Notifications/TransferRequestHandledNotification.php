@@ -30,8 +30,10 @@ class TransferRequestHandledNotification extends Notification implements ShouldQ
     {
         $isApproved = $this->action === 'approved';
         $title = $isApproved ? 'Transfer Request Approved' : 'Transfer Request Rejected';
-        
-        $message = 'Your request to transfer from Room ' . $this->transferRequest->currentRoom->room_number . ' to Room ' . $this->transferRequest->requestedRoom->room_number;
+
+        $currentRoom = $this->transferRequest->currentRoom?->room_number ?? 'N/A';
+        $requestedRoom = $this->transferRequest->requestedRoom?->room_number ?? 'N/A';
+        $message = 'Your request to transfer from Room ' . $currentRoom . ' to Room ' . $requestedRoom;
         if ($isApproved) {
             $message .= ' has been approved. Please coordinate with your landlord.';
         } else {

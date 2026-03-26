@@ -130,6 +130,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/bookings/{id}/invoice', [TenantBookingController::class, 'createInvoice']);
         Route::get('/payments', [TenantPaymentController::class, 'index']);
         Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);
+        Route::get('/payments/breakdown', [TenantPaymentController::class, 'getBreakdown']);
         Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
         Route::post('/invoices/{id}/record-offline', [InvoiceController::class, 'recordOfflineForTenant']);
         // Tenant PayMongo endpoints (allow tenants to create sources/payments for their invoices)

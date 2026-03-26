@@ -96,7 +96,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     try {
       setLoadingTransfers(true);
       const response = await api.get('/landlord/transfers');
-      setTransferRequests(response.data);
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : (Array.isArray(response?.data) ? response.data : []);
+      setTransferRequests(list);
     } catch (err) {
       console.error('Error fetching transfers:', err);
     } finally {
@@ -134,7 +137,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       fetchBookings(); // Refresh bookings to reflect new room
     } catch (err) {
       console.error('Error handling transfer:', err);
-      toast.error(err.response?.data?.message || 'Failed to handle transfer', { id: toastId });
+      toast.error(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Failed to handle transfer',
+        { id: toastId }
+      );
     }
   };
 
@@ -279,7 +287,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {loading ? [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />) : (
             <>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gray-400 dark:bg-gray-600" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Bookings</p>
@@ -290,7 +299,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </div>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Confirmed</p>
@@ -301,7 +311,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </div>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
@@ -312,7 +323,8 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                   </div>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Completed</p>
@@ -965,6 +977,22 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
   const [prorationDetails, setProrationDetails] = useState(null);
   const [loadingProration, setLoadingProration] = useState(false);
 
+  const requestReject = (requestId) => {
+    const reason = window.prompt('Please provide a rejection reason for this transfer request:');
+    if (reason === null) return;
+
+    const landlordNotes = reason.trim();
+    if (!landlordNotes) {
+      toast.error('Rejection reason is required.');
+      return;
+    }
+
+    onHandle(requestId, 'reject', { landlord_notes: landlordNotes });
+    if (approving === requestId) {
+      setApproving(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -992,8 +1020,9 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
     setProrationDetails(null);
     try {
       const res = await api.get(`/landlord/transfers/${req.id}/proration`);
-      setProrationDetails(res.data);
-      setApprovalData(prev => ({ ...prev, prorated_adjustment: res.data.suggested_adjustment }));
+      const details = res?.data?.data || res?.data || null;
+      setProrationDetails(details);
+      setApprovalData(prev => ({ ...prev, prorated_adjustment: details?.suggested_adjustment ?? '' }));
     } catch (err) {
       console.error("Failed to load proration details", err);
     } finally {
@@ -1171,7 +1200,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                   </button>
                   <button 
-                    onClick={() => onHandle(req.id, 'reject')}
+                    onClick={() => requestReject(req.id)}
                     className="flex-1 border border-red-200 text-red-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
                   >
                     Reject

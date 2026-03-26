@@ -154,6 +154,9 @@ class TenantDashboardController extends Controller
                         'room_number' => $booking->room->room_number,
                         'roomType' => $booking->room->room_type ?? null,
                         'room_type' => $booking->room->room_type ?? null,
+                        'require_1month_advance' => (bool) $booking->room->require_1month_advance,
+                        'requires_advance' => (bool) $booking->room->requiresAdvance(),
+                        'requiresAdvance' => (bool) $booking->room->requiresAdvance(),
                         'floor' => $booking->room->floor_level ?? null, 'images' => $booking->room->images ?? [],
                     ],
                     'property' => [

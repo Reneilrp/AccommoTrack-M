@@ -86,9 +86,10 @@ export default function TenantLogs() {
     updateTransferForm(transferId, { loadingProration: true });
     try {
       const res = await api.get(`/landlord/transfers/${transferId}/proration`);
+      const details = res?.data?.data || res?.data || null;
       updateTransferForm(transferId, {
-        prorationDetails: res.data,
-        prorated_adjustment: res.data.suggested_adjustment,
+        prorationDetails: details,
+        prorated_adjustment: details?.suggested_adjustment ?? '',
         loadingProration: false
       });
     } catch (err) {
@@ -195,7 +196,11 @@ export default function TenantLogs() {
           setPayments(payList);
 
           paid = payList.filter(inv => (inv.status === 'paid') || inv.paid_at);
-          const unpaid = payList.filter(inv => !(inv.status === 'paid' || inv.paid_at));
+          const unpaid = payList.filter(inv => {
+            const status = String(inv.status || '').toLowerCase();
+            const isCancelled = status === 'cancelled' || status === 'void';
+            return !isCancelled && !(inv.status === 'paid' || inv.paid_at);
+          });
           setPreviousPayments(paid);
           dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
           setDueAmount(dueSumCents / 100);

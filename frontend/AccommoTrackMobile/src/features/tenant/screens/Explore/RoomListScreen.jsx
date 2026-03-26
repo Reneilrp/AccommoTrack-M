@@ -63,7 +63,7 @@ export default function RoomListScreen({ route }) {
           ...room,
           images: room.images || [],
           monthly_rate: parseFloat(room.monthly_rate) || 0,
-          status: room.status || 'unknown'
+          status: (room.display_status || room.status || 'unknown').toString().toLowerCase()
         }));
         setRooms(standardizedRooms);
       } else {
@@ -182,10 +182,12 @@ export default function RoomListScreen({ route }) {
           </View>
         ) : (
           <View style={styles.roomsContainer}>
-            {filteredRooms.map((room) => (
+            {filteredRooms.map((room) => {
+              const isOccupied = room.status === 'occupied';
+              return (
               <TouchableOpacity
                 key={room.id}
-                style={styles.roomCard}
+                style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
                 onPress={() => navigation.navigate('RoomDetails', { room, property })}
               >
                 {/* Left: Image + Price */}
@@ -238,7 +240,8 @@ export default function RoomListScreen({ route }) {
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>

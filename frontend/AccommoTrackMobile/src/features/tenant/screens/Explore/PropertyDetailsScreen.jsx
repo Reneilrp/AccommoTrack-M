@@ -135,7 +135,7 @@ export default function PropertyDetailsScreen({ route }) {
             ...room,
             images: room.images || [],
             monthly_rate: parseFloat(room.monthly_rate) || 0,
-            status: room.status || "unknown",
+            status: (room.display_status || room.status || "unknown").toString().toLowerCase(),
           }))
           .sort((a, b) => {
             const aAvailable = (a.status || "unknown").toLowerCase() === "available";
@@ -964,10 +964,12 @@ export default function PropertyDetailsScreen({ route }) {
               </View>
             ) : (
               <View style={styles.roomsList}>
-                {filteredRooms.map((room) => (
+                {filteredRooms.map((room) => {
+                  const isOccupied = room.status === "occupied";
+                  return (
                   <TouchableOpacity
                     key={room.id}
-                    style={styles.roomCard}
+                    style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
                     onPress={() => handleRoomPress(room)}
                   >
                     <View style={styles.roomImageWrapper}>
@@ -1075,7 +1077,8 @@ export default function PropertyDetailsScreen({ route }) {
                       </View>
                     </View>
                   </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>

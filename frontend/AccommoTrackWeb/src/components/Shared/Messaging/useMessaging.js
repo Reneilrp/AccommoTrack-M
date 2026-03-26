@@ -67,6 +67,18 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const appendUniqueMessage = useCallback((prevMessages, incomingMessage) => {
+    if (!incomingMessage) return prevMessages;
+
+    const incomingId = incomingMessage.id;
+    if (incomingId !== undefined && incomingId !== null) {
+      const exists = prevMessages.some((msg) => String(msg.id) === String(incomingId));
+      if (exists) return prevMessages;
+    }
+
+    return [...prevMessages, incomingMessage];
+  }, []);
+
   const initialLoadRef = useRef(conversations.length === 0);
 
   const fetchConversations = useCallback(async () => {
@@ -120,7 +132,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
       }
 
       const newMessage = response.data;
-      setMessages((prev) => [...prev, newMessage]);
+      setMessages((prev) => appendUniqueMessage(prev, newMessage));
       setMessageText('');
       removeSelectedImage();
       
@@ -230,7 +242,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
           echoRef.current
             .private(`conversation.${selectedChat.id}`)
             .listen('.message.sent', (e) => {
-              setMessages((prev) => [...prev, e.message]);
+              setMessages((prev) => appendUniqueMessage(prev, e.message));
               scrollToBottom();
             });
         } catch (err) { console.warn('Echo subscription failed:', err); }
@@ -239,7 +251,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
         if (echoRef.current) echoRef.current.leave(`conversation.${selectedChat.id}`);
       };
     }
-  }, [selectedChat]);
+  }, [selectedChat, fetchMessages, appendUniqueMessage]);
 
   useEffect(() => {
     scrollToBottom();

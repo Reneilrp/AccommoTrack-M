@@ -159,13 +159,14 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           .map((room) => {
             const genderBadge = getGenderBadge(room.genderRestriction);
             const displayStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
+            const isOccupied = displayStatus === 'occupied';
             const hasAlternatePrice =
               Number.isFinite(Number(room.alternatePrice)) && Number(room.alternatePrice) > 0;
 
             return (
           <div
             key={room.id}
-            className="flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col"
+            className={`flex-none w-[280px] md:w-[320px] bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
           >
             {/* Image Click -> Open Room Details */}
             <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>

@@ -108,6 +108,9 @@ export const getStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  roomCardOccupied: {
+    opacity: 0.5,
+  },
   
   // Left section: Image + Price stacked vertically
   leftSection: {
