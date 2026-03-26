@@ -251,7 +251,7 @@ class TenantDashboardService
         return $addon;
     }
 
-    public function cancelAddonRequestForActiveBooking(int $tenantId, int $addonId): void
+    public function cancelAddonRequestForActiveBooking(int $tenantId, int $addonId): array
     {
         $booking = $this->getActiveBooking($tenantId);
         if (! $booking) {
@@ -268,7 +268,49 @@ class TenantDashboardService
             throw new \Exception('No cancellable request found for this addon', 404);
         }
 
-        $booking->addons()->updateExistingPivot($addonId, ['status' => 'cancelled', 'updated_at' => now()]);
+        $pivotStatus = (string) $addonRequest->pivot->status;
+
+        if ($pivotStatus === 'pending') {
+            $booking->addons()->updateExistingPivot($addonId, [
+                'status' => 'cancelled',
+                'cancellation_requested_at' => now(),
+                'cancellation_effective_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return [
+                'mode' => 'cancelled_now',
+                'message' => 'Addon request cancelled successfully.',
+            ];
+        }
+
+        if ($addonRequest->price_type === 'monthly') {
+            $effectiveAt = now()->copy()->addMonthNoOverflow()->startOfMonth();
+
+            $booking->addons()->updateExistingPivot($addonId, [
+                'cancellation_requested_at' => now(),
+                'cancellation_effective_at' => $effectiveAt,
+                'updated_at' => now(),
+            ]);
+
+            return [
+                'mode' => 'scheduled_next_month',
+                'message' => 'Addon removal is scheduled for next month.',
+                'effective_at' => $effectiveAt->toDateString(),
+            ];
+        }
+
+        $booking->addons()->updateExistingPivot($addonId, [
+            'status' => 'cancelled',
+            'cancellation_requested_at' => now(),
+            'cancellation_effective_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [
+            'mode' => 'cancelled_now',
+            'message' => 'Addon cancelled successfully.',
+        ];
     }
 
     private function getActiveBooking(int $tenantId, array $relations = []): ?Booking

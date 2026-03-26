@@ -50,22 +50,26 @@ class GenerateMonthlyInvoices extends Command
             // Calculate total months passed since booking started.
             $monthsSinceStart = $startDate->diffInMonths($now) + 1;
 
-            // Calculate recurring addon costs once.
-            $recurringAddonAmount = $booking->addons()
-                ->where('booking_addons.status', 'active')
-                ->where('price_type', 'monthly')
-                ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
-
-            $baseInvoiceAmount = $booking->monthly_rent + $recurringAddonAmount;
-
-            if ($baseInvoiceAmount <= 0) {
-                continue; // Skip bookings with no monthly charge
-            }
-
             // Loop through each month from the start date to the current month, but not exceeding total_months
             $maxMonths = (int) ($booking->total_months || 1);
             for ($i = 0; $i < min($monthsSinceStart, $maxMonths); $i++) {
                 $billingDateForLoop = $startDate->copy()->addMonths($i);
+                $billingPeriodStart = $billingDateForLoop->copy()->startOfMonth();
+
+                $recurringAddonAmount = $booking->addons()
+                    ->where('booking_addons.status', 'active')
+                    ->where('price_type', 'monthly')
+                    ->where(function ($query) use ($billingPeriodStart) {
+                        $query->whereNull('booking_addons.cancellation_effective_at')
+                            ->orWhere('booking_addons.cancellation_effective_at', '>', $billingPeriodStart);
+                    })
+                    ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+
+                $baseInvoiceAmount = $booking->monthly_rent + $recurringAddonAmount;
+
+                if ($baseInvoiceAmount <= 0) {
+                    continue; // Skip bookings with no monthly charge
+                }
 
                 // Check if an invoice for this specific billing month already exists
                 // OR if this is the first recurring month and an advance was already paid

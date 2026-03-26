@@ -277,8 +277,8 @@ export default function LandlordLayout({
           location.pathname === '/reviews' ||
           location.pathname === '/transfers'
         ) && (
-          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-start px-4 lg:px-8 flex-shrink-0 z-10 relative">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white text-left">
               {getPageTitle()}
             </h1>
             <div className="absolute right-4 lg:right-8 flex items-center gap-4">

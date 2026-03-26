@@ -803,13 +803,11 @@ export default function PropertySummary() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Property Dashboard — replaces Room Management */}
-        <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-            <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
-            </div>
-            <PropertyDashboard propertyId={id} navigate={navigate} />
+        <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+          <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
           </div>
+          <PropertyDashboard propertyId={id} navigate={navigate} />
         </div>
 
         {/* Property Details Card */}

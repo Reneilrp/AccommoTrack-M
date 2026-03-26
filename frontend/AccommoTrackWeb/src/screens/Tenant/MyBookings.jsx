@@ -66,6 +66,8 @@ const MyBookings = () => {
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [pendingTransferBookingIds, setPendingTransferBookingIds] = useState([]);
+  const [pendingTransferRequests, setPendingTransferRequests] = useState([]);
+  const [cancellingTransferRequestId, setCancellingTransferRequestId] = useState(null);
   const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
   // cancelConfirm stores the bookingId pending user confirmation (null = none)
   const [__cancelConfirm, setCancelConfirm] = useState(null);
@@ -112,6 +114,23 @@ const MyBookings = () => {
       toast.error(err.response?.data?.message || 'Failed to request transfer');
     } finally {
       setRequestingTransfer(false);
+    }
+  };
+
+  const handleCancelTransferRequest = async (transferRequestId) => {
+    if (!transferRequestId) return;
+
+    setCancellingTransferRequestId(transferRequestId);
+    try {
+      await api.patch(`/tenant/transfers/${transferRequestId}/cancel`);
+      toast.success('Transfer request cancelled successfully');
+      invalidateTenantStayCache();
+      fetchData();
+    } catch (err) {
+      console.error('Failed to cancel transfer request:', err);
+      toast.error(err.response?.data?.message || 'Failed to cancel transfer request');
+    } finally {
+      setCancellingTransferRequestId(null);
     }
   };
   
@@ -202,6 +221,11 @@ const MyBookings = () => {
             .map(t => t.booking_id);
           setPendingTransferBookingIds(pendingIds);
 
+          const pendingRequests = list.filter(
+            (t) => String(t.status || '').toLowerCase() === 'pending',
+          );
+          setPendingTransferRequests(pendingRequests);
+
           // Calculate transfers this month (limit of 2)
           const now = new Date();
           const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -209,7 +233,8 @@ const MyBookings = () => {
             const dateStr = t.created_at || t.date;
             if (!dateStr) return false;
             const createdAt = new Date(dateStr);
-            return createdAt >= startOfMonth;
+            const status = String(t.status || '').toLowerCase();
+            return createdAt >= startOfMonth && ['pending', 'approved'].includes(status);
           }).length;
           setMonthlyTransferCount(thisMonthCount);
         } catch (e) {
@@ -345,8 +370,9 @@ const MyBookings = () => {
 
   const handleCancelAddonRequest = async (addonId) => {
     try {
-      await tenantService.cancelAddonRequest(addonId);
-      toast.success('Add-on request cancelled');
+      const response = await tenantService.cancelAddonRequest(addonId);
+      const message = response?.message || response?.data?.message || 'Add-on request updated';
+      toast.success(message);
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
@@ -428,6 +454,9 @@ const MyBookings = () => {
               onRequestExtension={() => setShowExtensionModal(true)}
               onRequestTransfer={() => setShowTransferWarning(true)}
               pendingTransferBookingIds={pendingTransferBookingIds}
+              pendingTransferRequests={pendingTransferRequests}
+              onCancelTransferRequest={handleCancelTransferRequest}
+              cancellingTransferRequestId={cancellingTransferRequestId}
               monthlyTransferCount={monthlyTransferCount}
               onReview={handleReview}
               onReport={handleReport}
@@ -531,7 +560,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, pendingTransferBookingIds = [], monthlyTransferCount = 0, isCancelling, onReview, onReport, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, navigate }) => {
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
@@ -853,6 +882,9 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           })()}
                           {(() => {
                             const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
+                            const pendingRequestForThisBooking = pendingTransferRequests.find(
+                              (request) => Number(request.booking_id) === Number(booking.id),
+                            );
                             const limitReached = monthlyTransferCount >= 2;
                             const isDisabled = isPendingForThisBooking || limitReached;
                             
@@ -868,19 +900,37 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                             }
 
                             return (
-                              <button
-                                onClick={isDisabled ? undefined : onRequestTransfer}
-                                disabled={isDisabled}
-                                title={buttonTitle}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                  isDisabled
-                                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
-                                    : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
-                                }`}
-                              >
-                                <Shuffle className="w-4 h-4" />
-                                {buttonText}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={isDisabled ? undefined : onRequestTransfer}
+                                  disabled={isDisabled}
+                                  title={buttonTitle}
+                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                    isDisabled
+                                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
+                                      : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
+                                  }`}
+                                >
+                                  <Shuffle className="w-4 h-4" />
+                                  {buttonText}
+                                </button>
+
+                                {pendingRequestForThisBooking && (
+                                  <button
+                                    onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
+                                    disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
+                                    title="Cancel pending transfer request"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
+                                  >
+                                    {cancellingTransferRequestId === pendingRequestForThisBooking.id ? (
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <XCircle className="w-4 h-4" />
+                                    )}
+                                    Cancel Transfer
+                                  </button>
+                                )}
+                              </div>
                             );
                           })()}
                         </div>
@@ -913,7 +963,12 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-4">Current Subscriptions</h4>
                         <div className="space-y-4">
                           {addons.active.map((addon) => (
-                            <AddonItem key={addon.pivot?.id || addon.id} addon={addon} status="active" />
+                            <AddonItem
+                              key={addon.pivot?.id || addon.id}
+                              addon={addon}
+                              status="active"
+                              onCancel={() => onCancelAddon(addon.id)}
+                            />
                           ))}
                         </div>
                       </div>
@@ -1409,15 +1464,22 @@ const AddonItem = ({ addon, status, onCancel }) => (
         ₱{parseFloat(addon?.price || 0).toLocaleString()}
         {addon?.price_type === 'monthly' && <span className="text-[10px] text-gray-500 font-medium ml-0.5">/mo</span>}
       </span>
-      {status === 'pending' && onCancel && (
-        <button
-          onClick={onCancel}
-          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-          title="Cancel Request"
-        >
-          <XCircle className="w-5 h-5" />
-        </button>
-      )}
+      <div className="flex items-center gap-2">
+        {addon?.pivot?.cancellation_effective_at && (
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+            Ends {new Date(addon.pivot.cancellation_effective_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          </span>
+        )}
+        {onCancel && !addon?.pivot?.cancellation_effective_at && (
+          <button
+            onClick={onCancel}
+            className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+            title={status === 'active' ? 'Remove next month' : 'Cancel request'}
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        )}
+      </div>
     </div>
   </div>
 );

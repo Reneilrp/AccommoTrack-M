@@ -91,6 +91,8 @@ class Addon extends Model
                 'approved_by',
                 'invoiced_at',
                 'invoice_id',
+                'cancellation_requested_at',
+                'cancellation_effective_at',
             ])
             ->withTimestamps();
     }

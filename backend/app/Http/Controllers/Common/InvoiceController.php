@@ -49,8 +49,13 @@ class InvoiceController extends Controller
                 $roomAmountCents = (int) round($booking->total_amount * 100);
 
                 // Bundle active monthly addons
+                $billingPeriodStart = \Carbon\Carbon::parse($booking->start_date)->startOfMonth();
                 $activeMonthlyAddons = $booking->addons()
                     ->wherePivot('status', 'active')
+                    ->where(function ($query) use ($billingPeriodStart) {
+                        $query->whereNull('booking_addons.cancellation_effective_at')
+                            ->orWhere('booking_addons.cancellation_effective_at', '>', $billingPeriodStart);
+                    })
                     ->where('price_type', 'monthly')
                     ->get();
 

@@ -69,7 +69,7 @@ class TransferController extends Controller
             'action' => 'required|in:approve,reject',
             'damage_charge' => 'nullable|numeric|min:0',
             'damage_description' => 'nullable|string|required_if:damage_charge,>0',
-            'landlord_notes' => 'nullable|string|max:500',
+            'landlord_notes' => 'nullable|string|max:500|required_if:action,reject',
             'prorated_adjustment' => 'nullable|numeric',
         ]);
 

@@ -46,6 +46,7 @@ export default function TransferRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [handlingAction, setHandlingAction] = useState('');
   const [notes, setNotes] = useState('');
   const [approvingTransferId, setApprovingTransferId] = useState(null);
@@ -57,10 +58,38 @@ export default function TransferRequests() {
     selectedRequestIdRef.current = selectedRequestId;
   }, [selectedRequestId]);
 
+  const filteredRequests = useMemo(() => {
+    if (statusFilter === 'all') return requests;
+    if (statusFilter === 'reject') {
+      return requests.filter((item) => String(item.status || '').toLowerCase() === 'rejected');
+    }
+    return requests.filter((item) => String(item.status || '').toLowerCase() === statusFilter);
+  }, [requests, statusFilter]);
+
   const selectedRequest = useMemo(
-    () => requests.find(item => item.id === selectedRequestId) || null,
-    [requests, selectedRequestId],
+    () => filteredRequests.find(item => item.id === selectedRequestId) || null,
+    [filteredRequests, selectedRequestId],
   );
+
+  const statusCounts = useMemo(() => {
+    const counts = {
+      all: requests.length,
+      pending: 0,
+      approved: 0,
+      reject: 0,
+      cancelled: 0,
+    };
+
+    requests.forEach((item) => {
+      const status = String(item.status || '').toLowerCase();
+      if (status === 'pending') counts.pending += 1;
+      if (status === 'approved') counts.approved += 1;
+      if (status === 'rejected') counts.reject += 1;
+      if (status === 'cancelled') counts.cancelled += 1;
+    });
+
+    return counts;
+  }, [requests]);
 
   const updateTransferForm = (transferId, patch) => {
     setTransferForms((prev) => ({
@@ -150,13 +179,34 @@ export default function TransferRequests() {
     fetchRequests();
   }, [fetchRequests]);
 
+  useEffect(() => {
+    if (filteredRequests.length === 0) {
+      setSelectedRequestId(null);
+      setNotes('');
+      return;
+    }
+
+    const stillExists = filteredRequests.some((item) => item.id === selectedRequestId);
+    if (!stillExists) {
+      setSelectedRequestId(filteredRequests[0].id);
+      setNotes(filteredRequests[0].landlord_notes || '');
+    }
+  }, [filteredRequests, selectedRequestId]);
+
   const handleAction = async (transferId, action) => {
     try {
       const form = getTransferForm(transferId);
       const damageCharge = Number(form.damage_charge || 0);
+      const fallbackNotes = selectedRequestId === transferId ? String(notes || '').trim() : '';
+      const landlordNotes = String(form.landlord_notes || '').trim() || fallbackNotes || undefined;
 
       if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
         toast.error('Damage description is required when damage charge is set.');
+        return;
+      }
+
+      if (action === 'reject' && !landlordNotes) {
+        toast.error('Please provide a reason before rejecting this request.');
         return;
       }
 
@@ -164,7 +214,7 @@ export default function TransferRequests() {
 
       const payload = {
         action,
-        landlord_notes: String(form.landlord_notes || '').trim() || undefined,
+        landlord_notes: landlordNotes,
         damage_charge: damageCharge > 0 ? damageCharge : undefined,
         damage_description: damageCharge > 0 ? String(form.damage_description || '').trim() : undefined,
         prorated_adjustment: form.prorated_adjustment !== '' ? Number(form.prorated_adjustment) : undefined,
@@ -238,9 +288,43 @@ export default function TransferRequests() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Pending and historical transfer requests will appear here.</p>
           </div>
         ) : (
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-3 shadow-sm">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'pending', label: 'Pending' },
+                  { key: 'approved', label: 'Approved' },
+                  { key: 'reject', label: 'Reject' },
+                  { key: 'cancelled', label: 'Cancelled' },
+                ].map((filter) => {
+                  const isActive = statusFilter === filter.key;
+                  return (
+                    <button
+                      key={filter.key}
+                      onClick={() => setStatusFilter(filter.key)}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors border ${
+                        isActive
+                          ? 'bg-brand-600 text-white border-brand-600'
+                          : 'bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {filter.label} ({statusCounts[filter.key] || 0})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {filteredRequests.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center">
+                <p className="text-lg font-bold text-gray-900 dark:text-white">No requests for this filter</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Try selecting another status filter.</p>
+              </div>
+            ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1 space-y-3">
-              {requests.map((req) => {
+              {filteredRequests.map((req) => {
                 const status = req.status || 'pending';
                 const statusColor = status === 'pending'
                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
@@ -301,7 +385,7 @@ export default function TransferRequests() {
                   </div>
 
                   <div className="mt-4">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Landlord Notes</label>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Landlord Notes / Rejection Reason</label>
                     <textarea
                       value={approvingTransferId === selectedRequest.id ? getTransferForm(selectedRequest.id).landlord_notes : notes}
                       onChange={(e) => {
@@ -313,7 +397,7 @@ export default function TransferRequests() {
                       }}
                       rows={3}
                       className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                      placeholder="Optional notes"
+                      placeholder={selectedRequest.status === 'pending' ? 'Add notes (required when rejecting)' : 'No notes'}
                       disabled={selectedRequest.status !== 'pending'}
                     />
                   </div>
@@ -437,6 +521,8 @@ export default function TransferRequests() {
                 </div>
               )}
             </div>
+          </div>
+            )}
           </div>
         )}
       </div>

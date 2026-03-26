@@ -391,9 +391,13 @@ class TenantDashboardController extends Controller
     public function cancelAddonRequest(Request $request, $addonId)
     {
         try {
-            $this->dashboardService->cancelAddonRequestForActiveBooking(Auth::id(), $addonId);
+            $result = $this->dashboardService->cancelAddonRequestForActiveBooking(Auth::id(), $addonId);
 
-            return response()->json(['success' => true, 'message' => 'Addon request cancelled successfully'], 200);
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => $result['message'] ?? 'Addon request cancelled successfully',
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 500);
         }
