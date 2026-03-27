@@ -54,12 +54,15 @@ export default function RoomManagement() {
 
   const [rooms, setRooms] = useState(cachedRoomsData?.rooms || []);
   const [stats, setStats] = useState(cachedRoomsData?.stats || { total: 0, occupied: 0, available: 0, maintenance: 0 });
-  
-  const [isFromProperty, __setIsFromProperty] = useState(Boolean(new URLSearchParams(location.search).get('property')));
+
+  const isFromProperty = Boolean(new URLSearchParams(location.search || '').get('property'));
 
   const handleBackClick = () => {
-    if (isFromProperty && selectedPropertyId) {
-      navigate(`/properties/${selectedPropertyId}`);
+    const propertyFromQuery = new URLSearchParams(location.search || '').get('property');
+    const targetPropertyId = propertyFromQuery ? Number(propertyFromQuery) : selectedPropertyId;
+
+    if (propertyFromQuery && targetPropertyId) {
+      navigate(`/properties/${targetPropertyId}`);
     } else {
       navigate(-1);
     }
@@ -477,12 +480,11 @@ export default function RoomManagement() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  {stats.total} / {stats.total_limit || stats.total}
+                  {stats.total}
                 </p>
               </div>
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
@@ -492,7 +494,6 @@ export default function RoomManagement() {
           </div>
 
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Occupied</p>
@@ -505,7 +506,6 @@ export default function RoomManagement() {
           </div>
 
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Available</p>
@@ -518,7 +518,6 @@ export default function RoomManagement() {
           </div>
 
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-4">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Maintenance</p>

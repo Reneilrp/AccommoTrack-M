@@ -831,7 +831,6 @@ export default function Payments() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Paid</p>
@@ -846,10 +845,9 @@ export default function Payments() {
           </div>
 
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Balance</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Unpaid</p>
                 <p className="text-2xl font-bold text-red-600 mt-2">
                   <PriceRow amount={stats.totalBalance} />
                 </p>
@@ -861,7 +859,6 @@ export default function Payments() {
           </div>
 
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Paid</p>
@@ -874,7 +871,6 @@ export default function Payments() {
           </div>
 
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
@@ -887,7 +883,6 @@ export default function Payments() {
           </div>
           
           <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Overdue</p>

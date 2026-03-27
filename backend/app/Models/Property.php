@@ -216,6 +216,14 @@ class Property extends Model
     }
 
     /**
+     * Relationship: Property has many Payments through Bookings
+     */
+    public function payments()
+    {
+        return $this->hasManyThrough(Payment::class, Booking::class);
+    }
+
+    /**
      * Get average rating for the property
      */
     public function getAverageRatingAttribute()

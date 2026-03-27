@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
@@ -187,7 +187,7 @@ export default function LandlordLayout({
         {/* User Profile Summary */}
         <div 
             className="p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            onClick={() => navigate('/settings')}
+          onClick={() => navigate('/settings')}
             title="Go to Profile Settings"
         >
           <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
@@ -275,7 +275,8 @@ export default function LandlordLayout({
           location.pathname.startsWith('/tenants/') ||
           location.pathname === '/maintenance' ||
           location.pathname === '/reviews' ||
-          location.pathname === '/transfers'
+          location.pathname === '/transfers' ||
+          location.pathname === '/addons'
         ) && (
           <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-start px-4 lg:px-8 flex-shrink-0 z-10 relative">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white text-left">
@@ -317,12 +318,13 @@ export default function LandlordLayout({
               location.pathname.startsWith('/tenants/') ||
               location.pathname === '/maintenance' ||
               location.pathname === '/reviews' ||
-              location.pathname === '/transfers'
+              location.pathname === '/transfers' ||
+              location.pathname === '/addons'
             ) ? 'p-0' : 'p-4 lg:p-8'
           }`}
           style={{ scrollbarGutter: 'stable' }}
         >
-          {children}
+          {children || <Outlet />}
         </div>
       </main>
 

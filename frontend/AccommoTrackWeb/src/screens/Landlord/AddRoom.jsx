@@ -607,7 +607,7 @@ export default function AddRoomModal({
     }
   };
 
-  // Revoke preview URLs when modal closes or unmounts to prevent memory leaks
+  // Revoke preview URLs when previews change/unmount; do not set state in cleanup.
   useEffect(() => {
     return () => {
       try {
@@ -618,11 +618,8 @@ export default function AddRoomModal({
       } catch {
         // ignore
       }
-      setPreviewImages([]);
-      // clear any staged files
-      setFormData((prev) => ({ ...prev, images: [] }));
     };
-  }, [isOpen, previewImages]);
+  }, [previewImages, isOpen]);
 
   if (!isOpen) return null;
 

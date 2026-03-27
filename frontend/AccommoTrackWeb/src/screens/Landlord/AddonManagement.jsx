@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { addonService } from "../../services/addonService";
 import { useUIState } from "../../contexts/UIStateContext";
 import { cacheManager } from "../../utils/cache";
@@ -14,9 +14,11 @@ import {
   BellRing,
   RefreshCw,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 
 const AddonManagement = ({ propertyId }) => {
+  const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const resolvedPropertyId =
@@ -209,13 +211,7 @@ const AddonManagement = ({ propertyId }) => {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-48">
-        <RefreshCw className="w-8 h-8 animate-spin text-green-600" />
-      </div>
-    );
-  }
+
 
   if (!resolvedPropertyId) {
     return (
@@ -226,8 +222,29 @@ const AddonManagement = ({ propertyId }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-center relative min-h-[40px]">
+            <div className="absolute left-0 flex items-center">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all flex-shrink-0"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Add-on Services</h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
+
+      {/* Card Header: description + Add button */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex justify-between items-center mb-6">
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -291,7 +308,13 @@ const AddonManagement = ({ propertyId }) => {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-6 relative min-h-[400px]">
+        {loading && (
+          <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-2xl">
+            <RefreshCw className="w-8 h-8 animate-spin text-green-600" />
+          </div>
+        )}
+
         {activeTab === "manage" && (
           <ManageTab
             addons={addons}
@@ -320,6 +343,8 @@ const AddonManagement = ({ propertyId }) => {
           isEditing={!!editingAddon}
         />
       )}
+
+      </div>
     </div>
   );
 };

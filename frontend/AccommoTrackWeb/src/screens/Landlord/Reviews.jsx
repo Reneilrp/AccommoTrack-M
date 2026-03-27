@@ -92,14 +92,6 @@ export default function LandlordReviews() {
     return Math.round(r.rating) === parseInt(ratingFilter);
   });
 
-  if (loading && reviews.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-700" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 mb-8">
@@ -170,8 +162,14 @@ export default function LandlordReviews() {
           </div>
         </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        {filteredReviews.length === 0 ? (
+      <div className="grid grid-cols-1 gap-6 relative min-h-[400px]">
+        {loading && (
+          <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-2xl">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-700" />
+          </div>
+        )}
+
+        {!loading && filteredReviews.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center">
             <div className="w-16 h-16 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Star className="w-8 h-8 text-gray-300" />

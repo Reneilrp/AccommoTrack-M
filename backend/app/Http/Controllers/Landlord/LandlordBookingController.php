@@ -47,6 +47,11 @@ class LandlordBookingController extends Controller
                 $query->whereIn('property_id', $assignedPropertyIds);
             }
 
+            // Filter by property_id if provided
+            if ($request->has('property_id') && $request->property_id !== 'all') {
+                $query->where('property_id', $request->property_id);
+            }
+
             // Filter by status if provided
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);

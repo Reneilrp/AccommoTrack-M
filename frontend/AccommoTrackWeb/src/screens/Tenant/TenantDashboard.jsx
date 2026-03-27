@@ -24,6 +24,12 @@ const TenantDashboard = () => {
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [activities, setActivities] = useState(cachedData?.activities || []);
   const [openSummaryPanel, setOpenSummaryPanel] = useState(null);
+  const [dismissedNotifications, setDismissedNotifications] = useState({
+    overdueBalance: false,
+    balanceDue: false,
+    pendingCheckIns: [],
+    upcomingBooking: false,
+  });
   const initialLoadRef = React.useRef(!cachedData);
 
   const fetchDashboardData = useCallback(async () => {
@@ -91,75 +97,6 @@ const TenantDashboard = () => {
     return `${floorNumber}${suffix} Floor`;
   };
 
-  const extractInvoiceLineItems = (invoice, billingPolicy, unitPrice) => {
-    const directLineItems = Array.isArray(invoice?.line_items)
-      ? invoice.line_items
-      : Array.isArray(invoice?.lineItems)
-        ? invoice.lineItems
-        : [];
-
-    if (directLineItems.length > 0) {
-      return directLineItems.map((item) => {
-        const quantity = Number(item?.quantity ?? 1);
-        const unitAmount = Number(item?.unit_amount ?? item?.unitAmount ?? 0);
-        const totalAmount = Number(item?.total_amount ?? item?.totalAmount ?? (unitAmount * quantity));
-        const billedDays = Number(item?.billed_days ?? item?.billedDays ?? 0);
-
-        return {
-          type: String(item?.type || 'charge').toLowerCase(),
-          label: item?.label || 'Charge',
-          quantity: Number.isFinite(quantity) ? quantity : 1,
-          unitAmount: Number.isFinite(unitAmount) ? unitAmount : 0,
-          totalAmount: Number.isFinite(totalAmount) ? totalAmount : 0,
-          billedDays: Number.isFinite(billedDays) ? billedDays : 0,
-        };
-      });
-    }
-
-    const meta = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
-    const metaLineItems = Array.isArray(meta?.line_items)
-      ? meta.line_items
-      : Array.isArray(meta?.lineItems)
-        ? meta.lineItems
-        : [];
-
-    if (metaLineItems.length > 0) {
-      return metaLineItems.map((item) => {
-        const quantity = Number(item?.quantity ?? 1);
-        const unitAmount = Number(item?.unit_amount ?? item?.unitAmount ?? 0);
-        const totalAmount = Number(item?.total_amount ?? item?.totalAmount ?? (unitAmount * quantity));
-        const billedDays = Number(item?.billed_days ?? item?.billedDays ?? 0);
-
-        return {
-          type: String(item?.type || 'charge').toLowerCase(),
-          label: item?.label || 'Charge',
-          quantity: Number.isFinite(quantity) ? quantity : 1,
-          unitAmount: Number.isFinite(unitAmount) ? unitAmount : 0,
-          totalAmount: Number.isFinite(totalAmount) ? totalAmount : 0,
-          billedDays: Number.isFinite(billedDays) ? billedDays : 0,
-        };
-      });
-    }
-
-    const fallbackAmount = Number(invoice?.amount || 0);
-    if (fallbackAmount <= 0) return [];
-
-    const inferredDays = billingPolicy === 'daily' && unitPrice > 0
-      ? Math.max(1, Math.round(fallbackAmount / unitPrice))
-      : 0;
-
-    return [{
-      type: billingPolicy === 'daily' ? 'daily_rent' : 'base_rent',
-      label: billingPolicy === 'daily' ? 'Daily Room Charges' : 'Base Rent',
-      quantity: billingPolicy === 'daily' ? inferredDays : 1,
-      unitAmount: billingPolicy === 'daily' ? unitPrice : fallbackAmount,
-      totalAmount: fallbackAmount,
-      billedDays: inferredDays,
-    }];
-  };
-
-
-
   // ── Derived Data ──
   const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
   const stays = hasActiveStays ? stayData.stays : [];
@@ -188,15 +125,11 @@ const TenantDashboard = () => {
     const billingPolicy = String(stay?.financials?.billing_policy || stay?.booking?.billing_policy || 'monthly').toLowerCase();
     const billingTypeLabel = billingPolicy === 'daily' ? 'Daily' : 'Monthly';
     const unitPrice = Number(stay?.financials?.unit_price || stay?.booking?.unit_price || 0);
-    const baseRent = Number(stay?.booking?.monthlyRent || stay?.booking?.monthly_rent || 0);
+    const monthlyBaseRent = Number(stay?.booking?.monthlyRent || stay?.booking?.monthly_rent || 0);
+    const baseRent = billingPolicy === 'daily' ? unitPrice : monthlyBaseRent;
     const addOns = Number(stay?.addons?.monthlyTotal || stay?.addons?.monthly_total || stay?.financials?.monthlyAddons || 0);
-    const roomTotal = Number(stay?.financials?.monthlyTotal || (baseRent + addOns));
     const invoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
-    const billedLineItems = invoices.flatMap((invoice) => extractInvoiceLineItems(invoice, billingPolicy, unitPrice));
-    const roomTotalBilled = billedLineItems.reduce((sum, item) => sum + (Number(item?.totalAmount) || 0), 0);
-    const billedDays = billingPolicy === 'daily'
-      ? billedLineItems.reduce((sum, item) => sum + (Number(item?.billedDays) || 0), 0)
-      : 0;
+    const grandTotal = baseRent + addOns;
     const requiresAdvance = Boolean(
       stay?.room?.advance_feature_enabled
       ?? stay?.room?.require_1month_advance
@@ -216,19 +149,17 @@ const TenantDashboard = () => {
       dayShare: totalDaysStayed > 0 ? Math.round((daysStayed / totalDaysStayed) * 100) : 0,
       baseRent,
       addOns,
-      roomTotal,
+      grandTotal,
       billingPolicy,
       billingTypeLabel,
-      unitPrice,
-      billedDays,
-      roomTotalBilled,
       requiresAdvance,
       status: hasOverdue ? 'overdue' : 'active',
     };
   });
 
-  const totalBilledAmount = roomBreakdownRows.reduce((sum, row) => sum + row.roomTotalBilled, 0);
-  const totalDailyBilledDays = roomBreakdownRows.reduce((sum, row) => sum + (row.billingPolicy === 'daily' ? row.billedDays : 0), 0);
+  const totalBaseRent = roomBreakdownRows.reduce((sum, row) => sum + row.baseRent, 0);
+  const totalAddOns = roomBreakdownRows.reduce((sum, row) => sum + row.addOns, 0);
+  const totalGrandRent = roomBreakdownRows.reduce((sum, row) => sum + row.grandTotal, 0);
 
   const balanceBreakdownRows = stays
     .flatMap((stay, idx) => {
@@ -408,6 +339,20 @@ const TenantDashboard = () => {
     setOpenSummaryPanel((prev) => (prev === cardKey ? null : cardKey));
   };
 
+  const dismissNotification = (notificationType, id = null) => {
+    if (notificationType === 'pendingCheckIns' && id) {
+      setDismissedNotifications((prev) => ({
+        ...prev,
+        pendingCheckIns: [...prev.pendingCheckIns, id],
+      }));
+    } else {
+      setDismissedNotifications((prev) => ({
+        ...prev,
+        [notificationType]: true,
+      }));
+    }
+  };
+
   // ════════════════════════════════════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════════════════════════════════════
@@ -416,7 +361,7 @@ const TenantDashboard = () => {
 
 
       {/* ── High Priority Action Notification (Unpaid/Overdue Balance) ── */}
-      {stats?.payments?.hasOverdueInvoices ? (
+      {!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices ? (
         <div className="bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="flex items-start md:items-center gap-4">
             <div className="bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
@@ -429,14 +374,23 @@ const TenantDashboard = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/payments')}
-            className="w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
-          >
-            Pay Now <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/payments')}
+              className="w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+            >
+              Pay Now <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => dismissNotification('overdueBalance')}
+              className="w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
+              aria-label="Close overdue balance notification"
+            >
+              ×
+            </button>
+          </div>
         </div>
-      ) : unpaidBalance > 0 && (
+      ) : !dismissedNotifications.balanceDue && (
         <div className="bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-[#1e2332] border border-amber-200 dark:border-amber-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="flex items-start md:items-center gap-4">
             <div className="bg-amber-100 dark:bg-amber-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
@@ -449,17 +403,28 @@ const TenantDashboard = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/payments')}
-            className="w-full md:w-auto px-8 py-4.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
-          >
-            Pay Now <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/payments')}
+              className="w-full md:w-auto px-8 py-4.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+            >
+              Pay Now <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => dismissNotification('balanceDue')}
+              className="w-8 h-8 rounded-full border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors flex-shrink-0"
+              aria-label="Close balance due notification"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 
       {/* ── Pending Check-In Alert (Overdue for move-in) ── */}
-      {stayData?.pendingCheckIns && stayData.pendingCheckIns.length > 0 && stayData.pendingCheckIns.map(pending => (
+      {stayData?.pendingCheckIns && stayData.pendingCheckIns.length > 0 && stayData.pendingCheckIns
+        .filter(pending => !dismissedNotifications.pendingCheckIns.includes(pending.id))
+        .map(pending => (
         <div key={pending.id} className={pending.status === 'confirmed' 
           ? "bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
           : "bg-orange-50 dark:bg-gradient-to-r dark:from-orange-500/15 dark:to-[#1e2332] border border-orange-200 dark:border-orange-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
@@ -483,20 +448,32 @@ const TenantDashboard = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/bookings')}
-            className={pending.status === 'confirmed' 
-              ? "w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
-              : "w-full md:w-auto px-8 py-4.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
-            }
-          >
-            View Booking <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/bookings')}
+              className={pending.status === 'confirmed' 
+                ? "w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                : "w-full md:w-auto px-8 py-4.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+              }
+            >
+              View Booking <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => dismissNotification('pendingCheckIns', pending.id)}
+              className={pending.status === 'confirmed' 
+                ? "w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
+                : "w-8 h-8 rounded-full border border-orange-200 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-colors flex-shrink-0"
+              }
+              aria-label="Close pending check-in notification"
+            >
+              ×
+            </button>
+          </div>
         </div>
       ))}
 
       {/* ── Upcoming Booking Alert ── */}
-      {stayData?.upcomingBooking && (
+      {!dismissedNotifications.upcomingBooking && stayData?.upcomingBooking && (
         <div className="bg-blue-50 dark:bg-gradient-to-r dark:from-blue-500/15 dark:to-[#1e2332] border border-blue-200 dark:border-blue-500/30 rounded-[16px] p-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-blue-100 dark:bg-blue-500/20 p-4 rounded-full flex-shrink-0">
@@ -509,18 +486,25 @@ const TenantDashboard = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/bookings')}
-            className="px-6 py-2.5 bg-white dark:bg-[#1e2332] text-blue-700 dark:text-blue-300 font-bold rounded-xl border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
-          >
-            View
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/bookings')}
+              className="px-6 py-2.5 bg-white dark:bg-[#1e2332] text-blue-700 dark:text-blue-300 font-bold rounded-xl border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+            >
+              View
+            </button>
+            <button
+              onClick={() => dismissNotification('upcomingBooking')}
+              className="w-8 h-8 rounded-full border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors flex-shrink-0"
+              aria-label="Close upcoming booking notification"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 
       {/* ── Stat Cards Grid (Read Only) ── */}
-      <h2 className="text-[18px] font-bold text-gray-900 dark:text-slate-100 mb-4">Quick Summary</h2>
-      <p className="text-[13px] text-gray-500 dark:text-slate-500 mb-4">Click any card to see a detailed breakdown</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-[-10px]">
         {statCards.map((card) => {
           const cm = colorMap[card.color];
@@ -560,6 +544,7 @@ const TenantDashboard = () => {
               </div>
               <div className="text-[14px] text-gray-500 dark:text-slate-400 font-medium tracking-wide mt-2.5">{card.label}</div>
               <div className="text-[28px] font-bold tracking-tight text-gray-900 dark:text-slate-100 font-mono">{card.value}</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-gray-500/75 dark:text-slate-500/75 mt-1">Click to view breakdown</div>
             </div>
           );
         })}
@@ -708,15 +693,15 @@ const TenantDashboard = () => {
             </button>
           </div>
           <div className="px-6 py-4 overflow-x-auto">
-            <table className="w-full min-w-[980px]">
+            <table className="w-full min-w-[1080px]">
               <thead>
                 <tr className="text-left border-b border-gray-100 dark:border-[#2a3045]">
                   <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room</th>
                   <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Billing Type</th>
-                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Price</th>
-                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Billed Days</th>
-                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Advance Required (1+ Month)</th>
-                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-right">Room Total (Billed)</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-center">Base Rent</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-center">Add-Ons</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-center">Advance Required (1+ Month)</th>
+                  <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 text-center">Grand Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -730,10 +715,10 @@ const TenantDashboard = () => {
                         </span>
                       </td>
                       <td className="py-4 text-[14px] text-gray-600 dark:text-slate-300">{row.billingTypeLabel}</td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-right text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                      <td className="py-4 text-[14px] font-mono font-bold text-center text-gray-900 dark:text-slate-100 whitespace-nowrap">
                         {row.billingPolicy === 'daily' ? (
                           <span>
-                            {formatCurrency(row.unitPrice)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
+                            {formatCurrency(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
                           </span>
                         ) : (
                           <span>
@@ -741,10 +726,10 @@ const TenantDashboard = () => {
                           </span>
                         )}
                       </td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-right text-blue-600 dark:text-blue-400">
-                        {row.billingPolicy === 'daily' ? row.billedDays : '—'}
+                      <td className="py-4 text-[14px] font-mono font-bold text-center text-gray-900 dark:text-slate-100">
+                        {formatCurrency(row.addOns)}
                       </td>
-                      <td className="py-4 text-right">
+                      <td className="py-4 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${
                           row.requiresAdvance
                             ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
@@ -753,7 +738,7 @@ const TenantDashboard = () => {
                           {row.requiresAdvance ? 'Yes' : 'No'}
                         </span>
                       </td>
-                      <td className="py-4 text-[14px] font-mono font-bold text-right text-purple-600 dark:text-purple-400">{formatCurrency(row.roomTotalBilled)}</td>
+                      <td className="py-4 text-[14px] font-mono font-bold text-center text-purple-600 dark:text-purple-400">{formatCurrency(row.grandTotal)}</td>
                     </tr>
                   ))
                 ) : (
@@ -766,16 +751,16 @@ const TenantDashboard = () => {
           </div>
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Room Total (Billed)</p>
-              <p className="text-[18px] font-bold font-mono text-purple-600 dark:text-purple-400">{formatCurrency(totalBilledAmount)}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Base Rent</p>
+              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{formatCurrency(totalBaseRent)}</p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Daily Billed Days</p>
-              <p className="text-[18px] font-bold font-mono text-blue-600 dark:text-blue-400">{totalDailyBilledDays}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Add-Ons</p>
+              <p className="text-[18px] font-bold font-mono text-blue-600 dark:text-blue-400">{formatCurrency(totalAddOns)}</p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Estimated Monthly</p>
-              <p className="text-[18px] font-bold font-mono text-gray-900 dark:text-slate-100">{formatCurrency(totalMonthlySummary)}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Grand Total</p>
+              <p className="text-[18px] font-bold font-mono text-purple-600 dark:text-purple-400">{formatCurrency(totalGrandRent)}</p>
             </div>
           </div>
         </div>

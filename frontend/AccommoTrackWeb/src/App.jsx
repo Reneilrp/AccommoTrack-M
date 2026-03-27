@@ -18,18 +18,24 @@ function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+
     const userData = localStorage.getItem("userData");
-    if (userData) {
+    if (userData && token) {
       try {
         setUser(JSON.parse(userData));
       } catch (error) {
         console.error("Error parsing user data:", error);
         localStorage.removeItem("userData");
       }
+    } else if (userData && !token) {
+      // Prevent stale UI auth state when token is missing/expired.
+      localStorage.removeItem("userData");
+      setUser(null);
     }
+
     // Restore Bearer token from localStorage so authenticated API requests
     // work immediately on page reload.
-    const token = localStorage.getItem("authToken");
     if (token) {
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }

@@ -30,33 +30,33 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
     const caretakerHome = getDefaultLandingRoute(user);
     return (
       <SidebarProvider>
-        <LandlordLayout user={user} onLogout={onLogout} accessRole="caretaker">
-          <Routes>
-            <Route path="/" element={<Navigate to={caretakerHome} replace />} />
-            <Route path="/dashboard" element={<CaretakerDashboard user={user} />} />
+        <Routes>
+          <Route element={<LandlordLayout user={user} onLogout={onLogout} accessRole="caretaker" />}>
+            <Route index element={<Navigate to={caretakerHome} replace />} />
+            <Route path="dashboard" element={<CaretakerDashboard user={user} />} />
             {caretakerPermissions.rooms && (
               <>
-                <Route path="/rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
-                <Route path="/maintenance" element={<LandlordMaintenance user={user} accessRole="caretaker" />} />
+                <Route path="rooms" element={<RoomManagement user={user} accessRole="caretaker" />} />
+                <Route path="maintenance" element={<LandlordMaintenance user={user} accessRole="caretaker" />} />
               </>
             )}
             {caretakerPermissions.bookings && (
-              <Route path="/bookings" element={<Bookings user={user} accessRole="caretaker" />} />
+              <Route path="bookings" element={<Bookings user={user} accessRole="caretaker" />} />
             )}
             {caretakerPermissions.tenants && (
-              <Route path="/tenants" element={<Tenants user={user} accessRole="caretaker" />} />
+              <Route path="tenants" element={<Tenants user={user} accessRole="caretaker" />} />
             )}
             {caretakerPermissions.messages && (
-              <Route path="/messages" element={<Messages user={user} accessRole="caretaker" />} />
+              <Route path="messages" element={<Messages user={user} accessRole="caretaker" />} />
             )}
             <Route
-              path="/settings"
+              path="settings"
               element={<Settings user={user} accessRole="caretaker" onUserUpdate={onUserUpdate} />}
             />
-            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="*" element={<Navigate to={caretakerHome} replace />} />
-          </Routes>
-        </LandlordLayout>
+          </Route>
+        </Routes>
       </SidebarProvider>
     );
   }
@@ -64,36 +64,36 @@ export default function LandlordNavigator({ user, onLogout, onUserUpdate }) {
   // Landlord routes
   return (
     <SidebarProvider>
-      <LandlordLayout user={user} onLogout={onLogout} accessRole="landlord">
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage user={user} />} />
-          <Route path="/properties" element={<MyProperties user={user} />} />
-          <Route path="/properties/:id" element={<PropertySummary />} />
-          <Route path="/properties/:id/edit" element={<PropertyDetailRoute />} />
-          <Route path="/rooms" element={<RoomManagement user={user} />} />
-          <Route path="/maintenance" element={<LandlordMaintenance user={user} />} />
-          <Route path="/tenants/:id" element={<TenantLogs user={user} />} />
-          <Route path="/tenants/logs" element={<TenantLogs user={user} />} />
-          <Route path="/payments" element={<Payments user={user} />} />
-          <Route path="/reviews" element={<LandlordReviews user={user} />} />
-          <Route path="/tenants" element={<Tenants user={user} accessRole="landlord" />} />
-          <Route path="/bookings" element={<Bookings user={user} accessRole="landlord" />} />
-          <Route path="/transfers" element={<TransferRequests user={user} accessRole="landlord" />} />
-          <Route path="/messages" element={<Messages user={user} accessRole="landlord" />} />
-          <Route path="/addons" element={<AddonManagement user={user} accessRole="landlord" />} />
-          <Route path="/analytics" element={<Analytics user={user} accessRole="landlord" />} />
+      <Routes>
+        <Route element={<LandlordLayout user={user} onLogout={onLogout} accessRole="landlord" />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage user={user} />} />
+          <Route path="properties" element={<MyProperties user={user} />} />
+          <Route path="properties/:id" element={<PropertySummary />} />
+          <Route path="properties/:id/edit" element={<PropertyDetailRoute />} />
+          <Route path="rooms" element={<RoomManagement user={user} />} />
+          <Route path="maintenance" element={<LandlordMaintenance user={user} />} />
+          <Route path="tenants/:id" element={<TenantLogs user={user} />} />
+          <Route path="tenants/logs" element={<TenantLogs user={user} />} />
+          <Route path="payments" element={<Payments user={user} />} />
+          <Route path="reviews" element={<LandlordReviews user={user} />} />
+          <Route path="tenants" element={<Tenants user={user} accessRole="landlord" />} />
+          <Route path="bookings" element={<Bookings user={user} accessRole="landlord" />} />
+          <Route path="transfers" element={<TransferRequests user={user} accessRole="landlord" />} />
+          <Route path="messages" element={<Messages user={user} accessRole="landlord" />} />
+          <Route path="addons" element={<AddonManagement user={user} />} />
+          <Route path="analytics" element={<Analytics user={user} accessRole="landlord" />} />
           <Route
-            path="/settings"
+            path="settings"
             element={
               <Settings user={user} accessRole="landlord" onUserUpdate={onUserUpdate} />
             }
           />
-          <Route path="/verification" element={<VerificationStatus user={user} onUpdate={onUserUpdate} />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="verification" element={<VerificationStatus user={user} onUpdate={onUserUpdate} />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </LandlordLayout>
+        </Route>
+      </Routes>
     </SidebarProvider>
   );
 }

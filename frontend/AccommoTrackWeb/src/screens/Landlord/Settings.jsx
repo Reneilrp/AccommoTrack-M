@@ -74,7 +74,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     lastName: user?.last_name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    dateOfBirth: user?.date_of_birth || ''
+    dateOfBirth: user?.date_of_birth || '',
+    gender: user?.gender || '',
+    identified_as: user?.identified_as || ''
   });
   const [profilePhoto, setProfilePhoto] = useState(user?.profile_image || null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -89,7 +91,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
         lastName: user.last_name || '',
         email: user.email || '',
         phone: user.phone || '',
-        dateOfBirth: user.date_of_birth || ''
+        dateOfBirth: user.date_of_birth || '',
+        gender: user.gender || '',
+        identified_as: user.identified_as || ''
       });
       setProfilePhoto(user.profile_image || null);
     }
@@ -166,6 +170,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       formData.append('last_name', profileData.lastName);
       formData.append('phone', profileData.phone);
       formData.append('date_of_birth', profileData.dateOfBirth);
+      formData.append('gender', profileData.gender || '');
+      formData.append('identified_as', profileData.identified_as || '');
       formData.append('_method', 'PUT');
 
       if (fileInputRef.current?.files[0]) {

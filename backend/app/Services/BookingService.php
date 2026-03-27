@@ -301,27 +301,31 @@ class BookingService
         if (! $existingInvoice) {
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
-            // Default amount is total
-            $amount = $booking->total_amount;
-            $description = 'Initial invoice for booking '.$booking->booking_reference;
+            $billingPolicy = $booking->room->billing_policy ?? 'monthly';
 
-            // If monthly plan and more than 1 month, first invoice is just first month's rent
-            if ($booking->payment_plan === 'monthly' && $booking->total_months > 1) {
+            // For monthly-billed rooms, the first invoice always covers 1 full month's rent.
+            // This is critical for transfer bookings where start_date = today and the period
+            // may be < 30 days, which would cause total_amount to be a tiny prorated figure.
+            if ($billingPolicy !== 'daily') {
                 $amount = $booking->monthly_rent;
-                $description = 'First month rent for booking '.$booking->booking_reference;
+                $description = 'Monthly rent for booking '.$booking->booking_reference;
 
-                // Add recurring addons to first invoice if any
+                // Add recurring monthly addons to first invoice if any
                 $recurringAddonAmount = $booking->addons()
                     ->where('booking_addons.status', 'active')
                     ->where('price_type', 'monthly')
                     ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
 
                 $amount += $recurringAddonAmount;
+            } else {
+                // For daily-rate rooms, use the exact period total
+                $amount = $booking->total_amount;
+                $description = 'Initial invoice for booking '.$booking->booking_reference;
             }
 
             // Handle 1 month advance if room or property requires it
             // Skip for daily-rate rooms: "1 month advance" has no meaning for per-day billing
-            if ($booking->room->billing_policy !== 'daily' && $booking->room->requiresAdvance()) {
+            if ($billingPolicy !== 'daily' && $booking->room->requiresAdvance()) {
                 $advanceAmount = $booking->monthly_rent;
                 $amount += $advanceAmount;
                 $description .= ' (includes 1 month advance)';

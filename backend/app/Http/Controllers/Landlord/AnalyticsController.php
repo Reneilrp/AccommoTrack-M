@@ -7,6 +7,7 @@ use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class AnalyticsController extends Controller
 {
@@ -28,12 +29,12 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
 
             $data = $this->analyticsService->getDashboardAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null,
+                $propertyId,
                 $timeRange
             );
 
@@ -41,10 +42,7 @@ class AnalyticsController extends Controller
         } catch (\Exception $e) {
             Log::error('Analytics getDashboardAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch analytics');
         }
     }
 
@@ -57,21 +55,18 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
             $data = $this->analyticsService->calculateOverviewStats(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null
+                $propertyId
             );
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getOverviewStats error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch overview stats',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch overview stats');
         }
     }
 
@@ -84,13 +79,13 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
 
             $data = $this->analyticsService->calculateRevenueAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null,
+                $propertyId,
                 $dateRange
             );
 
@@ -98,10 +93,7 @@ class AnalyticsController extends Controller
         } catch (\Exception $e) {
             Log::error('Analytics getRevenueAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch revenue analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch revenue analytics');
         }
     }
 
@@ -114,21 +106,18 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
             $data = $this->analyticsService->calculateOccupancyAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null
+                $propertyId
             );
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getOccupancyAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch occupancy analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch occupancy analytics');
         }
     }
 
@@ -141,21 +130,18 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
             $data = $this->analyticsService->calculateRoomTypeAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null
+                $propertyId
             );
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getRoomTypeAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch room type analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch room type analytics');
         }
     }
 
@@ -174,10 +160,7 @@ class AnalyticsController extends Controller
         } catch (\Exception $e) {
             Log::error('Analytics getPropertyComparison error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch property comparison',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch property comparison');
         }
     }
 
@@ -190,13 +173,13 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
 
             $data = $this->analyticsService->calculateTenantAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null,
+                $propertyId,
                 $dateRange
             );
 
@@ -204,10 +187,7 @@ class AnalyticsController extends Controller
         } catch (\Exception $e) {
             Log::error('Analytics getTenantAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch tenant analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch tenant analytics');
         }
     }
 
@@ -220,21 +200,18 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
 
             $data = $this->analyticsService->calculatePaymentAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null
+                $propertyId
             );
 
             return response()->json($data, 200);
         } catch (\Exception $e) {
             Log::error('Analytics getPaymentAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch payment analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch payment analytics');
         }
     }
 
@@ -247,13 +224,13 @@ class AnalyticsController extends Controller
             $context = $this->resolveLandlordContext($request);
             $this->assertNotCaretaker($context);
 
-            $propertyId = $request->query('property_id');
+            $propertyId = $this->resolveValidatedPropertyId($request, $context);
             $timeRange = $request->query('time_range', 'month');
             $dateRange = $this->analyticsService->getDateRange($timeRange);
 
             $data = $this->analyticsService->calculateBookingAnalytics(
                 $context['landlord_id'],
-                $propertyId ? (int) $propertyId : null,
+                $propertyId,
                 $dateRange
             );
 
@@ -261,10 +238,38 @@ class AnalyticsController extends Controller
         } catch (\Exception $e) {
             Log::error('Analytics getBookingAnalytics error', ['exception' => $e]);
 
-            return response()->json([
-                'message' => 'Failed to fetch booking analytics',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->buildErrorResponse($e, 'Failed to fetch booking analytics');
         }
+    }
+
+    private function buildErrorResponse(\Exception $e, string $fallbackMessage)
+    {
+        $statusCode = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+
+        return response()->json([
+            'message' => $e->getMessage() ?: $fallbackMessage,
+            'error' => $e->getMessage(),
+        ], $statusCode);
+    }
+
+    /**
+     * Normalize and validate property filter before analytics queries.
+     */
+    private function resolveValidatedPropertyId(Request $request, array $context): ?int
+    {
+        $propertyId = $request->query('property_id');
+
+        if ($propertyId === null || $propertyId === '' || $propertyId === 'all') {
+            return null;
+        }
+
+        $propertyId = (int) $propertyId;
+        if ($propertyId <= 0) {
+            return null;
+        }
+
+        $this->checkPropertyAccess($context, $propertyId);
+
+        return $propertyId;
     }
 }

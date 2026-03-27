@@ -162,6 +162,19 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             const isOccupied = displayStatus === 'occupied';
             const hasAlternatePrice =
               Number.isFinite(Number(room.alternatePrice)) && Number(room.alternatePrice) > 0;
+            const statusBadgeText = room.reserved_by_me
+              ? 'Reserved by you (Pending)'
+              : (room.display_status_label || displayStatus || '').toString().charAt(0).toUpperCase() +
+                (room.display_status_label || displayStatus || '').toString().slice(1);
+            const statusBadgeClassName = room.reserved_by_me
+              ? 'bg-amber-50 text-amber-800 border border-amber-100'
+              : displayStatus === 'occupied'
+                ? 'bg-red-50 text-red-700 border border-red-100'
+                : displayStatus === 'reserved'
+                  ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                  : displayStatus === 'maintenance'
+                    ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
+                    : 'bg-green-50 text-green-700 border border-green-100';
 
             return (
           <div
@@ -180,39 +193,16 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               ) : (
                 <ImagePlaceholder className="w-full h-full" />
               )}
-              {room.reserved_by_me ? (
-                <div className="absolute top-3 left-3 flex flex-col gap-2.5">
-                  <span className="px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm bg-amber-50 text-amber-800 border border-amber-100">
-                    Reserved by you (Pending)
-                  </span>
-                  <span
-                    className={`px-2.5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm w-fit ${genderBadge.className}`}
-                  >
-                    {genderBadge.label}
-                  </span>
-                </div>
-              ) : (
-                <div className="absolute top-3 left-3 flex flex-col gap-2.5">
-                  <span
-                    className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm w-fit ${
-                      displayStatus === 'occupied'
-                        ? 'bg-red-50 text-red-700 border border-red-100'
-                        : displayStatus === 'reserved'
-                          ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                          : displayStatus === 'maintenance'
-                            ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
-                            : 'bg-green-50 text-green-700 border border-green-100'
-                    }`}
-                  >
-                    {(room.display_status_label || displayStatus || '').toString().charAt(0).toUpperCase() + (room.display_status_label || displayStatus || '').toString().slice(1)}
-                  </span>
-                  <span
-                    className={`px-2.5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm w-fit ${genderBadge.className}`}
-                  >
-                    {genderBadge.label}
-                  </span>
-                </div>
-              )}
+              <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
+                <span className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm max-w-[70%] ${statusBadgeClassName}`}>
+                  {statusBadgeText}
+                </span>
+                <span
+                  className={`px-2.5 py-2 rounded-md text-xs font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
+                >
+                  {genderBadge.label}
+                </span>
+              </div>
             </div>
 
             <div className="p-6 flex-1 flex flex-col">
@@ -226,7 +216,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 </h4>
               </div>
 
-              <div className="flex items-center justify-between mt-auto pt-4">
+              <div className="flex items-end justify-between mt-auto pt-4">
                 <div className="flex flex-col">
                   <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{room.primaryLabel}</span>
                   <span className="text-lg font-extrabold text-green-600">{formatCurrency(room.primaryPrice)}</span>
@@ -238,7 +228,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 </div>
                 <button
                   onClick={() => onOpenDetails(room, property)}
-                  className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm"
+                  className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
                 >
                   View Details
                 </button>

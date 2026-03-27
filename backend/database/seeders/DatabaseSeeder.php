@@ -13,10 +13,8 @@ class DatabaseSeeder extends Seeder
     {
         // Call the UserSeeder we created earlier
         $this->call([
-            UserSeeder::class,
             AdminUserSeeder::class,
-            PropertySeeder::class,
-            RoomSeeder::class,
+            TestLandlordPropertyRoomSeeder::class,
         ]);
 
         $this->command->info('🎉 Database seeding completed successfully!');

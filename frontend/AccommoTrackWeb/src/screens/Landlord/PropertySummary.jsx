@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
+import toast from 'react-hot-toast';
 import { 
   Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
-  CheckCircle, XCircle, Eye, AlertCircle, Clock, TrendingUp, Home, PackagePlus,
-  Banknote, Shuffle, CreditCard
+  AlertCircle, Clock, Home, PackagePlus, CreditCard, BookOpen, ArrowLeftRight, ChevronRight
 } from 'lucide-react';
-import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
 import { useSidebar } from '../../contexts/SidebarContext';
@@ -22,162 +21,111 @@ import NotFoundPage from '../NotFoundPage';
 
 // ─── Property Dashboard ───────────────────────────────────────────────────────
 
-function StatCard({ value, label, color = 'default', icon: Icon, onClick }) {
-  const colorMap = {
-    danger: { 
-      text: 'text-red-600 dark:text-red-400', 
-      bg: 'bg-red-50 dark:bg-red-900/20', 
-      icon: 'text-red-600 dark:text-red-400',
-      border: 'bg-red-500'
-    },
-    warning: { 
-      text: 'text-orange-500 dark:text-orange-400', 
-      bg: 'bg-orange-50 dark:bg-orange-900/20', 
-      icon: 'text-orange-600 dark:text-orange-400',
-      border: 'bg-orange-500'
-    },
-    success: { 
-      text: 'text-green-600 dark:text-green-400', 
-      bg: 'bg-green-50 dark:bg-green-900/20', 
-      icon: 'text-green-600 dark:text-green-400',
-      border: 'bg-green-500'
-    },
-    info: { 
-      text: 'text-blue-600 dark:text-blue-400', 
-      bg: 'bg-blue-50 dark:bg-blue-900/20', 
-      icon: 'text-blue-600 dark:text-blue-400',
-      border: 'bg-blue-500'
-    },
-    default: { 
-      text: 'text-gray-900 dark:text-white', 
-      bg: 'bg-gray-50 dark:bg-gray-900/20', 
-      icon: 'text-gray-600 dark:text-gray-400',
-      border: 'bg-gray-400 dark:bg-gray-600'
-    },
-  };
-  
-  const theme = colorMap[color] || colorMap.default;
+const FILTER_CONFIG = [
+  { key: 'all', label: 'All', icon: null },
+  { key: 'booking', label: 'Bookings', icon: BookOpen },
+  { key: 'payment', label: 'Payments', icon: CreditCard },
+  { key: 'maintenance', label: 'Maintenance', icon: Wrench },
+  { key: 'transfer', label: 'Transfers', icon: ArrowLeftRight },
+  { key: 'addon', label: 'Add-ons', icon: PackagePlus },
+  { key: 'review', label: 'Reviews', icon: Star },
+];
 
-  return (
-    <button
-      onClick={onClick}
-      className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 text-left shadow-sm hover:shadow-md hover:border-gray-400 dark:hover:border-gray-600 transition-all w-full"
-    >
-      <div className={`absolute top-0 left-0 right-0 h-1 ${theme.border}`} />
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
-          <p className={`text-2xl font-bold mt-2 ${theme.text}`}>{value}</p>
-        </div>
-        {Icon && (
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${theme.bg}`}>
-            <Icon className={`w-5 h-5 ${theme.icon}`} />
-          </div>
-        )}
-      </div>
-    </button>
-  );
+const TYPE_META = {
+  booking: {
+    color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    dot: 'bg-blue-500',
+    label: 'Booking',
+  },
+  payment: {
+    color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+    dot: 'bg-red-500',
+    label: 'Payment',
+  },
+  maintenance: {
+    color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+    dot: 'bg-orange-500',
+    label: 'Maintenance',
+  },
+  transfer: {
+    color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    dot: 'bg-purple-500',
+    label: 'Transfer',
+  },
+  addon: {
+    color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+    dot: 'bg-teal-500',
+    label: 'Add-on',
+  },
+  review: {
+    color: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+    dot: 'bg-yellow-500',
+    label: 'Review',
+  },
+};
+
+function formatDisplayDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function FeedCard({ title, badge, badgeColor = 'gray', children, onViewAll, navigateTo, icon: Icon, iconColor = 'gray' }) {
-  const badgeColors = {
-    danger: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
-    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-    info: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400',
-    success: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',
-    gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+function toTimestamp(value) {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function readName(entity, fallback = 'Tenant') {
+  if (entity?.name) return entity.name;
+  const full = [entity?.first_name, entity?.last_name].filter(Boolean).join(' ').trim();
+  if (full) return full;
+  return fallback;
+}
+
+function normalizeAmount(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function StatCard({ label, value, sub, icon: Icon, accent = 'blue', onClick }) {
+  const accents = {
+    red: 'border-t-red-500 bg-red-50 dark:bg-red-900/10',
+    orange: 'border-t-orange-500 bg-orange-50 dark:bg-orange-900/10',
+    blue: 'border-t-blue-500 bg-blue-50 dark:bg-blue-900/10',
+    green: 'border-t-green-500 bg-green-50 dark:bg-green-900/10',
   };
   const iconColors = {
-    danger: { bg: 'bg-red-50 dark:bg-red-900/20', icon: 'text-red-600 dark:text-red-400', border: 'bg-red-500' },
-    warning: { bg: 'bg-amber-50 dark:bg-amber-900/20', icon: 'text-amber-600 dark:text-amber-400', border: 'bg-amber-500' },
-    info: { bg: 'bg-blue-50 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400', border: 'bg-blue-500' },
-    success: { bg: 'bg-green-50 dark:bg-green-900/20', icon: 'text-green-600 dark:text-green-400', border: 'bg-green-500' },
-    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', icon: 'text-gray-600 dark:text-gray-400', border: 'bg-gray-300 dark:bg-gray-600' },
+    red: 'text-red-500',
+    orange: 'text-orange-500',
+    blue: 'text-blue-500',
+    green: 'text-green-600',
   };
-  const theme = iconColors[iconColor] || iconColors.gray;
-  return (
-    <div className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
-      <div className={`absolute top-0 left-0 right-0 h-1 ${theme.border}`} />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {Icon && (
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${theme.bg}`}>
-              <Icon className={`w-5 h-5 ${theme.icon}`} />
-            </div>
-          )}
-          <span className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider">{title}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {badge !== undefined && (
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColors[badgeColor]}`}>{badge}</span>
-          )}
-          {(onViewAll || navigateTo) && (
-            <button
-              onClick={onViewAll || navigateTo}
-              className="text-xs font-bold text-green-600 dark:text-green-400 hover:underline"
-            >
-              View all
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700/60">
-        {children}
-      </div>
-    </div>
-  );
-}
 
-function RequestRow({ initials, avatarColor = 'blue', name, sub, actions, pill }) {
-  const avatarColors = {
-    blue:   'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
-    amber:  'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
-    red:    'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
-    purple: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300',
-    teal:   'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300',
-    green:  'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
-  };
-  return (
-    <div className="flex items-center gap-3 py-2.5 min-h-[50px] first:pt-0 last:pb-0">
-      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColors[avatarColor]}`}>
-        {initials}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{name}</div>
-        <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 truncate uppercase tracking-tight">{sub}</div>
-      </div>
-      <div className="flex-shrink-0 flex gap-1.5 items-center">
-        {actions}
-        {pill}
-      </div>
-    </div>
-  );
-}
-
-function ActionBtn({ label, variant = 'gray', onClick }) {
-  const variants = {
-    green: 'bg-green-600 text-white hover:bg-green-700 shadow-sm shadow-green-500/20',
-    red:   'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800',
-    blue:  'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-500/20',
-    gray:  'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600',
-  };
   return (
     <button
       onClick={onClick}
-      className={`text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-md leading-none transition-all ${variants[variant]}`}
+      className={`rounded-xl border border-gray-200 dark:border-gray-700 border-t-4 p-4 ${accents[accent]} flex flex-col gap-1 text-left hover:shadow-md transition-all`}
     >
-      {label}
+      <div className="flex items-start justify-between">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide leading-tight">{label}</p>
+        <Icon className={`w-4 h-4 ${iconColors[accent]}`} />
+      </div>
+      <p className={`text-2xl font-bold ${iconColors[accent]}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 dark:text-gray-500">{sub}</p>}
     </button>
   );
 }
 
-function getInitials(name = '') {
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '??';
-}
-
-function EmptyRow({ message }) {
+function TypeBadge({ type }) {
+  const meta = TYPE_META[type] || TYPE_META.booking;
   return (
-    <div className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">{message}</div>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${meta.color}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+      {meta.label}
+    </span>
   );
 }
 
@@ -189,10 +137,12 @@ function PropertyDashboard({ propertyId, navigate }) {
     maintenanceRequests: [],
     transferRequests: [],
     recentReviews: [],
-    occupancy: null,
+    occupiedRooms: 0,
+    totalRooms: 0,
   });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
+  const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     if (!propertyId) return;
@@ -234,7 +184,8 @@ function PropertyDashboard({ propertyId, navigate }) {
         maintenanceRequests: (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [],
         transferRequests: get(transfersRes),
         recentReviews: get(reviewsRes),
-        occupancy: totalRooms > 0 ? `${occupiedRooms}/${totalRooms}` : '—',
+        occupiedRooms,
+        totalRooms,
       });
     } catch (err) {
       console.error('Dashboard load error', err);
@@ -246,11 +197,30 @@ function PropertyDashboard({ propertyId, navigate }) {
   const handleBookingAction = async (bookingId, action) => {
     const key = `booking_${bookingId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
+    const toastId = toast.loading(action === 'confirm' ? 'Confirming booking...' : 'Declining booking...');
     try {
-      await api.patch(`/landlord/bookings/${bookingId}/status`, { status: action === 'approve' ? 'confirmed' : 'rejected' });
+      await api.patch(`/bookings/${bookingId}/status`, { status: action === 'confirm' ? 'confirmed' : 'cancelled' });
       setDashData(p => ({ ...p, pendingBookings: p.pendingBookings.filter(b => b.id !== bookingId) }));
+      toast.success(action === 'confirm' ? 'Booking confirmed!' : 'Booking declined.', { id: toastId });
     } catch (err) {
       console.error(`Failed to ${action} booking`, err);
+      toast.error(err.response?.data?.message || `Failed to ${action} booking`, { id: toastId });
+    } finally {
+      setActionLoading(p => ({ ...p, [key]: false }));
+    }
+  };
+
+  const handleTransferAction = async (transferId, action) => {
+    const key = `transfer_${transferId}_${action}`;
+    setActionLoading(p => ({ ...p, [key]: true }));
+    const toastId = toast.loading(action === 'approve' ? 'Approving transfer...' : 'Rejecting transfer...');
+    try {
+      await api.patch(`/landlord/transfers/${transferId}/handle`, { action });
+      setDashData(p => ({ ...p, transferRequests: p.transferRequests.filter(t => t.id !== transferId) }));
+      toast.success(`Transfer ${action}d successfully!`, { id: toastId });
+    } catch (err) {
+      console.error(`Failed to ${action} transfer`, err);
+      toast.error(err.response?.data?.message || `Failed to ${action} transfer`, { id: toastId });
     } finally {
       setActionLoading(p => ({ ...p, [key]: false }));
     }
@@ -259,335 +229,378 @@ function PropertyDashboard({ propertyId, navigate }) {
   const handleAddonRequestAction = async (requestId, bookingId, addonId, action) => {
     const key = `addon_${requestId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
+    const toastId = toast.loading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
     try {
       await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, { action, note: null });
       setDashData(p => ({
         ...p,
         pendingAddonRequests: p.pendingAddonRequests.filter(r => r.requestId !== requestId),
       }));
+      toast.success(`Add-on ${action}d successfully!`, { id: toastId });
     } catch (err) {
       console.error(`Failed to ${action} add-on request`, err);
+      toast.error(err.response?.data?.message || `Failed to ${action} add-on`, { id: toastId });
     } finally {
       setActionLoading(p => ({ ...p, [key]: false }));
     }
   };
 
-  const { pendingBookings, overdueInvoices, pendingAddonRequests, maintenanceRequests, transferRequests, recentReviews, occupancy } = dashData;
+  const {
+    pendingBookings,
+    overdueInvoices,
+    pendingAddonRequests,
+    maintenanceRequests,
+    transferRequests,
+    recentReviews,
+    occupiedRooms,
+    totalRooms,
+  } = dashData;
 
-  const renderStars = (rating) => {
-    const n = Math.round(Number(rating) || 0);
-    return '★'.repeat(n) + '☆'.repeat(5 - n);
+  const occupancy = totalRooms > 0 ? `${occupiedRooms}/${totalRooms}` : '—';
+
+  const activityItems = [
+    ...pendingBookings.map((b) => ({
+      key: `booking-${b.id}`,
+      id: b.id,
+      type: 'booking',
+      tenant: readName(b.tenant, b.tenant_name || 'Tenant'),
+      room: b.room?.name || b.room_name || 'Room —',
+      date: b.start_date || b.created_at,
+      status: 'Pending',
+      amount: null,
+      note: b.payment_plan || 'Monthly',
+    })),
+    ...overdueInvoices.map((inv) => ({
+      key: `payment-${inv.id}`,
+      id: inv.id,
+      type: 'payment',
+      tenant: readName(inv.tenant, inv.tenant_name || 'Tenant'),
+      room: inv.room?.name || inv.room_name || 'Room —',
+      date: inv.due_date || inv.created_at,
+      status: 'Overdue',
+      amount: normalizeAmount(inv.amount ?? inv.total_amount),
+      note: inv.month || inv.period || 'Invoice',
+    })),
+    ...maintenanceRequests.map((m) => ({
+      key: `maintenance-${m.id}`,
+      id: m.id,
+      type: 'maintenance',
+      tenant: readName(m.tenant, m.tenant_name || 'Tenant'),
+      room: m.room?.name || m.room_name || 'Room —',
+      date: m.created_at || m.updated_at,
+      status: m.status || 'Open',
+      amount: null,
+      note: m.title || m.issue || 'Maintenance issue',
+    })),
+    ...transferRequests.map((t) => ({
+      key: `transfer-${t.id}`,
+      id: t.id,
+      type: 'transfer',
+      tenant: readName(t.tenant, t.tenant_name || 'Tenant'),
+      room: `${t.from_room?.name || t.from_room_name || '—'} → ${t.to_room?.name || t.to_room_name || '—'}`,
+      date: t.created_at || t.updated_at,
+      status: t.status || 'Pending',
+      amount: null,
+      note: 'Room transfer',
+    })),
+    ...pendingAddonRequests.map((req) => ({
+      key: `addon-${req.requestId}`,
+      id: req.requestId,
+      bookingId: req.bookingId,
+      addonId: req.addonId,
+      type: 'addon',
+      tenant: readName(req.tenant, 'Tenant'),
+      room: `Room ${req.roomNumber || '—'}`,
+      date: req.createdAt || req.created_at,
+      status: req.status || 'Pending',
+      amount: normalizeAmount(req.suggestedPrice ?? req.price ?? req.amount),
+      note: req.addonName || 'Add-on request',
+    })),
+    ...recentReviews.map((r) => ({
+      key: `review-${r.id}`,
+      id: r.id,
+      type: 'review',
+      tenant: readName(r.tenant, r.reviewer_name || 'Tenant'),
+      room: r.room?.name || r.room_name || 'Room —',
+      date: r.created_at || r.updated_at,
+      status: `${Math.round(Number(r.rating) || 0)} stars`,
+      amount: null,
+      note: r.landlord_response ? 'Replied' : 'Needs reply',
+    })),
+  ].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+
+  const counts = FILTER_CONFIG.reduce((acc, filter) => {
+    if (filter.key === 'all') {
+      acc[filter.key] = activityItems.length;
+      return acc;
+    }
+    acc[filter.key] = activityItems.filter((item) => item.type === filter.key).length;
+    return acc;
+  }, {});
+
+  const filteredItems = activeFilter === 'all'
+    ? activityItems
+    : activityItems.filter((item) => item.type === activeFilter);
+
+  const renderActionButtons = (item) => {
+    if (item.type === 'booking') {
+      return (
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            onClick={() => handleBookingAction(item.id, 'confirm')}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+          >
+            {actionLoading[`booking_${item.id}_confirm`] ? '...' : 'Confirm'}
+          </button>
+          <button
+            onClick={() => handleBookingAction(item.id, 'decline')}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+          >
+            {actionLoading[`booking_${item.id}_decline`] ? '...' : 'Decline'}
+          </button>
+        </div>
+      );
+    }
+
+    if (item.type === 'transfer') {
+      return (
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            onClick={() => handleTransferAction(item.id, 'approve')}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+          >
+            {actionLoading[`transfer_${item.id}_approve`] ? '...' : 'Approve'}
+          </button>
+          <button
+            onClick={() => handleTransferAction(item.id, 'reject')}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+          >
+            {actionLoading[`transfer_${item.id}_reject`] ? '...' : 'Reject'}
+          </button>
+        </div>
+      );
+    }
+
+    if (item.type === 'addon') {
+      return (
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'approve')}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+          >
+            {actionLoading[`addon_${item.id}_approve`] ? '...' : 'Approve'}
+          </button>
+          <button
+            onClick={() => handleAddonRequestAction(item.id, item.bookingId, item.addonId, 'reject')}
+            className="px-2 py-1 text-[11px] font-semibold rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+          >
+            {actionLoading[`addon_${item.id}_reject`] ? '...' : 'Reject'}
+          </button>
+        </div>
+      );
+    }
+
+    const viewAction = () => {
+      if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}&status=overdue`);
+      else if (item.type === 'maintenance') navigate(`/maintenance?property_id=${propertyId}&request_id=${item.id}`);
+      else if (item.type === 'review') navigate(`/reviews/${item.id}`);
+      else navigate(`/bookings?property_id=${propertyId}&status=pending`);
+    };
+
+    return (
+      <button
+        onClick={viewAction}
+        className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700 transition-colors"
+      >
+        View <ChevronRight className="w-3 h-3" />
+      </button>
+    );
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-5 animate-pulse">
-        {/* Stat row skeleton */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="flex flex-col gap-4 animate-pulse">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[100px]">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="h-2 w-20 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-                  <div className="h-8 w-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700/50"></div>
-              </div>
+            <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-4">
+              <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-3" />
+              <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
             </div>
           ))}
         </div>
-
-        {/* Row 1 skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[240px]">
-              <div className="flex items-center justify-between mb-6">
-                <div className="h-2.5 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <div className="h-4 w-12 bg-gray-100 dark:bg-gray-700/50 rounded-full"></div>
-              </div>
-              <div className="space-y-5">
-                {[1, 2, 3].map((j) => (
-                  <div key={j} className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 flex-shrink-0"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                      <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Row 2 skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[240px]">
-              <div className="flex items-center justify-between mb-6">
-                <div className="h-2.5 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <div className="h-4 w-12 bg-gray-100 dark:bg-gray-700/50 rounded-full"></div>
-              </div>
-              <div className="space-y-5">
-                {[1, 2, 3].map((j) => (
-                  <div key={j} className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 flex-shrink-0"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                      <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+          <div className="h-3 w-36 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-10 rounded bg-gray-100 dark:bg-gray-700/50" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
-
-      {/* Stat row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="space-y-6">
+      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
+          label="Overdue Invoices"
           value={overdueInvoices.length || 0}
-          label="Overdue invoices"
-          color="danger"
           icon={AlertCircle}
+          accent="red"
           onClick={() => navigate(`/payments?property_id=${propertyId}&status=overdue`)}
         />
         <StatCard
+          label="Pending Bookings"
           value={pendingBookings.length || 0}
-          label="Pending bookings"
-          color="warning"
           icon={Clock}
+          accent="orange"
           onClick={() => navigate(`/bookings?property_id=${propertyId}&status=pending`)}
         />
         <StatCard
+          label="Transfer Requests"
           value={transferRequests.length || 0}
-          label="Transfer requests"
-          color="info"
-          icon={Shuffle}
+          icon={ArrowLeftRight}
+          accent="blue"
           onClick={() => navigate(`/transfers?property_id=${propertyId}`)}
         />
         <StatCard
-          value={occupancy || '—'}
-          label="Rooms occupied"
-          color="success"
+          label="Rooms Occupied"
+          value={occupancy}
+          sub={totalRooms > 0 ? `${Math.max(totalRooms - occupiedRooms, 0)} available` : undefined}
           icon={Home}
+          accent="green"
           onClick={() => navigate(`/rooms?property=${propertyId}`)}
         />
-      </div>
+      </div> */}
 
-      {/* Row 1: Pending Bookings + Overdue Payments + Add-ons */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+      <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+              Activity &amp; Requests
+            </h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}
+            </p>
+          </div>
 
-        <FeedCard
-          title="Pending bookings"
-          badge={pendingBookings.length}
-          badgeColor={pendingBookings.length > 0 ? 'warning' : 'gray'}
-          onViewAll={() => navigate(`/bookings?property_id=${propertyId}&status=pending`)}
-        >
-          {pendingBookings.length === 0 ? (
-            <EmptyRow message="No pending bookings" />
-          ) : (
-            pendingBookings.slice(0, 3).map(b => (
-              <RequestRow
-                key={b.id}
-                initials={getInitials(b.tenant?.name || b.tenant_name)}
-                avatarColor="blue"
-                name={b.tenant?.name || b.tenant_name || 'Tenant'}
-                sub={`${b.room?.name || b.room_name || 'Room'} · ${b.start_date ? new Date(b.start_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '—'} · ${b.payment_plan || 'Monthly'}`}
-                actions={
-                  <>
-                    <ActionBtn
-                      label={actionLoading[`booking_${b.id}_approve`] ? '...' : 'Approve'}
-                      variant="green"
-                      onClick={() => handleBookingAction(b.id, 'approve')}
-                    />
-                    <ActionBtn
-                      label={actionLoading[`booking_${b.id}_reject`] ? '...' : 'Decline'}
-                      variant="red"
-                      onClick={() => handleBookingAction(b.id, 'reject')}
-                    />
-                  </>
-                }
-              />
-            ))
-          )}
-        </FeedCard>
-
-        <FeedCard
-          title="Overdue payments"
-          badge={overdueInvoices.length}
-          badgeColor={overdueInvoices.length > 0 ? 'danger' : 'gray'}
-          icon={CreditCard}
-          iconColor={overdueInvoices.length > 0 ? 'danger' : 'gray'}
-          onViewAll={() => navigate(`/payments?property_id=${propertyId}&status=overdue`)}
-        >
-          {overdueInvoices.length === 0 ? (
-            <EmptyRow message="No overdue invoices" />
-          ) : (
-            overdueInvoices.slice(0, 3).map(inv => {
-              const daysOverdue = inv.due_date
-                ? Math.floor((Date.now() - new Date(inv.due_date)) / 86400000)
-                : null;
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {FILTER_CONFIG.map(({ key, label, icon: Icon }) => {
+              const count = counts[key] || 0;
+              const active = activeFilter === key;
               return (
-                <RequestRow
-                  key={inv.id}
-                  initials={getInitials(inv.tenant?.name || inv.tenant_name)}
-                  avatarColor="red"
-                  name={inv.tenant?.name || inv.tenant_name || 'Tenant'}
-                  sub={`${inv.room?.name || inv.room_name || 'Room'} · ${inv.month || inv.period || 'Invoice'}`}
-                  pill={
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <div className="text-sm font-semibold text-red-600 dark:text-red-400">
-                        ₱{Number(inv.amount || inv.total_amount || 0).toLocaleString()}
-                      </div>
-                      {daysOverdue !== null && (
-                        <div className="text-xs text-red-500 dark:text-red-400 mt-0.5">
-                          {daysOverdue}d overdue
-                        </div>
-                      )}
-                    </div>
-                  }
-                />
+                <button
+                  key={key}
+                  onClick={() => setActiveFilter(key)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    active
+                      ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                  }`}
+                >
+                  {Icon && <Icon className="w-3 h-3" />}
+                  {label}
+                  {count > 0 && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                        active
+                          ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
               );
-            })
-          )}
-        </FeedCard>
+            })}
+          </div>
+        </div>
 
-        <FeedCard
-          title="Add-ons Service"
-          badge={pendingAddonRequests.length}
-          badgeColor={pendingAddonRequests.length > 0 ? 'info' : 'gray'}
-          onViewAll={() => navigate(`/addons?property_id=${propertyId}`, { state: { propertyId } })}
-        >
-          {pendingAddonRequests.length === 0 ? (
-            <EmptyRow message="No pending add-on requests" />
-          ) : (
-            pendingAddonRequests.slice(0, 3).map(req => (
-              <RequestRow
-                key={req.requestId}
-                initials={getInitials(req.tenant?.name || 'Tenant')}
-                avatarColor="green"
-                name={req.addonName || 'Add-on request'}
-                sub={`Room ${req.roomNumber || '—'} · ${req.tenant?.name || 'Tenant'}`}
-                actions={
-                  <>
-                    <ActionBtn
-                      label={actionLoading[`addon_${req.requestId}_approve`] ? '...' : 'Approve'}
-                      variant="green"
-                      onClick={() => handleAddonRequestAction(req.requestId, req.bookingId, req.addonId, 'approve')}
-                    />
-                    <ActionBtn
-                      label={actionLoading[`addon_${req.requestId}_reject`] ? '...' : 'Decline'}
-                      variant="red"
-                      onClick={() => handleAddonRequestAction(req.requestId, req.bookingId, req.addonId, 'reject')}
-                    />
-                  </>
-                }
-              />
-            ))
-          )}
-        </FeedCard>
+        {filteredItems.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-sm text-gray-400 dark:text-gray-600">No items in this category yet.</p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-800/50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="px-5 py-3 text-left">Type</th>
+                    <th className="px-5 py-3 text-left">Tenant</th>
+                    <th className="px-5 py-3 text-left">Room</th>
+                    <th className="px-5 py-3 text-left">Date</th>
+                    <th className="px-5 py-3 text-left">Status</th>
+                    <th className="px-5 py-3 text-right">Amount</th>
+                    <th className="px-5 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {filteredItems.map((item) => (
+                    <tr
+                      key={item.key}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+                    >
+                      <td className="px-5 py-3.5">
+                        <TypeBadge type={item.type} />
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-gray-800 dark:text-gray-200">{item.tenant}</td>
+                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{item.room}</td>
+                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 tabular-nums">
+                        {formatDisplayDate(item.date)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`text-xs font-semibold ${
+                            item.status === 'Overdue' || item.status === 'Open'
+                              ? 'text-red-600 dark:text-red-400'
+                              : item.status === 'Pending'
+                                ? 'text-orange-500 dark:text-orange-400'
+                                : 'text-gray-500 dark:text-gray-300'
+                          }`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-semibold text-gray-800 dark:text-gray-200 tabular-nums">
+                        {item.amount !== null
+                          ? `₱${item.amount.toLocaleString()}`
+                          : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">{renderActionButtons(item)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-      </div>
-
-      {/* Row 2: Maintenance + Transfers + Reviews */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-        <FeedCard
-          title="Maintenance requests"
-          badge={maintenanceRequests.length}
-          badgeColor={maintenanceRequests.length > 0 ? 'warning' : 'gray'}
-          onViewAll={() => navigate(`/maintenance?property_id=${propertyId}`)}
-        >
-          {maintenanceRequests.length === 0 ? (
-            <EmptyRow message="No open requests" />
-          ) : (
-            maintenanceRequests.slice(0, 3).map(m => (
-              <RequestRow
-                key={m.id}
-                initials={getInitials(m.tenant?.name || m.tenant_name)}
-                avatarColor="amber"
-                name={m.title || m.issue || 'Maintenance issue'}
-                sub={`${m.room?.name || m.room_name || 'Room'} · ${m.tenant?.name || m.tenant_name || ''}`}
-                pill={
-                  <ActionBtn
-                    label="View"
-                    variant="blue"
-                    onClick={() => navigate(`/maintenance?property_id=${propertyId}&request_id=${m.id}`)}
-                  />
-                }
-              />
-            ))
-          )}
-        </FeedCard>
-
-        <FeedCard
-          title="Transfer requests"
-          badge={transferRequests.length}
-          badgeColor={transferRequests.length > 0 ? 'info' : 'gray'}
-          onViewAll={() => navigate(`/transfers?property_id=${propertyId}`)}
-        >
-          {transferRequests.length === 0 ? (
-            <EmptyRow message="No pending transfers" />
-          ) : (
-            transferRequests.slice(0, 3).map(t => (
-              <RequestRow
-                key={t.id}
-                initials={getInitials(t.tenant?.name || t.tenant_name)}
-                avatarColor="purple"
-                name={t.tenant?.name || t.tenant_name || 'Tenant'}
-                sub={`${t.from_room?.name || t.from_room_name || '—'} → ${t.to_room?.name || t.to_room_name || '—'}`}
-                pill={
-                  <ActionBtn
-                    label="View"
-                    variant="blue"
-                    onClick={() => navigate(`/transfers?property_id=${propertyId}&request_id=${t.id}`)}
-                  />
-                }
-              />
-            ))
-          )}
-        </FeedCard>
-
-        <FeedCard
-          title="Recent reviews"
-          onViewAll={() => navigate(`/reviews?property_id=${propertyId}`)}
-        >
-          {recentReviews.length === 0 ? (
-            <EmptyRow message="No reviews yet" />
-          ) : (
-            recentReviews.slice(0, 3).map(r => (
-              <RequestRow
-                key={r.id}
-                initials={getInitials(r.tenant?.name || r.reviewer_name)}
-                avatarColor="teal"
-                name={r.tenant?.name || r.reviewer_name || 'Tenant'}
-                sub={
-                  <span>
-                    <span className="text-amber-500">{renderStars(r.rating)}</span>
-                    {' · '}
-                    <span>{r.room?.name || r.room_name || ''}</span>
-                  </span>
-                }
-                pill={
-                  <ActionBtn
-                    label={r.landlord_response ? "Replied" : "Reply"}
-                    variant={r.landlord_response ? "gray" : "blue"}
-                    onClick={() => navigate(`/reviews/${r.id}`)}
-                  />
-                }
-              />
-            ))
-          )}
-        </FeedCard>
-
-      </div>
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {filteredItems.map((item) => (
+                <div key={item.key} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <TypeBadge type={item.type} />
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{item.tenant}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.room}</p>
+                      {item.note && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{item.note}</p>}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatDisplayDate(item.date)}</p>
+                      <p className="text-xs font-semibold mt-1 text-gray-700 dark:text-gray-300">{item.status}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                        {item.amount !== null ? `₱${item.amount.toLocaleString()}` : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">{renderActionButtons(item)}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -607,7 +620,6 @@ export default function PropertySummary() {
 
   const [property, setProperty] = useState(() => getCachedData()?.property || null);
   const [loading, setLoading] = useState(!property);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState(null);
 
   const [images, setImages] = useState([]);
@@ -651,7 +663,6 @@ export default function PropertySummary() {
   const loadProperty = async () => {
     try {
       if (!property) setLoading(true);
-      else setIsSyncing(true);
       setError(null);
       const res = await api.get(`/landlord/properties/${id}?t=${Date.now()}`);
       const data = res.data;
@@ -666,7 +677,6 @@ export default function PropertySummary() {
       }
     } finally {
       setLoading(false);
-      setIsSyncing(false);
     }
   };
 
@@ -674,7 +684,7 @@ export default function PropertySummary() {
   const { open, setIsSidebarOpen, collapse } = useSidebar();
 
   const handleBackClick = async () => {
-    try { await open(); } catch (e) {}
+    try { await open(); } catch (_err) { void _err; }
     setIsSidebarOpen(true);
     navigate('/properties');
   };
@@ -801,14 +811,6 @@ export default function PropertySummary() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        {/* Property Dashboard — replaces Room Management */}
-        <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-          <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
-          </div>
-          <PropertyDashboard propertyId={id} navigate={navigate} />
-        </div>
 
         {/* Property Details Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 relative">
@@ -952,6 +954,14 @@ export default function PropertySummary() {
               </div>
             </aside>
           </div>
+        </div>
+
+        {/* Property Dashboard */}
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+          <div className="mb-6 border-b-2 border-gray-200 dark:border-gray-600 pb-4 text-center shadow-[0_4px_4px_-4px_rgba(0,0,0,0.05)]">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Property Overview</h2>
+          </div>
+          <PropertyDashboard propertyId={id} navigate={navigate} />
         </div>
 
         {/* Room Details Modal (kept for deep-link use) */}

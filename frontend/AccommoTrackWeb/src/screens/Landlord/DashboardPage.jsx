@@ -27,7 +27,6 @@ export default function DashboardPage({ user }) {
   const [activities, setActivities] = useState(cachedData?.activities || []);
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [upcomingPayments, setUpcomingPayments] = useState(cachedData?.upcomingPayments || { upcomingCheckouts: [], unpaidBookings: [] });
-  const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
   const initialLoadRef = React.useRef(!cachedData);
@@ -49,28 +48,24 @@ export default function DashboardPage({ user }) {
       initialLoadRef.current = false;
       setError('');
 
-      const [statsRes, activitiesRes, paymentsRes, performanceRes] = await Promise.all([
+      const [statsRes, activitiesRes, paymentsRes] = await Promise.all([
         api.get('/landlord/dashboard/stats'),
         api.get('/landlord/dashboard/recent-activities'),
-        api.get('/landlord/dashboard/upcoming-payments'),
-        api.get('/landlord/dashboard/property-performance')
+        api.get('/landlord/dashboard/upcoming-payments')
       ]);
 
       const statsData = statsRes.data;
       const activitiesData = activitiesRes.data;
       const paymentsData = paymentsRes.data;
-      const performanceData = performanceRes.data;
 
       setStats(statsData);
       setActivities(activitiesData);
       setUpcomingPayments(paymentsData);
-      setPropertyPerformance(performanceData);
 
       const dashboardState = {
         stats: statsData,
         activities: activitiesData,
-        upcomingPayments: paymentsData,
-        propertyPerformance: performanceData
+        upcomingPayments: paymentsData
       };
 
       updateData(dashboardKey, dashboardState);
@@ -304,22 +299,6 @@ export default function DashboardPage({ user }) {
         </div>
       </div>
 
-      {/* Performance Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {propertyPerformance.map((p) => (
-            <div key={p.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-              <div className="flex justify-between mb-4"><h3 className="font-semibold text-gray-900 dark:text-white">{p.title}</h3><span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span></div>
-              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-4"><div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${p.occupancyRate}%` }} /></div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Rooms: {p.occupiedRooms}/{p.totalRooms}</span>
-                {!isCaretaker && <span>Rev: ₱{p.actualRevenue?.toLocaleString()}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

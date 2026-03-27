@@ -2,10 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\Amenity;
 use App\Models\Property;
+use App\Models\PropertyCredential;
+use App\Models\PropertyImage;
 use App\Models\LandlordVerification;
 use App\Models\Room;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -13,11 +17,37 @@ class TestLandlordPropertyRoomSeeder extends Seeder
 {
     private const LANDLORD_COUNT = 5;
 
+    private const LANDLORD_PROFILES = [
+        ['first_name' => 'Mateo', 'middle_name' => 'Santos', 'last_name' => 'Reyes', 'gender' => 'male', 'identified_as' => 'He/Him'],
+        ['first_name' => 'Liza', 'middle_name' => 'Cruz', 'last_name' => 'Dela Vega', 'gender' => 'female', 'identified_as' => 'She/Her'],
+        ['first_name' => 'Paolo', 'middle_name' => 'Diaz', 'last_name' => 'Torres', 'gender' => 'male', 'identified_as' => 'He/Him'],
+        ['first_name' => 'Andrea', 'middle_name' => 'Lopez', 'last_name' => 'Garcia', 'gender' => 'female', 'identified_as' => 'She/Her'],
+        ['first_name' => 'Jordan', 'middle_name' => 'Ramos', 'last_name' => 'Navarro', 'gender' => 'female', 'identified_as' => 'They/Them'],
+    ];
+
     private const PROPERTY_TYPES = [
         'dormitory',
         'apartment',
         'boardingHouse',
         'bedSpacer',
+    ];
+
+    private const AMENITY_CATALOG = [
+        ['name' => 'WiFi', 'icon' => 'wifi', 'description' => 'High speed internet access'],
+        ['name' => 'CCTV', 'icon' => 'shield', 'description' => '24/7 security camera coverage'],
+        ['name' => 'Laundry Area', 'icon' => 'shirt', 'description' => 'Common laundry facility'],
+        ['name' => 'Kitchen Access', 'icon' => 'utensils', 'description' => 'Shared kitchen usage'],
+        ['name' => 'Study Area', 'icon' => 'book-open', 'description' => 'Quiet study and work space'],
+        ['name' => 'Parking', 'icon' => 'car', 'description' => 'Dedicated vehicle parking spaces'],
+        ['name' => 'Water Supply', 'icon' => 'droplet', 'description' => 'Stable daily water supply'],
+        ['name' => 'Power Backup', 'icon' => 'battery', 'description' => 'Backup power for common areas'],
+    ];
+
+    private const PROPERTY_AMENITIES = [
+        'dormitory' => ['WiFi', 'CCTV', 'Laundry Area', 'Kitchen Access', 'Study Area', 'Water Supply'],
+        'apartment' => ['WiFi', 'CCTV', 'Parking', 'Power Backup', 'Water Supply'],
+        'boardingHouse' => ['WiFi', 'CCTV', 'Laundry Area', 'Kitchen Access', 'Water Supply'],
+        'bedSpacer' => ['WiFi', 'CCTV', 'Laundry Area', 'Kitchen Access', 'Water Supply'],
     ];
 
     /**
@@ -28,14 +58,21 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $landlordStats = ['created' => 0, 'updated' => 0];
         $propertyStats = ['created' => 0, 'updated' => 0];
         $roomStats = ['created' => 0, 'updated' => 0];
+        $imageStats = ['created' => 0, 'updated' => 0];
+        $credentialStats = ['created' => 0, 'updated' => 0];
+        $amenityStats = ['created' => 0, 'updated' => 0, 'detached' => 0];
+
+        $amenityIdsByName = $this->seedAmenityCatalog();
+        $adminReviewerId = User::query()->where('role', 'admin')->value('id');
 
         for ($landlordNumber = 1; $landlordNumber <= self::LANDLORD_COUNT; $landlordNumber++) {
             $landlord = $this->upsertLandlord($landlordNumber, $landlordStats);
-            $this->upsertLandlordVerification($landlord);
+            $this->upsertLandlordVerification($landlord, $adminReviewerId);
 
             foreach (self::PROPERTY_TYPES as $propertyType) {
                 $property = $this->upsertProperty($landlord, $landlordNumber, $propertyType, $propertyStats);
                 $this->upsertRoomsForProperty($property, $propertyType, $roomStats);
+                $this->upsertPropertyAssets($property, $landlordNumber, $propertyType, $amenityIdsByName, $imageStats, $credentialStats, $amenityStats);
             }
         }
 
@@ -43,9 +80,12 @@ class TestLandlordPropertyRoomSeeder extends Seeder
         $this->command?->line("Landlords - created: {$landlordStats['created']}, updated: {$landlordStats['updated']}");
         $this->command?->line("Properties - created: {$propertyStats['created']}, updated: {$propertyStats['updated']}");
         $this->command?->line("Rooms - created: {$roomStats['created']}, updated: {$roomStats['updated']}");
+        $this->command?->line("Property images - created: {$imageStats['created']}, updated: {$imageStats['updated']}");
+        $this->command?->line("Property credentials - created: {$credentialStats['created']}, updated: {$credentialStats['updated']}");
+        $this->command?->line("Property amenity links - created: {$amenityStats['created']}, updated: {$amenityStats['updated']}, detached: {$amenityStats['detached']}");
     }
 
-    private function upsertLandlordVerification(User $landlord): void
+    private function upsertLandlordVerification(User $landlord, ?int $adminReviewerId): void
     {
         LandlordVerification::updateOrCreate(
             ['user_id' => $landlord->id],
@@ -53,33 +93,51 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 'first_name' => $landlord->first_name,
                 'middle_name' => $landlord->middle_name,
                 'last_name' => $landlord->last_name,
-                'valid_id_type' => 'passport',
+                'valid_id_type' => "Driver's License",
                 'valid_id_other' => null,
-                'valid_id_path' => 'test/ids/'.$landlord->id.'.jpg',
-                'permit_path' => 'test/permits/'.$landlord->id.'.jpg',
+                'valid_id_path' => 'test/ids/landlord-'.$landlord->id.'.jpg',
+                'permit_path' => 'test/permits/business-permit-'.$landlord->id.'.jpg',
                 'status' => 'approved',
                 'rejection_reason' => null,
-                'reviewed_at' => now(),
-                'reviewed_by' => null,
+                'reviewed_at' => now()->subDays(2),
+                'reviewed_by' => $adminReviewerId,
             ]
         );
     }
 
     private function upsertLandlord(int $landlordNumber, array &$stats): User
     {
+        $profile = self::LANDLORD_PROFILES[$landlordNumber - 1] ?? end(self::LANDLORD_PROFILES);
         $name = "test{$landlordNumber}";
+        $dateOfBirth = Carbon::now()->subYears(25 + $landlordNumber)->subMonths($landlordNumber)->toDateString();
+
         $landlord = User::updateOrCreate(
             ['email' => "{$name}@example.com"],
             [
                 'role' => 'landlord',
                 'password' => Hash::make('Password123'),
-                'first_name' => $name,
-                'middle_name' => null,
-                'last_name' => $name,
+                'first_name' => $profile['first_name'],
+                'middle_name' => $profile['middle_name'],
+                'last_name' => $profile['last_name'],
+                'gender' => $profile['gender'],
+                'identified_as' => $profile['identified_as'],
                 'phone' => '09'.str_pad((string) $landlordNumber, 9, '0', STR_PAD_LEFT),
+                'date_of_birth' => $dateOfBirth,
                 'profile_image' => null,
                 'is_active' => true,
                 'is_verified' => true,
+                'payment_methods_settings' => [
+                    'allowed' => ['cash', 'online'],
+                    'details' => [
+                        'cash' => ['enabled' => true],
+                        'online' => ['enabled' => true, 'provider' => 'gcash'],
+                    ],
+                ],
+                'notification_preferences' => [
+                    'bookings' => true,
+                    'payments' => true,
+                    'maintenance' => true,
+                ],
             ]
         );
 
@@ -96,6 +154,9 @@ class TestLandlordPropertyRoomSeeder extends Seeder
     {
         $propertyTitle = "test{$landlordNumber}-{$propertyType}";
         $roomCount = $propertyType === 'apartment' ? 8 : 6;
+        $typeProfile = $this->buildPropertyProfile($propertyType);
+        $latitude = round(6.900100 + ($landlordNumber * 0.010000) + $typeProfile['lat_offset'], 7);
+        $longitude = round(122.073100 + ($landlordNumber * 0.010000) + $typeProfile['lng_offset'], 7);
 
         $property = Property::updateOrCreate(
             [
@@ -103,7 +164,7 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 'title' => $propertyTitle,
             ],
             [
-                'description' => "{$propertyTitle} property",
+                'description' => ucfirst($propertyType).' property managed by '.$landlord->first_name.' '.$landlord->last_name.'.',
                 'property_type' => $propertyType,
                 'gender_restriction' => 'mixed',
                 'current_status' => Property::STATUS_ACTIVE,
@@ -113,10 +174,29 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 'postal_code' => '7000',
                 'country' => 'Philippines',
                 'barangay' => 'Test Barangay',
-                'max_occupants' => 8,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'nearby_landmarks' => 'Near barangay hall and public transport terminal',
+                'property_rules' => [
+                    'Observe cleanliness in common areas',
+                    'Keep noise levels low after 10:00 PM',
+                    'Visitors are allowed only during visiting hours',
+                ],
+                'curfew_time' => $typeProfile['curfew_time'],
+                'curfew_policy' => $typeProfile['curfew_policy'],
+                'max_occupants' => $typeProfile['max_occupants'],
+                'number_of_bedrooms' => $typeProfile['number_of_bedrooms'],
+                'number_of_bathrooms' => $typeProfile['number_of_bathrooms'],
+                'floor_area' => $typeProfile['floor_area'],
+                'floor_level' => $typeProfile['floor_level'],
+                'total_floors' => $typeProfile['total_floors'],
                 'total_rooms' => $roomCount,
                 'available_rooms' => $roomCount,
-                'accepted_payments' => ['cash', 'gcash'],
+                'accepted_payments' => ['cash', 'online'],
+                'require_1month_advance' => $typeProfile['require_1month_advance'],
+                'allow_partial_payments' => $typeProfile['allow_partial_payments'],
+                'require_reservation_fee' => $typeProfile['require_reservation_fee'],
+                'reservation_fee_amount' => $typeProfile['reservation_fee_amount'],
                 'is_published' => true,
                 'is_available' => true,
                 'is_eligible' => true,
@@ -163,6 +243,220 @@ class TestLandlordPropertyRoomSeeder extends Seeder
                 $stats['updated']++;
             }
         }
+
+        $property->refresh();
+        $property->updateTotalRooms();
+        $property->updateAvailableRooms();
+    }
+
+    private function upsertPropertyAssets(
+        Property $property,
+        int $landlordNumber,
+        string $propertyType,
+        array $amenityIdsByName,
+        array &$imageStats,
+        array &$credentialStats,
+        array &$amenityStats
+    ): void {
+        $this->upsertPropertyImages($property, $landlordNumber, $propertyType, $imageStats);
+        $this->upsertPropertyCredentials($property, $propertyType, $credentialStats);
+        $this->syncPropertyAmenities($property, $propertyType, $amenityIdsByName, $amenityStats);
+    }
+
+    private function upsertPropertyImages(Property $property, int $landlordNumber, string $propertyType, array &$stats): void
+    {
+        $imageTemplates = [
+            ['key' => 'front', 'is_primary' => true],
+            ['key' => 'lobby', 'is_primary' => false],
+            ['key' => 'hallway', 'is_primary' => false],
+        ];
+
+        foreach ($imageTemplates as $displayOrder => $template) {
+            $image = PropertyImage::updateOrCreate(
+                [
+                    'property_id' => $property->id,
+                    'display_order' => $displayOrder,
+                ],
+                [
+                    'image_url' => 'test/property-images/'.$propertyType.'/landlord-'.$landlordNumber.'-'.$template['key'].'.jpg',
+                    'media_type' => 'image',
+                    'is_primary' => $template['is_primary'],
+                ]
+            );
+
+            if ($image->wasRecentlyCreated) {
+                $stats['created']++;
+            } else {
+                $stats['updated']++;
+            }
+        }
+    }
+
+    private function upsertPropertyCredentials(Property $property, string $propertyType, array &$stats): void
+    {
+        foreach ($this->buildPropertyCredentialTemplates($propertyType) as $credentialTemplate) {
+            $credential = PropertyCredential::updateOrCreate(
+                [
+                    'property_id' => $property->id,
+                    'original_name' => $credentialTemplate['original_name'],
+                ],
+                [
+                    'file_path' => 'test/property-credentials/'.$property->id.'/'.$credentialTemplate['file_name'],
+                    'mime' => $credentialTemplate['mime'],
+                ]
+            );
+
+            if ($credential->wasRecentlyCreated) {
+                $stats['created']++;
+            } else {
+                $stats['updated']++;
+            }
+        }
+    }
+
+    private function syncPropertyAmenities(Property $property, string $propertyType, array $amenityIdsByName, array &$stats): void
+    {
+        $amenityNames = self::PROPERTY_AMENITIES[$propertyType] ?? [];
+        $amenityIds = array_values(array_filter(array_map(
+            fn (string $amenityName) => $amenityIdsByName[$amenityName] ?? null,
+            $amenityNames
+        )));
+
+        $changes = $property->amenities()->sync($amenityIds);
+        $stats['created'] += count($changes['attached'] ?? []);
+        $stats['updated'] += count($changes['updated'] ?? []);
+        $stats['detached'] += count($changes['detached'] ?? []);
+    }
+
+    private function seedAmenityCatalog(): array
+    {
+        $idsByName = [];
+
+        foreach (self::AMENITY_CATALOG as $amenityTemplate) {
+            $amenity = Amenity::updateOrCreate(
+                ['name' => $amenityTemplate['name']],
+                [
+                    'icon' => $amenityTemplate['icon'],
+                    'description' => $amenityTemplate['description'],
+                ]
+            );
+
+            $idsByName[$amenity->name] = $amenity->id;
+        }
+
+        return $idsByName;
+    }
+
+    private function buildPropertyProfile(string $propertyType): array
+    {
+        return match ($propertyType) {
+            'apartment' => [
+                'max_occupants' => 8,
+                'number_of_bedrooms' => 2,
+                'number_of_bathrooms' => 1,
+                'floor_area' => 38.50,
+                'floor_level' => '2nd Floor',
+                'total_floors' => 3,
+                'curfew_time' => null,
+                'curfew_policy' => 'No curfew for apartment tenants.',
+                'require_1month_advance' => true,
+                'allow_partial_payments' => false,
+                'require_reservation_fee' => false,
+                'reservation_fee_amount' => 0,
+                'lat_offset' => 0.0002,
+                'lng_offset' => 0.0002,
+            ],
+            'dormitory' => [
+                'max_occupants' => 10,
+                'number_of_bedrooms' => 4,
+                'number_of_bathrooms' => 2,
+                'floor_area' => 85.00,
+                'floor_level' => 'Ground to 2nd Floor',
+                'total_floors' => 2,
+                'curfew_time' => '22:00',
+                'curfew_policy' => 'Gate closes at 10:00 PM. Late entry requires prior notice.',
+                'require_1month_advance' => true,
+                'allow_partial_payments' => true,
+                'require_reservation_fee' => false,
+                'reservation_fee_amount' => 0,
+                'lat_offset' => 0.0001,
+                'lng_offset' => 0.0001,
+            ],
+            'boardingHouse' => [
+                'max_occupants' => 8,
+                'number_of_bedrooms' => 6,
+                'number_of_bathrooms' => 3,
+                'floor_area' => 72.00,
+                'floor_level' => 'Ground to 2nd Floor',
+                'total_floors' => 2,
+                'curfew_time' => '22:00',
+                'curfew_policy' => 'Tenants are expected to be back before 10:00 PM for safety checks.',
+                'require_1month_advance' => true,
+                'allow_partial_payments' => true,
+                'require_reservation_fee' => false,
+                'reservation_fee_amount' => 0,
+                'lat_offset' => 0.0003,
+                'lng_offset' => 0.0003,
+            ],
+            'bedSpacer' => [
+                'max_occupants' => 6,
+                'number_of_bedrooms' => 3,
+                'number_of_bathrooms' => 2,
+                'floor_area' => 56.00,
+                'floor_level' => '1st Floor',
+                'total_floors' => 1,
+                'curfew_time' => '22:00',
+                'curfew_policy' => 'Guests and tenants should observe quiet hours after 10:00 PM.',
+                'require_1month_advance' => false,
+                'allow_partial_payments' => true,
+                'require_reservation_fee' => false,
+                'reservation_fee_amount' => 0,
+                'lat_offset' => 0.0004,
+                'lng_offset' => 0.0004,
+            ],
+            default => [
+                'max_occupants' => 6,
+                'number_of_bedrooms' => 2,
+                'number_of_bathrooms' => 1,
+                'floor_area' => 40.00,
+                'floor_level' => '1st Floor',
+                'total_floors' => 1,
+                'curfew_time' => null,
+                'curfew_policy' => null,
+                'require_1month_advance' => false,
+                'allow_partial_payments' => true,
+                'require_reservation_fee' => false,
+                'reservation_fee_amount' => 0,
+                'lat_offset' => 0.0000,
+                'lng_offset' => 0.0000,
+            ],
+        };
+    }
+
+    private function buildPropertyCredentialTemplates(string $propertyType): array
+    {
+        $base = [
+            [
+                'original_name' => 'Business Permit.pdf',
+                'file_name' => 'business_permit.pdf',
+                'mime' => 'application/pdf',
+            ],
+            [
+                'original_name' => 'Proof of Ownership.pdf',
+                'file_name' => 'proof_of_ownership.pdf',
+                'mime' => 'application/pdf',
+            ],
+        ];
+
+        if ($propertyType === 'apartment' || $propertyType === 'dormitory') {
+            $base[] = [
+                'original_name' => 'Fire Safety Certificate.pdf',
+                'file_name' => 'fire_safety_certificate.pdf',
+                'mime' => 'application/pdf',
+            ];
+        }
+
+        return $base;
     }
 
     private function buildRoomTemplates(string $propertyType): array

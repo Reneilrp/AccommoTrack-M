@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { maintenanceService } from '../../services/maintenanceService';
 import { tenantService } from '../../services/tenantService';
@@ -25,6 +25,7 @@ export default function TenantMaintenance() {
   const [loading, setLoading] = useState(true);
   const [stayData, setStayData] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const autoOpenedRef = useRef(false); // prevent re-opening modal after submit refresh
   const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -64,8 +65,11 @@ export default function TenantMaintenance() {
 
         setFormData(prev => ({ ...prev, booking_id: initialBookingId }));
         
-        // Auto-open modal if coming from property context
-        if (preselectedPropertyId) setShowModal(true);
+        // Auto-open modal only once on initial load (not on post-submit refresh)
+        if (preselectedPropertyId && !autoOpenedRef.current) {
+          autoOpenedRef.current = true;
+          setShowModal(true);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch maintenance data', err);

@@ -9,13 +9,18 @@ import {
   TrendingUp,
   CheckCircle,
   AlertCircle,
-  RotateCcw
+  RotateCcw,
+  ArrowUpRight,
+  Zap,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import {
   BarChart,
   Bar,
   LineChart,
   Line,
+  PieChart,
+  Pie,
   Cell,
   XAxis,
   YAxis,
@@ -44,11 +49,11 @@ export default function Analytics() {
   const [loading, setLoading] = useState(!cachedData);
   const [propertiesLoading, setPropertiesLoading] = useState(!accessibleProperties && !cachedData?.properties);
   const [error, setError] = useState(null);
+  const [didAutoResetProperty, setDidAutoResetProperty] = useState(false);
 
   useEffect(() => {
-    if (!accessibleProperties || accessibleProperties.length === 0) {
-      loadProperties();
-    }
+    // Always refresh property access on analytics entry to avoid stale cached IDs.
+    loadProperties();
   }, []);
 
   const loadProperties = async () => {
@@ -71,10 +76,12 @@ export default function Analytics() {
       if (!cachedData || isManualRefresh) setLoading(true);
       setError(null);
 
+      const hasSelectedProperty = selectedProperty !== 'all' && properties?.some(p => String(p.id) === String(selectedProperty));
+
       const params = new URLSearchParams({
         time_range: timeRange,
         _t: Date.now().toString(), // Force fresh data from server
-        ...(selectedProperty !== 'all' && { property_id: selectedProperty })
+        ...(hasSelectedProperty && { property_id: selectedProperty })
       });
 
       const response = await api.get(`/landlord/analytics/dashboard?${params}`);
@@ -86,8 +93,16 @@ export default function Analytics() {
     } catch (err) {
       console.error('Analytics error:', err);
       setAnalytics(null);
+
+      // If a stale/invalid property filter is selected, reset once to "all" and retry via effect.
+      if (err?.response?.status === 403 && selectedProperty !== 'all' && !didAutoResetProperty) {
+        setDidAutoResetProperty(true);
+        setSelectedProperty('all');
+      }
+
       if (properties?.length > 0) {
-        setError('Failed to load analytics data');
+        const serverMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+        setError(serverMessage || 'Failed to load analytics data');
       }
     } finally {
       setLoading(false);
@@ -101,6 +116,12 @@ export default function Analytics() {
   useEffect(() => {
     loadAnalytics();
   }, [timeRange, selectedProperty]);
+
+  useEffect(() => {
+    if (selectedProperty === 'all') {
+      setDidAutoResetProperty(false);
+    }
+  }, [selectedProperty]);
 
   // Download analytics as CSV
   const downloadAnalyticsCSV = async () => {
@@ -117,9 +138,10 @@ export default function Analytics() {
 
     // Prefer server-side export when backend route exists.
     try {
+      const hasSelectedProperty = selectedProperty !== 'all' && properties?.some(p => String(p.id) === String(selectedProperty));
       const params = {
         time_range: timeRange,
-        ...(selectedProperty !== 'all' ? { property_id: selectedProperty } : {})
+        ...(hasSelectedProperty ? { property_id: selectedProperty } : {})
       };
       const response = await api.get('/landlord/analytics/export-csv', {
         params,
@@ -153,7 +175,8 @@ export default function Analytics() {
       ['Metric', 'Value', 'Status'],
       ['Total Revenue', formatCurrency(analytics.overview.total_revenue), 'Cumulative'],
       ['Monthly Revenue', formatCurrency(analytics.overview.monthly_revenue), 'Current Month'],
-      ['Revenue Collection Rate', formatPercent(analytics.revenue.collection_rate), 'Target: 100%'],
+      ['Monthly Growth', `${analytics.overview.revenue_growth_rate}%`, 'Month-over-Month'],
+      ['Income Per Room', formatCurrency(analytics.overview.revpar), 'Business Health'],
       ['Occupancy Rate', formatPercent(analytics.overview.occupancy_rate), analytics.overview.occupancy_rate > 80 ? 'High' : 'Moderate'],
       [''],
       ['=== INVENTORY & TENANTS ==='],
@@ -189,12 +212,13 @@ export default function Analytics() {
       })(),
       [''],
       ['=== PROPERTY PERFORMANCE BREAKDOWN ==='],
-      ['Property Name', 'Occupancy Rate', 'Rooms (Occ/Total)', 'Monthly Revenue', 'Efficiency Status'],
+      ['Property Name', 'Occupancy Rate', 'Rooms (Occ/Total)', 'Monthly Revenue', 'Income / Room', 'Status'],
       ...analytics.properties.map(p => [
         p.name, 
         formatPercent(p.occupancy_rate), 
-        `${p.occupied_rooms}/${p.total_rooms}`,
+        `${p.occupied_slots}/${p.total_slots}`,
         formatCurrency(p.monthly_revenue || 0),
+        formatCurrency(p.revpar || 0),
         p.occupancy_rate >= 90 ? 'Optimal' : (p.occupancy_rate >= 50 ? 'Stable' : 'Needs Attention')
       ]),
       [''],
@@ -221,7 +245,7 @@ export default function Analytics() {
   const COLORS = { primary: '#10b981', secondary: '#3b82f6', warning: '#f59e0b', danger: '#ef4444' };
   const paymentCounts = analytics?.payments || null;
   const totalPaymentCount = paymentCounts ? (Number(paymentCounts.paid || 0) + Number(paymentCounts.unpaid || 0) + Number(paymentCounts.partial || 0) + Number(paymentCounts.overdue || 0)) : 0;
-  const ghostPaymentData = [ { name: 'Paid', value: 20, fill: '#d1d5db' }, { name: 'Pending', value: 10, fill: '#e5e7eb' }, { name: 'Partial', value: 5, fill: '#c7d2fe' }, { name: 'Overdue', value: 2, fill: '#fca5a5' } ];
+  const ghostPaymentData = [ { name: 'Paid', value: 0, fill: '#d1d5db' }, { name: 'Pending', value: 0, fill: '#e5e7eb' }, { name: 'Partial', value: 0, fill: '#c7d2fe' }, { name: 'Overdue', value: 0, fill: '#fca5a5' } ];
   const realPaymentData = [ { name: 'Paid', value: Number(paymentCounts?.paid || 0), fill: COLORS.primary }, { name: 'Pending', value: Number(paymentCounts?.unpaid || 0), fill: COLORS.warning }, { name: 'Partial', value: Number(paymentCounts?.partial || 0), fill: COLORS.secondary }, { name: 'Overdue', value: Number(paymentCounts?.overdue || 0), fill: COLORS.danger } ];
   const paymentChartData = totalPaymentCount === 0 ? ghostPaymentData : realPaymentData;
   const computedPaymentRate = analytics ? (() => {
@@ -230,9 +254,8 @@ export default function Analytics() {
     return total > 0 ? Math.round((paid / total) * 100) : (Number(analytics.payments.payment_rate) || 0);
   })() : 0;
 
-  const MetricCard = ({ Icon, iconBgClass, iconColorClass, accentClass = 'bg-gray-400 dark:bg-gray-600', title, meta, value, valueClass = 'text-gray-900 dark:text-white' }) => (
+  const MetricCard = ({ Icon, iconBgClass, iconColorClass, title, meta, value, valueClass = 'text-gray-900 dark:text-white' }) => (
     <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
-      <div className={`absolute top-0 left-0 right-0 h-1 ${accentClass}`} />
       <div className="grid grid-cols-[auto,1fr] items-center gap-3 mb-4">
         <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center ${iconBgClass}`}>
           <Icon className={`w-5 h-5 md:w-6 md:h-6 ${iconColorClass}`} />
@@ -339,138 +362,170 @@ export default function Analytics() {
         ) : (properties && properties.length > 0) ? (
           analytics ? (
             <>
-              {/* Key Metrics - Business Overview & Inventory */}
+              {/* Strategic Metrics Overview */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-                {/* Row 1: Financials */}
                 <MetricCard
                   Icon={LucidePhilippinePeso}
                   iconBgClass="bg-green-100"
                   iconColorClass="text-green-600"
-                  accentClass="bg-green-500"
                   title="Total Revenue"
                   meta="Cumulative"
-                  value={`₱${analytics.overview.total_revenue.toLocaleString()}`}
+                  value={`₱${(analytics.overview?.total_revenue || 0).toLocaleString()}`}
                 />
 
                 <MetricCard
                   Icon={TrendingUp}
                   iconBgClass="bg-emerald-100"
                   iconColorClass="text-emerald-600"
-                  accentClass="bg-emerald-500"
                   title="Monthly Revenue"
-                  meta="Month"
-                  value={`₱${analytics.overview.monthly_revenue.toLocaleString()}`}
+                  meta="Actual Paid"
+                  value={`₱${(analytics.overview?.monthly_revenue || 0).toLocaleString()}`}
                 />
 
                 <MetricCard
-                  Icon={CheckCircle}
+                  Icon={ArrowUpRight}
                   iconBgClass="bg-blue-100"
                   iconColorClass="text-blue-600"
-                  accentClass="bg-blue-500"
-                  title="Collection Rate"
-                  meta="Target: 100%"
-                  value={`${analytics.revenue.collection_rate}%`}
-                  valueClass={analytics.revenue.collection_rate >= 90 ? 'text-green-600' : 'text-yellow-600'}
+                  title="Monthly Growth"
+                  meta="Vs Prev Month"
+                  value={`${analytics.overview?.revenue_growth_rate || 0}%`}
+                  valueClass={(analytics.overview?.revenue_growth_rate || 0) >= 0 ? 'text-green-600' : 'text-red-600'}
                 />
 
                 <MetricCard
-                  Icon={LucidePhilippinePeso}
-                  iconBgClass="bg-indigo-100"
-                  iconColorClass="text-indigo-600"
-                  accentClass="bg-indigo-500"
-                  title="Payment Rate"
-                  meta="Overall"
-                  value={`${computedPaymentRate}%`}
-                  valueClass={computedPaymentRate >= 90 ? 'text-green-600' : 'text-orange-600'}
-                />
-
-                {/* Row 2: Operations */}
-                <MetricCard
-                  Icon={Home}
-                  iconBgClass="bg-blue-100"
-                  iconColorClass="text-blue-600"
-                  accentClass="bg-blue-500"
-                  title="Occupancy Rate"
-                  meta="Occupancy"
-                  value={`${analytics.overview.occupancy_rate}%`}
-                  valueClass={analytics.overview.occupancy_rate >= 80 ? 'text-green-600' : 'text-blue-600'}
-                />
-
-                <MetricCard
-                  Icon={Building2}
-                  iconBgClass="bg-purple-100"
-                  iconColorClass="text-purple-600"
-                  accentClass="bg-purple-500"
-                  title="Total Rooms"
-                  meta="Inventory"
-                  value={analytics.overview.total_rooms}
-                />
-
-                <MetricCard
-                  Icon={Users}
-                  iconBgClass="bg-pink-100"
-                  iconColorClass="text-pink-600"
-                  accentClass="bg-pink-500"
-                  title="Active Tenants"
-                  meta="Active"
-                  value={analytics.overview.active_tenants}
-                />
-
-                <MetricCard
-                  Icon={Calendar}
+                  Icon={Zap}
                   iconBgClass="bg-yellow-100"
                   iconColorClass="text-yellow-600"
-                  accentClass="bg-yellow-500"
-                  title="Tenant Retention"
-                  meta="Stay"
-                  value={`${analytics.tenants.average_stay_months} mo`}
+                  title="Income per Room"
+                  meta="Monthly Average"
+                  value={`₱${(analytics.overview?.revpar || 0).toLocaleString()}`}
+                  valueClass="text-yellow-600"
                 />
               </div>
 
-              {/* Revenue Trend */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 mb-8">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Revenue Trend</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analytics.revenue.monthly_trend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
-                    <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
-                    <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff', 
-                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb', 
-                        borderRadius: '8px',
-                        color: effectiveTheme === 'dark' ? '#fff' : '#000'
-                      }} 
-                      itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000' }}
-                      formatter={(value) => ['₱' + Number(value).toLocaleString(), 'Revenue']} 
-                    />
-                    <Line type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+              {/* Occupancy and Trend */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <div className="lg:col-span-2 min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Revenue Trend</h2>
+                  <ResponsiveContainer width="100%" height={300} minWidth={0}>
+                    <LineChart data={analytics.revenue.monthly_trend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                      <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                      <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff', 
+                          border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb', 
+                          borderRadius: '8px',
+                          color: effectiveTheme === 'dark' ? '#fff' : '#000'
+                        }} 
+                        itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000' }}
+                        formatter={(value) => ['₱' + Number(value || 0).toLocaleString(), 'Revenue']} 
+                      />
+                      <Line type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 4 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Income Breakdown</h2>
+                    <PieChartIcon className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                    <PieChart>
+                      <Pie
+                        data={analytics.revenue?.income_breakdown || []}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        <Cell fill={COLORS.primary} />
+                        <Cell fill={COLORS.secondary} />
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value) => '₱' + (Number(value) || 0).toLocaleString()}
+                        contentStyle={{ borderRadius: '8px' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
-              {/* Payment Status */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 mb-8">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Payment Status</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={paymentChartData} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : (totalPaymentCount === 0 ? '#f3f4f6' : '#f0f0f0')} />
-                    <XAxis type="number" stroke={effectiveTheme === 'dark' ? '#9ca3af' : (totalPaymentCount === 0 ? '#d1d5db' : '#6b7280')} style={{ fontSize: '12px' }} />
-                    <YAxis type="category" dataKey="name" stroke={effectiveTheme === 'dark' ? '#9ca3af' : (totalPaymentCount === 0 ? '#d1d5db' : '#6b7280')} style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff', 
-                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb', 
-                        borderRadius: '8px',
-                        color: effectiveTheme === 'dark' ? '#fff' : '#000'
-                      }} 
-                    />
-                    <Bar dataKey="value" radius={[0, 8, 8, 0]} opacity={totalPaymentCount === 0 ? 0.4 : 1}>
-                      {paymentChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              {/* Efficiency & Payments */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div className="min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">
+                    {selectedProperty === 'all' ? 'Income per Room' : 'Room Performance'}
+                  </h2>
+                  <div className={`${selectedProperty !== 'all' ? 'overflow-auto max-h-[500px] pr-2 custom-scrollbar' : ''}`}>
+                    <div style={{ 
+                      height: selectedProperty === 'all' 
+                        ? '250px' 
+                        : `${Math.max(250, (analytics.room_performance?.length || 0) * 45)}px` 
+                    }}>
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        {selectedProperty === 'all' ? (
+                          <BarChart data={analytics.properties || []} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                            <XAxis dataKey="name" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '10px' }} />
+                            <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '10px' }} />
+                            <Tooltip 
+                              formatter={(value) => '₱' + (Number(value) || 0).toLocaleString()}
+                              contentStyle={{ borderRadius: '8px' }}
+                            />
+                            <Bar dataKey="revpar" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        ) : (
+                          <BarChart 
+                            data={analytics.room_performance || []} 
+                            layout="vertical" 
+                            margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                            <XAxis 
+                              type="number" 
+                              stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} 
+                              style={{ fontSize: '10px' }} 
+                              tickFormatter={(value) => '₱' + value.toLocaleString()}
+                            />
+                            <YAxis 
+                              dataKey="name" 
+                              type="category" 
+                              stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} 
+                              style={{ fontSize: '10px' }} 
+                              width={70}
+                            />
+                            <Tooltip 
+                              formatter={(value) => ['₱' + (Number(value) || 0).toLocaleString(), 'Income/Room']}
+                              contentStyle={{ borderRadius: '8px' }}
+                            />
+                            <Bar dataKey="revpar" fill={COLORS.primary} radius={[0, 4, 4, 0]} barSize={20} />
+                          </BarChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Invoicing Health</h2>
+                  <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                    <BarChart data={paymentChartData} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                      <XAxis type="number" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                      <YAxis type="category" dataKey="name" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                      <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                      <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                        {paymentChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               {/* Property Performance Breakdown */}
@@ -486,7 +541,8 @@ export default function Analytics() {
                         <th className="px-6 py-4 font-semibold">Occupancy Rate</th>
                         <th className="px-6 py-4 font-semibold">Rooms (Occ/Total)</th>
                         <th className="px-6 py-4 font-semibold">Monthly Revenue</th>
-                        <th className="px-6 py-4 font-semibold">Efficiency Status</th>
+                        <th className="px-6 py-4 font-semibold">Income / Room</th>
+                        <th className="px-6 py-4 font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -504,8 +560,9 @@ export default function Analytics() {
                               <span className="text-gray-600 dark:text-gray-300">{p.occupancy_rate}%</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{p.occupied_rooms} / {p.total_rooms}</td>
+                          <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{p.occupied_slots} / {p.total_slots}</td>
                           <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(p.monthly_revenue || 0).toLocaleString()}</td>
+                          <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{(p.revpar || 0).toLocaleString()}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${
                               p.occupancy_rate >= 90 ? 'bg-green-100 text-green-700' : 

@@ -288,7 +288,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           {loading ? [...Array(4)].map((_, i) => <SkeletonStatCard key={i} />) : (
             <>
               <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gray-400 dark:bg-gray-600" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Total Bookings</p>
@@ -300,7 +299,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 </div>
               </div>
               <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Confirmed</p>
@@ -312,7 +310,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 </div>
               </div>
               <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Pending</p>
@@ -324,7 +321,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                 </div>
               </div>
               <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Completed</p>
