@@ -51,20 +51,30 @@ class AuthController extends Controller
             && $request->hasSession();
     }
 
+    protected function shouldEnforceStrictWebCookieMode(): bool
+    {
+        return filter_var(env('AUTH_WEB_COOKIE_STRICT_MODE', false), FILTER_VALIDATE_BOOL);
+    }
+
     protected function buildAuthResponse(Request $request, User $user, string $message, array $extra = []): JsonResponse
     {
-        if ($this->webCookieModeRequested($request) && ! (bool) $request->attributes->get('sanctum')) {
-            return response()->json([
-                'message' => 'Secure web login is not available for this origin. Check SANCTUM_STATEFUL_DOMAINS and frontend URL.',
-                'auth_mode' => 'cookie_unavailable',
-            ], 409);
-        }
+        $cookieRequested = $this->webCookieModeRequested($request);
+        $hasSanctumStateful = (bool) $request->attributes->get('sanctum');
+        $hasSession = $request->hasSession();
 
-        if ($this->webCookieModeRequested($request) && ! $request->hasSession()) {
-            return response()->json([
-                'message' => 'Secure web login session is not initialized. Check stateful API middleware and session configuration.',
-                'auth_mode' => 'cookie_unavailable',
-            ], 409);
+        if ($cookieRequested && (! $hasSanctumStateful || ! $hasSession)) {
+            if ($this->shouldEnforceStrictWebCookieMode()) {
+                return response()->json([
+                    'message' => 'Secure web login is not available for this request. Check SANCTUM_STATEFUL_DOMAINS, frontend URL, and session middleware.',
+                    'auth_mode' => 'cookie_unavailable',
+                ], 409);
+            }
+
+            $extra = array_merge($extra, [
+                'auth_mode_detail' => ! $hasSanctumStateful
+                    ? 'cookie_requested_but_not_stateful'
+                    : 'cookie_requested_but_no_session',
+            ]);
         }
 
         if ($this->shouldUseWebCookieAuth($request)) {
