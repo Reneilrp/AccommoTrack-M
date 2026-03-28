@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import api from "./utils/api";
+import api, { SHOULD_USE_BEARER_AUTH } from "./utils/api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import WebNavigator from "./Navigation/WebNavigator.jsx";
 import LandingPage from "./screens/Guest/LandingPage.jsx";
@@ -18,28 +18,55 @@ function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
+    let isActive = true;
 
-    const userData = localStorage.getItem("userData");
-    if (userData && token) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (error) {
-        console.error("Error parsing user data:", error);
-        localStorage.removeItem("userData");
+    const bootstrapAuth = async () => {
+      const token = localStorage.getItem("authToken");
+      const userData = localStorage.getItem("userData");
+
+      if (!SHOULD_USE_BEARER_AUTH) {
+        localStorage.removeItem("authToken");
+        delete api.defaults.headers.common["Authorization"];
+      } else if (token) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
-    } else if (userData && !token) {
-      // Prevent stale UI auth state when token is missing/expired.
-      localStorage.removeItem("userData");
-      setUser(null);
-    }
 
-    // Restore Bearer token from localStorage so authenticated API requests
-    // work immediately on page reload.
-    if (token) {
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    }
-    setIsLoading(false);
+      if (userData) {
+        try {
+          if (isActive) setUser(JSON.parse(userData));
+        } catch (error) {
+          console.error("Error parsing cached user data:", error);
+          localStorage.removeItem("userData");
+        }
+      }
+
+      try {
+        const res = await api.get("/me", {
+          headers: { "X-Skip-Auth-Redirect": "1" },
+        });
+        const me = res?.data?.user || res?.data;
+        if (me && isActive) {
+          setUser(me);
+          localStorage.setItem("userData", JSON.stringify(me));
+        }
+      } catch (error) {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || status === 419) {
+          localStorage.removeItem("userData");
+          localStorage.removeItem("authToken");
+          delete api.defaults.headers.common["Authorization"];
+          if (isActive) setUser(null);
+        }
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    };
+
+    bootstrapAuth();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   // Listen for 401 events emitted by the axios interceptor and handle

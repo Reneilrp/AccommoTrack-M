@@ -1,7 +1,11 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
+import api from "./api";
 
 window.Pusher = Pusher;
+
+const SHOULD_USE_BEARER_AUTH =
+  !import.meta.env.PROD || import.meta.env.VITE_WEB_USE_BEARER_AUTH === "true";
 
 const createEcho = () => {
   const REVERB_KEY =
@@ -44,8 +48,18 @@ const createEcho = () => {
     authEndpoint,
   });
 
-  // Auth headers: always use Bearer token from localStorage (same approach as axios).
-  const token = localStorage.getItem("authToken");
+  // Bearer token is optional (non-production/dev). Cookie-auth mode relies on credentials.
+  const token = SHOULD_USE_BEARER_AUTH
+    ? localStorage.getItem("authToken")
+    : null;
+  const authHeaders = {
+    Accept: "application/json",
+    "X-Client-Platform": "web",
+  };
+
+  if (token) {
+    authHeaders.Authorization = `Bearer ${token}`;
+  }
 
   const echo = new Echo({
     broadcaster: "reverb",
@@ -55,11 +69,34 @@ const createEcho = () => {
     forceTLS: REVERB_SCHEME === "https",
     disableStats: true,
     authEndpoint: authEndpoint,
+    withCredentials: true,
     auth: {
-      headers: token
-        ? { Authorization: `Bearer ${token}`, Accept: "application/json" }
-        : { Accept: "application/json" },
+      headers: authHeaders,
     },
+    // Use axios authorizer so cookie mode sends XSRF/session and token mode keeps Bearer fallback.
+    authorizer: (channel) => ({
+      authorize: async (socketId, callback) => {
+        try {
+          const response = await api.post(
+            "/broadcasting/auth",
+            {
+              socket_id: socketId,
+              channel_name: channel.name,
+            },
+            {
+              headers: {
+                "X-Client-Platform": "web",
+                Accept: "application/json",
+              },
+            },
+          );
+
+          callback(false, response.data);
+        } catch (error) {
+          callback(true, error?.response?.data || error);
+        }
+      },
+    }),
   });
 
   try {

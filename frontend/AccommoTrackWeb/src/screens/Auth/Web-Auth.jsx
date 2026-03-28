@@ -19,7 +19,12 @@ import {
   X,
 } from "lucide-react";
 import Logo from "../../assets/Logo.png";
-import api, { isCancel, rootApi, initCsrfCookie } from "../../utils/api";
+import api, {
+  isCancel,
+  rootApi,
+  initCsrfCookie,
+  SHOULD_USE_BEARER_AUTH,
+} from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
 import toast, { Toaster } from "react-hot-toast";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -310,6 +315,12 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
     setLoading(true);
     setError("");
     try {
+      try {
+        await initCsrfCookie();
+      } catch {
+        // Token mode fallback (local/testing) does not require CSRF cookie.
+      }
+
       const response = await api.post("/verify-email-otp", {
         email: email,
         email_otp_code: otp,
@@ -327,6 +338,12 @@ const OtpVerificationScreen = ({ email, onVerified, onBack }) => {
     setLoading(true);
     setError("");
     try {
+      try {
+        await initCsrfCookie();
+      } catch {
+        // Token mode fallback (local/testing) does not require CSRF cookie.
+      }
+
       await api.post("/resend-email-otp", { email });
       toast.success("A new OTP has been sent to your email.");
       setResendCooldown(60); // 60-second cooldown
@@ -765,9 +782,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
       const data = result.data;
 
-      // Always store Bearer token in localStorage for persistence across page reloads.
-      // The backend always issues a token; we use it regardless of origin.
-      if (data && data.token) {
+      if (data && data.token && SHOULD_USE_BEARER_AUTH) {
         try {
           localStorage.setItem("authToken", data.token);
           localStorage.setItem("lastLoginAt", Date.now().toString());
@@ -775,6 +790,10 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         } catch (__e) {
           // ignore
         }
+      } else {
+        // Cookie-auth response mode intentionally omits token.
+        localStorage.removeItem("authToken");
+        delete api.defaults.headers.common["Authorization"];
       }
 
       // Check if account is pending or rejected verification (EVEN IF LOGIN SUCCEEDED)
@@ -949,6 +968,12 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
         role: "tenant",
       };
 
+      try {
+        await initCsrfCookie();
+      } catch {
+        // Token mode fallback (local/testing) does not require CSRF cookie.
+      }
+
       const result = await api.post("/register", registerPayload);
       
       // Store email for OTP screen
@@ -1034,9 +1059,14 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
 
   const handleOtpVerified = (data) => {
     const me = data.user;
-    localStorage.setItem("authToken", data.token);
+    if (data?.token && SHOULD_USE_BEARER_AUTH) {
+      localStorage.setItem("authToken", data.token);
+      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    } else {
+      localStorage.removeItem("authToken");
+      delete api.defaults.headers.common["Authorization"];
+    }
     localStorage.setItem("userData", JSON.stringify(me));
-    api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
     onLogin(me);
     const landingRoute = getDefaultLandingRoute(me);
     navigate(landingRoute);

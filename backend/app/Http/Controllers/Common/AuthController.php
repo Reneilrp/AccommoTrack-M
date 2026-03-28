@@ -9,6 +9,7 @@ use App\Mail\EmailOtpMail;
 use App\Models\User;
 use App\Services\AuthService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -23,6 +24,38 @@ class AuthController extends Controller
     public function __construct(AuthService $authService)
     {
         $this->authService = $authService;
+    }
+
+    protected function shouldUseWebCookieAuth(Request $request): bool
+    {
+        if (! app()->environment('production')) {
+            return false;
+        }
+
+        return strtolower((string) $request->header('X-Client-Platform', '')) === 'web';
+    }
+
+    protected function buildAuthResponse(Request $request, User $user, string $message, array $extra = []): JsonResponse
+    {
+        if ($this->shouldUseWebCookieAuth($request)) {
+            auth()->guard('web')->login($user);
+            $request->session()->regenerate();
+
+            return response()->json(array_merge([
+                'user' => $user,
+                'message' => $message,
+                'auth_mode' => 'cookie',
+            ], $extra));
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json(array_merge([
+            'user' => $user,
+            'token' => $token,
+            'message' => $message,
+            'auth_mode' => 'token',
+        ], $extra));
     }
 
     // Live email uniqueness check for registration
@@ -128,13 +161,7 @@ class AuthController extends Controller
             'email_otp_expires_at' => null,
         ])->save();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-            'message' => 'Email verified successfully. You are now logged in.',
-        ]);
+        return $this->buildAuthResponse($request, $user, 'Email verified successfully. You are now logged in.');
     }
 
     public function resendEmailOtp(Request $request)
@@ -168,13 +195,7 @@ class AuthController extends Controller
         try {
             $user = $this->authService->login($credentials);
 
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            $responseData = [
-                'user' => $user,
-                'token' => $token,
-                'message' => 'Login successful',
-            ];
+            $responseData = [];
 
             // Add verification info for landlords on successful login
             if ($user->role === 'landlord') {
@@ -183,7 +204,7 @@ class AuthController extends Controller
                 $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
             }
 
-            return response()->json($responseData);
+            return $this->buildAuthResponse($request, $user, 'Login successful', $responseData);
 
         } catch (ValidationException $e) {
             throw $e; // Re-throw validation exception to let Laravel handle the response
@@ -209,7 +230,20 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $currentToken = $request->user()?->currentAccessToken();
+        if ($currentToken) {
+            $currentToken->delete();
+        }
+
+        if ($this->shouldUseWebCookieAuth($request)) {
+            $guard = auth()->guard('web');
+            if ($guard->check()) {
+                $guard->logout();
+            }
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json([
             'message' => 'Logged out successfully',

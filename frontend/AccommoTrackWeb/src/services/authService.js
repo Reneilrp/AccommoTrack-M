@@ -1,7 +1,13 @@
-import api from "../utils/api";
+import api, { initCsrfCookie, SHOULD_USE_BEARER_AUTH } from "../utils/api";
 
 export const authService = {
   async register(name, email, password, password_confirmation) {
+    try {
+      await initCsrfCookie();
+    } catch {
+      // Token mode fallback (local/testing) does not require CSRF cookie.
+    }
+
     const response = await api.post("/register", {
       name,
       email,
@@ -11,15 +17,24 @@ export const authService = {
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }
-    if (response.data.token) {
+    if (response.data.token && SHOULD_USE_BEARER_AUTH) {
       localStorage.setItem("authToken", response.data.token);
       api.defaults.headers.common["Authorization"] =
         `Bearer ${response.data.token}`;
+    } else {
+      localStorage.removeItem("authToken");
+      delete api.defaults.headers.common["Authorization"];
     }
     return response.data;
   },
 
   async login(email, password) {
+    try {
+      await initCsrfCookie();
+    } catch {
+      // Token mode fallback (local/testing) does not require CSRF cookie.
+    }
+
     const response = await api.post("/login", {
       email,
       password,
@@ -27,10 +42,13 @@ export const authService = {
     if (response.data.user) {
       localStorage.setItem("userData", JSON.stringify(response.data.user));
     }
-    if (response.data.token) {
+    if (response.data.token && SHOULD_USE_BEARER_AUTH) {
       localStorage.setItem("authToken", response.data.token);
       api.defaults.headers.common["Authorization"] =
         `Bearer ${response.data.token}`;
+    } else {
+      localStorage.removeItem("authToken");
+      delete api.defaults.headers.common["Authorization"];
     }
     return response.data;
   },

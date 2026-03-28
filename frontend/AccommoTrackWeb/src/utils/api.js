@@ -4,6 +4,11 @@ import { getImageUrl } from "./imageUtils";
 const BASE_URL = import.meta.env.VITE_APP_URL;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${BASE_URL}/api`;
 const STORAGE_URL = import.meta.env.VITE_STORAGE_URL || `${BASE_URL}/storage`;
+const CLIENT_PLATFORM_HEADER = "X-Client-Platform";
+
+// Production defaults to cookie auth. Set VITE_WEB_USE_BEARER_AUTH=true to override.
+export const SHOULD_USE_BEARER_AUTH =
+  !import.meta.env.PROD || import.meta.env.VITE_WEB_USE_BEARER_AUTH === "true";
 
 // ---------------------------------------------------------------------------
 // Hybrid auth helper
@@ -29,6 +34,7 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     Accept: "application/json",
+    [CLIENT_PLATFORM_HEADER]: "web",
   },
 });
 
@@ -36,6 +42,13 @@ const api = axios.create({
 // Token is stored in localStorage for persistence across page reloads.
 api.interceptors.request.use(
   (config) => {
+    if (!SHOULD_USE_BEARER_AUTH) {
+      if (config.headers?.Authorization) {
+        delete config.headers.Authorization;
+      }
+      return config;
+    }
+
     const token = localStorage.getItem("authToken");
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
@@ -47,6 +60,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const skipAuthRedirect =
+      error.config?.headers?.["X-Skip-Auth-Redirect"] === "1" ||
+      error.config?.headers?.["x-skip-auth-redirect"] === "1" ||
+      error.config?.headers?.get?.("X-Skip-Auth-Redirect") === "1";
+
+    if (skipAuthRedirect) {
+      return Promise.reject(error);
+    }
+
     const isBlocked =
       error.response?.status === 403 &&
       (error.response?.data?.status === "blocked" ||
@@ -87,6 +109,7 @@ export const getAuthHeaders = () => {
   return {
     "Content-Type": "application/json",
     Accept: "application/json",
+    [CLIENT_PLATFORM_HEADER]: "web",
   };
 };
 
@@ -121,5 +144,6 @@ export const rootApi = axios.create({
   withCredentials: true,
   headers: {
     Accept: "application/json",
+    [CLIENT_PLATFORM_HEADER]: "web",
   },
 });

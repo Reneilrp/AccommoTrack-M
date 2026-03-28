@@ -512,7 +512,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'X-Client-Platform': 'mobile',
         },
         body: JSON.stringify({
           email: formData.email,
