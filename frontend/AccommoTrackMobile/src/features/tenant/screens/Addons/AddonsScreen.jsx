@@ -184,7 +184,7 @@ export default function AddonsScreen({ hideHeader = false }) {
           You need an active booking to request add-ons. Book a room first and come back here to enhance your stay.
         </Text>
         <TouchableOpacity
-          onPress={() => navigation.navigate('Explore')}
+          onPress={() => navigation.navigate('TenantHome')}
           style={[styles.requestActionBtn, { backgroundColor: theme.colors.primary, marginTop: 24, paddingHorizontal: 28 }]}
         >
           <Text style={styles.requestActionText}>Browse Properties</Text>

@@ -53,14 +53,27 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [fetchError, setFetchError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
+      setFetchError('');
       const [notifRes, activitiesRes] = await Promise.allSettled([
         api.get('/notifications?role=landlord'),
         api.get('/landlord/dashboard/recent-activities'),
       ]);
+
+      const notifFailed = notifRes.status !== 'fulfilled';
+      const activitiesFailed = activitiesRes.status !== 'fulfilled';
+      if (notifFailed && activitiesFailed) {
+        setFetchError('Unable to load notifications and activity feed right now. Please try again.');
+      } else if (notifFailed) {
+        setFetchError('Unable to load notifications right now. Please try again.');
+      } else if (activitiesFailed) {
+        setFetchError('Recent activity feed is temporarily unavailable.');
+      }
 
       const rawNotifs = notifRes.status === 'fulfilled'
         ? (notifRes.value.data?.data || notifRes.value.data || [])
@@ -94,6 +107,7 @@ export default function NotificationsPage() {
       setNotifications(merged);
     } catch (err) {
       console.error('Failed to load notifications:', err);
+      setFetchError('Unable to load notifications right now. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -102,13 +116,29 @@ export default function NotificationsPage() {
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
+    const previousState = notifications;
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    try { await api.patch(`/notifications/${id}/read`); } catch (_ignore) { /* ignore */ }
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setActionError('');
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+      setNotifications(previousState);
+      setActionError('Could not mark that notification as read. Please try again.');
+    }
   };
 
   const markAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    try { await api.patch('/notifications/read-all?role=landlord'); } catch (_ignore) { /* ignore */ }
+    const previousState = notifications;
+    setNotifications(prev => prev.map(n => (n._kind === 'notification' ? { ...n, read: true } : n)));
+    try {
+      await api.patch('/notifications/read-all?role=landlord');
+      setActionError('');
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+      setNotifications(previousState);
+      setActionError('Could not mark all notifications as read. Please try again.');
+    }
   };
 
   const handleClick = (n) => {
@@ -171,6 +201,21 @@ export default function NotificationsPage() {
           </button>
         ))}
       </div>
+
+      {(fetchError || actionError) && (
+        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+            <AlertCircle className="w-4 h-4 mt-0.5" />
+            <span>{actionError || fetchError}</span>
+          </div>
+          <button
+            onClick={fetchNotifications}
+            className="text-xs font-semibold text-red-700 dark:text-red-300 underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* List */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

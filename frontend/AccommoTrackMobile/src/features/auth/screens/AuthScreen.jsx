@@ -932,6 +932,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                         <Picker.Item label="Select Gender" value="" color="#9CA3AF" />
                         <Picker.Item label="Male" value="male" />
                         <Picker.Item label="Female" value="female" />
+                        <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
                       </Picker>
                     </View>
                   </View>

@@ -99,7 +99,6 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
     middleName: '',
     lastName: '',
     dob: null,
-    gender: '',
     email: '',
     phone: '',
     password: '',
@@ -130,6 +129,10 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
   // ID types
   const [idTypes, setIdTypes] = useState([]);
   const [idTypesLoading, setIdTypesLoading] = useState(false);
+  const idTypeOptions = useMemo(() => {
+    const withoutOther = idTypes.filter(type => type.toLowerCase() !== 'other');
+    return [...withoutOther, 'other'];
+  }, [idTypes]);
 
   // ——— Fetch ID types when reaching step 3 ———
   useEffect(() => {
@@ -142,7 +145,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
           setIdTypesLoading(false);
         })
         .catch(() => {
-          setIdTypes(['Passport', "Driver's License", 'National ID', 'SSS UMID', 'PhilHealth ID', 'Other']);
+          setIdTypes(['Passport', "Driver's License", 'National ID', 'SSS UMID', 'PhilHealth ID']);
           setIdTypesLoading(false);
         });
     }
@@ -216,7 +219,6 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
         if (age < 20) errors.dob = 'You must be at least 20 years old to register as a landlord';
         else if (age > 100) errors.dob = 'Please enter a valid date of birth';
       }
-      if (!form.gender) errors.gender = 'Gender is required';
     } else if (step === 2) {
       const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
       if (!form.email?.trim()) errors.email = 'Email address is required';
@@ -242,7 +244,7 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       else if (form.password !== form.confirmPassword) errors.confirmPassword = 'Passwords do not match';
     } else if (step === 3) {
       if (!form.validIdType) errors.validIdType = 'Please select a valid ID type';
-      else if (form.validIdType === 'Other' && !form.validIdOther?.trim()) errors.validIdOther = 'Please specify the type of ID';
+      else if (form.validIdType === 'other' && !form.validIdOther?.trim()) errors.validIdOther = 'Please specify the type of ID';
       if (!form.validId) errors.validId = 'Please upload a copy of your valid ID';
       if (!form.permit) errors.permit = 'Please upload your accommodation or business permit';
       if (!form.agree) errors.agree = 'You must agree to the terms and conditions';
@@ -296,12 +298,11 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
       if (form.middleName?.trim()) formData.append('middle_name', form.middleName.trim());
       formData.append('last_name', form.lastName.trim());
       formData.append('dob', form.dob ? new Date(form.dob).toISOString().split('T')[0] : '');
-      formData.append('gender', form.gender);
       formData.append('email', form.email.trim());
       if (form.phone?.trim()) formData.append('phone', form.phone.trim());
       formData.append('password', form.password);
       formData.append('valid_id_type', form.validIdType);
-      if (form.validIdType === 'Other') formData.append('valid_id_other', form.validIdOther);
+      if (form.validIdType === 'other') formData.append('valid_id_other', form.validIdOther);
       formData.append('agree', form.agree ? '1' : '0');
 
       // Attach files
@@ -465,24 +466,6 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   />
                 )}
 
-                {/* Gender */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 8 }}>Gender *</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {[{ value: 'male', label: 'Male', icon: 'male' }, { value: 'female', label: 'Female', icon: 'female' }, { value: 'rather_not_say', label: 'Prefer not to say', icon: 'ellipsis-horizontal' }].map(g => (
-                      <TouchableOpacity
-                        key={g.value}
-                        onPress={() => handleChange('gender', g.value)}
-                        style={[styles.roleButton, form.gender === g.value && styles.roleButtonActive, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]}
-                      >
-                        <Ionicons name={g.icon} size={16} color={form.gender === g.value ? theme.colors.primary : theme.colors.textSecondary} />
-                        <Text style={[styles.roleButtonText, form.gender === g.value && styles.roleButtonTextActive, { fontSize: 12 }]}>{g.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  {fieldErrors.gender ? <Text style={styles.inlineErrorText}>{fieldErrors.gender}</Text> : null}
-                </View>
-
                 <TouchableOpacity style={styles.submitButton} onPress={handleNext}>
                   <Text style={styles.submitButtonText}>Continue</Text>
                 </TouchableOpacity>
@@ -544,22 +527,27 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                   ) : (
                     <View style={styles.idTypeContainer}>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.idTypeScroll}>
-                        {idTypes.map(type => (
-                          <TouchableOpacity
-                            key={type}
-                            onPress={() => handleChange('validIdType', type)}
-                            style={[styles.idTypeBadge, { backgroundColor: form.validIdType === type ? theme.colors.primary : theme.colors.backgroundSecondary }]}
-                          >
-                            <Text style={[styles.idTypeBadgeText, { color: form.validIdType === type ? theme.colors.textInverse : theme.colors.text }]}>{type}</Text>
-                          </TouchableOpacity>
-                        ))}
+                        {idTypeOptions.map(type => {
+                          const isOther = type === 'other';
+                          return (
+                            <TouchableOpacity
+                              key={type}
+                              onPress={() => handleChange('validIdType', type)}
+                              style={[styles.idTypeBadge, { backgroundColor: form.validIdType === type ? theme.colors.primary : theme.colors.backgroundSecondary }]}
+                            >
+                              <Text style={[styles.idTypeBadgeText, { color: form.validIdType === type ? theme.colors.textInverse : theme.colors.text }]}>
+                                {isOther ? 'Other (specify below)' : type}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </ScrollView>
                     </View>
                   )}
                   {fieldErrors.validIdType ? <Text style={styles.inlineErrorText}>{fieldErrors.validIdType}</Text> : null}
                 </View>
 
-                {form.validIdType === 'Other' && renderInput('document-text-outline', 'Specify ID type *', 'validIdOther')}
+                {form.validIdType === 'other' && renderInput('document-text-outline', 'Specify ID type *', 'validIdOther')}
 
                 {/* Upload Valid ID */}
                 <TouchableOpacity

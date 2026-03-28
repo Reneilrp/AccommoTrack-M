@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Dimensions, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Menu/MyBookings.js';
@@ -35,14 +35,40 @@ export default function MyBookings() {
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
   const [submittingMoveOut, setSubmittingMoveOut] = useState(false);
   const [cancellingBookingId, setCancellingBookingId] = useState(null);
+  const [pendingTransferRequests, setPendingTransferRequests] = useState([]);
+  const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
+  const [cancellingTransferRequestId, setCancellingTransferRequestId] = useState(null);
+
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferRoomOptions, setTransferRoomOptions] = useState([]);
+  const [selectedTransferRoomId, setSelectedTransferRoomId] = useState(null);
+  const [transferReason, setTransferReason] = useState('');
+  const [transferOptionsMessage, setTransferOptionsMessage] = useState('');
+  const [transferContext, setTransferContext] = useState(null);
+
+  const getDaysUntilTransferReset = () => {
+    const now = new Date();
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return Math.max(1, Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  };
+
+  const closeTransferModal = () => {
+    setShowTransferModal(false);
+    setTransferRoomOptions([]);
+    setSelectedTransferRoomId(null);
+    setTransferReason('');
+    setTransferOptionsMessage('');
+    setTransferContext(null);
+  };
 
   const fetchData = async () => {
     try {
       if (!refreshing) setLoading(true);
       
-      const [stayRes, bookingsRes] = await Promise.all([
+      const [stayRes, bookingsRes, transferRes] = await Promise.all([
         TenantService.getCurrentStay(),
-        BookingService.getMyBookings()
+        BookingService.getMyBookings(),
+        TenantService.getTransferRequests(),
       ]);
 
       if (stayRes.success) {
@@ -60,6 +86,31 @@ export default function MyBookings() {
         setPendingBookings(all.filter(b => b.status?.toLowerCase() === 'pending'));
         // History: finished, rejected, or confirmed (if they are past stays)
         setHistoryData(all.filter(b => ['completed', 'confirmed', 'cancelled', 'rejected'].includes(b.status?.toLowerCase())));
+      }
+
+      if (transferRes.success) {
+        const transferList = Array.isArray(transferRes.data) ? transferRes.data : [];
+        const pendingRequests = transferList.filter(
+          (item) => String(item?.status || '').toLowerCase() === 'pending',
+        );
+        const currentMonthStart = new Date();
+        currentMonthStart.setDate(1);
+        currentMonthStart.setHours(0, 0, 0, 0);
+
+        const transferCountThisMonth = transferList.filter((item) => {
+          const status = String(item?.status || '').toLowerCase();
+          if (!['pending', 'approved'].includes(status)) return false;
+
+          if (!item?.created_at) return false;
+          const createdAt = new Date(item.created_at);
+          return createdAt >= currentMonthStart;
+        }).length;
+
+        setPendingTransferRequests(pendingRequests);
+        setMonthlyTransferCount(transferCountThisMonth);
+      } else {
+        setPendingTransferRequests([]);
+        setMonthlyTransferCount(0);
       }
     } catch (error) {
       console.error('Error fetching bookings data:', error);
@@ -174,36 +225,113 @@ export default function MyBookings() {
     );
   };
 
-  const handleRequestTransfer = async (booking, room) => {
+  const handleRequestTransfer = async (booking, property) => {
     if (!booking?.id || submittingTransfer) return;
 
-    Alert.alert(
-      'Request Room Transfer',
-      'Send transfer request to your landlord?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Request',
-          onPress: async () => {
-            setSubmittingTransfer(true);
-            const result = await TenantService.requestTransfer({
-              booking_id: booking.id,
-              current_room_id: room?.id || room?.room_id,
-              requested_date: new Date().toISOString().slice(0, 10),
-              tenant_notes: '',
-            });
+    const propertyId = property?.id || booking?.property_id;
+    if (!propertyId) {
+      Alert.alert('Request Failed', 'Could not identify the property for this transfer request.');
+      return;
+    }
 
-            if (result.success) {
-              Alert.alert('Transfer Requested', 'Your transfer request was sent to your landlord.');
-              fetchData();
-            } else {
-              Alert.alert('Request Failed', result.error || 'Failed to request transfer.');
-            }
-            setSubmittingTransfer(false);
-          },
-        },
-      ]
+    const existingPending = pendingTransferRequests.find(
+      (item) => Number(item?.booking_id) === Number(booking.id),
     );
+    if (existingPending) {
+      Alert.alert('Transfer Pending', 'You already have a pending transfer request for this booking.');
+      return;
+    }
+
+    if (monthlyTransferCount >= 2) {
+      const daysUntilReset = getDaysUntilTransferReset();
+      Alert.alert(
+        'Transfer Limit Reached',
+        `Room transfers are limited to 2 per month. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
+      );
+      return;
+    }
+
+    setSubmittingTransfer(true);
+
+    const optionsResult = await TenantService.getTransferOptions(booking.id, propertyId);
+    if (!optionsResult.success) {
+      Alert.alert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
+      setSubmittingTransfer(false);
+      return;
+    }
+
+    const rooms = Array.isArray(optionsResult.data) ? optionsResult.data : [];
+    if (rooms.length === 0) {
+      Alert.alert(
+        'No Eligible Rooms',
+        optionsResult.message || 'No eligible transfer rooms are currently available for this property.',
+      );
+      setSubmittingTransfer(false);
+      return;
+    }
+
+    setTransferRoomOptions(rooms);
+    setSelectedTransferRoomId(rooms[0]?.id || null);
+    setTransferReason('Requested via mobile app');
+    setTransferOptionsMessage(optionsResult.message || 'Select a target room and provide your reason.');
+    setTransferContext({
+      bookingId: booking.id,
+      propertyId,
+      propertyTitle: property?.title || 'this property',
+    });
+    setShowTransferModal(true);
+    setSubmittingTransfer(false);
+  };
+
+  const submitTransferRequest = async () => {
+    if (!transferContext?.bookingId || !transferContext?.propertyId) {
+      Alert.alert('Request Failed', 'Transfer context is incomplete. Please try again.');
+      return;
+    }
+
+    if (!selectedTransferRoomId) {
+      Alert.alert('Select a Room', 'Please choose a room to transfer into.');
+      return;
+    }
+
+    const normalizedReason = transferReason.trim();
+    if (!normalizedReason) {
+      Alert.alert('Reason Required', 'Please provide a reason for transfer.');
+      return;
+    }
+
+    setSubmittingTransfer(true);
+    const result = await TenantService.requestTransfer({
+      booking_id: transferContext.bookingId,
+      property_id: transferContext.propertyId,
+      requested_room_id: selectedTransferRoomId,
+      reason: normalizedReason,
+    });
+
+    if (result.success) {
+      Alert.alert('Transfer Requested', 'Your transfer request was sent to your landlord.');
+      closeTransferModal();
+      fetchData();
+    } else {
+      Alert.alert('Request Failed', result.error || 'Failed to request transfer.');
+    }
+    setSubmittingTransfer(false);
+  };
+
+  const handleCancelTransferRequest = async (transferRequestId) => {
+    if (!transferRequestId || cancellingTransferRequestId) return;
+
+    setCancellingTransferRequestId(transferRequestId);
+    const result = await TenantService.cancelTransferRequest(transferRequestId);
+
+    if (result.success) {
+      Alert.alert('Cancelled', result.message || 'Transfer request cancelled successfully.');
+      fetchData();
+    } else {
+      Alert.alert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
+    }
+
+    setCancellingTransferRequestId(null);
   };
 
   const handleRequestMoveOut = async (booking) => {
@@ -337,6 +465,12 @@ export default function MyBookings() {
     const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
     const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
     const canRequestExtension = !booking.isPending && !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
+    const pendingTransferForBooking = pendingTransferRequests.find(
+      (item) => Number(item?.booking_id) === Number(booking.id),
+    );
+    const transferLimitReached = monthlyTransferCount >= 2;
+    const daysUntilTransferReset = getDaysUntilTransferReset();
+    const transferButtonDisabled = submittingTransfer || Boolean(pendingTransferForBooking) || transferLimitReached;
 
     const translateX = slideAnim.interpolate({
       inputRange: [0, 1],
@@ -474,12 +608,40 @@ export default function MyBookings() {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={[styles.reviewBtn, { backgroundColor: submittingTransfer ? theme.colors.textTertiary : '#7C3AED' }]}
-                  disabled={submittingTransfer}
-                  onPress={() => handleRequestTransfer(booking, room)}
+                  style={[styles.reviewBtn, { backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : '#7C3AED' }]}
+                  disabled={transferButtonDisabled}
+                  onPress={() => handleRequestTransfer(booking, property)}
                 >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Transfer Room</Text>
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                    {pendingTransferForBooking
+                      ? 'Transfer Pending'
+                      : transferLimitReached
+                        ? 'Limit Reached'
+                        : submittingTransfer
+                          ? 'Loading...'
+                          : 'Transfer Room'}
+                  </Text>
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {!booking.isPending && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginBottom: 8 }}>
+                  Transfers this month: {monthlyTransferCount}/2
+                  {transferLimitReached ? ` (available again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'})` : ''}
+                </Text>
+                {pendingTransferForBooking && (
+                  <TouchableOpacity
+                    style={[styles.reviewBtn, { backgroundColor: '#DC2626' }]}
+                    disabled={cancellingTransferRequestId === pendingTransferForBooking.id}
+                    onPress={() => handleCancelTransferRequest(pendingTransferForBooking.id)}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                      {cancellingTransferRequestId === pendingTransferForBooking.id ? 'Cancelling...' : 'Cancel Pending Transfer'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -631,12 +793,9 @@ export default function MyBookings() {
               <TouchableOpacity
                 style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
                 onPress={() => navigation.navigate('Messages', { 
-                  state: { 
-                    startConversation: { 
-                      recipient_id: landlord?.id, 
-                      property_id: property?.id 
-                    } 
-                  } 
+                  startConversation: true,
+                  recipient: landlord?.id ? { id: landlord.id } : null,
+                  property: property?.id ? { id: property.id } : null,
                 })}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.colors.primary} />
@@ -775,6 +934,157 @@ export default function MyBookings() {
           </ScrollView>
         </View>
       )}
+
+      <Modal
+        visible={showTransferModal}
+        animationType="fade"
+        transparent
+        onRequestClose={closeTransferModal}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+        }}>
+          <View style={{
+            maxHeight: '85%',
+            borderRadius: 14,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            overflow: 'hidden',
+          }}>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                Request Room Transfer
+              </Text>
+              <TouchableOpacity onPress={closeTransferModal} style={{ padding: 4 }}>
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16 }}>
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: theme.colors.backgroundSecondary }}>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  {transferContext?.propertyTitle
+                    ? `Choose a room in ${transferContext.propertyTitle}.`
+                    : 'Choose a room for your transfer request.'}
+                </Text>
+              </View>
+
+              {!!transferOptionsMessage && (
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 12 }}>
+                  {transferOptionsMessage}
+                </Text>
+              )}
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                Select New Room
+              </Text>
+              <View style={{ gap: 8 }}>
+                {transferRoomOptions.map((roomOption) => {
+                  const selected = Number(selectedTransferRoomId) === Number(roomOption.id);
+                  const roomNumber = roomOption.room_number || roomOption.roomNumber || roomOption.id;
+                  const roomType = roomOption.type_label || roomOption.room_type || 'Room';
+
+                  return (
+                    <TouchableOpacity
+                      key={roomOption.id}
+                      onPress={() => setSelectedTransferRoomId(roomOption.id)}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: selected ? theme.colors.primaryLight : theme.colors.surface,
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
+                        Room {roomNumber}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                        {roomType}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 16, marginBottom: 8 }}>
+                Reason for Transfer
+              </Text>
+              <TextInput
+                value={transferReason}
+                onChangeText={setTransferReason}
+                placeholder="Provide your reason"
+                placeholderTextColor={theme.colors.textTertiary}
+                multiline
+                style={{
+                  minHeight: 90,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: theme.colors.text,
+                  textAlignVertical: 'top',
+                  backgroundColor: theme.colors.surface,
+                }}
+              />
+            </ScrollView>
+
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              flexDirection: 'row',
+              gap: 10,
+            }}>
+              <TouchableOpacity
+                onPress={closeTransferModal}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={submitTransferRequest}
+                disabled={submittingTransfer || !selectedTransferRoomId}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  backgroundColor: submittingTransfer || !selectedTransferRoomId ? theme.colors.textTertiary : '#7C3AED',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
+                  {submittingTransfer ? 'Sending...' : 'Send Request'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

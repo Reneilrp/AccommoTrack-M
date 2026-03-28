@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +34,8 @@ export default function NotificationsScreen({ navigation }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const notificationTypeMap = {
     booking: { icon: 'calendar', color: '#2196F3', bg: '#DBEAFE' },
@@ -49,6 +50,8 @@ export default function NotificationsScreen({ navigation }) {
 
   const fetchNotifications = useCallback(async () => {
     try {
+      setLoading(true);
+      setFetchError('');
       const response = await api.get('/notifications?role=landlord');
       const data = response.data;
       const list = data.data || data || [];
@@ -62,6 +65,7 @@ export default function NotificationsScreen({ navigation }) {
       })));
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setFetchError('Unable to load notifications right now. Pull to refresh or retry.');
     } finally {
       setLoading(false);
     }
@@ -78,6 +82,8 @@ export default function NotificationsScreen({ navigation }) {
   }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
+    const previousState = notifications;
+
     // Optimistic update
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -85,25 +91,33 @@ export default function NotificationsScreen({ navigation }) {
 
     try {
       await api.patch(`/notifications/${id}/read`);
+      setActionError('');
     } catch (error) {
       console.error('Error marking as read:', error);
+      setNotifications(previousState);
+      setActionError('Could not mark that notification as read. Please try again.');
     }
   };
 
   const markAllAsRead = async () => {
+    const previousState = notifications;
+
     // Optimistic update
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
     try {
       await api.patch('/notifications/read-all?role=landlord');
+      setActionError('');
     } catch (error) {
       console.error('Error marking all as read:', error);
+      setNotifications(previousState);
+      setActionError('Could not mark all notifications as read. Please try again.');
     }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  if (loading) {
+  if (loading && notifications.length === 0) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
@@ -132,6 +146,26 @@ export default function NotificationsScreen({ navigation }) {
 
       <ScrollView
         style={styles.scrollView}
+
+      {(fetchError || actionError) && (
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              borderColor: theme.isDark ? '#7F1D1D' : '#FECACA',
+              backgroundColor: theme.isDark ? 'rgba(127,29,29,0.32)' : '#FEF2F2',
+            },
+          ]}
+        >
+          <Ionicons name="alert-circle-outline" size={18} color={theme.isDark ? '#FCA5A5' : '#B91C1C'} />
+          <Text style={[styles.errorText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>
+            {actionError || fetchError}
+          </Text>
+          <TouchableOpacity onPress={fetchNotifications}>
+            <Text style={[styles.errorRetryText, { color: theme.isDark ? '#FCA5A5' : '#B91C1C' }]}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -305,5 +339,27 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#059669',
     marginLeft: 8,
+  },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  errorRetryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 10,
   },
 });

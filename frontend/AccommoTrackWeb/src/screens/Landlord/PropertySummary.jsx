@@ -513,7 +513,7 @@ function PropertyDashboard({ propertyId, navigate }) {
     const viewAction = () => {
       if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}&status=overdue`);
       else if (item.type === 'maintenance') navigate(`/maintenance?property_id=${propertyId}&request_id=${item.id}`);
-      else if (item.type === 'review') navigate(`/reviews/${item.id}`);
+      else if (item.type === 'review') navigate('/reviews');
       else navigate(`/bookings?property_id=${propertyId}&status=pending`);
     };
 

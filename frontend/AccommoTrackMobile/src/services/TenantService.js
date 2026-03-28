@@ -189,6 +189,83 @@ class TenantService {
   }
 
   /**
+   * Get eligible room options for transfer
+   */
+  async getTransferOptions(bookingId, propertyId) {
+    try {
+      const response = await api.get(`/tenant/transfers/options`, {
+        params: {
+          booking_id: bookingId,
+          property_id: propertyId,
+        },
+      });
+
+      const raw = response.data?.data || response.data || [];
+      return {
+        success: true,
+        data: Array.isArray(raw) ? raw : [],
+        message: response.data?.message || "",
+      };
+    } catch (error) {
+      console.error("Error fetching transfer options:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to fetch transfer options",
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * Get transfer requests for current tenant
+   */
+  async getTransferRequests() {
+    try {
+      const response = await api.get(`/tenant/transfers`);
+
+      const raw = response.data?.data || response.data || [];
+      return {
+        success: true,
+        data: Array.isArray(raw) ? raw : [],
+      };
+    } catch (error) {
+      console.error("Error fetching transfer requests:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to fetch transfer requests",
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * Cancel a pending transfer request
+   */
+  async cancelTransferRequest(transferRequestId) {
+    try {
+      const response = await api.patch(
+        `/tenant/transfers/${transferRequestId}/cancel`,
+      );
+
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message || "Transfer request cancelled.",
+      };
+    } catch (error) {
+      console.error("Error cancelling transfer request:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to cancel transfer request",
+      };
+    }
+  }
+
+  /**
    * Request an addon for current booking
    */
   async requestAddon(data) {
