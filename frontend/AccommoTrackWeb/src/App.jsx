@@ -23,6 +23,14 @@ function App() {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem("authToken");
       const userData = localStorage.getItem("userData");
+      const publicRoutes = new Set([
+        "/",
+        "/login",
+        "/register",
+        "/help",
+        "/become-landlord",
+      ]);
+      const currentPath = window.location.pathname;
 
       if (!SHOULD_USE_BEARER_AUTH) {
         localStorage.removeItem("authToken");
@@ -38,6 +46,16 @@ function App() {
           console.error("Error parsing cached user data:", error);
           localStorage.removeItem("userData");
         }
+      }
+
+      const shouldProbeSession =
+        !!token ||
+        !!userData ||
+        !publicRoutes.has(currentPath);
+
+      if (!shouldProbeSession) {
+        if (isActive) setIsLoading(false);
+        return;
       }
 
       try {

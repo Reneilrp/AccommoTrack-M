@@ -36,7 +36,7 @@ export const authService = {
     }
 
     const response = await api.post("/login", {
-      email,
+      email: (email || "").trim(),
       password,
     });
     if (response.data.user) {

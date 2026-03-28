@@ -611,13 +611,16 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
   };
 
   const validateLoginForm = () => {
-    if (!formData.email || !formData.password) {
+    const email = (formData.email || "").trim();
+    const password = formData.password || "";
+
+    if (!email || !password) {
       setError("Please fill in all fields");
       return false;
     }
 
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!emailRegex.test(email)) {
       setError("Please enter a valid email address");
       return false;
     }
@@ -776,7 +779,7 @@ function AuthScreen({ isRegister = false, onLogin = () => {} }) {
       }
 
       const result = await api.post("/login", {
-        email: formData.email,
+        email: (formData.email || "").trim(),
         password: formData.password,
       });
 

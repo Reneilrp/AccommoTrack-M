@@ -26,17 +26,47 @@ class AuthController extends Controller
         $this->authService = $authService;
     }
 
-    protected function shouldUseWebCookieAuth(Request $request): bool
+    protected function webCookieModeRequested(Request $request): bool
     {
         if (! app()->environment('production')) {
+            return false;
+        }
+
+        $cookieModeEnabled = filter_var(
+            env('AUTH_WEB_COOKIE_MODE', env('APP_ENV') === 'production'),
+            FILTER_VALIDATE_BOOL
+        );
+
+        if (! $cookieModeEnabled) {
             return false;
         }
 
         return strtolower((string) $request->header('X-Client-Platform', '')) === 'web';
     }
 
+    protected function shouldUseWebCookieAuth(Request $request): bool
+    {
+        return $this->webCookieModeRequested($request)
+            && (bool) $request->attributes->get('sanctum')
+            && $request->hasSession();
+    }
+
     protected function buildAuthResponse(Request $request, User $user, string $message, array $extra = []): JsonResponse
     {
+        if ($this->webCookieModeRequested($request) && ! (bool) $request->attributes->get('sanctum')) {
+            return response()->json([
+                'message' => 'Secure web login is not available for this origin. Check SANCTUM_STATEFUL_DOMAINS and frontend URL.',
+                'auth_mode' => 'cookie_unavailable',
+            ], 409);
+        }
+
+        if ($this->webCookieModeRequested($request) && ! $request->hasSession()) {
+            return response()->json([
+                'message' => 'Secure web login session is not initialized. Check stateful API middleware and session configuration.',
+                'auth_mode' => 'cookie_unavailable',
+            ], 409);
+        }
+
         if ($this->shouldUseWebCookieAuth($request)) {
             auth()->guard('web')->login($user);
             $request->session()->regenerate();
